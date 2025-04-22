@@ -19,19 +19,28 @@
 // ccap is short for CameraCAPture
 namespace ccap
 {
-enum class PixelFormat : uint8_t
+enum class PixelFormat : uint32_t
 {
     Unknown = 0,
-    YUV420P = 1,
-    YUV422P = 2,
-    YUV444P = 3,
-    NV12 = 4,
-    NV21 = 5,
-    RGB888 = 6,
-    BGR888 = 7,
-    RGBA8888 = 7, /// Alpha channel is filled with 0xFF
-    BGRA8888 = 8, /// Alpha channel is filled with 0xFF
+    YUVColorBit = 0x10000,
+    YUV420P = 1 | YUVColorBit,
+    NV12 = 2 | YUVColorBit,
+    NV21 = 3 | YUVColorBit,
+
+    RGBColorBit = 0x20000,
+    RGB888 = 4 | RGBColorBit, /// 3 bytes per pixel
+    BGR888 = 5 | RGBColorBit, /// 3 bytes per pixel
+
+    RGBAColorBit = 0x40000,
+    RGBA8888 = 6 | RGBAColorBit, /// 4 bytes per pixel, alpha channel is filled with 0xFF
+    BGRA8888 = 7 | RGBAColorBit, /// 4 bytes per pixel, alpha channel is filled with 0xFF
 };
+
+inline bool operator&(PixelFormat lhs, PixelFormat rhs)
+{
+    return (static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)) != 0;
+}
+
 /// @brief Interface for memory allocation, primarily used to allocate the `data` field in `ccap::Frame`.
 class Allocator : std::enable_shared_from_this<Allocator>
 {
@@ -74,7 +83,7 @@ struct Frame : std::enable_shared_from_this<Frame>
     /// For pixel format I420: `data[0]` contains Y, `data[1]` contains U, and `data[2]` contains V.
     /// For pixel format NV12/NV21: `data[0]` contains Y, `data[1]` contains interleaved UV, and `data[2]` is nullptr.
     /// For other formats: `data[0]` contains the data, while `data[1]` and `data[2]` are nullptr.
-    void* data[3] = {};
+    uint8_t* data[3] = {};
 
     /// @brief The pixel format of the frame.
     PixelFormat pixelFormat = PixelFormat::Unknown;
