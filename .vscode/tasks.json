@@ -1,0 +1,177 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Load Project",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "mkdir -p build && cd build && cmake .."
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "windows": {
+                "command": "cmd",
+                "args": [
+                    "/c",
+                    "( if not exist build (mkdir build ) ) & cd build & cmake .."
+                ],
+                "options": {
+                    "cwd": "${workspaceFolder}"
+                }
+            }
+        },
+        {
+            "label": "Build Project (Debug)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "(test -d build || (mkdir -p build && pushd . && cd build && cmake .. && popd) ); cmake --build build --parallel $(nproc)"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "windows": {
+                "command": "cmd",
+                "args": [
+                    "/c",
+                    "(if not exist \"build\" (mkdir build && cd build && cmake ..) ) & cmake --build \"${workspaceFolder}/build\" --parallel %NUMBER_OF_PROCESSORS%"
+                ],
+                "options": {
+                    "cwd": "${workspaceFolder}"
+                },
+                "problemMatcher": "$msCompile",
+            }
+        },
+        {
+            "label": "Build Project (Release)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "(test -d build || (mkdir -p build && pushd . && cd build && cmake .. && popd) ); cmake --build build --config Release --parallel $(nproc)"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "windows": {
+                "command": "cmd",
+                "args": [
+                    "/c",
+                    "(if not exist \"build\" (mkdir build && cd build && cmake ..) ) & cmake --build \"${workspaceFolder}/build\" --config Release --parallel %NUMBER_OF_PROCESSORS%"
+                ],
+                "options": {
+                    "cwd": "${workspaceFolder}"
+                },
+                "problemMatcher": "$msCompile",
+            }
+        },
+        {
+            "label": "Load And Build Project (Debug)",
+            "type": "shell",
+            "command": "echo",
+            "args": [
+                "Load And Build Project (Debug) - Done",
+            ],
+            "group": "build",
+            "dependsOn": [
+                "Load Project",
+                "Build Project (Debug)"
+            ],
+            "dependsOrder": "sequence",
+        },
+        {
+            "label": "Load And Build Project (Release)",
+            "type": "shell",
+            "command": "echo",
+            "args": [
+                "Load And Build Project (Release) - Done",
+            ],
+            "group": "build",
+            "dependsOn": [
+                "Load Project",
+                "Build Project (Release)"
+            ],
+            "dependsOrder": "sequence",
+        },
+        {
+            "label": "Run Project (Debug)",
+            "type": "shell",
+            "command": "./demo-cam",
+            "options": {
+                "cwd": "${workspaceFolder}/build"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Debug)"
+            ],
+            "windows": {
+                "command": ".\\demo-cam.exe",
+                "options": {
+                    "cwd": "${workspaceFolder}/build/Debug"
+                },
+                "problemMatcher": "$msCompile",
+            }
+        },
+        {
+            "label": "Run Project (Release)",
+            "type": "shell",
+            "command": "./demo-cam",
+            "options": {
+                "cwd": "${workspaceFolder}/build"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Release)"
+            ],
+            "windows": {
+                "command": ".\\demo-cam.exe",
+                "options": {
+                    "cwd": "${workspaceFolder}/build/Release"
+                },
+                "problemMatcher": "$msCompile",
+            }
+        },
+        {
+            "label": "Clean Project",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "git clean -fdx build || rm -rf build"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "windows": {
+                "command": "cmd",
+                "args": [
+                    "/c",
+                    "git clean -fdx build || rmdir /s /q build"
+                ],
+                "options": {
+                    "cwd": "${workspaceFolder}"
+                }
+            }
+        }
+    ]
+}
