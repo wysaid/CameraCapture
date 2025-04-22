@@ -1,5 +1,7 @@
 # CameraCapture - A Lightweight C++ Camera Library
 
+[![Windows Build with VS2022](https://github.com/wysaid/CameraCapture/workflows/Windows%20Build%20with%20VS2022/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/windows-build.yml)
+
 [English](./README.md) | [中文](./README.zh-CN.md)
 
 ## Overview
