@@ -16,10 +16,10 @@
 
 namespace ccap
 {
-class ProviderOSX : public Provider
+class ProviderWin : public Provider
 {
 public:
-    ~ProviderOSX() override = default;
+    ~ProviderWin() override;
     bool open(std::string_view deviceName) override;
     bool isOpened() const override;
     void close() override;
@@ -33,7 +33,10 @@ public:
     void setFrameAllocator(std::shared_ptr<Allocator> allocator) override;
 
 private:
+    std::function<void(std::shared_ptr<Frame>)> m_callback;
+    std::shared_ptr<Allocator> m_allocator;
 };
+} // namespace ccap
 
 #endif
 #endif // CAMERA_CAPTURE_WIN_H
