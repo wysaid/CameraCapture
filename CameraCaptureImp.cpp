@@ -152,7 +152,7 @@ std::shared_ptr<Frame> ProviderImp::getFreeFrame()
             if (m_framePool.size() > m_maxCacheFrameSize)
             {
 #ifdef DEBUG
-                std::cout << "Frame pool is full, new frame allocated..." << std::endl;
+                std::cerr << "Frame pool is full, new frame allocated..." << std::endl;
 #endif
                 m_framePool.erase(m_framePool.end());
             }

@@ -14,6 +14,12 @@
 
 #include "CameraCaptureImp.h"
 
+#if __OBJC__
+
+@class CameraCaptureObjc;
+
+#endif
+
 namespace ccap
 {
 class ProviderMac : public ProviderImp
@@ -28,8 +34,8 @@ public:
     bool isStarted() const override;
 
 private:
+    CameraCaptureObjc* m_imp{};
 };
-
 } // namespace ccap
 
 #endif
