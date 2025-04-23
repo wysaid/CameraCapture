@@ -1,11 +1,12 @@
 /**
  * @file CameraCaptureMac.mm
  * @author wysaid (this@wysaid.org)
- * @brief Header file for CameraCapture class.
+ * @brief Source file for ProviderMac class.
  * @date 2025-04
  *
  */
 
+#include <memory>
 #if __APPLE__
 
 #include "CameraCaptureMac.h"
@@ -31,23 +32,22 @@ void ProviderMac::close()
     // Implementation for closing the camera on macOS
 }
 
-void ProviderMac::start()
+bool ProviderMac::start()
 {
     // Implementation for starting the camera capture on macOS
+    return false;
 }
 
-void ProviderMac::pause()
+void ProviderMac::stop()
 {
     // Implementation for stopping the camera capture on macOS
 }
 
-void ProviderMac::isStarted()
+bool ProviderMac::isStarted() const
 {
     // Implementation for checking if the camera capture is started on macOS
+    return false;
 }
-
-bool ProviderMac::set(Pro
-
 
 } // namespace ccap
 

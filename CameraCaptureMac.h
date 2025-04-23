@@ -1,7 +1,6 @@
 /**
  * @file CameraCaptureMac.h
  * @author wysaid (this@wysaid.org)
- * @brief Header file for CameraCapture class.
  * @date 2025-04
  *
  */
@@ -13,11 +12,11 @@
 
 #if __APPLE__
 
-#include "CameraCapture.h"
+#include "CameraCaptureImp.h"
 
 namespace ccap
 {
-class ProviderMac : public Provider
+class ProviderMac : public ProviderImp
 {
 public:
     ~ProviderMac() override;
@@ -25,16 +24,12 @@ public:
     bool isOpened() const override;
     void close() override;
     bool start() override;
-    void pause() override;
+    void stop() override;
     bool isStarted() const override;
-    bool set(Property prop, double value) override;
-    double get(Property prop) override;
-    std::shared_ptr<Frame> grab(bool waitNewFrame) override;
-    void setNewFrameCallback(std::function<void(std::shared_ptr<Frame>)> callback) override;
-    void setFrameAllocator(std::shared_ptr<Allocator> allocator) override;
 
 private:
 };
+
 } // namespace ccap
 
 #endif

@@ -8,8 +8,9 @@
 
 #include "CameraCapture.h"
 
-#include <iostream>
+#include "CameraCaptureMac.h"
 
+#include <iostream>
 
 namespace ccap
 {
@@ -37,7 +38,7 @@ Provider::~Provider() = default;
 std::shared_ptr<Provider> createProvider()
 {
 #if __APPLE__
-    return std::make_shared<Provider>();
+    return std::make_shared<ProviderMac>();
 #elif defined(_MSC_VER) || defined(_WIN32)
 #endif
 

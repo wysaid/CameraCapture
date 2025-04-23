@@ -1,7 +1,7 @@
 /**
  * @file CameraCaptureWin.cpp
  * @author wysaid (this@wysaid.org)
- * @brief Implementation for CameraCapture class using MSMF.
+ * @brief Implementation for ProviderWin class using MSMF.
  * @date 2025-04
  *
  */
@@ -348,9 +348,9 @@ std::shared_ptr<Frame> ProviderWin::grab(bool waitNewFrame)
     return m_latestFrame;
 }
 
-void ProviderWin::setNewFrameCallback(std::function<void(std::shared_ptr<Frame>)> callback)
+void ProviderWin::setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)> callback)
 {
-    m_callback = std::make_shared<std::function<void(std::shared_ptr<Frame>)>>(std::move(callback));
+    m_callback = std::make_shared<std::function<bool(std::shared_ptr<Frame>)>>(std::move(callback));
 }
 
 void ProviderWin::setFrameAllocator(std::shared_ptr<Allocator> allocator)

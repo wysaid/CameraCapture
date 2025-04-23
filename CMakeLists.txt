@@ -13,6 +13,7 @@ file(GLOB LIB_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DI
 
 if(APPLE)
     file(GLOB LIB_SOURCE_MAC ${CMAKE_CURRENT_SOURCE_DIR}/*.mm)
+    message(STATUS "Using Objective-C++ for macOS: ${LIB_SOURCE_MAC}")
     list(APPEND LIB_SOURCE ${LIB_SOURCE_MAC})
 endif()
 

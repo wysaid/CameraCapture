@@ -108,7 +108,7 @@ struct Frame : std::enable_shared_from_this<Frame>
     std::shared_ptr<Allocator> allocator;
 };
 
-enum class Property
+enum class PropertyName
 {
     /// @brief The width of the frame.
     Width = 0,
@@ -120,6 +120,9 @@ enum class Property
     /// @brief The pixel format of the frame.
     PixelFormat = 4
 };
+
+constexpr int DEFAULT_MAX_CACHE_FRAME_SIZE = 10;
+constexpr int DEFAULT_MAX_AVAILABLE_FRAME_SIZE = 3;
 
 class Provider
 {
@@ -154,9 +157,9 @@ public:
     virtual bool start() = 0;
 
     /**
-     * @brief Pauses frame capturing. You can call `start` to resume capturing later.
+     * @brief Stop frame capturing. You can call `start` to resume capturing later.
      */
-    virtual void pause() = 0;
+    virtual void stop() = 0;
 
     /**
      * @return true if the capture device is open and actively capturing frames, false otherwise.
@@ -168,8 +171,9 @@ public:
      * @param prop The property to set. See #Property.
      * @param value The value to assign to the property. The value type is double, but the actual type depends on the property. Not all properties can be set.
      * @return true if the property was successfully set, false otherwise.
+     * @note Some properties may require the camera to be restarted to take effect.
      */
-    virtual bool set(Property prop, double value) = 0;
+    virtual bool set(PropertyName prop, double value) = 0;
 
     /**
      * @brief Get a property of the camera.
@@ -178,31 +182,52 @@ public:
      *   The value type is double, but the actual type depends on the property.
      *   Not all properties support being get.
      */
-    virtual double get(Property prop) = 0;
+    virtual double get(PropertyName prop) = 0;
 
     /**
      * @brief Grab a new frame. Can be called from any thread, but avoid concurrent calls.
-     * @param waitNewFrame If true, wait for a new frame to be available. If false, return nullptr immediately. If the provider is not opened or paused, errors will be printed to `stderr`.
+     * @param waitForNewFrame If true, wait for a new frame to be available. If false, return nullptr immediately. If the provider is not opened or paused, errors will be printed to `stderr`.
      * @return a valid `shared_ptr<Frame>` if a new frame is available, nullptr otherwise.
      * @note The returned frame is a shared pointer, and the caller can hold and use it later in any thread.
      *       The frame will be automatically reused when the last reference is released.
      */
-    virtual std::shared_ptr<Frame> grab(bool waitNewFrame) = 0;
+    virtual std::shared_ptr<Frame> grab(bool waitForNewFrame) = 0;
 
     /**
      * @brief Registers a callback to receive new frames.
      * @param callback The function to be invoked when a new frame is available.
+     *    The callback returns true to indicate that the frame has been processed and does not need to be retained.
+     *    In this case, the next call to grab() will not return this frame.
+     *    The callback returns false to indicate that the frame should be retained.
+     *    In this case, the next call to grab() may return this frame.
      * @note The callback is executed in a background thread.
      *       The provided frame is a shared pointer, allowing the caller to retain and use it in any thread.
      *       The frame will be automatically recycled once the last reference is released.
      */
-    virtual void setNewFrameCallback(std::function<void(std::shared_ptr<Frame>)> callback) = 0;
+    virtual void setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)> callback) = 0;
 
     /**
      * @brief Set the frame allocator.
      * @param allocator The allocator to be used for frame data. If not specified, `DefaultAllocator` will be used.
      */
     virtual void setFrameAllocator(std::shared_ptr<Allocator> allocator) = 0;
+
+    /**
+     * @brief Sets the maximum number of available frames in the cache. If this limit is exceeded, the oldest frames will be discarded.
+     * @param size The new maximum number of available frames in the cache.
+     *     It is recommended to set this to at least 1 to avoid performance degradation.
+     *     The default value is DEFAULT_MAX_AVAILABLE_FRAME_SIZE (3).
+     */
+    virtual void setMaxAvailableFrameSize(uint32_t size) = 0;
+
+    /**
+     * @brief Sets the maximum number of frames in the internal cache. This affects performance.
+     *     Setting it too high will consume excessive memory, while setting it too low may cause frequent memory allocations, reducing performance.
+     * @param size The new maximum number of frames in the cache.
+     *     It is recommended to set this to at least 3 to avoid performance degradation.
+     *     The default value is DEFAULT_MAX_CACHE_FRAME_SIZE (10).
+     */
+    virtual void setMaxCacheFrameSize(uint32_t size) = 0;
 };
 
 std::shared_ptr<Provider> createProvider();

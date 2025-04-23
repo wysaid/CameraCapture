@@ -1,7 +1,7 @@
 /**
  * @file CameraCaptureWin.h
  * @author wysaid (this@wysaid.org)
- * @brief Header file for CameraCapture class.
+ * @brief Header file for ProviderWin class.
  * @date 2025-04
  *
  */
@@ -40,7 +40,7 @@ public:
     bool set(Property prop, double value) override;
     double get(Property prop) override;
     std::shared_ptr<Frame> grab(bool waitNewFrame) override;
-    void setNewFrameCallback(std::function<void(std::shared_ptr<Frame>)> callback) override;
+    void setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)> callback) override;
     void setFrameAllocator(std::shared_ptr<Allocator> allocator) override;
 
 private:
