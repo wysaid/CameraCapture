@@ -42,4 +42,5 @@ file(GLOB DEMO_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/demo/*.cpp ${CMAKE_CURRENT_SOU
 
 add_executable(CameraDemo ${DEMO_SOURCE})
 
+target_include_directories(CameraDemo PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(CameraDemo CameraCapture)
