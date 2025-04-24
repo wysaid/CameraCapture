@@ -4,13 +4,13 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Load Project",
+            "label": "Load Project (Debug)",
             "type": "shell",
             "command": "bash",
             "args": [
                 "-l",
                 "-c",
-                "mkdir -p build && cd build && cmake .."
+                "mkdir -p build/Debug && cd build/Debug && cmake ../.. -DCMAKE_BUILD_TYPE=Debug"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -21,7 +21,32 @@
                 "command": "cmd",
                 "args": [
                     "/c",
-                    "( if not exist build (mkdir build ) ) & cd build & cmake .."
+                    "( if not exist build (mkdir build ) ) & cd build & cmake ../.. -DCMAKE_BUILD_TYPE=Debug"
+                ],
+                "options": {
+                    "cwd": "${workspaceFolder}"
+                }
+            }
+        },
+        {
+            "label": "Load Project (Release)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "mkdir -p build/Release && cd build/Release && cmake ../.. -DCMAKE_BUILD_TYPE=Release"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "windows": {
+                "command": "cmd",
+                "args": [
+                    "/c",
+                    "( if not exist build (mkdir build ) ) & cd build & cmake .. -DCMAKE_BUILD_TYPE=Release"
                 ],
                 "options": {
                     "cwd": "${workspaceFolder}"
@@ -35,7 +60,7 @@
             "args": [
                 "-l",
                 "-c",
-                "(test -d build || (mkdir -p build && pushd . && cd build && cmake .. && popd) ); cmake --build build --parallel $(nproc)"
+                "(test -d build/Debug || (mkdir -p build/Debug && pushd . && cd build/Debug && cmake ../.. -DCMAKE_BUILD_TYPE=Debug && popd) ); cmake --build build/Debug --config Debug --parallel $(nproc)"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -61,7 +86,7 @@
             "args": [
                 "-l",
                 "-c",
-                "(test -d build || (mkdir -p build && pushd . && cd build && cmake .. && popd) ); cmake --build build --config Release --parallel $(nproc)"
+                "(test -d build/Release || (mkdir -p build/Release && pushd . && cd build && cmake ../.. -DCMAKE_BUILD_TYPE=Release && popd) ); cmake --build build/Release --config Release --parallel $(nproc)"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -89,7 +114,7 @@
             ],
             "group": "build",
             "dependsOn": [
-                "Load Project",
+                "Load Project (Debug)",
                 "Build Project (Debug)"
             ],
             "dependsOrder": "sequence",
@@ -103,7 +128,7 @@
             ],
             "group": "build",
             "dependsOn": [
-                "Load Project",
+                "Load Project (Release)",
                 "Build Project (Release)"
             ],
             "dependsOrder": "sequence",
@@ -111,9 +136,9 @@
         {
             "label": "Run Project (Debug)",
             "type": "shell",
-            "command": "./demo-cam",
+            "command": "./CameraDemo",
             "options": {
-                "cwd": "${workspaceFolder}/build"
+                "cwd": "${workspaceFolder}/build/Debug"
             },
             "group": "build",
             "problemMatcher": "$gcc",
@@ -121,19 +146,16 @@
                 "Build Project (Debug)"
             ],
             "windows": {
-                "command": ".\\demo-cam.exe",
-                "options": {
-                    "cwd": "${workspaceFolder}/build/Debug"
-                },
+                "command": ".\\CameraDemo.exe",
                 "problemMatcher": "$msCompile",
             }
         },
         {
             "label": "Run Project (Release)",
             "type": "shell",
-            "command": "./demo-cam",
+            "command": "./CameraDemo",
             "options": {
-                "cwd": "${workspaceFolder}/build"
+                "cwd": "${workspaceFolder}/build/Release"
             },
             "group": "build",
             "problemMatcher": "$gcc",
@@ -141,10 +163,7 @@
                 "Build Project (Release)"
             ],
             "windows": {
-                "command": ".\\demo-cam.exe",
-                "options": {
-                    "cwd": "${workspaceFolder}/build/Release"
-                },
+                "command": ".\\CameraDemo.exe",
                 "problemMatcher": "$msCompile",
             }
         },
