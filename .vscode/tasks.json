@@ -10,7 +10,7 @@
             "args": [
                 "-l",
                 "-c",
-                "mkdir -p build/Debug && cd build/Debug && cmake ../.. -DCMAKE_BUILD_TYPE=Debug"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then cmd.exe /c \" ( if not exist build (mkdir build ) ) & cd build & cmake .. \"; else mkdir -p build/Debug && cd build/Debug && cmake ../.. -DCMAKE_BUILD_TYPE=Debug; fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -18,14 +18,15 @@
             "group": "build",
             "problemMatcher": "$gcc",
             "windows": {
-                "command": "cmd",
+                "command": "cmd.exe",
                 "args": [
                     "/c",
-                    "( if not exist build (mkdir build ) ) & cd build & cmake ../.. -DCMAKE_BUILD_TYPE=Debug"
+                    "( if not exist build (mkdir build ) ) & cd build & cmake .. "
                 ],
                 "options": {
                     "cwd": "${workspaceFolder}"
-                }
+                },
+                "problemMatcher": "$msCompile",
             }
         },
         {
@@ -35,7 +36,7 @@
             "args": [
                 "-l",
                 "-c",
-                "mkdir -p build/Release && cd build/Release && cmake ../.. -DCMAKE_BUILD_TYPE=Release"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then cmd.exe /c \" ( if not exist build (mkdir build ) ) & cd build & cmake .. \"; else mkdir -p build/Release && cd build/Release && cmake ../.. -DCMAKE_BUILD_TYPE=Release; fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -46,11 +47,12 @@
                 "command": "cmd",
                 "args": [
                     "/c",
-                    "( if not exist build (mkdir build ) ) & cd build & cmake .. -DCMAKE_BUILD_TYPE=Release"
+                    "( if not exist build (mkdir build ) ) & cd build & cmake .."
                 ],
                 "options": {
                     "cwd": "${workspaceFolder}"
-                }
+                },
+                "problemMatcher": "$msCompile",
             }
         },
         {
@@ -60,7 +62,7 @@
             "args": [
                 "-l",
                 "-c",
-                "(test -d build/Debug || (mkdir -p build/Debug && pushd . && cd build/Debug && cmake ../.. -DCMAKE_BUILD_TYPE=Debug && popd) ); cmake --build build/Debug --config Debug --parallel $(nproc)"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then cmd.exe /c \" cmake --build build --config Debug --parallel %NUMBER_OF_PROCESSORS% \"; else cmake --build build/Debug --config Debug --parallel $(nproc); fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -71,7 +73,7 @@
                 "command": "cmd",
                 "args": [
                     "/c",
-                    "(if not exist \"build\" (mkdir build && cd build && cmake ..) ) & cmake --build \"${workspaceFolder}/build\" --parallel %NUMBER_OF_PROCESSORS%"
+                    "(if not exist build (mkdir build && cd build && cmake ..) ) & cmake --build build --parallel %NUMBER_OF_PROCESSORS%"
                 ],
                 "options": {
                     "cwd": "${workspaceFolder}"
@@ -86,7 +88,7 @@
             "args": [
                 "-l",
                 "-c",
-                "(test -d build/Release || (mkdir -p build/Release && pushd . && cd build && cmake ../.. -DCMAKE_BUILD_TYPE=Release && popd) ); cmake --build build/Release --config Release --parallel $(nproc)"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then cmd.exe /c \" cmake --build build --config Release --parallel %NUMBER_OF_PROCESSORS% \"; else cmake --build build/Release --config Release --parallel $(nproc); fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -97,7 +99,7 @@
                 "command": "cmd",
                 "args": [
                     "/c",
-                    "(if not exist \"build\" (mkdir build && cd build && cmake ..) ) & cmake --build \"${workspaceFolder}/build\" --config Release --parallel %NUMBER_OF_PROCESSORS%"
+                    "(if not exist build (mkdir build && cd build && cmake ..) ) & cmake --build build --config Release --parallel %NUMBER_OF_PROCESSORS%"
                 ],
                 "options": {
                     "cwd": "${workspaceFolder}"
@@ -134,7 +136,7 @@
             "dependsOrder": "sequence",
         },
         {
-            "label": "Run Project (Debug)",
+            "label": "Run Demo (Debug)",
             "type": "shell",
             "command": "./CameraDemo",
             "options": {
@@ -151,7 +153,7 @@
             }
         },
         {
-            "label": "Run Project (Release)",
+            "label": "Run Demo (Release)",
             "type": "shell",
             "command": "./CameraDemo",
             "options": {

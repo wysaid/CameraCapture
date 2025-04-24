@@ -4,9 +4,13 @@
         "*.cc": "cpp",
         "*.conf": "apacheconf",
         "*.h": "cpp",
-        "*Mac.h": "objective-cpp",
+        "*.mat": "json",
+        "*.metamat": "json",
+        "*.SKaul": "lua",
         "CMakeLists*.txt": "cmake",
+        "params.txt": "json",
         "*.pch": "objective-cpp",
+        "*Mac.h": "objective-cpp",
         "array": "cpp",
         "span": "cpp",
         "string": "cpp",
@@ -77,6 +81,14 @@
         "stop_token": "cpp",
         "text_encoding": "cpp",
         "thread": "cpp",
-        "fstream": "cpp"
+        "fstream": "cpp",
+        "numbers": "cpp",
+        "__bits": "cpp",
+        "__config": "cpp",
+        "__debug": "cpp",
+        "__errc": "cpp",
+        "__mutex_base": "cpp",
+        "__threading_support": "cpp",
+        "__tuple": "cpp"
     }
 }
