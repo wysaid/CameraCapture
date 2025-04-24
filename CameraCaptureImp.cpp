@@ -8,6 +8,7 @@
 
 #include "CameraCaptureImp.h"
 
+#include <cmath>
 #include <iostream>
 
 namespace ccap

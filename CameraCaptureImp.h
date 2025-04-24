@@ -13,7 +13,9 @@
 
 #include "CameraCapture.h"
 
+#include <condition_variable>
 #include <deque>
+#include <mutex>
 #include <queue>
 
 namespace ccap
