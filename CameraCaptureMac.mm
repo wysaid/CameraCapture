@@ -14,7 +14,7 @@
 #import <Foundation/Foundation.h>
 #include <memory>
 
-@interface CameraCaptureObjc ()<AVCaptureVideoDataOutputSampleBufferDelegate>
+@interface CameraCaptureObjc : NSObject<AVCaptureVideoDataOutputSampleBufferDelegate>
 
 @property (nonatomic, strong) AVCaptureSession* session;
 @property (nonatomic, strong) AVCaptureDevice* device;

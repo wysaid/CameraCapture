@@ -15,9 +15,9 @@
 #include "CameraCaptureImp.h"
 
 #if __OBJC__
-
 @class CameraCaptureObjc;
-
+#else
+typedef void* CameraCaptureObjc;
 #endif
 
 namespace ccap
