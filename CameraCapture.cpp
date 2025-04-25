@@ -14,6 +14,7 @@
 
 namespace ccap
 {
+Allocator::~Allocator() = default;
 DefaultAllocator::~DefaultAllocator() = default;
 void DefaultAllocator::resize(size_t size)
 {

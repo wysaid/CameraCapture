@@ -23,6 +23,10 @@ target_compile_definitions(CameraCapture PUBLIC "$<IF:$<CONFIG:Debug>,DEBUG=1,ND
 
 if(APPLE)
     target_compile_options(CameraCapture PUBLIC -fobjc-arc)
+    target_link_libraries(CameraCapture
+        "-framework Foundation"
+        "-framework CoreVideo"
+        "-framework CoreMedia")
 endif()
 
 if(MSVC)

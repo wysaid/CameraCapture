@@ -127,7 +127,6 @@ constexpr int DEFAULT_MAX_AVAILABLE_FRAME_SIZE = 3;
 class Provider
 {
 public:
-    Provider();
     virtual ~Provider() = 0;
 
     /**
@@ -137,6 +136,8 @@ public:
      * @return true if the device was successfully opened, false otherwise.
      */
     virtual bool open(std::string_view deviceName) = 0;
+
+    inline bool open() { return open(""); }
 
     /**
      * @return true if the capture device is currently open, false otherwise.
@@ -162,6 +163,7 @@ public:
     virtual void stop() = 0;
 
     /**
+     * @brief Determines whether the camera is currently in a started state. Even if not manually stopped, the camera may stop due to reasons such as the device going offline (e.g., USB camera being unplugged).
      * @return true if the capture device is open and actively capturing frames, false otherwise.
      */
     virtual bool isStarted() const = 0;
