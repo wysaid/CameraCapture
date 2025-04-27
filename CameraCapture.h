@@ -141,10 +141,13 @@ enum class PropertyName
 constexpr uint32_t DEFAULT_MAX_CACHE_FRAME_SIZE = 10;
 constexpr uint32_t DEFAULT_MAX_AVAILABLE_FRAME_SIZE = 3;
 
+class ProviderImp;
+
 class Provider
 {
 public:
-    virtual ~Provider() = 0;
+    explicit Provider(ProviderImp* imp);
+    ~Provider();
 
     /**
      * @brief Opens a capture device.
@@ -152,38 +155,38 @@ public:
      * @param deviceName The name of the device to open. The format is platform-dependent. Pass an empty string to use the default device.
      * @return true if the device was successfully opened, false otherwise.
      */
-    virtual bool open(std::string_view deviceName) = 0;
+    bool open(std::string_view deviceName);
 
     inline bool open() { return open(""); }
 
     /**
      * @return true if the capture device is currently open, false otherwise.
      */
-    virtual bool isOpened() const = 0;
+    bool isOpened() const;
 
     /**
      * @brief Closes the capture device. After calling this, the object should no longer be used.
      * @note This function is automatically called when the object is destroyed.
      *       You can also call it manually to release resources.
      */
-    virtual void close() = 0;
+    void close();
 
     /**
      * @brief Starts capturing frames.
      * @return true if capturing started successfully, false otherwise.
      */
-    virtual bool start() = 0;
+    bool start();
 
     /**
      * @brief Stop frame capturing. You can call `start` to resume capturing later.
      */
-    virtual void stop() = 0;
+    void stop();
 
     /**
      * @brief Determines whether the camera is currently in a started state. Even if not manually stopped, the camera may stop due to reasons such as the device going offline (e.g., USB camera being unplugged).
      * @return true if the capture device is open and actively capturing frames, false otherwise.
      */
-    virtual bool isStarted() const = 0;
+    bool isStarted() const;
 
     /**
      * @brief Sets a property of the camera.
@@ -192,7 +195,7 @@ public:
      * @return true if the property was successfully set, false otherwise.
      * @note Some properties may require the camera to be restarted to take effect.
      */
-    virtual bool set(PropertyName prop, double value) = 0;
+    bool set(PropertyName prop, double value);
 
     /**
      * @brief Get a property of the camera.
@@ -201,7 +204,7 @@ public:
      *   The value type is double, but the actual type depends on the property.
      *   Not all properties support being get.
      */
-    virtual double get(PropertyName prop) = 0;
+    double get(PropertyName prop);
 
     /**
      * @brief Grab a new frame. Can be called from any thread, but avoid concurrent calls.
@@ -210,7 +213,7 @@ public:
      * @note The returned frame is a shared pointer, and the caller can hold and use it later in any thread.
      *       The frame will be automatically reused when the last reference is released.
      */
-    virtual std::shared_ptr<Frame> grab(bool waitForNewFrame) = 0;
+    std::shared_ptr<Frame> grab(bool waitForNewFrame);
 
     /**
      * @brief Registers a callback to receive new frames.
@@ -223,13 +226,13 @@ public:
      *       The provided frame is a shared pointer, allowing the caller to retain and use it in any thread.
      *       The frame will be automatically recycled once the last reference is released.
      */
-    virtual void setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)> callback) = 0;
+    void setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)> callback);
 
     /**
      * @brief Set the frame allocator.
      * @param allocator The allocator to be used for frame data. If not specified, `DefaultAllocator` will be used.
      */
-    virtual void setFrameAllocator(std::shared_ptr<Allocator> allocator) = 0;
+    void setFrameAllocator(std::shared_ptr<Allocator> allocator);
 
     /**
      * @brief Sets the maximum number of available frames in the cache. If this limit is exceeded, the oldest frames will be discarded.
@@ -237,7 +240,7 @@ public:
      *     It is recommended to set this to at least 1 to avoid performance degradation.
      *     The default value is DEFAULT_MAX_AVAILABLE_FRAME_SIZE (3).
      */
-    virtual void setMaxAvailableFrameSize(uint32_t size) = 0;
+    void setMaxAvailableFrameSize(uint32_t size);
 
     /**
      * @brief Sets the maximum number of frames in the internal cache. This affects performance.
@@ -246,7 +249,10 @@ public:
      *     It is recommended to set this to at least 3 to avoid performance degradation.
      *     The default value is DEFAULT_MAX_CACHE_FRAME_SIZE (10).
      */
-    virtual void setMaxCacheFrameSize(uint32_t size) = 0;
+    void setMaxCacheFrameSize(uint32_t size);
+
+private:
+    std::unique_ptr<ProviderImp> m_imp;
 };
 
 Provider* createProvider();

@@ -39,18 +39,25 @@ struct FrameProperty
     }
 };
 
-class ProviderImp : public Provider
+class ProviderImp
 {
 public:
     ProviderImp();
-    ~ProviderImp() override;
-    bool set(PropertyName prop, double value) override;
-    double get(PropertyName prop) override;
-    void setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)> callback) override;
-    void setFrameAllocator(std::shared_ptr<Allocator> allocator) override;
-    std::shared_ptr<Frame> grab(bool waitForNewFrame) override;
-    void setMaxAvailableFrameSize(uint32_t size) override;
-    void setMaxCacheFrameSize(uint32_t size) override;
+    virtual ~ProviderImp();
+    bool set(PropertyName prop, double value);
+    double get(PropertyName prop);
+    void setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)> callback);
+    void setFrameAllocator(std::shared_ptr<Allocator> allocator);
+    std::shared_ptr<Frame> grab(bool waitForNewFrame);
+    void setMaxAvailableFrameSize(uint32_t size);
+    void setMaxCacheFrameSize(uint32_t size);
+
+    virtual bool open(std::string_view deviceName) = 0;
+    virtual bool isOpened() const = 0;
+    virtual void close() = 0;
+    virtual bool start() = 0;
+    virtual void stop() = 0;
+    virtual bool isStarted() const = 0;
 
 protected:
     void newFrameAvailable(std::shared_ptr<Frame> frame);
