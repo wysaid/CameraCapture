@@ -13,7 +13,10 @@
 
 namespace ccap
 {
-extern LogLevel g_logLevel;
+ProviderImp::ProviderImp() :
+    m_allocator(std::make_shared<DefaultAllocator>())
+{
+}
 
 ProviderImp::~ProviderImp() = default;
 
@@ -86,7 +89,14 @@ std::shared_ptr<Frame> ProviderImp::grab(bool waitForNewFrame)
     if (m_availableFrames.empty() && waitForNewFrame)
     {
         m_grabFrameWaiting = true;
-        m_frameCondition.wait(lock, [this]() { return m_grabFrameWaiting && !m_availableFrames.empty(); });
+        m_frameCondition.wait(lock, [this]() {
+            auto ret = m_grabFrameWaiting && !m_availableFrames.empty();
+            if (!ret && verboseLogEnabled())
+            {
+                std::cerr << "Grab called with no frame available, waiting for new frame..." << std::endl;
+            }
+            return ret;
+        });
         m_grabFrameWaiting = false;
     }
 
@@ -154,7 +164,7 @@ std::shared_ptr<Frame> ProviderImp::getFreeFrame()
         {
             if (m_framePool.size() > m_maxCacheFrameSize)
             {
-                if (g_logLevel & LogLevel::Warning)
+                if (warningLogEnabled())
                 {
                     std::cerr << "Frame pool is full, new frame allocated..." << std::endl;
                 }
@@ -174,25 +184,33 @@ std::shared_ptr<Frame> ProviderImp::getFreeFrame()
 
 void ProviderImp::updateFrameInfo(Frame& frame)
 {
-    frame.width = m_frameProp.width;
-    frame.height = m_frameProp.height;
-    frame.pixelFormat = m_frameProp.pixelFormat;
     frame.frameIndex = m_frameProp.frameIndex++;
 
     if (frame.pixelFormat & PixelFormat::YUVColorBit)
     {
-        auto bytes = frame.width * frame.height * 3 / 2;
+        auto yBytes = frame.width * frame.height;
+        auto bytes = yBytes * 3 / 2;
         frame.sizeInBytes = bytes;
         frame.allocator->resize(bytes);
+
         frame.data[0] = frame.allocator->data();
-        frame.data[1] = frame.data[0] + frame.width * frame.height;
+        frame.data[1] = frame.data[0] + yBytes;
+
+        frame.stride[0] = frame.width;
+
         if (frame.pixelFormat == PixelFormat::YUV420P)
         {
-            frame.data[2] = frame.data[1] + frame.width * frame.height / 4;
+            frame.data[2] = frame.data[1] + yBytes / 4;
+
+            frame.stride[1] = frame.width / 2;
+            frame.stride[2] = frame.stride[1];
         }
         else
         {
             frame.data[2] = nullptr;
+
+            frame.stride[1] = frame.width;
+            frame.stride[2] = 0;
         }
     }
     else

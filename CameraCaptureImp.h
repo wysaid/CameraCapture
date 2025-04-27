@@ -42,6 +42,7 @@ struct FrameProperty
 class ProviderImp : public Provider
 {
 public:
+    ProviderImp();
     ~ProviderImp() override;
     bool set(PropertyName prop, double value) override;
     double get(PropertyName prop) override;
@@ -56,10 +57,7 @@ protected:
     std::shared_ptr<Frame> getFreeFrame();
     void updateFrameInfo(Frame& frame);
 
-    uint32_t m_maxAvailableFrameSize{ DEFAULT_MAX_AVAILABLE_FRAME_SIZE };
-    uint32_t m_maxCacheFrameSize{ DEFAULT_MAX_CACHE_FRAME_SIZE };
-
-private:
+protected:
     // 回调和分配器
     std::shared_ptr<std::function<bool(std::shared_ptr<Frame>)>> m_callback;
     std::shared_ptr<Allocator> m_allocator;
@@ -73,9 +71,26 @@ private:
     std::condition_variable m_frameCondition;
 
     FrameProperty m_frameProp;
+
+    uint32_t m_maxAvailableFrameSize{ DEFAULT_MAX_AVAILABLE_FRAME_SIZE };
+    uint32_t m_maxCacheFrameSize{ DEFAULT_MAX_CACHE_FRAME_SIZE };
+
     bool m_propertyChanged{ false };
     bool m_grabFrameWaiting{ false };
 };
+
+/// For internal use.
+extern LogLevel globalLogLevel;
+
+inline bool operator&(LogLevel lhs, LogLevel rhs)
+{
+    return (static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)) != 0;
+}
+
+inline bool errorLogEnabled() { return globalLogLevel & LogLevel::Error; }
+inline bool warningLogEnabled() { return globalLogLevel & LogLevel::Warning; }
+inline bool infoLogEnabled() { return globalLogLevel & LogLevel::Info; }
+inline bool verboseLogEnabled() { return globalLogLevel & LogLevel::Verbose; }
 
 } // namespace ccap
 

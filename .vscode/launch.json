@@ -5,10 +5,21 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "(Windows) Launch",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/CameraDemo.exe",
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "console": "integratedTerminal",
+            "preLaunchTask": "Build Project (Debug)"
+        },
+        {
             "name": "(gdb) Launch (Linux/MacOS)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/demo-cam",
+            "program": "${workspaceFolder}/build/Debug/CameraDemo",
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build",
             "externalConsole": false,
@@ -16,17 +27,6 @@
             "osx": {
                 "MIMode": "lldb"
             }
-        },
-        {
-            "name": "(Windows) Launch",
-            "type": "cppvsdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/Debug/demo-cam.exe",
-            "stopAtEntry": false,
-            "cwd": "${fileDirname}",
-            "environment": [],
-            "console": "integratedTerminal",
-            "preLaunchTask": "Build Project (Debug)"
         }
     ]
 }

@@ -11,14 +11,13 @@
 #include "CameraCaptureMac.h"
 
 #import <AVFoundation/AVFoundation.h>
+#import <Cocoa/Cocoa.h>
 #import <Foundation/Foundation.h>
 
-namespace ccap
-{
-extern LogLevel g_logLevel;
-}
-
 @interface CameraCaptureObjc : NSObject<AVCaptureVideoDataOutputSampleBufferDelegate>
+{
+    ccap::ProviderMac* _provider;
+}
 
 @property (nonatomic, strong) AVCaptureSession* session;
 @property (nonatomic, strong) AVCaptureDevice* device;
@@ -28,7 +27,7 @@ extern LogLevel g_logLevel;
 @property (nonatomic, strong) dispatch_queue_t captureQueue;
 @property (nonatomic) CGSize resolution;
 
-- (instancetype)init;
+- (instancetype)initWithProvider:(ccap::ProviderMac*)provider captureSize:(CGSize)sz;
 - (BOOL)start;
 - (void)stop;
 
@@ -36,24 +35,27 @@ extern LogLevel g_logLevel;
 
 @implementation CameraCaptureObjc
 
-- (instancetype)init
+- (instancetype)initWithProvider:(ccap::ProviderMac*)provider captureSize:(CGSize)sz
 {
     self = [super init];
     if (self)
     {
+        _provider = provider;
+        _resolution = sz;
         _session = [[AVCaptureSession alloc] init];
         [_session beginConfiguration];
+        AVCaptureSessionPreset preset = AVCaptureSessionPresetHigh;
 
         if (_resolution.width > 0 && _resolution.height > 0)
         {
             NSArray* resolutions = @[
-                @[ @320, @240 ],
-                @[ @352, @288 ],
-                @[ @640, @480 ],
-                @[ @960, @540 ],
-                @[ @1280, @720 ],
-                @[ @1920, @1080 ],
-                @[ @3840, @2160 ],
+                @[ @320, @240, AVCaptureSessionPreset320x240 ],
+                @[ @352, @288, AVCaptureSessionPreset352x288 ],
+                @[ @640, @480, AVCaptureSessionPreset640x480 ],
+                @[ @960, @540, AVCaptureSessionPreset960x540 ],
+                @[ @1280, @720, AVCaptureSessionPreset1280x720 ],
+                @[ @1920, @1080, AVCaptureSessionPreset1920x1080 ],
+                @[ @3840, @2160, AVCaptureSessionPreset3840x2160 ],
             ];
 
             CGSize inputSize = _resolution;
@@ -64,12 +66,18 @@ extern LogLevel g_logLevel;
                 {
                     _resolution.width = [res[0] intValue];
                     _resolution.height = [res[1] intValue];
+                    preset = res[2];
                     break;
                 }
             }
 
-            if (ccap::g_logLevel & ccap::LogLevel::Info)
-                NSLog(@"Camera resolution: %gx%g", _resolution.width, _resolution.height);
+            [_session setSessionPreset:preset];
+
+            if (ccap::infoLogEnabled())
+            {
+                NSLog(@"Expected camera resolution: (%gx%g), actual matched camera resolution: (%gx%g)",
+                      inputSize.width, inputSize.height, _resolution.width, _resolution.height);
+            }
         }
 
         if (_cameraName != nil && _cameraName.length > 0)
@@ -92,7 +100,7 @@ extern LogLevel g_logLevel;
 
         if (![_device hasMediaType:AVMediaTypeVideo])
         {
-            if (ccap::g_logLevel & ccap::LogLevel::Error)
+            if (ccap::errorLogEnabled())
                 NSLog(@"No video device found");
             return nil;
         }
@@ -100,7 +108,13 @@ extern LogLevel g_logLevel;
         NSError* error = nil;
         [_device lockForConfiguration:&error];
         if ([_device isFocusModeSupported:AVCaptureFocusModeContinuousAutoFocus])
+        {
             [_device setFocusMode:AVCaptureFocusModeContinuousAutoFocus];
+            if (ccap::verboseLogEnabled())
+            {
+                NSLog(@"Set focus mode to continuous auto focus");
+            }
+        }
         [_device unlockForConfiguration];
 
         // Create input device
@@ -110,7 +124,7 @@ extern LogLevel g_logLevel;
             [AVCaptureDeviceInput deviceInputWithDevice:self.device error:&error];
             if (error)
             {
-                if (ccap::g_logLevel & ccap::LogLevel::Error)
+                if (ccap::errorLogEnabled())
                 {
                     NSLog(@"Open camera failed: %@", error);
                 }
@@ -122,13 +136,17 @@ extern LogLevel g_logLevel;
         if ([_session canAddInput:_videoInput])
         {
             [_session addInput:_videoInput];
+            if (ccap::verboseLogEnabled())
+            {
+                NSLog(@"Add input to session");
+            }
         }
 
         // Create output device
         _videoOutput = [[AVCaptureVideoDataOutput alloc] init];
         [_videoOutput setAlwaysDiscardsLateVideoFrames:YES]; // better performance
 
-        _videoOutput.videoSettings = @{ (id)kCVPixelBufferPixelFormatTypeKey : @(kCVPixelFormatType_24BGR) };
+        _videoOutput.videoSettings = @{ (id)kCVPixelBufferPixelFormatTypeKey : @(kCVPixelFormatType_32BGRA) };
 
         // Set output queue
         _captureQueue = dispatch_queue_create("ccap.queue", DISPATCH_QUEUE_SERIAL);
@@ -138,15 +156,109 @@ extern LogLevel g_logLevel;
         if ([_session canAddOutput:_videoOutput])
         {
             [_session addOutput:_videoOutput];
+            if (ccap::verboseLogEnabled())
+            {
+                NSLog(@"Add output to session");
+            }
         }
 
         [_session commitConfiguration];
-
-        NSDictionary* videoSettings = [_videoOutput videoSettings];
-        _resolution.width = [[videoSettings objectForKey:@"Width"] floatValue];
-        _resolution.height = [[videoSettings objectForKey:@"Height"] floatValue];
+        [self flushResolution];
     }
     return self;
+}
+
+- (void)flushResolution
+{
+    NSDictionary* videoSettings = [_videoOutput videoSettings];
+    CGSize realSize = CGSizeMake([[videoSettings objectForKey:@"Width"] floatValue],
+                                 [[videoSettings objectForKey:@"Height"] floatValue]);
+    if (!CGSizeEqualToSize(_resolution, realSize))
+    {
+        if ((realSize.width <= 0 || realSize.height <= 0) && ccap::errorLogEnabled())
+        {
+            NSLog(@"CameraCaptureObjc flushResolution - invalid resolution");
+        }
+        else if (ccap::infoLogEnabled())
+        {
+            NSLog(@"Info: Camera resolution changed. from: (%gx%g) to: (%gx%g)",
+                  _resolution.width, _resolution.height, realSize.width, realSize.height);
+        }
+
+        _resolution = realSize;
+    }
+}
+
+- (BOOL)start
+{
+    if (_session && ![_session isRunning])
+    {
+        if (ccap::verboseLogEnabled())
+        {
+            NSLog(@"CameraCaptureObjc start");
+        }
+        [_session startRunning];
+    }
+    return [_session isRunning];
+}
+
+- (void)stop
+{
+    if (_session && [_session isRunning])
+    {
+        if (ccap::verboseLogEnabled())
+        {
+            NSLog(@"CameraCaptureObjc stop");
+        }
+        [_session stopRunning];
+    }
+}
+
+- (BOOL)isRunning
+{
+    return [_session isRunning];
+}
+
+- (void)destroy
+{
+    if (_session)
+    {
+        if (ccap::verboseLogEnabled())
+        {
+            NSLog(@"CameraCaptureObjc destroy");
+        }
+
+        [_session stopRunning];
+        [_videoOutput setSampleBufferDelegate:nil queue:dispatch_get_main_queue()];
+
+        [_session beginConfiguration];
+
+        if (_videoInput)
+        {
+            [_session removeInput:_videoInput];
+            [_session removeOutput:_videoOutput];
+            _videoInput = nil;
+            _videoOutput = nil;
+        }
+
+        [_session commitConfiguration];
+        _session = nil;
+    }
+}
+
+- (void)dealloc
+{
+    if (ccap::verboseLogEnabled())
+    {
+        NSLog(@"CameraCaptureObjc dealloc - begin");
+    }
+
+    [self destroy];
+
+    if (ccap::verboseLogEnabled())
+    {
+        NSLog(@"CameraCaptureObjc dealloc - end");
+    }
 }
 
 // 处理每一帧的数据
@@ -154,6 +266,13 @@ extern LogLevel g_logLevel;
     didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
            fromConnection:(AVCaptureConnection*)connection
 {
+    if (!_provider)
+    {
+        if (ccap::errorLogEnabled())
+            NSLog(@"CameraCaptureObjc captureOutput - provider is nil");
+        return;
+    }
+
     // 获取图像缓冲区
     CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
 
@@ -163,67 +282,97 @@ extern LogLevel g_logLevel;
     // 获取分辨率和数据地址
     size_t width = CVPixelBufferGetWidth(imageBuffer);
     size_t height = CVPixelBufferGetHeight(imageBuffer);
+    size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
+    size_t bytes = CVPixelBufferGetDataSize(imageBuffer);
     void* baseAddress = CVPixelBufferGetBaseAddress(imageBuffer);
 
-    // 打印帧信息
+    auto newFrame = _provider->getFreeFrame();
+    CMTime timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer);
+    newFrame->timestamp = (uint64_t)(CMTimeGetSeconds(timestamp) * 1e9);
+    newFrame->width = width;
+    newFrame->height = height;
+    newFrame->pixelFormat = ccap::PixelFormat::BGRA8888;
 
-    if (ccap::g_logLevel & ccap::LogLevel::Verbose)
+    if (newFrame->sizeInBytes != bytes)
     {
-        NSLog(@"Frame resolution: %lux%lu, Data address: %p", width, height, baseAddress);
+        if (!newFrame->allocator)
+            newFrame->allocator = _provider->allocator();
+        newFrame->allocator->resize(bytes);
+        newFrame->sizeInBytes = bytes;
     }
 
-    // 解锁图像缓冲区
+    newFrame->data[0] = newFrame->allocator->data();
+    newFrame->data[1] = nullptr;
+    newFrame->data[2] = nullptr;
+    newFrame->stride[0] = bytesPerRow;
+    newFrame->stride[1] = 0;
+    newFrame->stride[2] = 0;
+
+    memcpy(newFrame->data[0], baseAddress, bytes);
+
     CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
-}
 
-- (BOOL)start
-{
-    return NO;
-}
-
-- (void)stop
-{
-    // Implementation for stopping the camera capture
+    if (ccap::verboseLogEnabled())
+    {
+        NSLog(@"New frame available: %lux%lu, bytes %lu, Data address: %p", width, height, bytesPerRow * height, baseAddress);
+    }
+    _provider->newFrameAvailable(std::move(newFrame));
 }
 
 @end
 
 namespace ccap
 {
-ProviderMac::~ProviderMac() = default;
+ProviderMac::~ProviderMac()
+{
+    if (m_imp)
+    {
+        [m_imp destroy];
+        m_imp = nil;
+    }
+}
 
 bool ProviderMac::open(std::string_view deviceName)
 {
-    // Implementation for opening the camera on macOS
-    return true;
+    if (m_imp != nil)
+    {
+        if (ccap::errorLogEnabled())
+        {
+            NSLog(@"Camera is already opened");
+        }
+        return false;
+    }
+
+    m_imp = [[CameraCaptureObjc alloc] initWithProvider:this captureSize:CGSizeMake(m_frameProp.width, m_frameProp.height)];
+    return isOpened();
 }
 
 bool ProviderMac::isOpened() const
 {
-    // Implementation for checking if the camera is opened on macOS
-    return true;
+    return m_imp && m_imp.session;
 }
 
 void ProviderMac::close()
 {
-    // Implementation for closing the camera on macOS
+    m_imp = nil;
 }
 
 bool ProviderMac::start()
 {
-    // Implementation for starting the camera capture on macOS
-    return false;
+    return m_imp && [m_imp start];
 }
 
 void ProviderMac::stop()
 {
-    // Implementation for stopping the camera capture on macOS
+    if (m_imp)
+    {
+        [m_imp stop];
+    }
 }
 
 bool ProviderMac::isStarted() const
 {
-    // Implementation for checking if the camera capture is started on macOS
-    return false;
+    return m_imp && [m_imp isRunning];
 }
 
 } // namespace ccap

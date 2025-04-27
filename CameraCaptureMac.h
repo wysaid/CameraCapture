@@ -33,6 +33,12 @@ public:
     void stop() override;
     bool isStarted() const override;
 
+    using ProviderImp::getFreeFrame;
+    using ProviderImp::newFrameAvailable;
+    using ProviderImp::updateFrameInfo;
+
+    const std::shared_ptr<Allocator>& allocator() const { return m_allocator; }
+
 private:
     CameraCaptureObjc* m_imp{};
 };

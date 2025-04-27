@@ -79,23 +79,30 @@ struct Frame : std::enable_shared_from_this<Frame>
     Frame(const Frame&) = delete;
     Frame& operator=(const Frame&) = delete;
 
-    /// @brief Frame data, stored using the allocator.
-    /// For pixel format I420: `data[0]` contains Y, `data[1]` contains U, and `data[2]` contains V.
-    /// For pixel format NV12/NV21: `data[0]` contains Y, `data[1]` contains interleaved UV, and `data[2]` is nullptr.
-    /// For other formats: `data[0]` contains the data, while `data[1]` and `data[2]` are nullptr.
+    /**
+     * @brief Frame data, stored using the allocator.
+     *     For pixel format I420: `data[0]` contains Y, `data[1]` contains U, and `data[2]` contains V.
+     *     For pixel format NV12/NV21: `data[0]` contains Y, `data[1]` contains interleaved UV, and `data[2]` is nullptr.
+     *     For other formats: `data[0]` contains the data, while `data[1]` and `data[2]` are nullptr.
+     */
     uint8_t* data[3] = {};
+
+    /**
+     * @brief Frame data stride.
+     */
+    uint32_t stride[3] = {};
 
     /// @brief The pixel format of the frame.
     PixelFormat pixelFormat = PixelFormat::Unknown;
 
     /// @brief The width of the frame in pixels.
-    int width = 0;
+    uint32_t width = 0;
 
     /// @brief The height of the frame in pixels.
-    int height = 0;
+    uint32_t height = 0;
 
     /// @brief The size of the frame data in bytes.
-    int sizeInBytes = 0;
+    uint32_t sizeInBytes = 0;
 
     /// @brief The timestamp of the frame in nanoseconds.
     uint64_t timestamp = 0;
@@ -131,8 +138,8 @@ enum class PropertyName
     PixelFormat = 4
 };
 
-constexpr int DEFAULT_MAX_CACHE_FRAME_SIZE = 10;
-constexpr int DEFAULT_MAX_AVAILABLE_FRAME_SIZE = 3;
+constexpr uint32_t DEFAULT_MAX_CACHE_FRAME_SIZE = 10;
+constexpr uint32_t DEFAULT_MAX_AVAILABLE_FRAME_SIZE = 3;
 
 class Provider
 {
@@ -242,7 +249,7 @@ public:
     virtual void setMaxCacheFrameSize(uint32_t size) = 0;
 };
 
-std::shared_ptr<Provider> createProvider();
+Provider* createProvider();
 
 enum class LogLevel
 {
@@ -257,11 +264,6 @@ enum class LogLevel
     /// @brief Debug log level.
     Verbose = Warning | 8,
 };
-
-inline bool operator&(LogLevel lhs, LogLevel rhs)
-{
-    return (static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)) != 0;
-}
 
 void setLogLevel(LogLevel level);
 } // namespace ccap

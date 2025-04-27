@@ -5,6 +5,9 @@
 
 int main()
 {
+    /// Enable verbose log to see debug information
+    ccap::setLogLevel(ccap::LogLevel::Verbose);
+
     auto cameraProvider = ccap::createProvider();
     if (!cameraProvider)
     {
