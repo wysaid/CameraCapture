@@ -25,6 +25,7 @@ if(APPLE)
     target_compile_options(CameraCapture PUBLIC -fobjc-arc)
     target_link_libraries(CameraCapture
         "-framework Foundation"
+        "-framework AVFoundation"
         "-framework CoreVideo"
         "-framework CoreMedia")
 endif()

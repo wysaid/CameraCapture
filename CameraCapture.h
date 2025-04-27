@@ -110,11 +110,21 @@ struct Frame : std::enable_shared_from_this<Frame>
 
 enum class PropertyName
 {
-    /// @brief The width of the frame.
+    /**
+     * @brief The width of the frame.
+     * @note When used to set the capture resolution, the closest available resolution will be chosen.
+     *       If possible, a resolution with both width and height greater than or equal to the specified values will be selected.
+     *       Example: For supported resolutions 1024x1024, 800x800, 800x600, and 640x480, setting 600x600 results in 800x600.
+     */
     Width = 0,
-    /// @brief The height of the frame.
+    /**
+     * @brief The height of the frame.
+     * @note When used to set the capture resolution, the closest available resolution will be chosen.
+     *       If possible, a resolution with both width and height greater than or equal to the specified values will be selected.
+     *       Example: For supported resolutions 1024x1024, 800x800, 800x600, and 640x480, setting 600x600 results in 800x600.
+     */
     Height = 1,
-    /// @brief The frame rate of the camera.
+    /// @brief The frame rate of the camera, aka FPS (frames per second).
     FrameRate = 3,
 
     /// @brief The pixel format of the frame.
@@ -234,6 +244,26 @@ public:
 
 std::shared_ptr<Provider> createProvider();
 
+enum class LogLevel
+{
+    /// @brief No log output.
+    None = 0,
+    /// @brief Error log level. Will output to `stderr` if an error occurs.
+    Error = 1,
+    /// @brief Warning log level.
+    Warning = Error | 2,
+    /// @brief Info log level.
+    Info = Warning | 4,
+    /// @brief Debug log level.
+    Verbose = Warning | 8,
+};
+
+inline bool operator&(LogLevel lhs, LogLevel rhs)
+{
+    return (static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)) != 0;
+}
+
+void setLogLevel(LogLevel level);
 } // namespace ccap
 
 #endif // CAMERA_CAPTURE_H

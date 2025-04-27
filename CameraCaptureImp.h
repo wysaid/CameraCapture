@@ -20,6 +20,25 @@
 
 namespace ccap
 {
+struct FrameProperty
+{
+    double fps{ 30.0 };
+    PixelFormat pixelFormat{ PixelFormat::BGR888 };
+    uint32_t frameIndex{};
+    int width{ 640 };
+    int height{ 480 };
+
+    inline bool operator==(const FrameProperty& prop) const
+    {
+        return fps == prop.fps && pixelFormat == prop.pixelFormat &&
+            width == prop.width && height == prop.height;
+    }
+    inline bool operator!=(const FrameProperty& prop) const
+    {
+        return !(*this == prop);
+    }
+};
+
 class ProviderImp : public Provider
 {
 public:
@@ -31,25 +50,6 @@ public:
     std::shared_ptr<Frame> grab(bool waitForNewFrame) override;
     void setMaxAvailableFrameSize(uint32_t size) override;
     void setMaxCacheFrameSize(uint32_t size) override;
-
-    struct FrameProperty
-    {
-        double fps{ 30.0 };
-        PixelFormat pixelFormat{ PixelFormat::BGR888 };
-        uint32_t frameIndex{};
-        int width{ 640 };
-        int height{ 480 };
-
-        inline bool operator==(const FrameProperty& prop) const
-        {
-            return fps == prop.fps && pixelFormat == prop.pixelFormat &&
-                width == prop.width && height == prop.height;
-        }
-        inline bool operator!=(const FrameProperty& prop) const
-        {
-            return !(*this == prop);
-        }
-    };
 
 protected:
     void newFrameAvailable(std::shared_ptr<Frame> frame);

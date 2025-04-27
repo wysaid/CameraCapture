@@ -16,6 +16,8 @@ namespace ccap
 {
 Allocator::~Allocator() = default;
 DefaultAllocator::~DefaultAllocator() = default;
+LogLevel g_logLevel = LogLevel::Info;
+
 void DefaultAllocator::resize(size_t size)
 {
     m_data.resize(size);
@@ -43,7 +45,16 @@ std::shared_ptr<Provider> createProvider()
 #elif defined(_MSC_VER) || defined(_WIN32)
 #endif
 
-    std::cerr << "Unsupported platform!" << std::endl;
+    if (g_logLevel & LogLevel::Error)
+    {
+        std::cerr << "Unsupported platform!" << std::endl;
+    }
     return nullptr;
 }
+
+void setLogLevel(LogLevel level)
+{
+    g_logLevel = level;
+}
+
 } // namespace ccap

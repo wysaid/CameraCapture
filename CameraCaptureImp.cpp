@@ -13,6 +13,8 @@
 
 namespace ccap
 {
+extern LogLevel g_logLevel;
+
 ProviderImp::~ProviderImp() = default;
 
 bool ProviderImp::set(PropertyName prop, double value)
@@ -152,9 +154,10 @@ std::shared_ptr<Frame> ProviderImp::getFreeFrame()
         {
             if (m_framePool.size() > m_maxCacheFrameSize)
             {
-#ifdef DEBUG
-                std::cerr << "Frame pool is full, new frame allocated..." << std::endl;
-#endif
+                if (g_logLevel & LogLevel::Warning)
+                {
+                    std::cerr << "Frame pool is full, new frame allocated..." << std::endl;
+                }
                 m_framePool.erase(m_framePool.end());
             }
         }
