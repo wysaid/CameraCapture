@@ -13,10 +13,17 @@
 #import <AVFoundation/AVFoundation.h>
 #import <Cocoa/Cocoa.h>
 #import <Foundation/Foundation.h>
+#include <cmath>
 
 @interface CameraCaptureObjc : NSObject<AVCaptureVideoDataOutputSampleBufferDelegate>
 {
     ccap::ProviderMac* _provider;
+
+    /// for verbose log
+    uint64_t _frameCounter;
+    uint64_t _lastFrameTime;
+    double _duration;
+    double _fps;
 }
 
 @property (nonatomic, strong) AVCaptureSession* session;
@@ -40,6 +47,10 @@
     self = [super init];
     if (self)
     {
+        _duration = 0;
+        _fps = 0;
+        _frameCounter = 0;
+
         _provider = provider;
         _resolution = sz;
         _session = [[AVCaptureSession alloc] init];
@@ -314,8 +325,26 @@
 
     if (ccap::verboseLogEnabled())
     {
-        NSLog(@"New frame available: %lux%lu, bytes %lu, Data address: %p", width, height, bytesPerRow * height, baseAddress);
+        if (_lastFrameTime != 0)
+        {
+            _duration += (newFrame->timestamp - _lastFrameTime) / 1.e9;
+        }
+        _lastFrameTime = newFrame->timestamp;
+        ++_frameCounter;
+
+        if (_duration > 0.5 || _frameCounter >= 30)
+        {
+            auto newFps = _frameCounter / _duration;
+            constexpr double alpha = 0.4; // Smoothing factor, smaller value means smoother
+            _fps = alpha * newFps + (1.0 - alpha) * _fps;
+            _frameCounter = 0;
+            _duration = 0;
+        }
+
+        double roundedFps = std::round(_fps * 10.0) / 10.0;
+        NSLog(@"New frame available: %lux%lu, bytes %lu, Data address: %p, fps: %g", width, height, bytesPerRow * height, baseAddress, roundedFps);
     }
+
     _provider->newFrameAvailable(std::move(newFrame));
 }
 
