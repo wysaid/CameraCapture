@@ -82,6 +82,15 @@
                 }
             }
 
+            if (![_session canSetSessionPreset:preset])
+            {
+                if (ccap::errorLogEnabled())
+                {
+                    NSLog(@"CameraCaptureObjc init - session preset not supported, using AVCaptureSessionPresetHigh");
+                }
+                preset = AVCaptureSessionPresetHigh;
+            }
+
             [_session setSessionPreset:preset];
 
             if (ccap::infoLogEnabled())
@@ -181,22 +190,27 @@
 
 - (void)flushResolution
 {
-    NSDictionary* videoSettings = [_videoOutput videoSettings];
-    CGSize realSize = CGSizeMake([[videoSettings objectForKey:@"Width"] floatValue],
-                                 [[videoSettings objectForKey:@"Height"] floatValue]);
-    if (!CGSizeEqualToSize(_resolution, realSize))
+    if (_videoOutput && _videoOutput.connections.count > 0)
     {
-        if ((realSize.width <= 0 || realSize.height <= 0) && ccap::errorLogEnabled())
+        AVCaptureConnection* connection = [_videoOutput connections][0];
+        if (connection)
         {
-            NSLog(@"CameraCaptureObjc flushResolution - invalid resolution");
-        }
-        else if (ccap::infoLogEnabled())
-        {
-            NSLog(@"Info: Camera resolution changed. from: (%gx%g) to: (%gx%g)",
-                  _resolution.width, _resolution.height, realSize.width, realSize.height);
-        }
+            CMFormatDescriptionRef formatDescription = connection.supportsVideoMinFrameDuration ? connection.inputPorts[0].formatDescription : nil;
+            if (formatDescription)
+            {
+                CMVideoDimensions dimensions = CMVideoFormatDescriptionGetDimensions(formatDescription);
+                if (dimensions.width != _resolution.width || dimensions.height != _resolution.height)
+                {
+                    if (ccap::warningLogEnabled())
+                    {
+                        NSLog(@"Actual camera resolution: %dx%d", dimensions.width, dimensions.height);
+                    }
 
-        _resolution = realSize;
+                    _resolution.width = dimensions.width;
+                    _resolution.height = dimensions.height;
+                }
+            }
+        }
     }
 }
 
