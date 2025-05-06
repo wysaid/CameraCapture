@@ -44,7 +44,11 @@ int main(int argc, char** argv)
 
     cameraProvider->set(ccap::PropertyName::Width, requestedWidth);
     cameraProvider->set(ccap::PropertyName::Height, requestedHeight);
+#if 1  /// switch to test.
     cameraProvider->set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::BGRA8888);
+#else
+    cameraProvider->set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::NV12f);
+#endif
     cameraProvider->set(ccap::PropertyName::FrameRate, requestedFps);
 
     cameraProvider->open() && cameraProvider->start();

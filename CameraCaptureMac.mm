@@ -623,7 +623,12 @@ private:
             auto manager = std::make_shared<FakeFrame>([imageBuffer, newFrame]() mutable {
                 CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
                 CFRelease(imageBuffer);
-                /// Keep ref count.
+                if (ccap::verboseLogEnabled())
+                {
+                    NSLog(@"ccap: recycled RGBA frame, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
+                }
+
+                /// Make ref count + 1
                 newFrame = nullptr;
             });
 
@@ -667,7 +672,11 @@ private:
             auto manager = std::make_shared<FakeFrame>([imageBuffer, newFrame]() mutable {
                 CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
                 CFRelease(imageBuffer);
-                /// Keep ref count.
+                if (ccap::verboseLogEnabled())
+                {
+                    NSLog(@"ccap: recycled YUV frame, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
+                }
+                /// Make ref count + 1
                 newFrame = nullptr;
             });
 
