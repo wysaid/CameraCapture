@@ -201,7 +201,7 @@ void ProviderImp::updateFrameInfo(Frame& frame)
 {
     frame.frameIndex = m_frameIndex++;
 
-    if (frame.pixelFormat & PixelFormat::YUVColorBit)
+    if (frame.pixelFormat & kYUVColorBit)
     {
         auto yBytes = frame.width * frame.height;
         auto bytes = yBytes * 3 / 2;
@@ -231,7 +231,7 @@ void ProviderImp::updateFrameInfo(Frame& frame)
     else
     {
         // RGB24 格式
-        int channels = frame.pixelFormat & PixelFormat::RGBColorBit ? 3 : 4;
+        int channels = frame.pixelFormat & kRGBColorBit ? 3 : 4;
         auto bytes = frame.width * frame.height * channels;
         frame.sizeInBytes = bytes;
         frame.allocator->resize(bytes);

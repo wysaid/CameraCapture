@@ -247,9 +247,9 @@ private:
             if (![supportedFormats containsObject:@(preferredFormat)])
             {
                 _cvPixelFormat = 0;
-                if (bool hasYUV = _pixelFormat & ccap::PixelFormat::YUVColorBit)
+                if (bool hasYUV = _pixelFormat & ccap::kYUVColorBit)
                 { /// Handle YUV formats, fallback to NV12f
-                    auto hasFullRange = _pixelFormat & ccap::PixelFormat::YUVColorFullRangeBit;
+                    auto hasFullRange = _pixelFormat & ccap::kYUVColorFullRangeBit;
                     auto supportFullRange = [supportedFormats containsObject:@(kCVPixelFormatType_420YpCbCr8BiPlanarFullRange)];
                     auto supportVideoRange = [supportedFormats containsObject:@(kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange)];
 
@@ -270,7 +270,7 @@ private:
 
                 if (_cvPixelFormat == 0)
                 {
-                    auto hasOnlyRGB = ccap::pixelFormatInclude(_pixelFormat, ccap::PixelFormat::RGBColorBit);
+                    auto hasOnlyRGB = ccap::pixelFormatInclude(_pixelFormat, ccap::kRGBColorBit);
                     auto supportRGB = [supportedFormats containsObject:@(kCVPixelFormatType_24RGB)];
                     auto supportBGR = [supportedFormats containsObject:@(kCVPixelFormatType_24BGR)];
                     auto supportBGRA = [supportedFormats containsObject:@(kCVPixelFormatType_32BGRA)];
@@ -596,11 +596,6 @@ private:
 
     CMTime timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer);
 
-    if (newFrame->allocator == nullptr)
-    {
-        newFrame->allocator = std::make_shared<ccap::DefaultAllocator>();
-    }
-
     bool noCopy = newFrame->allocator == nullptr;
 
     newFrame->timestamp = (uint64_t)(CMTimeGetSeconds(timestamp) * 1e9);
@@ -608,19 +603,37 @@ private:
     newFrame->height = height;
     newFrame->pixelFormat = _pixelFormat;
 
-    if (noCopy)
+    if (_pixelFormat & ccap::kYUVColorBit)
     {
-        /// not implemented yet
-    }
-    else
-    {
-        if (_pixelFormat & ccap::PixelFormat::YUVColorBit)
+        auto yBytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 0);
+        auto uvBytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 1);
+        size_t yBytes = CVPixelBufferGetHeightOfPlane(imageBuffer, 0) * yBytesPerRow;
+        size_t uvBytes = CVPixelBufferGetHeightOfPlane(imageBuffer, 1) * uvBytesPerRow;
+        bytes = yBytes + uvBytes;
+
+        newFrame->data[2] = nullptr;
+
+        newFrame->stride[0] = yBytesPerRow;
+        newFrame->stride[1] = uvBytesPerRow;
+        newFrame->stride[2] = 0;
+
+        if (noCopy)
         {
-            auto yBytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 0);
-            auto uvBytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 1);
-            size_t yBytes = CVPixelBufferGetHeightOfPlane(imageBuffer, 0) * yBytesPerRow;
-            size_t uvBytes = CVPixelBufferGetHeightOfPlane(imageBuffer, 1) * uvBytesPerRow;
-            bytes = yBytes + uvBytes;
+            CFRetain(imageBuffer);
+            auto manager = std::make_shared<FakeFrame>([imageBuffer, newFrame]() mutable {
+                CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+                CFRelease(imageBuffer);
+                /// Keep ref count.
+                newFrame = nullptr;
+            });
+
+            newFrame->data[0] = (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);
+            newFrame->data[1] = (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 1);
+            auto fakeFrame = std::shared_ptr<ccap::Frame>(manager, newFrame.get());
+            newFrame = fakeFrame;
+        }
+        else
+        {
             if (newFrame->sizeInBytes != bytes)
             {
                 newFrame->allocator->resize(bytes);
@@ -629,20 +642,41 @@ private:
 
             newFrame->data[0] = newFrame->allocator->data();
             newFrame->data[1] = newFrame->allocator->data() + yBytes;
-            newFrame->data[2] = nullptr;
-            newFrame->stride[0] = yBytesPerRow;
-            newFrame->stride[1] = uvBytesPerRow;
-            newFrame->stride[2] = 0;
 
             void* yData = CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);
             void* uvData = CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 1);
+
             memcpy(newFrame->data[0], yData, yBytes);
             memcpy(newFrame->data[1], uvData, uvBytes);
+            CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+        }
+    }
+    else
+    {
+        bytes = CVPixelBufferGetDataSize(imageBuffer);
+
+        newFrame->data[1] = nullptr;
+        newFrame->data[2] = nullptr;
+        newFrame->stride[0] = CVPixelBufferGetBytesPerRow(imageBuffer);
+        newFrame->stride[1] = 0;
+        newFrame->stride[2] = 0;
+
+        if (noCopy)
+        {
+            CFRetain(imageBuffer);
+            auto manager = std::make_shared<FakeFrame>([imageBuffer, newFrame]() mutable {
+                CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+                CFRelease(imageBuffer);
+                /// Keep ref count.
+                newFrame = nullptr;
+            });
+
+            newFrame->data[0] = (uint8_t*)CVPixelBufferGetBaseAddress(imageBuffer);
+            auto fakeFrame = std::shared_ptr<ccap::Frame>(manager, newFrame.get());
+            newFrame = fakeFrame;
         }
         else
         {
-            bytes = CVPixelBufferGetDataSize(imageBuffer);
-
             if (newFrame->sizeInBytes != bytes)
             {
                 newFrame->allocator->resize(bytes);
@@ -650,19 +684,13 @@ private:
             }
 
             newFrame->data[0] = newFrame->allocator->data();
-            newFrame->data[1] = nullptr;
-            newFrame->data[2] = nullptr;
-            newFrame->stride[0] = CVPixelBufferGetBytesPerRow(imageBuffer);
-            newFrame->stride[1] = 0;
-            newFrame->stride[2] = 0;
-
             void* baseAddress = CVPixelBufferGetBaseAddress(imageBuffer);
             memcpy(newFrame->data[0], baseAddress, bytes);
+            CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
         }
     }
 
     newFrame->frameIndex = _provider->frameIndex()++;
-    CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
 
     if (ccap::verboseLogEnabled())
     {

@@ -80,13 +80,13 @@ int main(int argc, char** argv)
         {
             printf("Frame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes);
 
-            if (ccap::pixelFormatInclude(frame->pixelFormat, ccap::PixelFormat::RGBAColorBit))
+            if (ccap::pixelFormatInclude(frame->pixelFormat, ccap::kRGBAColorBit))
             {
                 auto filePath = getNewFilePath() + ".bmp";
                 saveRgbaDataAsBMP(frame->data[0], filePath.c_str(), frame->width, frame->stride[0], frame->height, false);
                 std::cout << "Saving frame to: " << filePath << std::endl;
             }
-            else if (ccap::pixelFormatInclude(frame->pixelFormat, ccap::PixelFormat::YUVColorBit))
+            else if (ccap::pixelFormatInclude(frame->pixelFormat, ccap::kYUVColorBit))
             {
                 auto filePath = getNewFilePath() + ".yuv";
                 FILE* fp = fopen(filePath.c_str(), "wb");

@@ -19,52 +19,52 @@
 // ccap is short for CameraCAPture
 namespace ccap
 {
+static constexpr uint32_t kYUVColorBit = 0x10000;
+static constexpr uint32_t kYUVColorVideoRangeBit = 0x1000 | kYUVColorBit;
+static constexpr uint32_t kYUVColorFullRangeBit = 0x2000 | kYUVColorBit;
+static constexpr uint32_t kRGBColorBit = 0x20000;
+static constexpr uint32_t kAlphaColorBit = 0x40000;
+static constexpr uint32_t kRGBAColorBit = kRGBColorBit | kAlphaColorBit;
+
 enum class PixelFormat : uint32_t
 {
     Unknown = 0,
-    YUVColorBit = 0x10000,
-    YUVColorVideoRangeBit = 0x1000 | YUVColorBit,
-    YUVColorFullRangeBit = 0x2000 | YUVColorBit,
-    I420v = 1 | YUVColorVideoRangeBit,
+    I420v = 1 | kYUVColorVideoRangeBit,
 
     /// @brief Best performance on MacOS, Always supported.
-    NV12v = 2 | YUVColorVideoRangeBit,
-    NV21v = 3 | YUVColorVideoRangeBit,
+    NV12v = 2 | kYUVColorVideoRangeBit,
+    NV21v = 3 | kYUVColorVideoRangeBit,
 
-    I420f = 1 | YUVColorFullRangeBit,
+    I420f = 1 | kYUVColorFullRangeBit,
     /// @brief Best performance on MacOS, Always supported.
-    NV12f = 2 | YUVColorFullRangeBit,
-    NV21f = 3 | YUVColorFullRangeBit,
+    NV12f = 2 | kYUVColorFullRangeBit,
+    NV21f = 3 | kYUVColorFullRangeBit,
 
-    RGBColorBit = 0x20000,
-    RGB888 = 4 | RGBColorBit, /// 3 bytes per pixel
-    BGR888 = 5 | RGBColorBit, /// 3 bytes per pixel
-
-    AlphaColorBit = 0x40000,
-    RGBAColorBit = RGBColorBit | AlphaColorBit,
+    RGB888 = 4 | kRGBColorBit, /// 3 bytes per pixel
+    BGR888 = 5 | kRGBColorBit, /// 3 bytes per pixel
 
     /**
      * @brief RGBA8888 format, 4 bytes per pixel, alpha channel is filled with 0xFF
      * @note This format is not supported on MacOS, will fallback to BGRA8888.
      */
-    RGBA8888 = 6 | RGBAColorBit,
+    RGBA8888 = 6 | kRGBAColorBit,
 
     /**
      *  @brief BGRA8888 format, 4 bytes per pixel, alpha channel is filled with 0xFF
      *  @note This format is always supported on MacOS.
      */
-    BGRA8888 = 7 | RGBAColorBit,
+    BGRA8888 = 7 | kRGBAColorBit,
 };
 
-inline bool operator&(PixelFormat lhs, PixelFormat rhs)
+inline bool operator&(PixelFormat lhs, uint32_t rhs)
 {
-    return (static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)) != 0;
+    return (static_cast<uint32_t>(lhs) & rhs) != 0;
 }
 
 /// check if the pixel format `lhs` includes all bits of the pixel format `rhs`.
-inline bool pixelFormatInclude(PixelFormat lhs, PixelFormat rhs)
+inline bool pixelFormatInclude(PixelFormat lhs, uint32_t rhs)
 {
-    return (static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)) == static_cast<uint32_t>(rhs);
+    return (static_cast<uint32_t>(lhs) & rhs) == rhs;
 }
 
 /// @brief Interface for memory allocation, primarily used to allocate the `data` field in `ccap::Frame`.
