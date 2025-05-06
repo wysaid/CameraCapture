@@ -23,8 +23,7 @@ namespace ccap
 struct FrameProperty
 {
     double fps{ 30.0 };
-    PixelFormat pixelFormat{ PixelFormat::BGR888 };
-    uint32_t frameIndex{};
+    PixelFormat pixelFormat{ PixelFormat::BGRA8888 };
     int width{ 640 };
     int height{ 480 };
 
@@ -39,6 +38,19 @@ struct FrameProperty
     }
 };
 
+/// A default allocator, 基于不同平台会有不同的实现.
+class DefaultAllocator : public Allocator
+{
+public:
+    ~DefaultAllocator() override;
+    void resize(size_t size) override;
+    uint8_t* data() override;
+    size_t size() override;
+
+private:
+    std::vector<uint8_t> m_data;
+};
+
 class ProviderImp
 {
 public:
@@ -47,7 +59,7 @@ public:
     bool set(PropertyName prop, double value);
     double get(PropertyName prop);
     void setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)> callback);
-    void setFrameAllocator(std::shared_ptr<Allocator> allocator);
+    void setFrameAllocator(std::function<std::shared_ptr<Allocator>()> allocatorFactory);
     std::shared_ptr<Frame> grab(bool waitForNewFrame);
     void setMaxAvailableFrameSize(uint32_t size);
     void setMaxCacheFrameSize(uint32_t size);
@@ -59,6 +71,15 @@ public:
     virtual void stop() = 0;
     virtual bool isStarted() const = 0;
 
+    inline FrameProperty& getFrameProperty() { return m_frameProp; }
+    inline const FrameProperty& getFrameProperty() const { return m_frameProp; }
+
+    inline std::atomic_uint32_t& frameIndex() { return m_frameIndex; }
+
+    inline const std::function<std::shared_ptr<Allocator>()>& getAllocatorFactory() const { return m_allocatorFactory; }
+
+    inline bool hasUserDefinedAllocator() const { return m_allocatorFactory != nullptr; }
+
 protected:
     void newFrameAvailable(std::shared_ptr<Frame> frame);
     std::shared_ptr<Frame> getFreeFrame();
@@ -67,7 +88,7 @@ protected:
 protected:
     // 回调和分配器
     std::shared_ptr<std::function<bool(std::shared_ptr<Frame>)>> m_callback;
-    std::shared_ptr<Allocator> m_allocator;
+    std::function<std::shared_ptr<Allocator>()> m_allocatorFactory;
 
     /// 相机的帧, 如果没有被取走, 也没有设置 callback 去获取, 那么会积压到这里, 最大长度为 MAX_AVAILABLE_FRAME_SIZE
     std::queue<std::shared_ptr<Frame>> m_availableFrames;
@@ -84,6 +105,8 @@ protected:
 
     bool m_propertyChanged{ false };
     bool m_grabFrameWaiting{ false };
+
+    std::atomic_uint32_t m_frameIndex{};
 };
 
 /// For internal use.

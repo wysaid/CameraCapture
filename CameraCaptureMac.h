@@ -37,8 +37,6 @@ public:
     using ProviderImp::newFrameAvailable;
     using ProviderImp::updateFrameInfo;
 
-    const std::shared_ptr<Allocator>& allocator() const { return m_allocator; }
-
 private:
     CameraCaptureObjc* m_imp{};
 };

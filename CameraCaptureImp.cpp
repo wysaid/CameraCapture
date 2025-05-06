@@ -13,8 +13,23 @@
 
 namespace ccap
 {
-ProviderImp::ProviderImp() :
-    m_allocator(std::make_shared<DefaultAllocator>())
+DefaultAllocator::~DefaultAllocator() = default;
+void DefaultAllocator::resize(size_t size)
+{
+    m_data.resize(size);
+}
+
+uint8_t* DefaultAllocator::data()
+{
+    return m_data.data();
+}
+
+size_t DefaultAllocator::size()
+{
+    return m_data.size();
+}
+
+ProviderImp::ProviderImp()
 {
 }
 
@@ -75,10 +90,10 @@ void ProviderImp::setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)
     }
 }
 
-void ProviderImp::setFrameAllocator(std::shared_ptr<Allocator> allocator)
+void ProviderImp::setFrameAllocator(std::function<std::shared_ptr<Allocator>()> allocatorFactory)
 {
     std::lock_guard<std::mutex> lock(m_poolMutex);
-    m_allocator = std::move(allocator);
+    m_allocatorFactory = std::move(allocatorFactory);
     m_framePool.clear();
 }
 
@@ -93,7 +108,7 @@ std::shared_ptr<Frame> ProviderImp::grab(bool waitForNewFrame)
             auto ret = m_grabFrameWaiting && !m_availableFrames.empty();
             if (!ret && verboseLogEnabled())
             {
-                std::cerr << "Grab called with no frame available, waiting for new frame..." << std::endl;
+                std::cerr << "ccap: Grab called with no frame available, waiting for new frame..." << std::endl;
             }
             return ret;
         });
@@ -166,7 +181,7 @@ std::shared_ptr<Frame> ProviderImp::getFreeFrame()
             {
                 if (warningLogEnabled())
                 {
-                    std::cerr << "Frame pool is full, new frame allocated..." << std::endl;
+                    std::cerr << "ccap: Frame pool is full, new frame allocated..." << std::endl;
                 }
                 m_framePool.erase(m_framePool.end());
             }
@@ -176,7 +191,7 @@ std::shared_ptr<Frame> ProviderImp::getFreeFrame()
     if (!frame)
     {
         frame = std::make_shared<Frame>();
-        frame->allocator = m_allocator;
+        frame->allocator = m_allocatorFactory ? m_allocatorFactory() : nullptr;
         m_framePool.push_back(frame);
     }
     return frame;
@@ -184,7 +199,7 @@ std::shared_ptr<Frame> ProviderImp::getFreeFrame()
 
 void ProviderImp::updateFrameInfo(Frame& frame)
 {
-    frame.frameIndex = m_frameProp.frameIndex++;
+    frame.frameIndex = m_frameIndex++;
 
     if (frame.pixelFormat & PixelFormat::YUVColorBit)
     {
@@ -198,7 +213,7 @@ void ProviderImp::updateFrameInfo(Frame& frame)
 
         frame.stride[0] = frame.width;
 
-        if (frame.pixelFormat == PixelFormat::YUV420P)
+        if (frame.pixelFormat == PixelFormat::I420v)
         {
             frame.data[2] = frame.data[1] + yBytes / 4;
 

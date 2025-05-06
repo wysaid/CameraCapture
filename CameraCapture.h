@@ -23,22 +23,48 @@ enum class PixelFormat : uint32_t
 {
     Unknown = 0,
     YUVColorBit = 0x10000,
-    YUV420P = 1 | YUVColorBit,
-    NV12 = 2 | YUVColorBit,
-    NV21 = 3 | YUVColorBit,
+    YUVColorVideoRangeBit = 0x1000 | YUVColorBit,
+    YUVColorFullRangeBit = 0x2000 | YUVColorBit,
+    I420v = 1 | YUVColorVideoRangeBit,
+
+    /// @brief Best performance on MacOS, Always supported.
+    NV12v = 2 | YUVColorVideoRangeBit,
+    NV21v = 3 | YUVColorVideoRangeBit,
+
+    I420f = 1 | YUVColorFullRangeBit,
+    /// @brief Best performance on MacOS, Always supported.
+    NV12f = 2 | YUVColorFullRangeBit,
+    NV21f = 3 | YUVColorFullRangeBit,
 
     RGBColorBit = 0x20000,
     RGB888 = 4 | RGBColorBit, /// 3 bytes per pixel
     BGR888 = 5 | RGBColorBit, /// 3 bytes per pixel
 
-    RGBAColorBit = 0x40000,
-    RGBA8888 = 6 | RGBAColorBit, /// 4 bytes per pixel, alpha channel is filled with 0xFF
-    BGRA8888 = 7 | RGBAColorBit, /// 4 bytes per pixel, alpha channel is filled with 0xFF
+    AlphaColorBit = 0x40000,
+    RGBAColorBit = RGBColorBit | AlphaColorBit,
+
+    /**
+     * @brief RGBA8888 format, 4 bytes per pixel, alpha channel is filled with 0xFF
+     * @note This format is not supported on MacOS, will fallback to BGRA8888.
+     */
+    RGBA8888 = 6 | RGBAColorBit,
+
+    /**
+     *  @brief BGRA8888 format, 4 bytes per pixel, alpha channel is filled with 0xFF
+     *  @note This format is always supported on MacOS.
+     */
+    BGRA8888 = 7 | RGBAColorBit,
 };
 
 inline bool operator&(PixelFormat lhs, PixelFormat rhs)
 {
     return (static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)) != 0;
+}
+
+/// check if the pixel format `lhs` includes all bits of the pixel format `rhs`.
+inline bool pixelFormatInclude(PixelFormat lhs, PixelFormat rhs)
+{
+    return (static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)) == static_cast<uint32_t>(rhs);
 }
 
 /// @brief Interface for memory allocation, primarily used to allocate the `data` field in `ccap::Frame`.
@@ -57,19 +83,6 @@ public:
 
     /// @brief Returns the size of the allocated memory.
     virtual size_t size() = 0;
-};
-
-/// A default allocator, implemented using `std::vector<uint8_t>`.
-class DefaultAllocator : public Allocator
-{
-public:
-    ~DefaultAllocator() override;
-    void resize(size_t size) override;
-    uint8_t* data() override;
-    size_t size() override;
-
-private:
-    std::vector<uint8_t> m_data;
 };
 
 struct Frame : std::enable_shared_from_this<Frame>
@@ -110,8 +123,11 @@ struct Frame : std::enable_shared_from_this<Frame>
     /// @brief The unique, incremental index of the frame.
     uint64_t frameIndex = 0;
 
-    /// @brief Allocator used for managing frame data memory. Defaults to `DefaultAllocator` if not provided.
-    /// @note The allocator is responsible for allocating memory for the frame data.
+    /**
+     * @brief Allocator used for managing frame data memory.
+     * @note The default Allocator implementation is platform-dependent. The default Allocator minimizes memory copying whenever possible.
+     *       Therefore, avoid using a custom Allocator unless absolutely necessary.
+     */
     std::shared_ptr<Allocator> allocator;
 };
 
@@ -124,6 +140,7 @@ enum class PropertyName
      *       Example: For supported resolutions 1024x1024, 800x800, 800x600, and 640x480, setting 600x600 results in 800x600.
      */
     Width = 0,
+
     /**
      * @brief The height of the frame.
      * @note When used to set the capture resolution, the closest available resolution will be chosen.
@@ -131,6 +148,7 @@ enum class PropertyName
      *       Example: For supported resolutions 1024x1024, 800x800, 800x600, and 640x480, setting 600x600 results in 800x600.
      */
     Height = 1,
+
     /// @brief The frame rate of the camera, aka FPS (frames per second).
     FrameRate = 3,
 
@@ -197,6 +215,12 @@ public:
      */
     bool set(PropertyName prop, double value);
 
+    template <class T>
+    bool set(PropertyName prop, T value)
+    {
+        return set(prop, static_cast<double>(value));
+    }
+
     /**
      * @brief Get a property of the camera.
      * @param prop See #Property
@@ -229,10 +253,13 @@ public:
     void setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)> callback);
 
     /**
-     * @brief Set the frame allocator.
-     * @param allocator The allocator to be used for frame data. If not specified, `DefaultAllocator` will be used.
+     * @brief Sets the frame allocator factory.
+     * @param allocatorFactory A factory function that returns a shared pointer to an Allocator instance.
+     * @note After calling this method, the default Allocator implementation will be overridden.
+     *       This may introduce additional copy operations (the original implementation minimizes copying whenever possible).
+     *       Use this method based on your specific needs.
      */
-    void setFrameAllocator(std::shared_ptr<Allocator> allocator);
+    void setFrameAllocator(std::function<std::shared_ptr<Allocator>()> allocatorFactory);
 
     /**
      * @brief Sets the maximum number of available frames in the cache. If this limit is exceeded, the oldest frames will be discarded.

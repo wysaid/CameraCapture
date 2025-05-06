@@ -16,23 +16,7 @@
 namespace ccap
 {
 Allocator::~Allocator() = default;
-DefaultAllocator::~DefaultAllocator() = default;
 LogLevel globalLogLevel = LogLevel::Info;
-
-void DefaultAllocator::resize(size_t size)
-{
-    m_data.resize(size);
-}
-
-uint8_t* DefaultAllocator::data()
-{
-    return m_data.data();
-}
-
-size_t DefaultAllocator::size()
-{
-    return m_data.size();
-}
 
 Frame::Frame() = default;
 Frame::~Frame() = default;
@@ -92,9 +76,9 @@ void Provider::setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)> c
     m_imp->setNewFrameCallback(std::move(callback));
 }
 
-void Provider::setFrameAllocator(std::shared_ptr<Allocator> allocator)
+void Provider::setFrameAllocator(std::function<std::shared_ptr<Allocator>()> allocatorFactory)
 {
-    m_imp->setFrameAllocator(std::move(allocator));
+    m_imp->setFrameAllocator(std::move(allocatorFactory));
 }
 
 void Provider::setMaxAvailableFrameSize(uint32_t size)
