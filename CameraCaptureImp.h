@@ -112,15 +112,15 @@ protected:
 /// For internal use.
 extern LogLevel globalLogLevel;
 
-inline bool operator&(LogLevel lhs, LogLevel rhs)
+inline bool operator&(LogLevel lhs, LogLevelConstants rhs)
 {
-    return (static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)) != 0;
+    return (static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs));
 }
 
-inline bool errorLogEnabled() { return globalLogLevel & LogLevel::Error; }
-inline bool warningLogEnabled() { return globalLogLevel & LogLevel::Warning; }
-inline bool infoLogEnabled() { return globalLogLevel & LogLevel::Info; }
-inline bool verboseLogEnabled() { return globalLogLevel & LogLevel::Verbose; }
+inline bool errorLogEnabled() { return globalLogLevel & kLogLevelErrorBit; }
+inline bool warningLogEnabled() { return globalLogLevel & kLogLevelWarningBit; }
+inline bool infoLogEnabled() { return globalLogLevel & kLogLevelInfoBit; }
+inline bool verboseLogEnabled() { return globalLogLevel & kLogLevelVerboseBit; }
 
 } // namespace ccap
 

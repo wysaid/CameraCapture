@@ -1,3 +1,11 @@
+/**
+ * @file capture_demo2.cpp
+ * @author wysaid (this@wysaid.org)
+ * @brief Demo for ccap.
+ * @date 2025-05
+ *
+ */
+
 #include "CameraCapture.h"
 
 #include <chrono>
@@ -5,6 +13,7 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <thread>
 
 void saveRgbaDataAsBMP(const unsigned char* data, const char* filename, uint32_t w, uint32_t stride, uint32_t h, bool isBGRA);
 
@@ -44,7 +53,7 @@ int main(int argc, char** argv)
 
     cameraProvider->set(ccap::PropertyName::Width, requestedWidth);
     cameraProvider->set(ccap::PropertyName::Height, requestedHeight);
-#if 1  /// switch to test.
+#if 1 /// switch to test.
     cameraProvider->set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::BGRA8888);
 #else
     cameraProvider->set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::NV12f);
@@ -77,47 +86,42 @@ int main(int argc, char** argv)
         return captureDir + "/" + filename + "_" + std::to_string(imageIndex++);
     };
 
-    while (cameraProvider->isStarted())
-    {
-        auto frame = cameraProvider->grab(true);
-        if (frame)
-        {
-            printf("Frame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes);
+    cameraProvider->setNewFrameCallback([getNewFilePath](std::shared_ptr<ccap::Frame> frame) -> bool {
+        printf("Frame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes);
 
-            if (ccap::pixelFormatInclude(frame->pixelFormat, ccap::kRGBAColorBit))
+        if (ccap::pixelFormatInclude(frame->pixelFormat, ccap::kPixelFormatRGBAColorBit))
+        {
+            auto filePath = getNewFilePath() + ".bmp";
+            saveRgbaDataAsBMP(frame->data[0], filePath.c_str(), frame->width, frame->stride[0], frame->height, false);
+            std::cout << "Saving frame to: " << filePath << std::endl;
+        }
+        else if (ccap::pixelFormatInclude(frame->pixelFormat, ccap::kPixelFormatYUVColorBit))
+        {
+            auto filePath = getNewFilePath() + ".yuv";
+            FILE* fp = fopen(filePath.c_str(), "wb");
+            if (fp)
             {
-                auto filePath = getNewFilePath() + ".bmp";
-                saveRgbaDataAsBMP(frame->data[0], filePath.c_str(), frame->width, frame->stride[0], frame->height, false);
+                fwrite(frame->data[0], frame->stride[0], frame->height, fp);
+                fwrite(frame->data[1], frame->stride[1], frame->height / 2, fp);
+                if (frame->data[2] != nullptr)
+                {
+                    fwrite(frame->data[2], frame->stride[2], frame->height / 2, fp);
+                }
+                fclose(fp);
                 std::cout << "Saving frame to: " << filePath << std::endl;
             }
-            else if (ccap::pixelFormatInclude(frame->pixelFormat, ccap::kYUVColorBit))
+            else
             {
-                auto filePath = getNewFilePath() + ".yuv";
-                FILE* fp = fopen(filePath.c_str(), "wb");
-                if (fp)
-                {
-                    fwrite(frame->data[0], frame->stride[0], frame->height, fp);
-                    fwrite(frame->data[1], frame->stride[1], frame->height / 2, fp);
-                    if (frame->data[2] != nullptr)
-                    {
-                        fwrite(frame->data[2], frame->stride[2], frame->height / 2, fp);
-                    }
-                    fclose(fp);
-                    std::cout << "Saving frame to: " << filePath << std::endl;
-                }
-                else
-                {
-                    std::cerr << "Failed to open file for writing: " << filePath << std::endl;
-                }
+                std::cerr << "Failed to open file for writing: " << filePath << std::endl;
             }
         }
-        else
-        {
-            std::cerr << "Failed to grab frame!" << std::endl;
-            break;
-        }
-    }
+        return true; /// no need to retain the frame.
+    });
 
+    /// Wait for 10 seconds to capture frames.
+    std::this_thread::sleep_for(std::chrono::seconds(10));
+    std::cout << "Captured 10 seconds, stopping..." << std::endl;
+    cameraProvider = nullptr;
     return 0;
 }
 

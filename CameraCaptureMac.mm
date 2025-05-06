@@ -247,9 +247,9 @@ private:
             if (![supportedFormats containsObject:@(preferredFormat)])
             {
                 _cvPixelFormat = 0;
-                if (bool hasYUV = _pixelFormat & ccap::kYUVColorBit)
+                if (bool hasYUV = _pixelFormat & ccap::kPixelFormatYUVColorBit)
                 { /// Handle YUV formats, fallback to NV12f
-                    auto hasFullRange = _pixelFormat & ccap::kYUVColorFullRangeBit;
+                    auto hasFullRange = _pixelFormat & ccap::kPixelFormatYUVColorFullRangeBit;
                     auto supportFullRange = [supportedFormats containsObject:@(kCVPixelFormatType_420YpCbCr8BiPlanarFullRange)];
                     auto supportVideoRange = [supportedFormats containsObject:@(kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange)];
 
@@ -270,7 +270,7 @@ private:
 
                 if (_cvPixelFormat == 0)
                 {
-                    auto hasOnlyRGB = ccap::pixelFormatInclude(_pixelFormat, ccap::kRGBColorBit);
+                    auto hasOnlyRGB = ccap::pixelFormatInclude(_pixelFormat, ccap::kPixelFormatRGBColorBit);
                     auto supportRGB = [supportedFormats containsObject:@(kCVPixelFormatType_24RGB)];
                     auto supportBGR = [supportedFormats containsObject:@(kCVPixelFormatType_24BGR)];
                     auto supportBGRA = [supportedFormats containsObject:@(kCVPixelFormatType_32BGRA)];
@@ -377,7 +377,7 @@ private:
                     [_device setActiveVideoMaxFrameDuration:minFrameDuration];
                     _provider->getFrameProperty().fps = fps;
 
-                    if (ccap::warningLogEnabled())
+                    if (ccap::infoLogEnabled())
                     {
                         if (std::abs(fps - desiredFps) > 0.01)
                         {
@@ -472,7 +472,7 @@ private:
                 CMVideoDimensions dimensions = CMVideoFormatDescriptionGetDimensions(formatDescription);
                 if (dimensions.width != _resolution.width || dimensions.height != _resolution.height)
                 {
-                    if (ccap::warningLogEnabled())
+                    if (ccap::infoLogEnabled())
                     {
                         NSLog(@"ccap: Actual camera resolution: %dx%d", dimensions.width, dimensions.height);
                     }
@@ -603,7 +603,7 @@ private:
     newFrame->height = height;
     newFrame->pixelFormat = _pixelFormat;
 
-    if (_pixelFormat & ccap::kYUVColorBit)
+    if (_pixelFormat & ccap::kPixelFormatYUVColorBit)
     {
         auto yBytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 0);
         auto uvBytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 1);

@@ -16,47 +16,50 @@
 #include <string_view>
 #include <vector>
 
-// ccap is short for CameraCAPture
+// ccap is short for (C)amera(CAP)ture
 namespace ccap
 {
-static constexpr uint32_t kYUVColorBit = 0x10000;
-static constexpr uint32_t kYUVColorVideoRangeBit = 0x1000 | kYUVColorBit;
-static constexpr uint32_t kYUVColorFullRangeBit = 0x2000 | kYUVColorBit;
-static constexpr uint32_t kRGBColorBit = 0x20000;
-static constexpr uint32_t kAlphaColorBit = 0x40000;
-static constexpr uint32_t kRGBAColorBit = kRGBColorBit | kAlphaColorBit;
+enum PixelFormatConstants : uint32_t
+{
+    kPixelFormatYUVColorBit = 0x10000,
+    kPixelFormatYUVColorVideoRangeBit = 0x1000 | kPixelFormatYUVColorBit,
+    kPixelFormatYUVColorFullRangeBit = 0x2000 | kPixelFormatYUVColorBit,
+    kPixelFormatRGBColorBit = 0x20000,
+    kPixelFormatAlphaColorBit = 0x40000,
+    kPixelFormatRGBAColorBit = kPixelFormatRGBColorBit | kPixelFormatAlphaColorBit
+};
 
 enum class PixelFormat : uint32_t
 {
     Unknown = 0,
-    I420v = 1 | kYUVColorVideoRangeBit,
+    I420v = 1 | kPixelFormatYUVColorVideoRangeBit,
 
     /// @brief Best performance on MacOS, Always supported.
-    NV12v = 2 | kYUVColorVideoRangeBit,
-    NV21v = 3 | kYUVColorVideoRangeBit,
+    NV12v = 2 | kPixelFormatYUVColorVideoRangeBit,
+    NV21v = 3 | kPixelFormatYUVColorVideoRangeBit,
 
-    I420f = 1 | kYUVColorFullRangeBit,
+    I420f = 1 | kPixelFormatYUVColorFullRangeBit,
     /// @brief Best performance on MacOS, Always supported.
-    NV12f = 2 | kYUVColorFullRangeBit,
-    NV21f = 3 | kYUVColorFullRangeBit,
+    NV12f = 2 | kPixelFormatYUVColorFullRangeBit,
+    NV21f = 3 | kPixelFormatYUVColorFullRangeBit,
 
-    RGB888 = 4 | kRGBColorBit, /// 3 bytes per pixel
-    BGR888 = 5 | kRGBColorBit, /// 3 bytes per pixel
+    RGB888 = 4 | kPixelFormatRGBColorBit, /// 3 bytes per pixel
+    BGR888 = 5 | kPixelFormatRGBColorBit, /// 3 bytes per pixel
 
     /**
      * @brief RGBA8888 format, 4 bytes per pixel, alpha channel is filled with 0xFF
      * @note This format is not supported on MacOS, will fallback to BGRA8888.
      */
-    RGBA8888 = 6 | kRGBAColorBit,
+    RGBA8888 = 6 | kPixelFormatRGBAColorBit,
 
     /**
      *  @brief BGRA8888 format, 4 bytes per pixel, alpha channel is filled with 0xFF
      *  @note This format is always supported on MacOS.
      */
-    BGRA8888 = 7 | kRGBAColorBit,
+    BGRA8888 = 7 | kPixelFormatRGBAColorBit,
 };
 
-inline bool operator&(PixelFormat lhs, uint32_t rhs)
+inline bool operator&(PixelFormat lhs, PixelFormatConstants rhs)
 {
     return (static_cast<uint32_t>(lhs) & rhs) != 0;
 }
@@ -284,18 +287,26 @@ private:
 
 Provider* createProvider();
 
+enum LogLevelConstants
+{
+    kLogLevelErrorBit = 1,
+    kLogLevelWarningBit = 2,
+    kLogLevelInfoBit = 4,
+    kLogLevelVerboseBit = 8
+};
+
 enum class LogLevel
 {
     /// @brief No log output.
     None = 0,
     /// @brief Error log level. Will output to `stderr` if an error occurs.
-    Error = 1,
+    Error = kLogLevelErrorBit,
     /// @brief Warning log level.
-    Warning = Error | 2,
+    Warning = Error | kLogLevelWarningBit,
     /// @brief Info log level.
-    Info = Warning | 4,
+    Info = Warning | kLogLevelInfoBit,
     /// @brief Debug log level.
-    Verbose = Warning | 8,
+    Verbose = Info | kLogLevelVerboseBit,
 };
 
 void setLogLevel(LogLevel level);
