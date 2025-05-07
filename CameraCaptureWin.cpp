@@ -52,7 +52,36 @@ static void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
         fmt = "NV12";
 
     VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)pmt->pbFormat;
-    printf("%s%ld x %ld  bitcount=%ld  format=%s\n", prefix, vih->bmiHeader.biWidth, vih->bmiHeader.biHeight, vih->bmiHeader.biBitCount, fmt);
+
+    const char* rangeStr = "";
+    if (pmt->formattype == FORMAT_VideoInfo2 && pmt->cbFormat >= sizeof(VIDEOINFOHEADER2))
+    {
+        VIDEOINFOHEADER2* vih2 = (VIDEOINFOHEADER2*)pmt->pbFormat;
+        // 检查 AMCONTROL_COLORINFO_PRESENT
+        if (vih2->dwControlFlags & AMCONTROL_COLORINFO_PRESENT)
+        {
+            // DXVA_ExtendedFormat 紧跟在 VIDEOINFOHEADER2 之后
+            BYTE* extFmtPtr = (BYTE*)vih2 + sizeof(VIDEOINFOHEADER2);
+            if (pmt->cbFormat >= sizeof(VIDEOINFOHEADER2) + sizeof(DXVA_ExtendedFormat))
+            {
+                DXVA_ExtendedFormat* extFmt = (DXVA_ExtendedFormat*)extFmtPtr;
+                if (extFmt->VideoNominalRange == DXVA_NominalRange_0_255)
+                {
+                    rangeStr = " (FullRange)";
+                }
+                else if (extFmt->VideoNominalRange == DXVA_NominalRange_16_235)
+                {
+                    rangeStr = " (VideoRange)";
+                }
+                else
+                {
+                    rangeStr = " (UnknownRange)";
+                }
+            }
+        }
+    }
+
+    printf("%s%ld x %ld  bitcount=%ld  format=%s%s\n", prefix, vih->bmiHeader.biWidth, vih->bmiHeader.biHeight, vih->bmiHeader.biBitCount, fmt, rangeStr);
 }
 
 bool ProviderWin::open(std::string_view deviceName)

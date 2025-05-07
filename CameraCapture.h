@@ -32,23 +32,33 @@ enum PixelFormatConstants : uint32_t
 enum class PixelFormat : uint32_t
 {
     Unknown = 0,
+    /// @brief Not commonly used, likely unsupported, may fall back to NV12*
     I420v = 1 | kPixelFormatYUVColorVideoRangeBit,
 
-    /// @brief Best performance on MacOS, Always supported.
+    /// @brief Best performance on all platform. Always supported.
     NV12v = 2 | kPixelFormatYUVColorVideoRangeBit,
+
+    /// @brief Not commonly used, likely unsupported, may fall back to NV12*
     NV21v = 3 | kPixelFormatYUVColorVideoRangeBit,
 
+    /// @brief Not commonly used, likely unsupported, may fall back to NV12*
     I420f = 1 | kPixelFormatYUVColorFullRangeBit,
-    /// @brief Best performance on MacOS, Always supported.
+    
+    /// @brief Best performance on all platform. Always supported.
     NV12f = 2 | kPixelFormatYUVColorFullRangeBit,
+
+    /// @brief Not commonly used, likely unsupported, may fall back to NV12*
     NV21f = 3 | kPixelFormatYUVColorFullRangeBit,
 
+    /// @brief Not commonly used, likely unsupported, may fall back to BGR888
     RGB888 = 4 | kPixelFormatRGBColorBit, /// 3 bytes per pixel
+
+    /// @brief Always supported on all platform. Simple to use.
     BGR888 = 5 | kPixelFormatRGBColorBit, /// 3 bytes per pixel
 
     /**
      * @brief RGBA8888 format, 4 bytes per pixel, alpha channel is filled with 0xFF
-     * @note This format is not supported on MacOS, will fallback to BGRA8888.
+     * @note Not commonly used, likely unsupported, may fall back to BGR888
      */
     RGBA8888 = 6 | kPixelFormatRGBAColorBit,
 
