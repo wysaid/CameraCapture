@@ -32,7 +32,7 @@ enum PixelFormatConstants : uint32_t
 enum class PixelFormat : uint32_t
 {
     Unknown = 0,
-    /// @brief Not commonly used, likely unsupported, may fall back to NV12*
+    /// @brief Not commonly used, likely unsupported, when used to set, may fall back to NV12*
     I420v = 1 | kPixelFormatYUVColorVideoRangeBit,
 
     /// @brief Best performance on all platform. Always supported.
@@ -43,8 +43,8 @@ enum class PixelFormat : uint32_t
 
     /// @brief Not commonly used, likely unsupported, may fall back to NV12*
     I420f = 1 | kPixelFormatYUVColorFullRangeBit,
-    
-    /// @brief Best performance on all platform. Always supported.
+
+    /// @brief Best performance on all platform. Will fallback to NV12v if not supported.
     NV12f = 2 | kPixelFormatYUVColorFullRangeBit,
 
     /// @brief Not commonly used, likely unsupported, may fall back to NV12*

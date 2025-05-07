@@ -17,6 +17,61 @@
 // 需要链接以下库
 #pragma comment(lib, "strmiids.lib")
 
+/// @see <https://doxygen.reactos.org/d9/dce/structtagVIDEOINFOHEADER2.html>
+typedef struct tagVIDEOINFOHEADER2
+{
+    RECT rcSource;
+    RECT rcTarget;
+    DWORD dwBitRate;
+    DWORD dwBitErrorRate;
+    REFERENCE_TIME AvgTimePerFrame;
+    DWORD dwInterlaceFlags;
+    DWORD dwCopyProtectFlags;
+    DWORD dwPictAspectRatioX;
+    DWORD dwPictAspectRatioY;
+    union
+    {
+        DWORD dwControlFlags;
+        DWORD dwReserved1;
+
+    } DUMMYUNIONNAME;
+
+    DWORD dwReserved2;
+    BITMAPINFOHEADER bmiHeader;
+} VIDEOINFOHEADER2;
+
+#define AMCONTROL_COLORINFO_PRESENT 0x00000080
+
+#ifndef DXVA_ExtendedFormat_DEFINED
+#define DXVA_ExtendedFormat_DEFINED
+
+/// @see <https://learn.microsoft.com/zh-cn/windows-hardware/drivers/ddi/dxva/ns-dxva-_dxva_extendedformat>
+typedef struct _DXVA_ExtendedFormat
+{
+    union
+    {
+        struct
+        {
+            UINT SampleFormat : 8;
+            UINT VideoChromaSubsampling : 4;
+            UINT NominalRange : 3;
+            UINT VideoTransferMatrix : 3;
+            UINT VideoLighting : 4;
+            UINT VideoPrimaries : 5;
+            UINT VideoTransferFunction : 5;
+        };
+        UINT Value;
+    };
+} DXVA_ExtendedFormat;
+
+#define DXVA_NominalRange_Unknown 0
+#define DXVA_NominalRange_Normal 1 // 16-235
+#define DXVA_NominalRange_Wide 2   // 0-255
+#define DXVA_NominalRange_0_255 2
+#define DXVA_NominalRange_16_235 1
+#endif
+// ...existing code...
+
 namespace ccap
 {
 ProviderWin::ProviderWin() = default;
@@ -65,11 +120,11 @@ static void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
             if (pmt->cbFormat >= sizeof(VIDEOINFOHEADER2) + sizeof(DXVA_ExtendedFormat))
             {
                 DXVA_ExtendedFormat* extFmt = (DXVA_ExtendedFormat*)extFmtPtr;
-                if (extFmt->VideoNominalRange == DXVA_NominalRange_0_255)
+                if (extFmt->NominalRange == DXVA_NominalRange_0_255)
                 {
                     rangeStr = " (FullRange)";
                 }
-                else if (extFmt->VideoNominalRange == DXVA_NominalRange_16_235)
+                else if (extFmt->NominalRange == DXVA_NominalRange_16_235)
                 {
                     rangeStr = " (VideoRange)";
                 }
