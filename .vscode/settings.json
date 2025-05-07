@@ -1,14 +1,14 @@
 {
     "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
     "files.associations": {
-        "*.cc": "cpp",
-        "*.conf": "apacheconf",
         "*.h": "cpp",
+        "*.cc": "cpp",
+        "params.txt": "json",
         "*.mat": "json",
         "*.metamat": "json",
         "*.SKaul": "lua",
         "CMakeLists*.txt": "cmake",
-        "params.txt": "json",
+        "*.conf": "apacheconf",
         "*.pch": "objective-cpp",
         "*Mac.h": "objective-cpp",
         "array": "cpp",
@@ -90,6 +90,22 @@
         "__mutex_base": "cpp",
         "__threading_support": "cpp",
         "__tuple": "cpp",
-        "__hash_table": "cpp"
+        "__hash_table": "cpp",
+        "filesystem": "cpp",
+        "list": "cpp",
+        "xfacet": "cpp",
+        "xhash": "cpp",
+        "xiosbase": "cpp",
+        "xlocale": "cpp",
+        "xlocbuf": "cpp",
+        "xlocinfo": "cpp",
+        "xlocmes": "cpp",
+        "xlocmon": "cpp",
+        "xlocnum": "cpp",
+        "xloctime": "cpp",
+        "xmemory": "cpp",
+        "xstring": "cpp",
+        "xtr1common": "cpp",
+        "xutility": "cpp"
     }
 }

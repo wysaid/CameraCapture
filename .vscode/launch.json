@@ -12,7 +12,6 @@
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],
-            "console": "integratedTerminal",
             "preLaunchTask": "Build Project (Debug)"
         },
         {

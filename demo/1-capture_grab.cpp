@@ -14,7 +14,7 @@
 #include <iostream>
 #include <string>
 
-void saveRgbaDataAsBMP(const unsigned char* data, const char* filename, uint32_t w, uint32_t stride, uint32_t h, bool isBGRA);
+void saveRgbDataAsBMP(const unsigned char* data, const char* filename, uint32_t w, uint32_t stride, uint32_t h, bool isBGR, bool hasAlpha);
 
 int main(int argc, char** argv)
 {
@@ -92,10 +92,10 @@ int main(int argc, char** argv)
         {
             printf("Frame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes);
 
-            if (ccap::pixelFormatInclude(frame->pixelFormat, ccap::kPixelFormatRGBAColorBit))
-            {
+            if (frame->pixelFormat & ccap::kPixelFormatRGBColorBit)
+            { /// RGB or RGBA
                 auto filePath = getNewFilePath() + ".bmp";
-                saveRgbaDataAsBMP(frame->data[0], filePath.c_str(), frame->width, frame->stride[0], frame->height, false);
+                saveRgbDataAsBMP(frame->data[0], filePath.c_str(), frame->width, frame->stride[0], frame->height, true, frame->pixelFormat & ccap::kPixelFormatAlphaColorBit);
                 std::cout << "Saving frame to: " << filePath << std::endl;
             }
             else if (ccap::pixelFormatInclude(frame->pixelFormat, ccap::kPixelFormatYUVColorBit))
@@ -137,62 +137,83 @@ int main(int argc, char** argv)
     return 0;
 }
 
-void saveRgbaDataAsBMP(const unsigned char* data, const char* filename, uint32_t w, uint32_t stride, uint32_t h, bool isBGRA)
+/// @brief  Save RGB data as BMP file.
+/// @param isBGR indicate if the data is in B-G-R bytes order. if true, the data is in B-G-R order, else it is in R-G-B order.
+/// @param hasAlpha indicate if the data has an alpha channel. The alpha channel is always at the end of the pixel byte order.
+void saveRgbDataAsBMP(const unsigned char* data, const char* filename, uint32_t w, uint32_t stride, uint32_t h, bool isBGR, bool hasAlpha)
 {
     FILE* fp = fopen(filename, "wb");
     if (fp == nullptr)
         return;
-    unsigned char file[14] = {
-        'B', 'M',   // magic
-        0, 0, 0, 0, // <NEED FILL> all size in bytes
-        0, 0,       // app data
-        0, 0,       // app data
-        0, 0, 0, 0  // <NEED FILL> start of image data offset
-    };
-    // BITMAPV4HEADER
-    unsigned char info[108] = {
-        108, 0, 0, 0,           // DIB header size
-        0, 0, 0, 0,             // <NEED FILL> width
-        0, 0, 0, 0,             // <NEED FILL> height
-        1, 0,                   // number color planes
-        32, 0,                  // bits per pixel
-        3, 0, 0, 0,             // BI_BITFIELDS, means RGBA
-        0, 0, 0, 0,             // <NEED FILL> image data size by bytes
-        0x13, 0x0B, 0, 0,       // horiz resolution in pixel / m
-        0x13, 0x0B, 0, 0,       // vert resolutions (0x03C3 = 96 dpi, 0x0B13 = 72 dpi)
-        0, 0, 0, 0,             // #colors in palette
-        0, 0, 0, 0,             // #important colors
-        0x00, 0x00, 0xFF, 0x00, // Red channel bit mask (valid because BI_BITFIELDS is specified)
-        0x00, 0xFF, 0x00, 0x00, // Green channel bit mask (valid because BI_BITFIELDS is specified)
-        0xFF, 0x00, 0x00, 0x00, // Blue channel bit mask (valid because BI_BITFIELDS is specified)
-        0x00, 0x00, 0x00, 0xFF, // Alpha channel bit mask
-        // 0x20, 0x6E, 0x69, 0x57, // "Win ", LCS_WINDOWS_COLOR_SPACE, not working on Macos.
-        // ... unused bytes
-    };
 
-    if (!isBGRA)
+    if (hasAlpha)
     {
-        (uint32_t&)info[40] = 0x00FF0000; // Red channel bit mask
-        (uint32_t&)info[44] = 0x0000FF00; // Green channel bit mask
-        (uint32_t&)info[48] = 0x000000FF; // Blue channel bit mask
+        // 32bpp, BITMAPV4HEADER
+        unsigned char file[14] = {
+            'B', 'M', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        };
+        unsigned char info[108] = {
+            108, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 32, 0, 3, 0, 0, 0, 0, 0, 0, 0,
+            0x13, 0x0B, 0, 0, 0x13, 0x0B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0x00, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF
+        };
+        if (!isBGR)
+        {
+            (uint32_t&)info[40] = 0x000000FF;
+            (uint32_t&)info[48] = 0x00FF0000;
+        }
+        int lineSize = w * 4;
+        int sizeData = lineSize * h;
+        (uint32_t&)file[2] = sizeof(file) + sizeof(info) + sizeData;
+        (uint32_t&)file[10] = sizeof(file) + sizeof(info);
+        (uint32_t&)info[4] = w;
+        (uint32_t&)info[8] = h;
+        (uint32_t&)info[20] = sizeData;
+        fwrite(file, sizeof(file), 1, fp);
+        fwrite(info, sizeof(info), 1, fp);
+        for (int i = h - 1; i >= 0; --i)
+            fwrite(data + stride * i, lineSize, 1, fp);
     }
-
-    int lineSize = w * 4;
-    int sizeData = (lineSize * h);
-
-    (uint32_t&)file[2] = sizeof(file) + sizeof(info) + sizeData;
-    (uint32_t&)file[10] = sizeof(file) + sizeof(info);
-    (uint32_t&)info[4] = w;
-    (uint32_t&)info[8] = h;
-    (uint32_t&)info[20] = sizeData;
-
-    fwrite(file, sizeof(file), 1, fp);
-    fwrite(info, sizeof(info), 1, fp);
-
-    for (int i = h - 1; i >= 0; --i)
+    else
     {
-        fwrite(data + stride * i, lineSize, 1, fp);
+        // 24bpp, BITMAPINFOHEADER
+        unsigned char file[14] = {
+            'B', 'M', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        };
+        unsigned char info[40] = {
+            40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0x13, 0x0B, 0, 0, 0x13, 0x0B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        };
+        int lineSize = ((w * 3 + 3) / 4) * 4; // 4字节对齐
+        int sizeData = lineSize * h;
+        (uint32_t&)file[2] = sizeof(file) + sizeof(info) + sizeData;
+        (uint32_t&)file[10] = sizeof(file) + sizeof(info);
+        (uint32_t&)info[4] = w;
+        (uint32_t&)info[8] = h;
+        (uint32_t&)info[20] = sizeData;
+        fwrite(file, sizeof(file), 1, fp);
+        fwrite(info, sizeof(info), 1, fp);
+        unsigned char padding[3] = { 0, 0, 0 };
+        for (int i = h - 1; i >= 0; --i)
+        {
+            const unsigned char* src = data + stride * i;
+            if (isBGR)
+            {
+                fwrite(src, w * 3, 1, fp);
+            }
+            else
+            {
+                // RGB转BGR
+                for (uint32_t x = 0; x < w; ++x)
+                {
+                    unsigned char bgr[3] = { src[x * 3 + 2], src[x * 3 + 1], src[x * 3 + 0] };
+                    fwrite(bgr, 3, 1, fp);
+                }
+            }
+            auto remainBytes = lineSize - w * 3;
+            if (remainBytes > 0)
+                fwrite(padding, 1, lineSize - w * 3, fp);
+        }
     }
-
     fclose(fp);
 }

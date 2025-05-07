@@ -12,6 +12,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <vector>
 
 // 需要链接以下库
 #pragma comment(lib, "strmiids.lib")
@@ -23,6 +24,35 @@ ProviderWin::ProviderWin() = default;
 ProviderWin::~ProviderWin()
 {
     ProviderWin::close();
+}
+
+static void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
+{
+    const GUID& subtype = pmt->subtype;
+    const char* fmt = "Unknown";
+    if (subtype == MEDIASUBTYPE_RGB24)
+        fmt = "RGB24";
+    else if (subtype == MEDIASUBTYPE_RGB32)
+        fmt = "RGB32";
+    else if (subtype == MEDIASUBTYPE_RGB565)
+        fmt = "RGB565";
+    else if (subtype == MEDIASUBTYPE_RGB555)
+        fmt = "RGB555";
+    else if (subtype == MEDIASUBTYPE_YUY2)
+        fmt = "YUY2";
+    else if (subtype == MEDIASUBTYPE_YV12)
+        fmt = "YV12";
+    else if (subtype == MEDIASUBTYPE_UYVY)
+        fmt = "UYVY";
+    else if (subtype == MEDIASUBTYPE_MJPG)
+        fmt = "MJPG";
+    else if (subtype == MEDIASUBTYPE_YVYU)
+        fmt = "YVYU";
+    else if (subtype == MEDIASUBTYPE_NV12)
+        fmt = "NV12";
+
+    VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)pmt->pbFormat;
+    printf("%s%ld x %ld  bitcount=%ld  format=%s\n", prefix, vih->bmiHeader.biWidth, vih->bmiHeader.biHeight, vih->bmiHeader.biBitCount, fmt);
 }
 
 bool ProviderWin::open(std::string_view deviceName)
@@ -181,7 +211,7 @@ bool ProviderWin::open(std::string_view deviceName)
     AM_MEDIA_TYPE mt;
     ZeroMemory(&mt, sizeof(mt));
     mt.majortype = MEDIATYPE_Video;
-    mt.subtype = MEDIASUBTYPE_RGB32;
+    mt.subtype = MEDIASUBTYPE_RGB24;
     mt.formattype = FORMAT_VideoInfo;
     hr = m_sampleGrabber->SetMediaType(&mt);
     if (FAILED(hr))
@@ -216,22 +246,97 @@ bool ProviderWin::open(std::string_view deviceName)
                 std::cout << "ccap: Found " << iCount << " supported resolutions." << std::endl;
             }
 
+            std::vector<BYTE> sccs(iSize);
+
+            // 你想要设置的分辨率
+            const int desiredWidth = m_frameProp.width;
+            const int desiredHeight = m_frameProp.height;
+            double distance = 1.e9;
+            int bestIndex = -1;
+            std::vector<AM_MEDIA_TYPE*> allMediaTypes(iCount);
+            std::vector<int> videoIndices;
+            std::vector<int> matchedIndices;
+            videoIndices.reserve(iCount);
+            matchedIndices.reserve(iCount);
+
             for (int i = 0; i < iCount; i++)
             {
-                AM_MEDIA_TYPE* pmt = nullptr;
-                BYTE* scc = new BYTE[iSize];
-                if (SUCCEEDED(pConfig->GetStreamCaps(i, &pmt, scc)))
+                auto& pmt = allMediaTypes[i];
+                if (SUCCEEDED(pConfig->GetStreamCaps(i, &pmt, sccs.data())))
                 {
                     if (pmt->formattype == FORMAT_VideoInfo && pmt->pbFormat)
                     {
-                        VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)pmt->pbFormat;
-
                         if (ccap::infoLogEnabled())
                         {
-                            printf("  %ld x %ld  bitcount=%ld\n",
-                                   vih->bmiHeader.biWidth, vih->bmiHeader.biHeight, vih->bmiHeader.biBitCount);
+                            printMediaType(pmt, "  ");
+                        }
+
+                        VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)pmt->pbFormat;
+                        if (desiredWidth <= vih->bmiHeader.biWidth && desiredHeight <= vih->bmiHeader.biHeight)
+                        {
+                            matchedIndices.emplace_back(i);
+                        }
+
+                        videoIndices.emplace_back(i);
+                    }
+                }
+            }
+
+            if (matchedIndices.empty())
+            {
+                if (ccap::warningLogEnabled())
+                {
+                    std::cerr << "ccap: No suitable resolution found, using the closest one instead." << std::endl;
+                }
+                matchedIndices = videoIndices;
+            }
+
+            for (int i : matchedIndices)
+            {
+                auto& pmt = allMediaTypes[i];
+                if (pmt->formattype == FORMAT_VideoInfo && pmt->pbFormat)
+                {
+                    VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)pmt->pbFormat;
+                    double w = static_cast<double>(vih->bmiHeader.biWidth);
+                    double h = static_cast<double>(vih->bmiHeader.biHeight);
+                    double d = std::abs((w - desiredWidth) + std::abs(h - desiredHeight));
+                    if (d < distance)
+                    {
+                        distance = d;
+                        bestIndex = i;
+                    }
+                }
+            }
+
+            if (bestIndex >= 0)
+            {
+                auto& pmt = allMediaTypes[bestIndex];
+                if (pmt->formattype == FORMAT_VideoInfo && pmt->pbFormat)
+                {
+                    VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)pmt->pbFormat;
+                    m_frameProp.width = vih->bmiHeader.biWidth;
+                    m_frameProp.height = vih->bmiHeader.biHeight;
+                    m_frameProp.fps = 10000000.0 / vih->AvgTimePerFrame;
+                    m_frameProp.pixelFormat = PixelFormat::BGR888; // 假设 RGB24 格式
+                    auto hr = pConfig->SetFormat(pmt);
+                    if (FAILED(hr))
+                    {
+                        if (ccap::errorLogEnabled())
+                        {
+                            std::cerr << "ccap: SetFormat failed, hr=0x" << std::hex << hr << std::endl;
                         }
                     }
+                    else if (ccap::infoLogEnabled())
+                    {
+                        printMediaType(pmt, "ccap: SetFormat succeeded: ");
+                    }
+                }
+            }
+
+            for (auto* pmt : allMediaTypes)
+            {
+                if (pmt != nullptr)
+                {
                     if (pmt->cbFormat != 0)
                     {
                         CoTaskMemFree((PVOID)pmt->pbFormat);
@@ -240,8 +345,8 @@ bool ProviderWin::open(std::string_view deviceName)
                     }
                     CoTaskMemFree(pmt);
                 }
-                delete[] scc;
             }
+
             pConfig->Release();
         }
     }
@@ -330,18 +435,15 @@ HRESULT STDMETHODCALLTYPE ProviderWin::SampleCB(double sampleTime, IMediaSample*
     if (noCopy)
     { // 零拷贝，直接引用 sample 数据
         newFrame->sizeInBytes = bufferLen;
-        newFrame->pixelFormat = PixelFormat::BGRA8888; // 假设 RGB32 格式
+        newFrame->pixelFormat = PixelFormat::BGR888; // 假设 RGB24 格式
         newFrame->width = m_frameProp.width;
         newFrame->height = m_frameProp.height;
-        newFrame->stride[0] = m_frameProp.width * 4; // RGBA32 每个像素 4 字节
+        newFrame->stride[0] = m_frameProp.width * 3; // BGR888 每个像素 3 字节
         newFrame->stride[1] = 0;
         newFrame->stride[2] = 0;
         newFrame->data[0] = pBuffer;
         newFrame->data[1] = nullptr;
         newFrame->data[2] = nullptr;
-
-        printf("First 8 bytes: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-               pBuffer[0], pBuffer[1], pBuffer[2], pBuffer[3], pBuffer[4], pBuffer[5], pBuffer[6], pBuffer[7]);
 
         mediaSample->AddRef(); // 保证数据生命周期
         auto manager = std::make_shared<FakeFrame>([newFrame, mediaSample]() mutable {
@@ -363,7 +465,7 @@ HRESULT STDMETHODCALLTYPE ProviderWin::SampleCB(double sampleTime, IMediaSample*
         newFrame->data[0] = newFrame->allocator->data();
         newFrame->data[1] = nullptr;
         newFrame->data[2] = nullptr;
-        newFrame->stride[0] = m_frameProp.width * 4; // RGBA32 每个像素 4 字节
+        newFrame->stride[0] = m_frameProp.width * 3; // BGR888 每个像素 3 字节
         newFrame->stride[1] = 0;
         newFrame->stride[2] = 0;
         newFrame->pixelFormat = PixelFormat::BGRA8888; // 假设 RGB32 格式
