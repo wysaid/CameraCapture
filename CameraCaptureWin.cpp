@@ -40,7 +40,7 @@ bool ProviderWin::open(std::string_view deviceName)
 
     HRESULT hr = S_OK;
 
-    // 初始化 COM
+    // Initialize COM
     hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     if (FAILED(hr) && hr != RPC_E_CHANGED_MODE)
     {
@@ -51,7 +51,7 @@ bool ProviderWin::open(std::string_view deviceName)
         return false;
     }
 
-    // 创建 Filter Graph
+    // Create Filter Graph
     hr = CoCreateInstance(CLSID_FilterGraph, nullptr, CLSCTX_INPROC_SERVER, IID_IGraphBuilder, (void**)&m_graph);
     if (FAILED(hr))
     {
@@ -62,7 +62,7 @@ bool ProviderWin::open(std::string_view deviceName)
         return false;
     }
 
-    // 创建 Capture Graph Builder
+    // Create Capture Graph Builder
     hr = CoCreateInstance(CLSID_CaptureGraphBuilder2, nullptr, CLSCTX_INPROC_SERVER, IID_ICaptureGraphBuilder2, (void**)&m_captureBuilder);
     if (FAILED(hr))
     {
@@ -74,7 +74,7 @@ bool ProviderWin::open(std::string_view deviceName)
     }
     m_captureBuilder->SetFiltergraph(m_graph);
 
-    // 枚举视频采集设备
+    // Enumerate video capture devices
     ICreateDevEnum* pDevEnum = nullptr;
     hr = CoCreateInstance(CLSID_SystemDeviceEnum, nullptr, CLSCTX_INPROC_SERVER, IID_ICreateDevEnum, (void**)&pDevEnum);
     if (FAILED(hr))
@@ -143,7 +143,7 @@ bool ProviderWin::open(std::string_view deviceName)
         return false;
     }
 
-    // 添加设备 Filter 到 Graph
+    // Add device filter to the graph
     hr = m_graph->AddFilter(m_deviceFilter, L"Video Capture");
     if (FAILED(hr))
     {
@@ -154,7 +154,7 @@ bool ProviderWin::open(std::string_view deviceName)
         return false;
     }
 
-    // 创建 SampleGrabber
+    // Create SampleGrabber
     hr = CoCreateInstance(CLSID_SampleGrabber, nullptr, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&m_sampleGrabberFilter);
     if (FAILED(hr))
     {
@@ -201,8 +201,8 @@ bool ProviderWin::open(std::string_view deviceName)
         return false;
     }
 
-    // 连接 Filter
     hr = m_captureBuilder->RenderStream(&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, m_deviceFilter, m_sampleGrabberFilter, nullptr);
+
     if (FAILED(hr))
     {
         if (ccap::errorLogEnabled())
@@ -226,6 +226,20 @@ bool ProviderWin::open(std::string_view deviceName)
             std::cerr << "ccap: QueryInterface IMediaControl failed, hr=0x" << std::hex << hr << std::endl;
         }
         return false;
+    }
+
+    { // Remove the `ActiveMovie Window`.
+        IVideoWindow* pVideoWindow = nullptr;
+        hr = m_graph->QueryInterface(IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+        if (FAILED(hr))
+        {
+            if (ccap::errorLogEnabled())
+            {
+                std::cerr << "ccap: QueryInterface IVideoWindow failed, hr=0x" << std::hex << hr << std::endl;
+            }
+            return hr;
+        }
+        pVideoWindow->put_AutoShow(false);
     }
 
     if (ccap::verboseLogEnabled())
@@ -336,7 +350,7 @@ HRESULT STDMETHODCALLTYPE ProviderWin::SampleCB(double sampleTime, IMediaSample*
         }
 
         double roundedFps = std::round(_fps * 10.0) / 10.0;
-        printf("ccap: New frame available: %lux%lu, bytes %lu, Data address: %p, fps: %g", newFrame->width, newFrame->height, newFrame->sizeInBytes, newFrame->data[0], roundedFps);
+        printf("ccap: New frame available: %lux%lu, bytes %lu, Data address: %p, fps: %g\n", newFrame->width, newFrame->height, newFrame->sizeInBytes, newFrame->data[0], roundedFps);
     }
 
     newFrameAvailable(std::move(newFrame));
