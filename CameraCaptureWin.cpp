@@ -536,7 +536,7 @@ HRESULT STDMETHODCALLTYPE ProviderWin::SampleCB(double sampleTime, IMediaSample*
         return S_OK;
     }
 
-    // 获取 sample 数据
+    // Get sample data
     BYTE* sampleData = nullptr;
     if (FAILED(mediaSample->GetPointer(&sampleData)))
     {
@@ -550,23 +550,23 @@ HRESULT STDMETHODCALLTYPE ProviderWin::SampleCB(double sampleTime, IMediaSample*
     long bufferLen = mediaSample->GetActualDataLength();
     bool noCopy = newFrame->allocator == nullptr;
 
-    // 转换为纳秒
+    // Convert to nanoseconds
     newFrame->timestamp = static_cast<uint64_t>(sampleTime * 1e9);
 
     if (noCopy)
-    { // 零拷贝，直接引用 sample 数据
+    { // Zero-copy, directly reference sample data
         newFrame->sizeInBytes = bufferLen;
-        newFrame->pixelFormat = PixelFormat::BGR888; // 假设 RGB24 格式
+        newFrame->pixelFormat = PixelFormat::BGR888; // Assume RGB24 format
         newFrame->width = m_frameProp.width;
         newFrame->height = m_frameProp.height;
-        newFrame->stride[0] = m_frameProp.width * 3; // BGR888 每个像素 3 字节
+        newFrame->stride[0] = m_frameProp.width * 3; // BGR888, 3 bytes per pixel
         newFrame->stride[1] = 0;
         newFrame->stride[2] = 0;
         newFrame->data[0] = sampleData;
         newFrame->data[1] = nullptr;
         newFrame->data[2] = nullptr;
 
-        mediaSample->AddRef(); // 保证数据生命周期
+        mediaSample->AddRef(); // Ensure data lifecycle
         auto manager = std::make_shared<FakeFrame>([newFrame, mediaSample]() mutable {
             newFrame = nullptr;
             mediaSample->Release();
@@ -586,13 +586,19 @@ HRESULT STDMETHODCALLTYPE ProviderWin::SampleCB(double sampleTime, IMediaSample*
         newFrame->data[0] = newFrame->allocator->data();
         newFrame->data[1] = nullptr;
         newFrame->data[2] = nullptr;
-        newFrame->stride[0] = m_frameProp.width * 3; // BGR888 每个像素 3 字节
+        newFrame->stride[0] = m_frameProp.width * 3; // BGR888, 3 bytes per pixel
         newFrame->stride[1] = 0;
         newFrame->stride[2] = 0;
-        newFrame->pixelFormat = PixelFormat::BGRA8888; // 假设 RGB32 格式
+        newFrame->pixelFormat = PixelFormat::BGR888; // Assume RGB24 format
         newFrame->width = m_frameProp.width;
         newFrame->height = m_frameProp.height;
         newFrame->timestamp = static_cast<uint64_t>(sampleTime * 1e9);
+
+        // Copy data
+        if (bufferLen > 0)
+        {
+            memcpy(newFrame->data[0], sampleData, bufferLen);
+        }
     }
 
     newFrame->frameIndex = m_frameIndex++;
