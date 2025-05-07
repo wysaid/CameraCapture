@@ -48,7 +48,7 @@ namespace
 class FakeFrame : std::enable_shared_from_this<FakeFrame>
 {
 public:
-    FakeFrame(std::function<void()> deleter) :
+    explicit FakeFrame(std::function<void()> deleter) :
         m_deleter(std::move(deleter))
     {
     }
