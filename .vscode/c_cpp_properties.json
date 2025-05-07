@@ -7,13 +7,14 @@
             "cppStandard": "c++17",
             "compilerPath": "${default}",
             "defines": [
-                "DEBUG=1"
+                "DEBUG=1",
+                "_WIN32=1"
             ],
             "configurationProvider": "ms-vscode.cmake-tools",
             "includePath": [
                 "${workspaceFolder}",
                 "${workspaceFolder}/demo"
-            ],
+            ]
         }
     ]
 }

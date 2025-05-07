@@ -138,7 +138,7 @@
         {
             "label": "Run Demo (Debug)",
             "type": "shell",
-            "command": "./CameraDemo",
+            "command": "./1-capture_grab",
             "options": {
                 "cwd": "${workspaceFolder}/build/Debug"
             },
@@ -148,14 +148,14 @@
                 "Build Project (Debug)"
             ],
             "windows": {
-                "command": ".\\CameraDemo.exe",
+                "command": ".\\1-capture_grab.exe",
                 "problemMatcher": "$msCompile",
             }
         },
         {
             "label": "Run Demo (Release)",
             "type": "shell",
-            "command": "./CameraDemo",
+            "command": "./1-capture_grab",
             "options": {
                 "cwd": "${workspaceFolder}/build/Release"
             },
@@ -165,7 +165,7 @@
                 "Build Project (Release)"
             ],
             "windows": {
-                "command": ".\\CameraDemo.exe",
+                "command": ".\\1-capture_grab.exe",
                 "problemMatcher": "$msCompile",
             }
         },
