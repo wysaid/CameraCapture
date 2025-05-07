@@ -616,6 +616,7 @@ private:
         newFrame->stride[0] = yBytesPerRow;
         newFrame->stride[1] = uvBytesPerRow;
         newFrame->stride[2] = 0;
+        newFrame->sizeInBytes = bytes;
 
         if (noCopy)
         {
@@ -625,7 +626,7 @@ private:
                 CFRelease(imageBuffer);
                 if (ccap::verboseLogEnabled())
                 {
-                    NSLog(@"ccap: recycled RGBA frame, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
+                    NSLog(@"ccap: recycled YUV frame, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
                 }
 
                 /// Make ref count + 1
@@ -659,6 +660,7 @@ private:
     else
     {
         bytes = CVPixelBufferGetDataSize(imageBuffer);
+        newFrame->sizeInBytes = bytes;
 
         newFrame->data[1] = nullptr;
         newFrame->data[2] = nullptr;
@@ -674,7 +676,7 @@ private:
                 CFRelease(imageBuffer);
                 if (ccap::verboseLogEnabled())
                 {
-                    NSLog(@"ccap: recycled YUV frame, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
+                    NSLog(@"ccap: recycled RGBA frame, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
                 }
                 /// Make ref count + 1
                 newFrame = nullptr;
