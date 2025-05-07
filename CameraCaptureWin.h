@@ -82,6 +82,7 @@ class ProviderWin : public ProviderImp, public ISampleGrabberCB
 public:
     ProviderWin();
     ~ProviderWin() override;
+    std::vector<std::string> findDeviceNames() override;
     bool open(std::string_view deviceName) override;
     bool isOpened() const override;
     void close() override;
@@ -97,6 +98,9 @@ private:
     ULONG STDMETHODCALLTYPE AddRef(void) override;
     ULONG STDMETHODCALLTYPE Release(void) override;
 
+    bool setup();
+    void enumerateDevices(std::function<bool(IMoniker* moniker, std::string_view)> callback);
+
 private:
     IGraphBuilder* m_graph = nullptr;
     ICaptureGraphBuilder2* m_captureBuilder = nullptr;
@@ -106,6 +110,7 @@ private:
     IMediaControl* m_mediaControl = nullptr;
 
     // 状态变量
+    bool m_didSetup{ false };
     bool m_isOpened{ false };
     bool m_isRunning{ false };
 };

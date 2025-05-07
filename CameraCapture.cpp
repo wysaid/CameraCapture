@@ -27,6 +27,11 @@ Provider::Provider(ccap::ProviderImp* imp) :
 {
 }
 
+std::vector<std::string> Provider::findDeviceNames()
+{
+    return m_imp->findDeviceNames();
+}
+
 bool Provider::open(std::string_view deviceName)
 {
     return m_imp->open(deviceName);

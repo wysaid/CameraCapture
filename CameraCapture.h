@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -50,7 +51,7 @@ enum class PixelFormat : uint32_t
     /// @brief Not commonly used, likely unsupported, may fall back to NV12*
     NV21f = 3 | kPixelFormatYUVColorFullRangeBit,
 
-    /// @brief Not commonly used, likely unsupported, may fall back to BGR888
+    /// @brief Not commonly used, likely unsupported, may fall back to BGR888 (Windows) or BGRA8888 (MacOS)
     RGB888 = 4 | kPixelFormatRGBColorBit, /// 3 bytes per pixel
 
     /// @brief Always supported on all platform. Simple to use.
@@ -181,10 +182,17 @@ public:
     ~Provider();
 
     /**
+     * @brief Retrieves the names of all available capture devices. Will perform a scan.
+     * @return std::vector<std::string> A list of device names, usable with the `open` method.
+     */
+    std::vector<std::string> findDeviceNames();
+
+    /**
      * @brief Opens a capture device.
      *
      * @param deviceName The name of the device to open. The format is platform-dependent. Pass an empty string to use the default device.
      * @return true if the device was successfully opened, false otherwise.
+     * @note The device name can be obtained using the `findDeviceNames` method.
      */
     bool open(std::string_view deviceName);
 

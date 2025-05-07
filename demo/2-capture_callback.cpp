@@ -47,6 +47,14 @@ int main(int argc, char** argv)
         return -1;
     }
 
+    if (auto deviceNames = cameraProvider->findDeviceNames(); !deviceNames.empty())
+    {
+        for (const auto& name : deviceNames)
+        {
+            std::cout << "## Found video capture device: " << name << std::endl;
+        }
+    }
+
     int requestedWidth = 1280;
     int requestedHeight = 720;
     double requestedFps = 60;
@@ -83,7 +91,7 @@ int main(int argc, char** argv)
         std::tm nowTm = *std::localtime(&nowTime);
         char filename[256];
         std::strftime(filename, sizeof(filename), "%Y%m%d_%H%M%S", &nowTm);
-        return captureDir + "/" + filename + "_" + std::to_string(imageIndex++);
+        return captureDir + '/' + filename + '_' + std::to_string(realWidth) + 'x' + std::to_string(realHeight) + '_' + std::to_string(imageIndex++);
     };
 
     cameraProvider->setNewFrameCallback([getNewFilePath](std::shared_ptr<ccap::Frame> frame) -> bool {
@@ -159,7 +167,7 @@ void saveRgbDataAsBMP(const unsigned char* data, const char* filename, uint32_t 
         (uint32_t&)info[20] = sizeData;
         fwrite(file, sizeof(file), 1, fp);
         fwrite(info, sizeof(info), 1, fp);
-        for (int i = h - 1; i >= 0; --i)
+        for (uint32_t i = 0; i < h; ++i)
             fwrite(data + stride * i, lineSize, 1, fp);
     }
     else
@@ -182,7 +190,7 @@ void saveRgbDataAsBMP(const unsigned char* data, const char* filename, uint32_t 
         fwrite(file, sizeof(file), 1, fp);
         fwrite(info, sizeof(info), 1, fp);
         unsigned char padding[3] = { 0, 0, 0 };
-        for (int i = h - 1; i >= 0; --i)
+        for (uint32_t i = 0; i < h; ++i)
         {
             const unsigned char* src = data + stride * i;
             if (isBGR)

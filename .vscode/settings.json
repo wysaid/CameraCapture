@@ -1,14 +1,14 @@
 {
     "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
     "files.associations": {
-        "*.h": "cpp",
         "*.cc": "cpp",
-        "params.txt": "json",
+        "*.conf": "apacheconf",
+        "*.h": "cpp",
         "*.mat": "json",
         "*.metamat": "json",
         "*.SKaul": "lua",
         "CMakeLists*.txt": "cmake",
-        "*.conf": "apacheconf",
+        "params.txt": "json",
         "*.pch": "objective-cpp",
         "*Mac.h": "objective-cpp",
         "array": "cpp",
@@ -106,6 +106,7 @@
         "xmemory": "cpp",
         "xstring": "cpp",
         "xtr1common": "cpp",
-        "xutility": "cpp"
+        "xutility": "cpp",
+        "ranges": "cpp"
     }
 }

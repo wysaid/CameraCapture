@@ -65,6 +65,7 @@ public:
     void setMaxAvailableFrameSize(uint32_t size);
     void setMaxCacheFrameSize(uint32_t size);
 
+    virtual std::vector<std::string> findDeviceNames() = 0;
     virtual bool open(std::string_view deviceName) = 0;
     virtual bool isOpened() const = 0;
     virtual void close() = 0;

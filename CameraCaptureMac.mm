@@ -205,7 +205,7 @@ static NSString* getCVPixelFormatName(OSType format)
             _pixelFormat = _provider->getFrameProperty().pixelFormat;
             if (_pixelFormat == ccap::PixelFormat::Unknown)
             { /// Default to BGRA8888 if not set
-                _pixelFormat = ccap::PixelFormat::RGB888;
+                _pixelFormat = ccap::PixelFormat::BGRA8888;
             }
 
             [self fixPixelFormat];
@@ -718,6 +718,11 @@ ProviderMac::~ProviderMac()
         [m_imp destroy];
         m_imp = nil;
     }
+}
+
+std::vector<std::string> ProviderMac::findDeviceNames()
+{
+    return {};
 }
 
 bool ProviderMac::open(std::string_view deviceName)

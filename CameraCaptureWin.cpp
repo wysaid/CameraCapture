@@ -66,7 +66,7 @@ typedef struct _DXVA_ExtendedFormat
 
 #define DXVA_NominalRange_Unknown 0
 #define DXVA_NominalRange_Normal 1 // 16-235
-#define DXVA_NominalRange_Wide 2   // 0-255
+#define DXVA_NominalRange_Wide 2 // 0-255
 #define DXVA_NominalRange_0_255 2
 #define DXVA_NominalRange_16_235 1
 #endif
@@ -112,10 +112,10 @@ static void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
     if (pmt->formattype == FORMAT_VideoInfo2 && pmt->cbFormat >= sizeof(VIDEOINFOHEADER2))
     {
         VIDEOINFOHEADER2* vih2 = (VIDEOINFOHEADER2*)pmt->pbFormat;
-        // 检查 AMCONTROL_COLORINFO_PRESENT
+        // Check AMCONTROL_COLORINFO_PRESENT
         if (vih2->dwControlFlags & AMCONTROL_COLORINFO_PRESENT)
         {
-            // DXVA_ExtendedFormat 紧跟在 VIDEOINFOHEADER2 之后
+            // DXVA_ExtendedFormat follows immediately after VIDEOINFOHEADER2
             BYTE* extFmtPtr = (BYTE*)vih2 + sizeof(VIDEOINFOHEADER2);
             if (pmt->cbFormat >= sizeof(VIDEOINFOHEADER2) + sizeof(DXVA_ExtendedFormat))
             {
@@ -139,6 +139,99 @@ static void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
     printf("%s%ld x %ld  bitcount=%ld  format=%s%s\n", prefix, vih->bmiHeader.biWidth, vih->bmiHeader.biHeight, vih->bmiHeader.biBitCount, fmt, rangeStr);
 }
 
+std::vector<std::string> ProviderWin::findDeviceNames()
+{
+    std::vector<std::string> deviceNames;
+    enumerateDevices([&](IMoniker* moniker, std::string_view name) {
+        deviceNames.emplace_back(name.data(), name.size());
+        return false; // continue enumerating
+    });
+    return deviceNames;
+}
+
+bool ProviderWin::setup()
+{
+    if (!m_didSetup)
+    {
+        // Initialize COM without performing uninitialization, as other parts may also use COM
+        // Use COINIT_APARTMENTTHREADED mode here, as we only use COM in a single thread
+        auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+        m_didSetup = !(FAILED(hr) && hr != RPC_E_CHANGED_MODE);
+
+        if (!m_didSetup)
+        {
+            if (ccap::errorLogEnabled())
+            {
+                std::cerr << "ccap: CoInitializeEx failed, hr=0x" << std::hex << hr << std::endl;
+            }
+        }
+    }
+
+    return m_didSetup;
+}
+
+void ProviderWin::enumerateDevices(std::function<bool(IMoniker* moniker, std::string_view)> callback)
+{
+    if (!setup())
+    {
+        return;
+    }
+
+    // Enumerate video capture devices
+    ICreateDevEnum* deviceEnum = nullptr;
+    auto result = CoCreateInstance(CLSID_SystemDeviceEnum, nullptr, CLSCTX_INPROC_SERVER, IID_ICreateDevEnum, (void**)&deviceEnum);
+    if (FAILED(result))
+    {
+        if (ccap::errorLogEnabled())
+        {
+            std::cerr << "ccap: CoCreateInstance CLSID_SystemDeviceEnum failed, result=0x" << std::hex << result << std::endl;
+        }
+        return;
+    }
+
+    IEnumMoniker* enumerator = nullptr;
+    result = deviceEnum->CreateClassEnumerator(CLSID_VideoInputDeviceCategory, &enumerator, 0);
+    deviceEnum->Release();
+    if (FAILED(result) || !enumerator)
+    {
+        if (ccap::errorLogEnabled())
+        {
+            std::cerr << "ccap: CreateClassEnumerator CLSID_VideoInputDeviceCategory failed, result=0x" << std::hex << result << std::endl;
+            if (result == S_OK)
+            {
+                std::cerr << "ccap: No video capture devices found." << std::endl;
+            }
+        }
+
+        return;
+    }
+
+    IMoniker* moniker = nullptr;
+    ULONG fetched = 0;
+    bool stop = false;
+    while (enumerator->Next(1, &moniker, &fetched) == S_OK && !stop)
+    {
+        IPropertyBag* propertyBag = nullptr;
+        result = moniker->BindToStorage(0, 0, IID_IPropertyBag, (void**)&propertyBag);
+        if (SUCCEEDED(result))
+        {
+            VARIANT nameVariant;
+            VariantInit(&nameVariant);
+            result = propertyBag->Read(L"FriendlyName", &nameVariant, 0);
+            if (SUCCEEDED(result))
+            {
+                char deviceName[256] = { 0 };
+                WideCharToMultiByte(CP_UTF8, 0, nameVariant.bstrVal, -1, deviceName, 256, nullptr, nullptr);
+                stop = callback && callback(moniker, deviceName);
+            }
+            VariantClear(&nameVariant);
+            propertyBag->Release();
+        }
+        moniker->Release();
+    }
+    enumerator->Release();
+}
+
 bool ProviderWin::open(std::string_view deviceName)
 {
     if (m_isOpened && m_mediaControl)
@@ -150,18 +243,36 @@ bool ProviderWin::open(std::string_view deviceName)
         return false;
     }
 
-    HRESULT hr = S_OK;
+    bool found = false;
 
-    // Initialize COM
-    hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-    if (FAILED(hr) && hr != RPC_E_CHANGED_MODE)
+    enumerateDevices([&](IMoniker* moniker, std::string_view name) {
+        if (deviceName.empty() || deviceName == name)
+        {
+            auto hr = moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&m_deviceFilter);
+            if (SUCCEEDED(hr))
+            {
+                if (ccap::verboseLogEnabled())
+                {
+                    std::cout << "ccap: Using video capture device: " << name << std::endl;
+                }
+                found = true;
+                return true; // stop enumeration when returning true
+            }
+        }
+        // continue enumerating when returning false
+        return false;
+    });
+
+    if (!found)
     {
         if (ccap::errorLogEnabled())
         {
-            std::cerr << "ccap: CoInitializeEx failed, hr=0x" << std::hex << hr << std::endl;
+            std::cerr << "ccap: No matching video capture device found." << std::endl;
         }
         return false;
     }
+
+    HRESULT hr = S_OK;
 
     // Create Filter Graph
     hr = CoCreateInstance(CLSID_FilterGraph, nullptr, CLSCTX_INPROC_SERVER, IID_IGraphBuilder, (void**)&m_graph);
@@ -185,80 +296,6 @@ bool ProviderWin::open(std::string_view deviceName)
         return false;
     }
     m_captureBuilder->SetFiltergraph(m_graph);
-
-    // Enumerate video capture devices
-    ICreateDevEnum* pDevEnum = nullptr;
-    hr = CoCreateInstance(CLSID_SystemDeviceEnum, nullptr, CLSCTX_INPROC_SERVER, IID_ICreateDevEnum, (void**)&pDevEnum);
-    if (FAILED(hr))
-    {
-        if (ccap::errorLogEnabled())
-        {
-            std::cerr << "ccap: CoCreateInstance CLSID_SystemDeviceEnum failed, hr=0x" << std::hex << hr << std::endl;
-        }
-        return false;
-    }
-
-    IEnumMoniker* pEnum = nullptr;
-    hr = pDevEnum->CreateClassEnumerator(CLSID_VideoInputDeviceCategory, &pEnum, 0);
-    pDevEnum->Release();
-    if (FAILED(hr) || !pEnum)
-    {
-        if (ccap::errorLogEnabled())
-        {
-            std::cerr << "ccap: CreateClassEnumerator CLSID_VideoInputDeviceCategory failed, hr=0x" << std::hex << hr << std::endl;
-            if (hr == S_OK)
-            {
-                std::cerr << "ccap: No video capture devices found." << std::endl;
-            }
-        }
-
-        return false;
-    }
-
-    IMoniker* pMoniker = nullptr;
-    ULONG fetched = 0;
-    bool found = false;
-    while (pEnum->Next(1, &pMoniker, &fetched) == S_OK)
-    {
-        IPropertyBag* pPropBag = nullptr;
-        hr = pMoniker->BindToStorage(0, 0, IID_IPropertyBag, (void**)&pPropBag);
-        if (SUCCEEDED(hr))
-        {
-            VARIANT varName;
-            VariantInit(&varName);
-            hr = pPropBag->Read(L"FriendlyName", &varName, 0);
-            if (SUCCEEDED(hr))
-            {
-                char narrowName[256] = { 0 };
-                WideCharToMultiByte(CP_UTF8, 0, varName.bstrVal, -1, narrowName, 256, nullptr, nullptr);
-                if (deviceName.empty() || deviceName == narrowName)
-                {
-                    if (ccap::infoLogEnabled())
-                    {
-                        std::cout << "ccap: Found video capture device: " << narrowName << std::endl;
-                    }
-
-                    hr = pMoniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&m_deviceFilter);
-                    found = SUCCEEDED(hr);
-                    VariantClear(&varName);
-                    pPropBag->Release();
-                    break;
-                }
-            }
-            VariantClear(&varName);
-            pPropBag->Release();
-        }
-        pMoniker->Release();
-    }
-    pEnum->Release();
-    if (!found)
-    {
-        if (ccap::errorLogEnabled())
-        {
-            std::cerr << "ccap: No matching video capture device found." << std::endl;
-        }
-        return false;
-    }
 
     // Add device filter to the graph
     hr = m_graph->AddFilter(m_deviceFilter, L"Video Capture");
@@ -291,7 +328,7 @@ bool ProviderWin::open(std::string_view deviceName)
         return false;
     }
 
-    // 设置 SampleGrabber 媒体类型
+    // Set the media type for the SampleGrabber
     AM_MEDIA_TYPE mt;
     ZeroMemory(&mt, sizeof(mt));
     mt.majortype = MEDIATYPE_Video;
@@ -307,56 +344,56 @@ bool ProviderWin::open(std::string_view deviceName)
         return false;
     }
 
-    // 添加 SampleGrabber 到 Graph
+    // Add SampleGrabber to the Graph
     hr = m_graph->AddFilter(m_sampleGrabberFilter, L"Sample Grabber");
     if (FAILED(hr))
     {
         if (ccap::errorLogEnabled())
         {
-            std::cerr << "ccap: AddFilter Sample Grabber failed, hr=0x" << std::hex << hr << std::endl;
+            std::cerr << "ccap: AddFilter Sample Grabber failed, result=0x" << std::hex << hr << std::endl;
         }
         return false;
     }
 
-    { // 获取相机设备支持的分辨率
-        IAMStreamConfig* pConfig = nullptr;
-        hr = m_captureBuilder->FindInterface(&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, m_deviceFilter, IID_IAMStreamConfig, (void**)&pConfig);
-        if (SUCCEEDED(hr) && pConfig)
+    { // Retrieve supported resolutions from the camera device
+        IAMStreamConfig* streamConfig = nullptr;
+        hr = m_captureBuilder->FindInterface(&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, m_deviceFilter, IID_IAMStreamConfig, (void**)&streamConfig);
+        if (SUCCEEDED(hr) && streamConfig)
         {
-            int iCount = 0, iSize = 0;
-            pConfig->GetNumberOfCapabilities(&iCount, &iSize);
+            int capabilityCount = 0, capabilitySize = 0;
+            streamConfig->GetNumberOfCapabilities(&capabilityCount, &capabilitySize);
             if (ccap::infoLogEnabled())
             {
-                std::cout << "ccap: Found " << iCount << " supported resolutions." << std::endl;
+                std::cout << "ccap: Found " << capabilityCount << " supported resolutions." << std::endl;
             }
 
-            std::vector<BYTE> sccs(iSize);
+            std::vector<BYTE> capabilityData(capabilitySize);
 
-            // 你想要设置的分辨率
+            // Desired resolution
             const int desiredWidth = m_frameProp.width;
             const int desiredHeight = m_frameProp.height;
-            double distance = 1.e9;
-            int bestIndex = -1;
-            std::vector<AM_MEDIA_TYPE*> allMediaTypes(iCount);
+            double closestDistance = 1.e9;
+            int bestMatchIndex = -1;
+            std::vector<AM_MEDIA_TYPE*> mediaTypes(capabilityCount);
             std::vector<int> videoIndices;
             std::vector<int> matchedIndices;
-            videoIndices.reserve(iCount);
-            matchedIndices.reserve(iCount);
+            videoIndices.reserve(capabilityCount);
+            matchedIndices.reserve(capabilityCount);
 
-            for (int i = 0; i < iCount; i++)
+            for (int i = 0; i < capabilityCount; i++)
             {
-                auto& pmt = allMediaTypes[i];
-                if (SUCCEEDED(pConfig->GetStreamCaps(i, &pmt, sccs.data())))
+                auto& mediaType = mediaTypes[i];
+                if (SUCCEEDED(streamConfig->GetStreamCaps(i, &mediaType, capabilityData.data())))
                 {
-                    if (pmt->formattype == FORMAT_VideoInfo && pmt->pbFormat)
+                    if (mediaType->formattype == FORMAT_VideoInfo && mediaType->pbFormat)
                     {
                         if (ccap::infoLogEnabled())
                         {
-                            printMediaType(pmt, "  ");
+                            printMediaType(mediaType, "  ");
                         }
 
-                        VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)pmt->pbFormat;
-                        if (desiredWidth <= vih->bmiHeader.biWidth && desiredHeight <= vih->bmiHeader.biHeight)
+                        VIDEOINFOHEADER* videoHeader = (VIDEOINFOHEADER*)mediaType->pbFormat;
+                        if (desiredWidth <= videoHeader->bmiHeader.biWidth && desiredHeight <= videoHeader->bmiHeader.biHeight)
                         {
                             matchedIndices.emplace_back(i);
                         }
@@ -375,63 +412,63 @@ bool ProviderWin::open(std::string_view deviceName)
                 matchedIndices = videoIndices;
             }
 
-            for (int i : matchedIndices)
+            for (int index : matchedIndices)
             {
-                auto& pmt = allMediaTypes[i];
-                if (pmt->formattype == FORMAT_VideoInfo && pmt->pbFormat)
+                auto& mediaType = mediaTypes[index];
+                if (mediaType->formattype == FORMAT_VideoInfo && mediaType->pbFormat)
                 {
-                    VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)pmt->pbFormat;
-                    double w = static_cast<double>(vih->bmiHeader.biWidth);
-                    double h = static_cast<double>(vih->bmiHeader.biHeight);
-                    double d = std::abs((w - desiredWidth) + std::abs(h - desiredHeight));
-                    if (d < distance)
+                    VIDEOINFOHEADER* videoHeader = (VIDEOINFOHEADER*)mediaType->pbFormat;
+                    double width = static_cast<double>(videoHeader->bmiHeader.biWidth);
+                    double height = static_cast<double>(videoHeader->bmiHeader.biHeight);
+                    double distance = std::abs((width - desiredWidth) + std::abs(height - desiredHeight));
+                    if (distance < closestDistance)
                     {
-                        distance = d;
-                        bestIndex = i;
+                        closestDistance = distance;
+                        bestMatchIndex = index;
                     }
                 }
             }
 
-            if (bestIndex >= 0)
+            if (bestMatchIndex >= 0)
             {
-                auto& pmt = allMediaTypes[bestIndex];
-                if (pmt->formattype == FORMAT_VideoInfo && pmt->pbFormat)
+                auto& mediaType = mediaTypes[bestMatchIndex];
+                if (mediaType->formattype == FORMAT_VideoInfo && mediaType->pbFormat)
                 {
-                    VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)pmt->pbFormat;
-                    m_frameProp.width = vih->bmiHeader.biWidth;
-                    m_frameProp.height = vih->bmiHeader.biHeight;
-                    m_frameProp.fps = 10000000.0 / vih->AvgTimePerFrame;
-                    m_frameProp.pixelFormat = PixelFormat::BGR888; // 假设 RGB24 格式
-                    auto hr = pConfig->SetFormat(pmt);
-                    if (FAILED(hr))
+                    VIDEOINFOHEADER* videoHeader = (VIDEOINFOHEADER*)mediaType->pbFormat;
+                    m_frameProp.width = videoHeader->bmiHeader.biWidth;
+                    m_frameProp.height = videoHeader->bmiHeader.biHeight;
+                    m_frameProp.fps = 10000000.0 / videoHeader->AvgTimePerFrame;
+                    m_frameProp.pixelFormat = PixelFormat::BGR888; // Assume RGB24 format
+                    auto setFormatResult = streamConfig->SetFormat(mediaType);
+                    if (FAILED(setFormatResult))
                     {
                         if (ccap::errorLogEnabled())
                         {
-                            std::cerr << "ccap: SetFormat failed, hr=0x" << std::hex << hr << std::endl;
+                            std::cerr << "ccap: SetFormat failed, result=0x" << std::hex << setFormatResult << std::endl;
                         }
                     }
                     else if (ccap::infoLogEnabled())
                     {
-                        printMediaType(pmt, "ccap: SetFormat succeeded: ");
+                        printMediaType(mediaType, "ccap: SetFormat succeeded: ");
                     }
                 }
             }
 
-            for (auto* pmt : allMediaTypes)
+            for (auto* mediaType : mediaTypes)
             {
-                if (pmt != nullptr)
+                if (mediaType != nullptr)
                 {
-                    if (pmt->cbFormat != 0)
+                    if (mediaType->cbFormat != 0)
                     {
-                        CoTaskMemFree((PVOID)pmt->pbFormat);
-                        pmt->cbFormat = 0;
-                        pmt->pbFormat = nullptr;
+                        CoTaskMemFree((PVOID)mediaType->pbFormat);
+                        mediaType->cbFormat = 0;
+                        mediaType->pbFormat = nullptr;
                     }
-                    CoTaskMemFree(pmt);
+                    CoTaskMemFree(mediaType);
                 }
             }
 
-            pConfig->Release();
+            streamConfig->Release();
         }
     }
 
@@ -441,39 +478,39 @@ bool ProviderWin::open(std::string_view deviceName)
     {
         if (ccap::errorLogEnabled())
         {
-            std::cerr << "ccap: RenderStream failed, hr=0x" << std::hex << hr << std::endl;
+            std::cerr << "ccap: RenderStream failed, result=0x" << std::hex << hr << std::endl;
         }
         return false;
     }
 
-    // 设置 SampleGrabber 回调
+    // Set SampleGrabber callback
     m_sampleGrabber->SetBufferSamples(TRUE);
     m_sampleGrabber->SetOneShot(FALSE);
     m_sampleGrabber->SetCallback(this, 0); // 0 = SampleCB
 
-    // 获取 IMediaControl
+    // Retrieve IMediaControl
     hr = m_graph->QueryInterface(IID_IMediaControl, (void**)&m_mediaControl);
     if (FAILED(hr))
     {
         if (ccap::errorLogEnabled())
         {
-            std::cerr << "ccap: QueryInterface IMediaControl failed, hr=0x" << std::hex << hr << std::endl;
+            std::cerr << "ccap: QueryInterface IMediaControl failed, result=0x" << std::hex << hr << std::endl;
         }
         return false;
     }
 
     { // Remove the `ActiveMovie Window`.
-        IVideoWindow* pVideoWindow = nullptr;
-        hr = m_graph->QueryInterface(IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+        IVideoWindow* videoWindow = nullptr;
+        hr = m_graph->QueryInterface(IID_IVideoWindow, (LPVOID*)&videoWindow);
         if (FAILED(hr))
         {
             if (ccap::errorLogEnabled())
             {
-                std::cerr << "ccap: QueryInterface IVideoWindow failed, hr=0x" << std::hex << hr << std::endl;
+                std::cerr << "ccap: QueryInterface IVideoWindow failed, result=0x" << std::hex << hr << std::endl;
             }
             return hr;
         }
-        pVideoWindow->put_AutoShow(false);
+        videoWindow->put_AutoShow(false);
     }
 
     if (ccap::verboseLogEnabled())
@@ -500,8 +537,8 @@ HRESULT STDMETHODCALLTYPE ProviderWin::SampleCB(double sampleTime, IMediaSample*
     }
 
     // 获取 sample 数据
-    BYTE* pBuffer = nullptr;
-    if (FAILED(mediaSample->GetPointer(&pBuffer)))
+    BYTE* sampleData = nullptr;
+    if (FAILED(mediaSample->GetPointer(&sampleData)))
     {
         if (ccap::errorLogEnabled())
         {
@@ -525,7 +562,7 @@ HRESULT STDMETHODCALLTYPE ProviderWin::SampleCB(double sampleTime, IMediaSample*
         newFrame->stride[0] = m_frameProp.width * 3; // BGR888 每个像素 3 字节
         newFrame->stride[1] = 0;
         newFrame->stride[2] = 0;
-        newFrame->data[0] = pBuffer;
+        newFrame->data[0] = sampleData;
         newFrame->data[1] = nullptr;
         newFrame->data[2] = nullptr;
 
@@ -562,28 +599,28 @@ HRESULT STDMETHODCALLTYPE ProviderWin::SampleCB(double sampleTime, IMediaSample*
 
     if (ccap::verboseLogEnabled())
     {
-        static uint64_t _lastFrameTime = 0;
-        static int _frameCounter{};
-        static double _duration{};
-        static double _fps{ 0.0 };
+        static uint64_t s_lastFrameTime = 0;
+        static int s_frameCounter{};
+        static double s_duration{};
+        static double s_fps{ 0.0 };
 
-        if (_lastFrameTime != 0)
+        if (s_lastFrameTime != 0)
         {
-            _duration += (newFrame->timestamp - _lastFrameTime) / 1.e9;
+            s_duration += (newFrame->timestamp - s_lastFrameTime) / 1.e9;
         }
-        _lastFrameTime = newFrame->timestamp;
-        ++_frameCounter;
+        s_lastFrameTime = newFrame->timestamp;
+        ++s_frameCounter;
 
-        if (_duration > 0.5 || _frameCounter >= 30)
+        if (s_duration > 0.5 || s_frameCounter >= 30)
         {
-            auto newFps = _frameCounter / _duration;
+            auto newFps = s_frameCounter / s_duration;
             constexpr double alpha = 0.8; // Smoothing factor, smaller value means smoother
-            _fps = alpha * newFps + (1.0 - alpha) * _fps;
-            _frameCounter = 0;
-            _duration = 0;
+            s_fps = alpha * newFps + (1.0 - alpha) * s_fps;
+            s_frameCounter = 0;
+            s_duration = 0;
         }
 
-        double roundedFps = std::round(_fps * 10.0) / 10.0;
+        double roundedFps = std::round(s_fps * 10.0) / 10.0;
         printf("ccap: New frame available: %lux%lu, bytes %lu, Data address: %p, fps: %g\n", newFrame->width, newFrame->height, newFrame->sizeInBytes, newFrame->data[0], roundedFps);
     }
 

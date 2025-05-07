@@ -26,6 +26,8 @@ class ProviderMac : public ProviderImp
 {
 public:
     ~ProviderMac() override;
+
+    std::vector<std::string> findDeviceNames() override;
     bool open(std::string_view deviceName) override;
     bool isOpened() const override;
     void close() override;

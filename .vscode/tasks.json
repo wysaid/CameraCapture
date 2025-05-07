@@ -138,7 +138,12 @@
         {
             "label": "Run Demo (Debug)",
             "type": "shell",
-            "command": "./1-capture_grab",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./1-capture_grab.exe; else ./1-capture_grab; fi )"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}/build/Debug"
             },
@@ -155,7 +160,12 @@
         {
             "label": "Run Demo (Release)",
             "type": "shell",
-            "command": "./1-capture_grab",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./1-capture_grab.exe; else ./1-capture_grab; fi )"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}/build/Release"
             },
