@@ -15,7 +15,7 @@ if(NOT MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 endif()
 
-file(GLOB LIB_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
+file(GLOB LIB_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h)
 
 if(APPLE)
     file(GLOB LIB_SOURCE_MAC ${CMAKE_CURRENT_SOURCE_DIR}/*.mm)
@@ -62,7 +62,7 @@ if(CCAP_BUILD_DEMO)
         message(STATUS "Add demo: ${DEMO_NAME}")
 
         add_executable(${DEMO_NAME} ${DEMO})
-        target_include_directories(${DEMO_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+        target_include_directories(${DEMO_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
         target_link_libraries(${DEMO_NAME} CameraCapture)
     endforeach()
 endif()
