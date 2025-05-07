@@ -5,6 +5,12 @@ project(CameraCapture LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+    option(CCAP_BUILD_DEMO "Build ccap demo" ON)
+else()
+    option(CCAP_BUILD_DEMO "Build ccap demo" OFF)
+endif()
+
 if(NOT MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 endif()
@@ -44,17 +50,19 @@ else()
     target_compile_options(CameraCapture PUBLIC -std=c++17)
 endif()
 
-file(GLOB DEMO_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/demo/*.cpp)
+if(CCAP_BUILD_DEMO)
+    file(GLOB DEMO_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/demo/*.cpp)
 
-foreach(DEMO ${DEMO_SOURCE})
-    get_filename_component(DEMO_NAME ${DEMO} NAME)
+    foreach(DEMO ${DEMO_SOURCE})
+        get_filename_component(DEMO_NAME ${DEMO} NAME)
 
-    # 去掉文件名中的后缀
-    string(REPLACE ".cpp" "" DEMO_NAME ${DEMO_NAME})
+        # 去掉文件名中的后缀
+        string(REPLACE ".cpp" "" DEMO_NAME ${DEMO_NAME})
 
-    message(STATUS "Add demo: ${DEMO_NAME}")
+        message(STATUS "Add demo: ${DEMO_NAME}")
 
-    add_executable(${DEMO_NAME} ${DEMO})
-    target_include_directories(${DEMO_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(${DEMO_NAME} CameraCapture)
-endforeach()
+        add_executable(${DEMO_NAME} ${DEMO})
+        target_include_directories(${DEMO_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+        target_link_libraries(${DEMO_NAME} CameraCapture)
+    endforeach()
+endif()
