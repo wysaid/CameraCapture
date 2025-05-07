@@ -18,9 +18,7 @@
 
 namespace ccap
 {
-ProviderWin::ProviderWin()
-{
-}
+ProviderWin::ProviderWin() = default;
 
 ProviderWin::~ProviderWin()
 {
@@ -121,6 +119,11 @@ bool ProviderWin::open(std::string_view deviceName)
                 WideCharToMultiByte(CP_UTF8, 0, varName.bstrVal, -1, narrowName, 256, nullptr, nullptr);
                 if (deviceName.empty() || deviceName == narrowName)
                 {
+                    if (ccap::infoLogEnabled())
+                    {
+                        std::cout << "ccap: Found video capture device: " << narrowName << std::endl;
+                    }
+
                     hr = pMoniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&m_deviceFilter);
                     found = SUCCEEDED(hr);
                     VariantClear(&varName);
@@ -178,7 +181,7 @@ bool ProviderWin::open(std::string_view deviceName)
     AM_MEDIA_TYPE mt;
     ZeroMemory(&mt, sizeof(mt));
     mt.majortype = MEDIATYPE_Video;
-    mt.subtype = MEDIASUBTYPE_RGB24;
+    mt.subtype = MEDIASUBTYPE_RGB32;
     mt.formattype = FORMAT_VideoInfo;
     hr = m_sampleGrabber->SetMediaType(&mt);
     if (FAILED(hr))
@@ -199,6 +202,48 @@ bool ProviderWin::open(std::string_view deviceName)
             std::cerr << "ccap: AddFilter Sample Grabber failed, hr=0x" << std::hex << hr << std::endl;
         }
         return false;
+    }
+
+    { // 获取相机设备支持的分辨率
+        IAMStreamConfig* pConfig = nullptr;
+        hr = m_captureBuilder->FindInterface(&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, m_deviceFilter, IID_IAMStreamConfig, (void**)&pConfig);
+        if (SUCCEEDED(hr) && pConfig)
+        {
+            int iCount = 0, iSize = 0;
+            pConfig->GetNumberOfCapabilities(&iCount, &iSize);
+            if (ccap::infoLogEnabled())
+            {
+                std::cout << "ccap: Found " << iCount << " supported resolutions." << std::endl;
+            }
+
+            for (int i = 0; i < iCount; i++)
+            {
+                AM_MEDIA_TYPE* pmt = nullptr;
+                BYTE* scc = new BYTE[iSize];
+                if (SUCCEEDED(pConfig->GetStreamCaps(i, &pmt, scc)))
+                {
+                    if (pmt->formattype == FORMAT_VideoInfo && pmt->pbFormat)
+                    {
+                        VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)pmt->pbFormat;
+
+                        if (ccap::infoLogEnabled())
+                        {
+                            printf("  %ld x %ld  bitcount=%ld\n",
+                                   vih->bmiHeader.biWidth, vih->bmiHeader.biHeight, vih->bmiHeader.biBitCount);
+                        }
+                    }
+                    if (pmt->cbFormat != 0)
+                    {
+                        CoTaskMemFree((PVOID)pmt->pbFormat);
+                        pmt->cbFormat = 0;
+                        pmt->pbFormat = nullptr;
+                    }
+                    CoTaskMemFree(pmt);
+                }
+                delete[] scc;
+            }
+            pConfig->Release();
+        }
     }
 
     hr = m_captureBuilder->RenderStream(&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, m_deviceFilter, m_sampleGrabberFilter, nullptr);
@@ -285,15 +330,18 @@ HRESULT STDMETHODCALLTYPE ProviderWin::SampleCB(double sampleTime, IMediaSample*
     if (noCopy)
     { // 零拷贝，直接引用 sample 数据
         newFrame->sizeInBytes = bufferLen;
-        newFrame->pixelFormat = PixelFormat::RGB888; // 假设 RGB24 格式
+        newFrame->pixelFormat = PixelFormat::BGRA8888; // 假设 RGB32 格式
         newFrame->width = m_frameProp.width;
         newFrame->height = m_frameProp.height;
-        newFrame->stride[0] = m_frameProp.width * 3; // RGB24 每个像素 3 字节
+        newFrame->stride[0] = m_frameProp.width * 4; // RGBA32 每个像素 4 字节
         newFrame->stride[1] = 0;
         newFrame->stride[2] = 0;
         newFrame->data[0] = pBuffer;
         newFrame->data[1] = nullptr;
         newFrame->data[2] = nullptr;
+
+        printf("First 8 bytes: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+               pBuffer[0], pBuffer[1], pBuffer[2], pBuffer[3], pBuffer[4], pBuffer[5], pBuffer[6], pBuffer[7]);
 
         mediaSample->AddRef(); // 保证数据生命周期
         auto manager = std::make_shared<FakeFrame>([newFrame, mediaSample]() mutable {
@@ -315,10 +363,10 @@ HRESULT STDMETHODCALLTYPE ProviderWin::SampleCB(double sampleTime, IMediaSample*
         newFrame->data[0] = newFrame->allocator->data();
         newFrame->data[1] = nullptr;
         newFrame->data[2] = nullptr;
-        newFrame->stride[0] = m_frameProp.width * 3; // RGB24 每个像素 3 字节
+        newFrame->stride[0] = m_frameProp.width * 4; // RGBA32 每个像素 4 字节
         newFrame->stride[1] = 0;
         newFrame->stride[2] = 0;
-        newFrame->pixelFormat = PixelFormat::RGB888; // 假设 RGB24 格式
+        newFrame->pixelFormat = PixelFormat::BGRA8888; // 假设 RGB32 格式
         newFrame->width = m_frameProp.width;
         newFrame->height = m_frameProp.height;
         newFrame->timestamp = static_cast<uint64_t>(sampleTime * 1e9);
