@@ -97,9 +97,6 @@ private:
     ULONG STDMETHODCALLTYPE AddRef(void) override;
     ULONG STDMETHODCALLTYPE Release(void) override;
 
-    /// 返回值代表了是否需要 Release
-    bool processFrame(IMediaSample* sample);
-
 private:
     IGraphBuilder* m_graph = nullptr;
     ICaptureGraphBuilder2* m_captureBuilder = nullptr;
@@ -109,9 +106,8 @@ private:
     IMediaControl* m_mediaControl = nullptr;
 
     // 状态变量
-    std::atomic<bool> m_isOpened{ false };
-    std::atomic<bool> m_isRunning{ false };
-    std::atomic<bool> m_stopRequested{ false };
+    bool m_isOpened{ false };
+    bool m_isRunning{ false };
 };
 } // namespace ccap
 

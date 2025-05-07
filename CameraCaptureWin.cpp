@@ -29,9 +29,13 @@ ProviderWin::~ProviderWin()
 
 bool ProviderWin::open(std::string_view deviceName)
 {
-    if (m_isOpened)
+    if (m_isOpened && m_mediaControl)
     {
-        close();
+        if (ccap::errorLogEnabled())
+        {
+            std::cerr << "ccap: Camera already opened, please close it first." << std::endl;
+        }
+        return false;
     }
 
     HRESULT hr = S_OK;
@@ -39,26 +43,65 @@ bool ProviderWin::open(std::string_view deviceName)
     // 初始化 COM
     hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     if (FAILED(hr) && hr != RPC_E_CHANGED_MODE)
+    {
+        if (ccap::errorLogEnabled())
+        {
+            std::cerr << "ccap: CoInitializeEx failed, hr=0x" << std::hex << hr << std::endl;
+        }
         return false;
+    }
 
     // 创建 Filter Graph
     hr = CoCreateInstance(CLSID_FilterGraph, nullptr, CLSCTX_INPROC_SERVER, IID_IGraphBuilder, (void**)&m_graph);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+    {
+        if (ccap::errorLogEnabled())
+        {
+            std::cerr << "ccap: CoCreateInstance CLSID_FilterGraph failed, hr=0x" << std::hex << hr << std::endl;
+        }
+        return false;
+    }
 
     // 创建 Capture Graph Builder
     hr = CoCreateInstance(CLSID_CaptureGraphBuilder2, nullptr, CLSCTX_INPROC_SERVER, IID_ICaptureGraphBuilder2, (void**)&m_captureBuilder);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+    {
+        if (ccap::errorLogEnabled())
+        {
+            std::cerr << "ccap: CoCreateInstance CLSID_CaptureGraphBuilder2 failed, hr=0x" << std::hex << hr << std::endl;
+        }
+        return false;
+    }
     m_captureBuilder->SetFiltergraph(m_graph);
 
     // 枚举视频采集设备
     ICreateDevEnum* pDevEnum = nullptr;
     hr = CoCreateInstance(CLSID_SystemDeviceEnum, nullptr, CLSCTX_INPROC_SERVER, IID_ICreateDevEnum, (void**)&pDevEnum);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+    {
+        if (ccap::errorLogEnabled())
+        {
+            std::cerr << "ccap: CoCreateInstance CLSID_SystemDeviceEnum failed, hr=0x" << std::hex << hr << std::endl;
+        }
+        return false;
+    }
 
     IEnumMoniker* pEnum = nullptr;
     hr = pDevEnum->CreateClassEnumerator(CLSID_VideoInputDeviceCategory, &pEnum, 0);
     pDevEnum->Release();
-    if (FAILED(hr) || !pEnum) return false;
+    if (FAILED(hr) || !pEnum)
+    {
+        if (ccap::errorLogEnabled())
+        {
+            std::cerr << "ccap: CreateClassEnumerator CLSID_VideoInputDeviceCategory failed, hr=0x" << std::hex << hr << std::endl;
+            if (hr == S_OK)
+            {
+                std::cerr << "ccap: No video capture devices found." << std::endl;
+            }
+        }
+
+        return false;
+    }
 
     IMoniker* pMoniker = nullptr;
     ULONG fetched = 0;
@@ -91,17 +134,45 @@ bool ProviderWin::open(std::string_view deviceName)
         pMoniker->Release();
     }
     pEnum->Release();
-    if (!found) return false;
+    if (!found)
+    {
+        if (ccap::errorLogEnabled())
+        {
+            std::cerr << "ccap: No matching video capture device found." << std::endl;
+        }
+        return false;
+    }
 
     // 添加设备 Filter 到 Graph
     hr = m_graph->AddFilter(m_deviceFilter, L"Video Capture");
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+    {
+        if (ccap::errorLogEnabled())
+        {
+            std::cerr << "ccap: AddFilter Video Capture failed, hr=0x" << std::hex << hr << std::endl;
+        }
+        return false;
+    }
 
     // 创建 SampleGrabber
     hr = CoCreateInstance(CLSID_SampleGrabber, nullptr, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&m_sampleGrabberFilter);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+    {
+        if (ccap::errorLogEnabled())
+        {
+            std::cerr << "ccap: CoCreateInstance CLSID_SampleGrabber failed, hr=0x" << std::hex << hr << std::endl;
+        }
+        return false;
+    }
     hr = m_sampleGrabberFilter->QueryInterface(IID_ISampleGrabber, (void**)&m_sampleGrabber);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+    {
+        if (ccap::errorLogEnabled())
+        {
+            std::cerr << "ccap: QueryInterface ISampleGrabber failed, hr=0x" << std::hex << hr << std::endl;
+        }
+        return false;
+    }
 
     // 设置 SampleGrabber 媒体类型
     AM_MEDIA_TYPE mt;
@@ -110,15 +181,36 @@ bool ProviderWin::open(std::string_view deviceName)
     mt.subtype = MEDIASUBTYPE_RGB24;
     mt.formattype = FORMAT_VideoInfo;
     hr = m_sampleGrabber->SetMediaType(&mt);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+    {
+        if (ccap::errorLogEnabled())
+        {
+            std::cerr << "ccap: SetMediaType failed, hr=0x" << std::hex << hr << std::endl;
+        }
+        return false;
+    }
 
     // 添加 SampleGrabber 到 Graph
     hr = m_graph->AddFilter(m_sampleGrabberFilter, L"Sample Grabber");
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+    {
+        if (ccap::errorLogEnabled())
+        {
+            std::cerr << "ccap: AddFilter Sample Grabber failed, hr=0x" << std::hex << hr << std::endl;
+        }
+        return false;
+    }
 
     // 连接 Filter
     hr = m_captureBuilder->RenderStream(&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, m_deviceFilter, m_sampleGrabberFilter, nullptr);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+    {
+        if (ccap::errorLogEnabled())
+        {
+            std::cerr << "ccap: RenderStream failed, hr=0x" << std::hex << hr << std::endl;
+        }
+        return false;
+    }
 
     // 设置 SampleGrabber 回调
     m_sampleGrabber->SetBufferSamples(TRUE);
@@ -127,9 +219,23 @@ bool ProviderWin::open(std::string_view deviceName)
 
     // 获取 IMediaControl
     hr = m_graph->QueryInterface(IID_IMediaControl, (void**)&m_mediaControl);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+    {
+        if (ccap::errorLogEnabled())
+        {
+            std::cerr << "ccap: QueryInterface IMediaControl failed, hr=0x" << std::hex << hr << std::endl;
+        }
+        return false;
+    }
+
+    if (ccap::verboseLogEnabled())
+    {
+        std::cout << "ccap: Camera opened successfully." << std::endl;
+    }
 
     m_isOpened = true;
+    m_isRunning = false;
+    m_frameIndex = 0;
     return true;
 }
 
@@ -148,7 +254,13 @@ HRESULT STDMETHODCALLTYPE ProviderWin::SampleCB(double sampleTime, IMediaSample*
     // 获取 sample 数据
     BYTE* pBuffer = nullptr;
     if (FAILED(mediaSample->GetPointer(&pBuffer)))
+    {
+        if (ccap::errorLogEnabled())
+        {
+            std::cerr << "ccap: GetPointer failed." << std::endl;
+        }
         return S_OK;
+    }
 
     long bufferLen = mediaSample->GetActualDataLength();
     bool noCopy = newFrame->allocator == nullptr;
@@ -158,7 +270,6 @@ HRESULT STDMETHODCALLTYPE ProviderWin::SampleCB(double sampleTime, IMediaSample*
 
     if (noCopy)
     { // 零拷贝，直接引用 sample 数据
-
         newFrame->sizeInBytes = bufferLen;
         newFrame->pixelFormat = PixelFormat::RGB888; // 假设 RGB24 格式
         newFrame->width = m_frameProp.width;
@@ -276,43 +387,89 @@ bool ProviderWin::isOpened() const
 
 void ProviderWin::close()
 {
-    if (m_isRunning)
+    if (m_mediaControl)
     {
-        stop();
+        m_mediaControl->Stop();
+        m_mediaControl->Release();
+        m_mediaControl = nullptr;
     }
-
+    if (m_sampleGrabber)
+    {
+        m_sampleGrabber->Release();
+        m_sampleGrabber = nullptr;
+    }
+    if (m_sampleGrabberFilter)
+    {
+        m_sampleGrabberFilter->Release();
+        m_sampleGrabberFilter = nullptr;
+    }
+    if (m_deviceFilter)
+    {
+        m_deviceFilter->Release();
+        m_deviceFilter = nullptr;
+    }
+    if (m_captureBuilder)
+    {
+        m_captureBuilder->Release();
+        m_captureBuilder = nullptr;
+    }
+    if (m_graph)
+    {
+        m_graph->Release();
+        m_graph = nullptr;
+    }
     m_isOpened = false;
+    m_isRunning = false;
+
+    if (ccap::verboseLogEnabled())
+    {
+        std::cout << "ccap: Camera closed." << std::endl;
+    }
 }
 
 bool ProviderWin::start()
 {
-    if (!m_isOpened || m_isRunning)
-    {
+    if (!m_isOpened)
         return false;
+    if (!m_isRunning && m_mediaControl)
+    {
+        HRESULT hr = m_mediaControl->Run();
+        m_isRunning = !FAILED(hr);
+        if (!m_isRunning)
+        {
+            if (ccap::errorLogEnabled())
+            {
+                std::cerr << "ccap: IMediaControl->Run() failed, hr=0x" << std::hex << hr << std::endl;
+            }
+        }
+        else
+        {
+            if (ccap::verboseLogEnabled())
+            {
+                std::cout << "ccap: Camera started." << std::endl;
+            }
+        }
     }
-
-    m_stopRequested = false;
-    m_isRunning = true;
-
-    return true;
+    return m_isRunning;
 }
 
 void ProviderWin::stop()
 {
-    if (m_isRunning)
+    if (m_isRunning && m_mediaControl)
     {
+        m_mediaControl->Stop();
         m_isRunning = false;
+
+        if (ccap::verboseLogEnabled())
+        {
+            std::cout << "ccap: Camera stopped." << std::endl;
+        }
     }
 }
 
 bool ProviderWin::isStarted() const
 {
-    return m_isRunning;
-}
-
-bool ProviderWin::processFrame(IMediaSample* sample)
-{
-    return true;
+    return m_isRunning && m_mediaControl;
 }
 
 } // namespace ccap
