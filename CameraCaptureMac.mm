@@ -600,7 +600,7 @@ static NSString* getCVPixelFormatName(OSType format)
         if (noCopy)
         {
             CFRetain(imageBuffer);
-            auto manager = std::make_shared<FakeFrame>([imageBuffer, newFrame]() mutable {
+            auto manager = std::make_shared<ccap::FakeFrame>([imageBuffer, newFrame]() mutable {
                 CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
                 CFRelease(imageBuffer);
                 if (ccap::verboseLogEnabled())
@@ -650,7 +650,7 @@ static NSString* getCVPixelFormatName(OSType format)
         if (noCopy)
         {
             CFRetain(imageBuffer);
-            auto manager = std::make_shared<FakeFrame>([imageBuffer, newFrame]() mutable {
+            auto manager = std::make_shared<ccap::FakeFrame>([imageBuffer, newFrame]() mutable {
                 CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
                 CFRelease(imageBuffer);
                 if (ccap::verboseLogEnabled())
