@@ -13,6 +13,7 @@
 
 #include "CameraCapture.h"
 
+#include <atomic>
 #include <condition_variable>
 #include <deque>
 #include <mutex>
@@ -107,6 +108,23 @@ protected:
     bool m_grabFrameWaiting{ false };
 
     std::atomic_uint32_t m_frameIndex{};
+};
+
+class FakeFrame : std::enable_shared_from_this<FakeFrame>
+{
+public:
+    explicit FakeFrame(std::function<void()> deleter) :
+        m_deleter(std::move(deleter))
+    {
+    }
+    ~FakeFrame()
+    {
+        if (m_deleter)
+            m_deleter();
+    }
+
+private:
+    std::function<void()> m_deleter;
 };
 
 /// For internal use.

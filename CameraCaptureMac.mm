@@ -43,27 +43,6 @@ static NSString* getCVPixelFormatName(OSType format)
     }
 }
 
-namespace
-{
-class FakeFrame : std::enable_shared_from_this<FakeFrame>
-{
-public:
-    explicit FakeFrame(std::function<void()> deleter) :
-        m_deleter(std::move(deleter))
-    {
-    }
-    ~FakeFrame()
-    {
-        if (m_deleter)
-            m_deleter();
-    }
-
-private:
-    std::function<void()> m_deleter;
-};
-
-} // namespace
-
 @interface CameraCaptureObjc : NSObject<AVCaptureVideoDataOutputSampleBufferDelegate>
 {
     ccap::ProviderMac* _provider;

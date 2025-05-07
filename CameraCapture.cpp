@@ -10,6 +10,7 @@
 
 #include "CameraCaptureImp.h"
 #include "CameraCaptureMac.h"
+#include "CameraCaptureWin.h"
 
 #include <iostream>
 
@@ -98,6 +99,7 @@ Provider* createProvider()
 #if __APPLE__
     return new Provider(new ProviderMac());
 #elif defined(_MSC_VER) || defined(_WIN32)
+    return new Provider(new ProviderWin());
 #endif
 
     if (static_cast<uint32_t>(globalLogLevel) & static_cast<uint32_t>(LogLevel::Warning))

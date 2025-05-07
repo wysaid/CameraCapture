@@ -183,7 +183,7 @@ void saveRgbaDataAsBMP(const unsigned char* data, const char* filename, uint32_t
     }
     else
     {
-        for (int i = 0; i < h; i++)
+        for (uint32_t i = 0; i < h; ++i)
         {
             fwrite(data + stride * i, lineSize, 1, fp);
         }

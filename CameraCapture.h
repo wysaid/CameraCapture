@@ -159,7 +159,7 @@ enum class PropertyName
     PixelFormat = 4
 };
 
-constexpr uint32_t DEFAULT_MAX_CACHE_FRAME_SIZE = 10;
+constexpr uint32_t DEFAULT_MAX_CACHE_FRAME_SIZE = 15;
 constexpr uint32_t DEFAULT_MAX_AVAILABLE_FRAME_SIZE = 3;
 
 class ProviderImp;
@@ -235,9 +235,10 @@ public:
 
     /**
      * @brief Grab a new frame. Can be called from any thread, but avoid concurrent calls.
-     * @param waitForNewFrame If true, wait for a new frame to be available. If false, return nullptr immediately. If the provider is not opened or paused, errors will be printed to `stderr`.
+     * @param waitForNewFrame If true, wait for a new frame to be available. If false, return nullptr immediately when no new frame available. If the provider is not opened or paused, errors will be printed to `stderr`.
      * @return a valid `shared_ptr<Frame>` if a new frame is available, nullptr otherwise.
      * @note The returned frame is a shared pointer, and the caller can hold and use it later in any thread.
+     *       You don't need to deep copy this `std::shared_ptr<Frame>` object, even if you want to use it in different threads or at different times. Just save the smart pointer.
      *       The frame will be automatically reused when the last reference is released.
      */
     std::shared_ptr<Frame> grab(bool waitForNewFrame);
@@ -251,7 +252,8 @@ public:
      *    In this case, the next call to grab() may return this frame.
      * @note The callback is executed in a background thread.
      *       The provided frame is a shared pointer, allowing the caller to retain and use it in any thread.
-     *       The frame will be automatically recycled once the last reference is released.
+     *       You don't need to deep copy this `std::shared_ptr<Frame>` object, even if you want to use it in different threads or at different times. Just save the smart pointer.
+     *       The frame will be automatically reused when the last reference is released.
      */
     void setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)> callback);
 
@@ -277,7 +279,7 @@ public:
      *     Setting it too high will consume excessive memory, while setting it too low may cause frequent memory allocations, reducing performance.
      * @param size The new maximum number of frames in the cache.
      *     It is recommended to set this to at least 3 to avoid performance degradation.
-     *     The default value is DEFAULT_MAX_CACHE_FRAME_SIZE (10).
+     *     The default value is DEFAULT_MAX_CACHE_FRAME_SIZE (15).
      */
     void setMaxCacheFrameSize(uint32_t size);
 

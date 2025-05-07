@@ -38,6 +38,7 @@ if (MSVC)
         /Zc:__cplusplus
         /Zc:preprocessor
         /D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR=1
+        /D_CRT_SECURE_NO_WARNINGS=1
     )
 else ()
     target_compile_options(CameraCapture PUBLIC -std=c++17)

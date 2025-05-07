@@ -10,149 +10,263 @@
 
 #include "CameraCaptureWin.h"
 
-#include <dshow.h>
+#include <chrono>
 #include <iostream>
-#include <mfapi.h>
-#include <mfidl.h>
-#include <mfreadwrite.h>
-#include <windows.h>
 
 // 需要链接以下库
-#pragma comment(lib, "mf.lib")
-#pragma comment(lib, "mfplat.lib")
-#pragma comment(lib, "mfuuid.lib")
-#pragma comment(lib, "mfreadwrite.lib")
 #pragma comment(lib, "strmiids.lib")
 
 namespace ccap
 {
 ProviderWin::ProviderWin()
 {
-    // 初始化Media Foundation
-    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-    MFStartup(MF_VERSION);
 }
 
 ProviderWin::~ProviderWin()
 {
     ProviderWin::close();
-    MFShutdown();
-    CoUninitialize();
 }
 
 bool ProviderWin::open(std::string_view deviceName)
 {
-    // if (m_isOpened)
-    // {
-    //     close();
-    // }
+    if (m_isOpened)
+    {
+        close();
+    }
 
-    // HRESULT hr = S_OK;
+    HRESULT hr = S_OK;
 
-    // // 获取设备
-    // IMFAttributes* pAttributes = nullptr;
-    // hr = MFCreateAttributes(&pAttributes, 1);
-    // if (FAILED(hr))
-    // {
-    //     return false;
-    // }
+    // 初始化 COM
+    hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr) && hr != RPC_E_CHANGED_MODE)
+        return false;
 
-    // hr = pAttributes->SetGUID(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE, MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID);
-    // if (FAILED(hr))
-    // {
-    //     pAttributes->Release();
-    //     return false;
-    // }
+    // 创建 Filter Graph
+    hr = CoCreateInstance(CLSID_FilterGraph, nullptr, CLSCTX_INPROC_SERVER, IID_IGraphBuilder, (void**)&m_graph);
+    if (FAILED(hr)) return false;
 
-    // IMFActivate** devices = nullptr;
-    // UINT32 deviceCount = 0;
+    // 创建 Capture Graph Builder
+    hr = CoCreateInstance(CLSID_CaptureGraphBuilder2, nullptr, CLSCTX_INPROC_SERVER, IID_ICaptureGraphBuilder2, (void**)&m_captureBuilder);
+    if (FAILED(hr)) return false;
+    m_captureBuilder->SetFiltergraph(m_graph);
 
-    // hr = MFEnumDeviceSources(pAttributes, &devices, &deviceCount);
-    // pAttributes->Release();
+    // 枚举视频采集设备
+    ICreateDevEnum* pDevEnum = nullptr;
+    hr = CoCreateInstance(CLSID_SystemDeviceEnum, nullptr, CLSCTX_INPROC_SERVER, IID_ICreateDevEnum, (void**)&pDevEnum);
+    if (FAILED(hr)) return false;
 
-    // if (FAILED(hr) || deviceCount == 0)
-    // {
-    //     return false;
-    // }
+    IEnumMoniker* pEnum = nullptr;
+    hr = pDevEnum->CreateClassEnumerator(CLSID_VideoInputDeviceCategory, &pEnum, 0);
+    pDevEnum->Release();
+    if (FAILED(hr) || !pEnum) return false;
 
-    // // 找到指定的设备或使用第一个可用设备
-    // int deviceIndex = 0;
-    // if (!deviceName.empty())
-    // {
-    //     // 尝试查找指定名称的设备
-    //     for (UINT32 i = 0; i < deviceCount; i++)
-    //     {
-    //         WCHAR friendlyName[256];
-    //         UINT32 nameLength = 0;
+    IMoniker* pMoniker = nullptr;
+    ULONG fetched = 0;
+    bool found = false;
+    while (pEnum->Next(1, &pMoniker, &fetched) == S_OK)
+    {
+        IPropertyBag* pPropBag = nullptr;
+        hr = pMoniker->BindToStorage(0, 0, IID_IPropertyBag, (void**)&pPropBag);
+        if (SUCCEEDED(hr))
+        {
+            VARIANT varName;
+            VariantInit(&varName);
+            hr = pPropBag->Read(L"FriendlyName", &varName, 0);
+            if (SUCCEEDED(hr))
+            {
+                char narrowName[256] = { 0 };
+                WideCharToMultiByte(CP_UTF8, 0, varName.bstrVal, -1, narrowName, 256, nullptr, nullptr);
+                if (deviceName.empty() || deviceName == narrowName)
+                {
+                    hr = pMoniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&m_deviceFilter);
+                    found = SUCCEEDED(hr);
+                    VariantClear(&varName);
+                    pPropBag->Release();
+                    break;
+                }
+            }
+            VariantClear(&varName);
+            pPropBag->Release();
+        }
+        pMoniker->Release();
+    }
+    pEnum->Release();
+    if (!found) return false;
 
-    //         hr = devices[i]->GetString(MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME, friendlyName, 256, &nameLength);
-    //         if (SUCCEEDED(hr))
-    //         {
-    //             char narrowName[256];
-    //             WideCharToMultiByte(CP_UTF8, 0, friendlyName, -1, narrowName, 256, nullptr, nullptr);
+    // 添加设备 Filter 到 Graph
+    hr = m_graph->AddFilter(m_deviceFilter, L"Video Capture");
+    if (FAILED(hr)) return false;
 
-    //             if (deviceName == narrowName)
-    //             {
-    //                 deviceIndex = i;
-    //                 break;
-    //             }
-    //         }
-    //     }
-    // }
+    // 创建 SampleGrabber
+    hr = CoCreateInstance(CLSID_SampleGrabber, nullptr, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&m_sampleGrabberFilter);
+    if (FAILED(hr)) return false;
+    hr = m_sampleGrabberFilter->QueryInterface(IID_ISampleGrabber, (void**)&m_sampleGrabber);
+    if (FAILED(hr)) return false;
 
-    // // 创建媒体源
-    // IMFMediaSource* pSource = nullptr;
-    // hr = devices[deviceIndex]->ActivateObject(IID_PPV_ARGS(&pSource));
+    // 设置 SampleGrabber 媒体类型
+    AM_MEDIA_TYPE mt;
+    ZeroMemory(&mt, sizeof(mt));
+    mt.majortype = MEDIATYPE_Video;
+    mt.subtype = MEDIASUBTYPE_RGB24;
+    mt.formattype = FORMAT_VideoInfo;
+    hr = m_sampleGrabber->SetMediaType(&mt);
+    if (FAILED(hr)) return false;
 
-    // // 释放不需要的设备
-    // for (UINT32 i = 0; i < deviceCount; i++)
-    // {
-    //     devices[i]->Release();
-    // }
-    // CoTaskMemFree(devices);
+    // 添加 SampleGrabber 到 Graph
+    hr = m_graph->AddFilter(m_sampleGrabberFilter, L"Sample Grabber");
+    if (FAILED(hr)) return false;
 
-    // if (FAILED(hr))
-    // {
-    //     return false;
-    // }
+    // 连接 Filter
+    hr = m_captureBuilder->RenderStream(&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, m_deviceFilter, m_sampleGrabberFilter, nullptr);
+    if (FAILED(hr)) return false;
 
-    // // 创建源读取器
-    // hr = MFCreateSourceReaderFromMediaSource(pSource, nullptr, &m_reader);
-    // pSource->Release();
+    // 设置 SampleGrabber 回调
+    m_sampleGrabber->SetBufferSamples(TRUE);
+    m_sampleGrabber->SetOneShot(FALSE);
+    m_sampleGrabber->SetCallback(this, 0); // 0 = SampleCB
 
-    // if (FAILED(hr))
-    // {
-    //     return false;
-    // }
+    // 获取 IMediaControl
+    hr = m_graph->QueryInterface(IID_IMediaControl, (void**)&m_mediaControl);
+    if (FAILED(hr)) return false;
 
-    // // 配置媒体类型
-    // IMFMediaType* pMediaType = nullptr;
-    // hr = MFCreateMediaType(&pMediaType);
-    // if (FAILED(hr))
-    // {
-    //     m_reader->Release();
-    //     m_reader = nullptr;
-    //     return false;
-    // }
-
-    // hr = pMediaType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
-    // hr = pMediaType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB24);
-
-    // hr = MFSetAttributeSize(pMediaType, MF_MT_FRAME_SIZE, m_width, m_height);
-    // hr = MFSetAttributeRatio(pMediaType, MF_MT_FRAME_RATE, static_cast<UINT32>(m_fps * 1000), 1000);
-
-    // hr = m_reader->SetCurrentMediaType(static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM), nullptr, pMediaType);
-    // pMediaType->Release();
-
-    // if (FAILED(hr))
-    // {
-    //     m_reader->Release();
-    //     m_reader = nullptr;
-    //     return false;
-    // }
-
-    // m_isOpened = true;
+    m_isOpened = true;
     return true;
+}
+
+HRESULT STDMETHODCALLTYPE ProviderWin::SampleCB(double sampleTime, IMediaSample* mediaSample)
+{
+    auto newFrame = getFreeFrame();
+    if (!newFrame)
+    {
+        if (!newFrame && ccap::warningLogEnabled())
+        {
+            std::cerr << "ccap: Frame pool is full, a new frame skipped..." << std::endl;
+        }
+        return S_OK;
+    }
+
+    // 获取 sample 数据
+    BYTE* pBuffer = nullptr;
+    if (FAILED(mediaSample->GetPointer(&pBuffer)))
+        return S_OK;
+
+    long bufferLen = mediaSample->GetActualDataLength();
+    bool noCopy = newFrame->allocator == nullptr;
+
+    // 转换为纳秒
+    newFrame->timestamp = static_cast<uint64_t>(sampleTime * 1e9);
+
+    if (noCopy)
+    { // 零拷贝，直接引用 sample 数据
+
+        newFrame->sizeInBytes = bufferLen;
+        newFrame->pixelFormat = PixelFormat::RGB888; // 假设 RGB24 格式
+        newFrame->width = m_frameProp.width;
+        newFrame->height = m_frameProp.height;
+        newFrame->stride[0] = m_frameProp.width * 3; // RGB24 每个像素 3 字节
+        newFrame->stride[1] = 0;
+        newFrame->stride[2] = 0;
+        newFrame->data[0] = pBuffer;
+        newFrame->data[1] = nullptr;
+        newFrame->data[2] = nullptr;
+
+        mediaSample->AddRef(); // 保证数据生命周期
+        auto manager = std::make_shared<FakeFrame>([newFrame, mediaSample]() mutable {
+            newFrame = nullptr;
+            mediaSample->Release();
+        });
+
+        auto fakeFrame = std::shared_ptr<Frame>(manager, newFrame.get());
+        newFrame = fakeFrame;
+    }
+    else
+    {
+        if (newFrame->sizeInBytes != bufferLen)
+        {
+            newFrame->allocator->resize(bufferLen);
+            newFrame->sizeInBytes = bufferLen;
+        }
+
+        newFrame->data[0] = newFrame->allocator->data();
+        newFrame->data[1] = nullptr;
+        newFrame->data[2] = nullptr;
+        newFrame->stride[0] = m_frameProp.width * 3; // RGB24 每个像素 3 字节
+        newFrame->stride[1] = 0;
+        newFrame->stride[2] = 0;
+        newFrame->pixelFormat = PixelFormat::RGB888; // 假设 RGB24 格式
+        newFrame->width = m_frameProp.width;
+        newFrame->height = m_frameProp.height;
+        newFrame->timestamp = static_cast<uint64_t>(sampleTime * 1e9);
+    }
+
+    newFrame->frameIndex = m_frameIndex++;
+
+    if (ccap::verboseLogEnabled())
+    {
+        static uint64_t _lastFrameTime = 0;
+        static int _frameCounter{};
+        static double _duration{};
+        static double _fps{ 0.0 };
+
+        if (_lastFrameTime != 0)
+        {
+            _duration += (newFrame->timestamp - _lastFrameTime) / 1.e9;
+        }
+        _lastFrameTime = newFrame->timestamp;
+        ++_frameCounter;
+
+        if (_duration > 0.5 || _frameCounter >= 30)
+        {
+            auto newFps = _frameCounter / _duration;
+            constexpr double alpha = 0.8; // Smoothing factor, smaller value means smoother
+            _fps = alpha * newFps + (1.0 - alpha) * _fps;
+            _frameCounter = 0;
+            _duration = 0;
+        }
+
+        double roundedFps = std::round(_fps * 10.0) / 10.0;
+        printf("ccap: New frame available: %lux%lu, bytes %lu, Data address: %p, fps: %g", newFrame->width, newFrame->height, newFrame->sizeInBytes, newFrame->data[0], roundedFps);
+    }
+
+    newFrameAvailable(std::move(newFrame));
+    return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE ProviderWin::BufferCB(double SampleTime, BYTE* pBuffer, long BufferLen)
+{
+    /// Never reached.
+    return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE ProviderWin::QueryInterface(REFIID riid, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject)
+{
+    static constexpr const IID IID_ISampleGrabberCB = { 0x0579154A, 0x2B53, 0x4994, { 0xB0, 0xD0, 0xE7, 0x73, 0x14, 0x8E, 0xFF, 0x85 } };
+
+    if (riid == IID_IUnknown)
+    {
+        *ppvObject = static_cast<IUnknown*>(this);
+    }
+    else if (riid == IID_ISampleGrabberCB)
+    {
+        *ppvObject = static_cast<ISampleGrabberCB*>(this);
+    }
+    else
+    {
+        *ppvObject = nullptr;
+        return E_NOINTERFACE;
+    }
+    AddRef();
+    return S_OK;
+}
+
+ULONG STDMETHODCALLTYPE ProviderWin::AddRef()
+{ // Using smart pointers for management, reference counting implementation is not needed
+    return S_OK;
+}
+
+ULONG STDMETHODCALLTYPE ProviderWin::Release()
+{ // same as AddRef
+    return S_OK;
 }
 
 bool ProviderWin::isOpened() const
@@ -164,19 +278,7 @@ void ProviderWin::close()
 {
     if (m_isRunning)
     {
-        // 停止采集线程
-        m_stopRequested = true;
-        if (m_captureThread.joinable())
-        {
-            m_captureThread.join();
-        }
-        m_isRunning = false;
-    }
-
-    if (m_reader)
-    {
-        m_reader->Release();
-        m_reader = nullptr;
+        stop();
     }
 
     m_isOpened = false;
@@ -191,7 +293,6 @@ bool ProviderWin::start()
 
     m_stopRequested = false;
     m_isRunning = true;
-    m_captureThread = std::thread(&ProviderWin::captureThread, this);
 
     return true;
 }
@@ -200,11 +301,6 @@ void ProviderWin::stop()
 {
     if (m_isRunning)
     {
-        m_stopRequested = true;
-        if (m_captureThread.joinable())
-        {
-            m_captureThread.join();
-        }
         m_isRunning = false;
     }
 }
@@ -214,75 +310,8 @@ bool ProviderWin::isStarted() const
     return m_isRunning;
 }
 
-void ProviderWin::captureThread()
+bool ProviderWin::processFrame(IMediaSample* sample)
 {
-    while (!m_stopRequested)
-    {
-        if (!m_isOpened || !m_reader)
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            continue;
-        }
-
-        // 读取下一帧
-        DWORD streamIndex, flags;
-        LONGLONG timestamp;
-        IMFSample* pSample = nullptr;
-
-        HRESULT hr = m_reader->ReadSample(
-            static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
-            0,
-            &streamIndex,
-            &flags,
-            &timestamp,
-            &pSample);
-
-        if (SUCCEEDED(hr) && pSample)
-        {
-            processFrame(pSample);
-            pSample->Release();
-        }
-        else
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
-    }
-}
-
-bool ProviderWin::processFrame(IMFSample* sample)
-{
-    if (!sample)
-        return false;
-
-    IMFMediaBuffer* buffer = nullptr;
-    HRESULT hr = sample->ConvertToContiguousBuffer(&buffer);
-    if (FAILED(hr))
-        return false;
-
-    BYTE* data = nullptr;
-    DWORD maxLength = 0, currentLength = 0;
-
-    hr = buffer->Lock(&data, &maxLength, &currentLength);
-    if (FAILED(hr))
-    {
-        buffer->Release();
-        return false;
-    }
-
-    auto frame = getFreeFrame();
-
-    // 复制数据
-    {
-    }
-
-    // 更新时间戳
-    LONGLONG timestamp = 0;
-    sample->GetSampleTime(&timestamp);
-    frame->timestamp = timestamp; // 转换为秒
-
-    buffer->Unlock();
-    buffer->Release();
-
     return true;
 }
 
