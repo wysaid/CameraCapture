@@ -30,6 +30,13 @@ enum PixelFormatConstants : uint32_t
     kPixelFormatRGBAColorBit = kPixelFormatRGBColorBit | kPixelFormatAlphaColorBit
 };
 
+/**
+ * @brief Pixel format. When used for setting, it may downgrade to other supported formats. 
+ *        The actual format should be determined by the pixelFormat of each Frame.
+ * @note For Windows, BGR888 is the default format, while BGRA8888 is the default format for macOS.
+ *       For better performance, consider using the NV12v or NV12f formats. These two formats are 
+ *       often referred to as YUV formats and are supported by almost all platforms.
+ */
 enum class PixelFormat : uint32_t
 {
     Unknown = 0,
@@ -81,24 +88,6 @@ inline bool pixelFormatInclude(PixelFormat lhs, uint32_t rhs)
     return (static_cast<uint32_t>(lhs) & rhs) == rhs;
 }
 
-/// @brief Interface for memory allocation, primarily used to allocate the `data` field in `ccap::Frame`.
-class Allocator : std::enable_shared_from_this<Allocator>
-{
-public:
-    virtual ~Allocator() = 0;
-
-    /// @brief Allocates memory, which can be accessed using the `data` field.
-    virtual void resize(size_t size) = 0;
-
-    /// @brief Provides access to the allocated memory.
-    /// @note The pointer becomes valid only after calling `resize`.
-    ///       If `resize` is called again, the pointer value may change, so it needs to be retrieved again.
-    virtual uint8_t* data() = 0;
-
-    /// @brief Returns the size of the allocated memory.
-    virtual size_t size() = 0;
-};
-
 struct Frame : std::enable_shared_from_this<Frame>
 {
     Frame();
@@ -107,7 +96,7 @@ struct Frame : std::enable_shared_from_this<Frame>
     Frame& operator=(const Frame&) = delete;
 
     /**
-     * @brief Frame data, stored using the allocator.
+     * @brief Frame data, stored the raw bytes of a frame.
      *     For pixel format I420: `data[0]` contains Y, `data[1]` contains U, and `data[2]` contains V.
      *     For pixel format NV12/NV21: `data[0]` contains Y, `data[1]` contains interleaved UV, and `data[2]` is nullptr.
      *     For other formats: `data[0]` contains the data, while `data[1]` and `data[2]` are nullptr.
@@ -136,13 +125,6 @@ struct Frame : std::enable_shared_from_this<Frame>
 
     /// @brief The unique, incremental index of the frame.
     uint64_t frameIndex = 0;
-
-    /**
-     * @brief Allocator used for managing frame data memory.
-     * @note The default Allocator implementation is platform-dependent. The default Allocator minimizes memory copying whenever possible.
-     *       Therefore, avoid using a custom Allocator unless absolutely necessary.
-     */
-    std::shared_ptr<Allocator> allocator;
 };
 
 enum class PropertyName
@@ -274,15 +256,6 @@ public:
      *       The frame will be automatically reused when the last reference is released.
      */
     void setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)> callback);
-
-    /**
-     * @brief Sets the frame allocator factory.
-     * @param allocatorFactory A factory function that returns a shared pointer to an Allocator instance.
-     * @note After calling this method, the default Allocator implementation will be overridden.
-     *       This may introduce additional copy operations (the original implementation minimizes copying whenever possible).
-     *       Use this method based on your specific needs.
-     */
-    void setFrameAllocator(std::function<std::shared_ptr<Allocator>()> allocatorFactory);
 
     /**
      * @brief Sets the maximum number of available frames in the cache. If this limit is exceeded, the oldest frames will be discarded.

@@ -548,60 +548,31 @@ HRESULT STDMETHODCALLTYPE ProviderWin::SampleCB(double sampleTime, IMediaSample*
     }
 
     long bufferLen = mediaSample->GetActualDataLength();
-    bool noCopy = newFrame->allocator == nullptr;
 
     // Convert to nanoseconds
     newFrame->timestamp = static_cast<uint64_t>(sampleTime * 1e9);
 
-    if (noCopy)
-    { // Zero-copy, directly reference sample data
-        newFrame->sizeInBytes = bufferLen;
-        newFrame->pixelFormat = PixelFormat::BGR888; // Assume RGB24 format
-        newFrame->width = m_frameProp.width;
-        newFrame->height = m_frameProp.height;
-        newFrame->stride[0] = m_frameProp.width * 3; // BGR888, 3 bytes per pixel
-        newFrame->stride[1] = 0;
-        newFrame->stride[2] = 0;
-        newFrame->data[0] = sampleData;
-        newFrame->data[1] = nullptr;
-        newFrame->data[2] = nullptr;
+    // Zero-copy, directly reference sample data
+    newFrame->sizeInBytes = bufferLen;
+    newFrame->pixelFormat = PixelFormat::BGR888; // Assume RGB24 format
+    newFrame->width = m_frameProp.width;
+    newFrame->height = m_frameProp.height;
+    newFrame->stride[0] = m_frameProp.width * 3; // BGR888, 3 bytes per pixel
+    newFrame->stride[1] = 0;
+    newFrame->stride[2] = 0;
+    newFrame->data[0] = sampleData;
+    newFrame->data[1] = nullptr;
+    newFrame->data[2] = nullptr;
 
-        mediaSample->AddRef(); // Ensure data lifecycle
-        auto manager = std::make_shared<FakeFrame>([newFrame, mediaSample]() mutable {
-            newFrame = nullptr;
-            mediaSample->Release();
-        });
-
-        auto fakeFrame = std::shared_ptr<Frame>(manager, newFrame.get());
-        newFrame = fakeFrame;
-    }
-    else
-    {
-        if (newFrame->sizeInBytes != bufferLen)
-        {
-            newFrame->allocator->resize(bufferLen);
-            newFrame->sizeInBytes = bufferLen;
-        }
-
-        newFrame->data[0] = newFrame->allocator->data();
-        newFrame->data[1] = nullptr;
-        newFrame->data[2] = nullptr;
-        newFrame->stride[0] = m_frameProp.width * 3; // BGR888, 3 bytes per pixel
-        newFrame->stride[1] = 0;
-        newFrame->stride[2] = 0;
-        newFrame->pixelFormat = PixelFormat::BGR888; // Assume RGB24 format
-        newFrame->width = m_frameProp.width;
-        newFrame->height = m_frameProp.height;
-        newFrame->timestamp = static_cast<uint64_t>(sampleTime * 1e9);
-
-        // Copy data
-        if (bufferLen > 0)
-        {
-            memcpy(newFrame->data[0], sampleData, bufferLen);
-        }
-    }
+    mediaSample->AddRef(); // Ensure data lifecycle
+    auto manager = std::make_shared<FakeFrame>([newFrame, mediaSample]() mutable {
+        newFrame = nullptr;
+        mediaSample->Release();
+    });
 
     newFrame->frameIndex = m_frameIndex++;
+    auto fakeFrame = std::shared_ptr<Frame>(manager, newFrame.get());
+    newFrame = fakeFrame;
 
     if (ccap::verboseLogEnabled())
     {

@@ -575,8 +575,6 @@ static NSString* getCVPixelFormatName(OSType format)
 
     CMTime timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer);
 
-    bool noCopy = newFrame->allocator == nullptr;
-
     newFrame->timestamp = (uint64_t)(CMTimeGetSeconds(timestamp) * 1e9);
     newFrame->width = width;
     newFrame->height = height;
@@ -597,44 +595,23 @@ static NSString* getCVPixelFormatName(OSType format)
         newFrame->stride[2] = 0;
         newFrame->sizeInBytes = bytes;
 
-        if (noCopy)
-        {
-            CFRetain(imageBuffer);
-            auto manager = std::make_shared<ccap::FakeFrame>([imageBuffer, newFrame]() mutable {
-                CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
-                CFRelease(imageBuffer);
-                if (ccap::verboseLogEnabled())
-                {
-                    NSLog(@"ccap: recycled YUV frame, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
-                }
-
-                /// Make ref count + 1
-                newFrame = nullptr;
-            });
-
-            newFrame->data[0] = (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);
-            newFrame->data[1] = (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 1);
-            auto fakeFrame = std::shared_ptr<ccap::Frame>(manager, newFrame.get());
-            newFrame = fakeFrame;
-        }
-        else
-        {
-            if (newFrame->sizeInBytes != bytes)
+        CFRetain(imageBuffer);
+        auto manager = std::make_shared<ccap::FakeFrame>([imageBuffer, newFrame]() mutable {
+            CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+            CFRelease(imageBuffer);
+            if (ccap::verboseLogEnabled())
             {
-                newFrame->allocator->resize(bytes);
-                newFrame->sizeInBytes = bytes;
+                NSLog(@"ccap: recycled YUV frame, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
             }
 
-            newFrame->data[0] = newFrame->allocator->data();
-            newFrame->data[1] = newFrame->allocator->data() + yBytes;
+            /// Make ref count + 1
+            newFrame = nullptr;
+        });
 
-            void* yData = CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);
-            void* uvData = CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 1);
-
-            memcpy(newFrame->data[0], yData, yBytes);
-            memcpy(newFrame->data[1], uvData, uvBytes);
-            CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
-        }
+        newFrame->data[0] = (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);
+        newFrame->data[1] = (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 1);
+        auto fakeFrame = std::shared_ptr<ccap::Frame>(manager, newFrame.get());
+        newFrame = fakeFrame;
     }
     else
     {
@@ -647,37 +624,21 @@ static NSString* getCVPixelFormatName(OSType format)
         newFrame->stride[1] = 0;
         newFrame->stride[2] = 0;
 
-        if (noCopy)
-        {
-            CFRetain(imageBuffer);
-            auto manager = std::make_shared<ccap::FakeFrame>([imageBuffer, newFrame]() mutable {
-                CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
-                CFRelease(imageBuffer);
-                if (ccap::verboseLogEnabled())
-                {
-                    NSLog(@"ccap: recycled RGBA frame, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
-                }
-                /// Make ref count + 1
-                newFrame = nullptr;
-            });
-
-            newFrame->data[0] = (uint8_t*)CVPixelBufferGetBaseAddress(imageBuffer);
-            auto fakeFrame = std::shared_ptr<ccap::Frame>(manager, newFrame.get());
-            newFrame = fakeFrame;
-        }
-        else
-        {
-            if (newFrame->sizeInBytes != bytes)
-            {
-                newFrame->allocator->resize(bytes);
-                newFrame->sizeInBytes = bytes;
-            }
-
-            newFrame->data[0] = newFrame->allocator->data();
-            void* baseAddress = CVPixelBufferGetBaseAddress(imageBuffer);
-            memcpy(newFrame->data[0], baseAddress, bytes);
+        CFRetain(imageBuffer);
+        auto manager = std::make_shared<ccap::FakeFrame>([imageBuffer, newFrame]() mutable {
             CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
-        }
+            CFRelease(imageBuffer);
+            if (ccap::verboseLogEnabled())
+            {
+                NSLog(@"ccap: recycled RGBA frame, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
+            }
+            /// Make ref count + 1
+            newFrame = nullptr;
+        });
+
+        newFrame->data[0] = (uint8_t*)CVPixelBufferGetBaseAddress(imageBuffer);
+        auto fakeFrame = std::shared_ptr<ccap::Frame>(manager, newFrame.get());
+        newFrame = fakeFrame;
     }
 
     newFrame->frameIndex = _provider->frameIndex()++;

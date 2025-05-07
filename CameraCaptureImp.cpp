@@ -13,22 +13,6 @@
 
 namespace ccap
 {
-DefaultAllocator::~DefaultAllocator() = default;
-void DefaultAllocator::resize(size_t size)
-{
-    m_data.resize(size);
-}
-
-uint8_t* DefaultAllocator::data()
-{
-    return m_data.data();
-}
-
-size_t DefaultAllocator::size()
-{
-    return m_data.size();
-}
-
 ProviderImp::ProviderImp()
 {
 }
@@ -88,13 +72,6 @@ void ProviderImp::setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)
     {
         m_callback = nullptr;
     }
-}
-
-void ProviderImp::setFrameAllocator(std::function<std::shared_ptr<Allocator>()> allocatorFactory)
-{
-    std::lock_guard<std::mutex> lock(m_poolMutex);
-    m_allocatorFactory = std::move(allocatorFactory);
-    m_framePool.clear();
 }
 
 std::shared_ptr<Frame> ProviderImp::grab(bool waitForNewFrame)
@@ -191,54 +168,8 @@ std::shared_ptr<Frame> ProviderImp::getFreeFrame()
     if (!frame)
     {
         frame = std::make_shared<Frame>();
-        frame->allocator = m_allocatorFactory ? m_allocatorFactory() : nullptr;
         m_framePool.push_back(frame);
     }
     return frame;
 }
-
-void ProviderImp::updateFrameInfo(Frame& frame)
-{
-    frame.frameIndex = m_frameIndex++;
-
-    if (frame.pixelFormat & kPixelFormatYUVColorBit)
-    {
-        auto yBytes = frame.width * frame.height;
-        auto bytes = yBytes * 3 / 2;
-        frame.sizeInBytes = bytes;
-        frame.allocator->resize(bytes);
-
-        frame.data[0] = frame.allocator->data();
-        frame.data[1] = frame.data[0] + yBytes;
-
-        frame.stride[0] = frame.width;
-
-        if (frame.pixelFormat == PixelFormat::I420v)
-        {
-            frame.data[2] = frame.data[1] + yBytes / 4;
-
-            frame.stride[1] = frame.width / 2;
-            frame.stride[2] = frame.stride[1];
-        }
-        else
-        {
-            frame.data[2] = nullptr;
-
-            frame.stride[1] = frame.width;
-            frame.stride[2] = 0;
-        }
-    }
-    else
-    {
-        // RGB24 格式
-        int channels = frame.pixelFormat & kPixelFormatRGBColorBit ? 3 : 4;
-        auto bytes = frame.width * frame.height * channels;
-        frame.sizeInBytes = bytes;
-        frame.allocator->resize(bytes);
-        frame.data[0] = frame.allocator->data();
-        frame.data[1] = nullptr;
-        frame.data[2] = nullptr;
-    }
-}
-
 } // namespace ccap
