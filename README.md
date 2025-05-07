@@ -6,16 +6,73 @@
 
 ## Overview
 
-CameraCapture is an efficient and lightweight C++ camera capture library designed to simplify the process of capturing and processing camera images. It supports Windows, MacOS, and Linux platforms without relying on third-party libraries like OpenCV or FFmpeg. It provides an easy-to-use API, making it suitable for developers who need to quickly implement camera capture functionality.
+CameraCapture is an efficient, easy-to-use, and lightweight C++ camera capture library designed to simplify the process of capturing and processing camera images. It supports Windows and MacOS platforms, and except for the system's built-in low-level libraries, it does not depend on OpenCV, FFmpeg, or any other large third-party libraries. It provides a simple and user-friendly API, making it ideal for developers who need to quickly implement camera capture functionality.
 
 ## Dependencies
 
 - C++17 or higher
 - CMake 3.10 or higher
 - System dependencies:
-  - Windows: MSMF
-  - MacOS: AVFoundation
+  - Windows: DirectShow
+  - MacOS: Foundation, AVFoundation, CoreVideo, CoreMedia
 
-## Usage
+## How to Use
 
-The usage is straightforward. This project provides a header file and a static library that can be directly added to your project.
+Usage is very simple. This project provides a header file and a static library, which can be directly added to your project.
+
+Several demos are included in this project for your reference:
+
+1. [A minimal demo](./demo/0-minimal_demo.cpp)
+2. [Demo for actively grabbing frames](./demo/1-capture_grab.cpp)
+3. [Demo for receiving frames via callback](./demo/2-capture_callback.cpp)
+
+Sample usage:
+
+1. Start the camera and grab a frame:
+
+    ```cpp
+    auto cameraProvider = ccap::createProvider();
+    cameraProvider->open();
+    cameraProvider->start();
+
+    if (cameraProvider->isStarted())
+    {
+        if (auto frame = cameraProvider->grab(true))
+        {
+            printf("Frame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes);
+        }
+    }
+    ```
+
+2. List available camera device names and print them:
+
+    ```cpp
+    auto cameraProvider = ccap::createProvider();
+    if (auto deviceNames = cameraProvider->findDeviceNames(); !deviceNames.empty())
+    {
+        for (const auto& name : deviceNames)
+        {
+            std::cout << "## Found video capture device: " << name << std::endl;
+        }
+    }
+    ```
+
+## FAQ
+
+1. How to select PixelFormat
+
+    On Windows, if not set, the default is `BGR888`, which is generally supported. If you want to manually select a YUV format, both `NV12f` and `NV12v` are available.
+    For virtual cameras (such as `Obs Virtual Camera`), the supported format may depend on the output format set by the virtual camera.
+
+    On Mac, if not set, the default is `BGRA8888`, which is generally supported. If you want to manually select a YUV format, both `NV12f` and `NV12v` are available.
+    For virtual cameras (such as `Obs Virtual Camera`), the supported format may depend on the output format set by the virtual camera.
+
+    When ccap encounters an unsupported PixelFormat, it will try to select the closest supported format. The actual format can be checked from `frame->PixelFormat`.
+
+2. How to select different camera devices
+
+    After creating a `ccap::Provider`, you can use `findDeviceNames` to get all available camera devices.
+
+3. How to disable all runtime logs, including error logs
+
+    Code: `ccap::setLogLevel(ccap::LogLevel::None);`
