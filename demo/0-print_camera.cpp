@@ -10,17 +10,16 @@
 
 #include <cstdio>
 
-int main(int argc, char** argv)
+int main()
 {
     auto cameraProvider = ccap::createProvider();
     if (auto deviceNames = cameraProvider->findDeviceNames(); !deviceNames.empty())
     {
-        printf("## Found %lu video capture device: \n", deviceNames.size());
+        printf("## Found %zu video capture device: \n", deviceNames.size());
         int deviceIndex = 0;
         for (const auto& name : deviceNames)
         {
             printf("    %d: %s\n", deviceIndex++, name.c_str());
-            return 0;
         }
     }
 

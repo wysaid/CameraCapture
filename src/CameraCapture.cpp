@@ -40,15 +40,13 @@ bool Provider::open(std::string_view deviceName)
 bool Provider::open(int deviceIndex)
 {
     std::string deviceName;
-    if (deviceIndex != 0)
+    if (deviceIndex >= 0)
     {
         auto deviceNames = findDeviceNames();
         if (!deviceNames.empty())
         {
-            if (deviceIndex < 0)
-                deviceName = deviceNames.back();
-            else if (deviceIndex < static_cast<int>(deviceNames.size()))
-                deviceName = deviceNames[deviceIndex];
+            deviceIndex = std::min(deviceIndex, static_cast<int>(deviceNames.size()) - 1);
+            deviceName = deviceNames[deviceIndex];
 
             if (ccap::verboseLogEnabled())
             {

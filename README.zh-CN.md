@@ -14,7 +14,7 @@ CameraCapture 是一个高效的、易用的、轻量级的 C++ 相机捕获库�
 - CMake 3.10 或更高版本
 - 系统依赖:
   - Windows: DirectShow
-  - MacOS: Foundation, AVFoundation, CoreVideo, CoreMedia
+  - MacOS 10.13+: Foundation, AVFoundation, CoreVideo, CoreMedia
 
 ## 如何使用
 

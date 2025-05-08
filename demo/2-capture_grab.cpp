@@ -20,6 +20,11 @@ int main(int argc, char** argv)
     ccap::setLogLevel(ccap::LogLevel::Verbose);
 
     std::string cwd = argv[0];
+    int deviceIndex = -1; // Indicates using the system's default camera
+    if (argc > 1 && std::isdigit(argv[1][0]))
+    {
+        deviceIndex = std::stoi(argv[1]);
+    }
 
     if (auto lastSlashPos = cwd.find_last_of("/\\"); lastSlashPos != std::string::npos)
     {
@@ -65,7 +70,7 @@ int main(int argc, char** argv)
 #endif
     cameraProvider->set(ccap::PropertyName::FrameRate, requestedFps);
 
-    cameraProvider->open() && cameraProvider->start();
+    cameraProvider->open(deviceIndex) && cameraProvider->start();
 
     if (!cameraProvider->isStarted())
     {

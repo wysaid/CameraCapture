@@ -167,6 +167,9 @@ public:
     /**
      * @brief Retrieves the names of all available capture devices. Will perform a scan.
      * @return std::vector<std::string> A list of device names, usable with the `open` method.
+     * @note The first device in the list is not necessarily the default device.
+     *       To use the default device, pass an empty string to the `open` method.
+     *       This method attempts to place real cameras at the beginning of the list and virtual cameras at the end.
      */
     std::vector<std::string> findDeviceNames();
 
@@ -181,7 +184,8 @@ public:
 
     /**
      * @brief Opens a camera by index.
-     * @param deviceIndex Camera index from findDeviceNames(). 0 for default, negative for the last device.
+     * @param deviceIndex Camera index from findDeviceNames(). A negative value indicates using the default device,
+     *              and a value exceeding the number of devices indicates using the last device.
      * @return true if successful, false otherwise.
      */
     bool open(int deviceIndex);
@@ -210,7 +214,8 @@ public:
     void stop();
 
     /**
-     * @brief Determines whether the camera is currently in a started state. Even if not manually stopped, the camera may stop due to reasons such as the device going offline (e.g., USB camera being unplugged).
+     * @brief Determines whether the camera is currently in a started state. Even if not manually stopped,
+     *      the camera may stop due to reasons such as the device going offline (e.g., USB camera being unplugged).
      * @return true if the capture device is open and actively capturing frames, false otherwise.
      */
     bool isStarted() const;
@@ -218,7 +223,8 @@ public:
     /**
      * @brief Sets a property of the camera.
      * @param prop The property to set. See #Property.
-     * @param value The value to assign to the property. The value type is double, but the actual type depends on the property. Not all properties can be set.
+     * @param value The value to assign to the property. The value type is double, but the actual type depends on the property.
+     *          Not all properties can be set.
      * @return true if the property was successfully set, false otherwise.
      * @note Some properties may require the camera to be restarted to take effect.
      */
@@ -241,10 +247,13 @@ public:
 
     /**
      * @brief Grab a new frame. Can be called from any thread, but avoid concurrent calls.
-     * @param waitForNewFrame If true, wait for a new frame to be available. If false, return nullptr immediately when no new frame available. If the provider is not opened or paused, errors will be printed to `stderr`.
+     * @param waitForNewFrame If true, wait for a new frame to be available.
+     *       If false, return nullptr immediately when no new frame available.
+     *       If the provider is not opened or paused, errors will be printed to `stderr`.
      * @return a valid `shared_ptr<Frame>` if a new frame is available, nullptr otherwise.
      * @note The returned frame is a shared pointer, and the caller can hold and use it later in any thread.
-     *       You don't need to deep copy this `std::shared_ptr<Frame>` object, even if you want to use it in different threads or at different times. Just save the smart pointer.
+     *       You don't need to deep copy this `std::shared_ptr<Frame>` object, even if you want to use it in
+     *       different threads or at different times. Just save the smart pointer.
      *       The frame will be automatically reused when the last reference is released.
      */
     std::shared_ptr<Frame> grab(bool waitForNewFrame);
@@ -258,7 +267,8 @@ public:
      *    In this case, the next call to grab() may return this frame.
      * @note The callback is executed in a background thread.
      *       The provided frame is a shared pointer, allowing the caller to retain and use it in any thread.
-     *       You don't need to deep copy this `std::shared_ptr<Frame>` object, even if you want to use it in different threads or at different times. Just save the smart pointer.
+     *       You don't need to deep copy this `std::shared_ptr<Frame>` object, even if you want to use it in
+     *       different threads or at different times. Just save the smart pointer.
      *       The frame will be automatically reused when the last reference is released.
      */
     void setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)> callback);

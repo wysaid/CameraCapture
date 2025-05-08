@@ -10,7 +10,7 @@
 
 #include <iostream>
 
-int main(int argc, char** argv)
+int main()
 {
     auto cameraProvider = ccap::createProvider();
     cameraProvider->open();

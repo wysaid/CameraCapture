@@ -5,6 +5,8 @@ project(CameraCapture LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version")
+
 if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
     option(CCAP_BUILD_DEMO "Build ccap demo" ON)
 else()
@@ -45,6 +47,7 @@ if(MSVC)
         /Zc:preprocessor
         /D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR=1
         /D_CRT_SECURE_NO_WARNINGS=1
+        /DNOMINMAX=1
     )
 else()
     target_compile_options(CameraCapture PUBLIC -std=c++17)

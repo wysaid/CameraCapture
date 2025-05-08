@@ -14,7 +14,7 @@ CameraCapture is an efficient, easy-to-use, and lightweight C++ camera capture l
 - CMake 3.10 or higher
 - System dependencies:
   - Windows: DirectShow
-  - MacOS: Foundation, AVFoundation, CoreVideo, CoreMedia
+  - MacOS 10.13+: Foundation, AVFoundation, CoreVideo, CoreMedia
 
 ## How to Use
 
