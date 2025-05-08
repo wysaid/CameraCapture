@@ -13,7 +13,8 @@
             "configurationProvider": "ms-vscode.cmake-tools",
             "includePath": [
                 "${workspaceFolder}",
-                "${workspaceFolder}/demo"
+                "${workspaceFolder}/demo",
+                "${workspaceFolder}/src"
             ]
         }
     ]

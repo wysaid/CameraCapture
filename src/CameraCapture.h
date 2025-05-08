@@ -31,10 +31,11 @@ enum PixelFormatConstants : uint32_t
 };
 
 /**
- * @brief Pixel format. When used for setting, it may downgrade to other supported formats. 
+ * @brief Pixel format. When used for setting, it may downgrade to other supported formats.
  *        The actual format should be determined by the pixelFormat of each Frame.
  * @note For Windows, BGR888 is the default format, while BGRA8888 is the default format for macOS.
- *       For better performance, consider using the NV12v or NV12f formats. These two formats are 
+ *       The default PixelFormat usually provides support for ZeroCopy.
+ *       For better performance, consider using the NV12v or NV12f formats. These two formats are
  *       often referred to as YUV formats and are supported by almost all platforms.
  */
 enum class PixelFormat : uint32_t
@@ -135,7 +136,7 @@ enum class PropertyName
      *       If possible, a resolution with both width and height greater than or equal to the specified values will be selected.
      *       Example: For supported resolutions 1024x1024, 800x800, 800x600, and 640x480, setting 600x600 results in 800x600.
      */
-    Width = 0,
+    Width = 0x10001,
 
     /**
      * @brief The height of the frame.
@@ -143,13 +144,13 @@ enum class PropertyName
      *       If possible, a resolution with both width and height greater than or equal to the specified values will be selected.
      *       Example: For supported resolutions 1024x1024, 800x800, 800x600, and 640x480, setting 600x600 results in 800x600.
      */
-    Height = 1,
+    Height = 0x10002,
 
     /// @brief The frame rate of the camera, aka FPS (frames per second).
-    FrameRate = 3,
+    FrameRate = 0x10003,
 
     /// @brief The pixel format of the frame.
-    PixelFormat = 4
+    PixelFormat = 0x10004
 };
 
 constexpr uint32_t DEFAULT_MAX_CACHE_FRAME_SIZE = 15;
@@ -279,6 +280,40 @@ private:
 };
 
 Provider* createProvider();
+
+//////////////////// Utils //////////////////
+
+/**
+ * @brief Saves a Frame as a BMP or YUV file.
+ *        If the Frame's pixelFormat is a YUV format,
+ *        it will be saved as a YUV file; otherwise, it will be saved as a BMP file.
+ * @param frame The frame to be dumped.
+ * @param fileNameWithNoSuffix The name of the file to save the frame data.
+ *        The suffix will be automatically added based on the pixel format.
+ * @return The full path of the saved file if successful, or an empty string if the operation failed.
+ */
+std::string dumpFrameToFile(Frame* frame, std::string_view fileNameWithNoSuffix);
+
+/**
+ * @brief Saves a Frame as a BMP or YUV file.
+ *        If the Frame's pixelFormat is a YUV format,
+ *        it will be saved as a YUV file; otherwise, it will be saved as a BMP file.
+ * @param frame The frame to be dumped.
+ * @param directory The directory to save the frame data.
+ *        The file name will be automatically generated based on the current time and frame index.
+ * @return The full path of the saved file if successful, or an empty string if the operation failed.
+ */
+std::string dumpFrameToDirectory(Frame* frame, std::string_view directory);
+
+/**
+ * @brief Save RGB data as BMP file.
+ * @param isBGR Indicates if the data is in B-G-R bytes order. If true, the data is in B-G-R order; otherwise, it is in R-G-B order.
+ * @param hasAlpha Indicates if the data has an alpha channel. The alpha channel is always at the end of the pixel byte order.
+ * @return true if the operation was successful, false otherwise.
+ */
+bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t w, uint32_t stride, uint32_t h, bool isBGR, bool hasAlpha);
+
+//////////////////// Log ////////////////////
 
 enum LogLevelConstants
 {

@@ -5,23 +5,76 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(Windows) Launch",
+            "name": "(Windows) Debug 0-print_camera",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/Debug/1-capture_grab.exe",
-            "stopAtEntry": false,
+            "program": "${workspaceFolder}/build/Debug/0-print_camera.exe",
             "cwd": "${fileDirname}",
-            "environment": [],
             "preLaunchTask": "Build Project (Debug)"
         },
         {
-            "name": "(gdb) Launch (Linux/MacOS)",
+            "name": "(Windows) Debug 1-minimal_demo",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/1-minimal_demo.exe",
+            "cwd": "${fileDirname}",
+            "preLaunchTask": "Build Project (Debug)"
+        },
+        {
+            "name": "(Windows) Debug 2-capture_grab",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/2-capture_grab.exe",
+            "cwd": "${fileDirname}",
+            "preLaunchTask": "Build Project (Debug)"
+        },
+        {
+            "name": "(Windows) Debug 3-capture_callback",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/3-capture_callback.exe",
+            "cwd": "${fileDirname}",
+            "preLaunchTask": "Build Project (Debug)"
+        },
+        {
+            "name": "(gdb) Debug 0-print_camera",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/Debug/1-capture_grab",
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/build",
-            "externalConsole": false,
+            "program": "${workspaceFolder}/build/Debug/0-print_camera",
+            "cwd": "${fileDirname}",
+            "preLaunchTask": "Build Project (Debug)",
+            "osx": {
+                "MIMode": "lldb"
+            }
+        },
+        {
+            "name": "(gdb) Debug 1-minimal_demo",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/1-minimal_demo",
+            "cwd": "${fileDirname}",
+            "preLaunchTask": "Build Project (Debug)",
+            "osx": {
+                "MIMode": "lldb"
+            }
+        },
+        {
+            "name": "(gdb) Debug 2-capture_grab",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/2-capture_grab",
+            "cwd": "${fileDirname}",
+            "preLaunchTask": "Build Project (Debug)",
+            "osx": {
+                "MIMode": "lldb"
+            }
+        },
+        {
+            "name": "(gdb) Debug 3-capture_callback",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/3-capture_callback",
+            "cwd": "${fileDirname}",
             "preLaunchTask": "Build Project (Debug)",
             "osx": {
                 "MIMode": "lldb"

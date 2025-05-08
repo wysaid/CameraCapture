@@ -15,6 +15,8 @@
 #import <Foundation/Foundation.h>
 #include <cmath>
 
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 static NSString* getCVPixelFormatName(OSType format)
 {
     switch (format)
@@ -131,14 +133,10 @@ static NSString* getCVPixelFormatName(OSType format)
 
         if (_cameraName != nil && _cameraName.length > 0)
         { /// Find preferred device
-            AVCaptureDeviceDiscoverySession* discoverySession =
-                [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:@[ AVCaptureDeviceTypeBuiltInWideAngleCamera ]
-                                                                       mediaType:AVMediaTypeVideo
-                                                                        position:AVCaptureDevicePositionUnspecified];
-            NSArray<AVCaptureDevice*>* devices = discoverySession.devices;
+            NSArray<AVCaptureDevice*>* devices = [AVCaptureDevice devicesWithMediaType:AVMediaTypeVideo];
             for (AVCaptureDevice* d in devices)
             {
-                if ([d.localizedName isEqualToString:_cameraName])
+                if ([d.localizedName caseInsensitiveCompare:_cameraName] == NSOrderedSame)
                 {
                     _device = d;
                     break;
@@ -683,7 +681,20 @@ ProviderMac::~ProviderMac()
 
 std::vector<std::string> ProviderMac::findDeviceNames()
 {
-    return {};
+    @autoreleasepool
+    {
+        NSArray<AVCaptureDevice*>* devices = [AVCaptureDevice devicesWithMediaType:AVMediaTypeVideo];
+        std::vector<std::string> names;
+        if (devices.count != 0)
+        {
+            names.reserve(devices.count);
+            for (AVCaptureDevice* d in devices)
+            {
+                names.emplace_back([d.localizedName UTF8String]);
+            }
+        }
+        return names;
+    }
 }
 
 bool ProviderMac::open(std::string_view deviceName)
@@ -716,14 +727,29 @@ void ProviderMac::close()
 
 bool ProviderMac::start()
 {
-    return m_imp && [m_imp start];
+    if (!isOpened())
+    {
+        if (warningLogEnabled())
+        {
+            NSLog(@"ccap: camera start called with no device opened");
+        }
+        return false;
+    }
+
+    @autoreleasepool
+    {
+        return [m_imp start];
+    }
 }
 
 void ProviderMac::stop()
 {
     if (m_imp)
     {
-        [m_imp stop];
+        @autoreleasepool
+        {
+            [m_imp stop];
+        }
     }
 }
 

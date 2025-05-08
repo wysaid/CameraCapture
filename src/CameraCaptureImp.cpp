@@ -80,6 +80,15 @@ std::shared_ptr<Frame> ProviderImp::grab(bool waitForNewFrame)
 
     if (m_availableFrames.empty() && waitForNewFrame)
     {
+        if (!isStarted())
+        {
+            if (warningLogEnabled())
+            {
+                std::cerr << "ccap: Grab called when camera is not started!" << std::endl;
+            }
+            return nullptr;
+        }
+
         m_grabFrameWaiting = true;
         m_frameCondition.wait(lock, [this]() {
             auto ret = m_grabFrameWaiting && !m_availableFrames.empty();

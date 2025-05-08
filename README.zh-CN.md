@@ -23,9 +23,10 @@ CameraCapture 是一个高效的、易用的、轻量级的 C++ 相机捕获库�
 
 本项目内置数个 Demo, 可以直接参考:
 
-1. [一个最简单的Demo](./demo/0-minimal_demo.cpp)
-2. [主动抓取帧的Demo](./demo/1-capture_grab.cpp)
-3. [通过回调获取帧的Demo](./demo/2-capture_callback.cpp)
+1. [打印相机设备](./demo/0-print_camera.cpp)
+2. [抓取一帧的简单Demo](./demo/1-minimal_demo.cpp)
+3. [持续主动抓取帧的Demo](./demo/2-capture_grab.cpp)
+4. [通过回调获取帧的Demo](./demo/3-capture_callback.cpp)
 
 下面是使用代码参考:
 

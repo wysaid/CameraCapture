@@ -56,6 +56,58 @@
             }
         },
         {
+            "label": "Clean Project",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "git clean -fdx build || rm -rf build"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "windows": {
+                "command": "cmd",
+                "args": [
+                    "/c",
+                    "git clean -fdx build || rmdir /s /q build"
+                ],
+                "options": {
+                    "cwd": "${workspaceFolder}"
+                },
+                "problemMatcher": "$msCompile",
+            }
+        },
+        {
+            "label": "Reload Project (Debug)",
+            "type": "shell",
+            "command": "echo",
+            "args": [
+                "Done!",
+            ],
+            "group": "build",
+            "dependsOn": [
+                "Clean Project",
+                "Load Project (Debug)"
+            ],
+        },
+        {
+            "label": "Reload Project (Release)",
+            "type": "shell",
+            "command": "echo",
+            "args": [
+                "Done!",
+            ],
+            "group": "build",
+            "dependsOn": [
+                "Clean Project",
+                "Load Project (Release)"
+            ],
+        },
+        {
             "label": "Build Project (Debug)",
             "type": "shell",
             "command": "bash",
@@ -136,13 +188,13 @@
             "dependsOrder": "sequence",
         },
         {
-            "label": "Run Demo (Debug)",
+            "label": "Run 0-print_camera (Debug)",
             "type": "shell",
             "command": "bash",
             "args": [
                 "-l",
                 "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then ./1-capture_grab.exe; else ./1-capture_grab; fi )"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./0-print_camera.exe; else ./0-print_camera; fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/build/Debug"
@@ -153,18 +205,18 @@
                 "Build Project (Debug)"
             ],
             "windows": {
-                "command": ".\\1-capture_grab.exe",
+                "command": ".\\0-print_camera.exe",
                 "problemMatcher": "$msCompile",
             }
         },
         {
-            "label": "Run Demo (Release)",
+            "label": "Run 0-print_camera (Release)",
             "type": "shell",
             "command": "bash",
             "args": [
                 "-l",
                 "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then ./1-capture_grab.exe; else ./1-capture_grab; fi )"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./0-print_camera.exe; else ./0-print_camera; fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/build/Release"
@@ -175,33 +227,140 @@
                 "Build Project (Release)"
             ],
             "windows": {
-                "command": ".\\1-capture_grab.exe",
+                "command": ".\\0-print_camera.exe",
                 "problemMatcher": "$msCompile",
             }
         },
         {
-            "label": "Clean Project",
+            "label": "Run 1-minimal_demo (Debug)",
             "type": "shell",
             "command": "bash",
             "args": [
                 "-l",
                 "-c",
-                "git clean -fdx build || rm -rf build"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./1-minimal_demo.exe; else ./1-minimal_demo; fi )"
             ],
             "options": {
-                "cwd": "${workspaceFolder}"
+                "cwd": "${workspaceFolder}/build/Debug"
             },
             "group": "build",
             "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Debug)"
+            ],
             "windows": {
-                "command": "cmd",
-                "args": [
-                    "/c",
-                    "git clean -fdx build || rmdir /s /q build"
-                ],
-                "options": {
-                    "cwd": "${workspaceFolder}"
-                }
+                "command": ".\\1-minimal_demo.exe",
+                "problemMatcher": "$msCompile",
+            }
+        },
+        {
+            "label": "Run 1-minimal_demo (Release)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./1-minimal_demo.exe; else ./1-minimal_demo; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Release"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Release)"
+            ],
+            "windows": {
+                "command": ".\\1-minimal_demo.exe",
+                "problemMatcher": "$msCompile",
+            }
+        },
+        {
+            "label": "Run 2-capture_grab (Debug)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./2-capture_grab.exe; else ./2-capture_grab; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Debug"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Debug)"
+            ],
+            "windows": {
+                "command": ".\\2-capture_grab.exe",
+                "problemMatcher": "$msCompile",
+            }
+        },
+        {
+            "label": "Run 2-capture_grab (Release)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./2-capture_grab.exe; else ./2-capture_grab; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Release"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Release)"
+            ],
+            "windows": {
+                "command": ".\\2-capture_grab.exe",
+                "problemMatcher": "$msCompile",
+            }
+        },
+        {
+            "label": "Run 3-capture_callback (Debug)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./3-capture_callback.exe; else ./3-capture_callback; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Debug"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Debug)"
+            ],
+            "windows": {
+                "command": ".\\3-capture_callback.exe",
+                "problemMatcher": "$msCompile",
+            }
+        },
+        {
+            "label": "Run 3-capture_callback (Release)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./3-capture_callback.exe; else ./3-capture_callback; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Release"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Release)"
+            ],
+            "windows": {
+                "command": ".\\3-capture_callback.exe",
+                "problemMatcher": "$msCompile",
             }
         }
     ]

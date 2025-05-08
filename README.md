@@ -22,9 +22,10 @@ Usage is very simple. This project provides a header file and a static library, 
 
 Several demos are included in this project for your reference:
 
-1. [A minimal demo](./demo/0-minimal_demo.cpp)
-2. [Demo for actively grabbing frames](./demo/1-capture_grab.cpp)
-3. [Demo for receiving frames via callback](./demo/2-capture_callback.cpp)
+1. [Print Camera Devices](./demo/0-print_camera.cpp)  
+2. [Simple Demo for Grabbing a Frame](./demo/1-minimal_demo.cpp)  
+3. [Demo for Continuously Grabbing Frames](./demo/2-capture_grab.cpp)  
+4. [Demo for Getting Frames via Callback](./demo/3-capture_callback.cpp)  
 
 Sample usage:
 

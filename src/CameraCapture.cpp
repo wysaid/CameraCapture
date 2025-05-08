@@ -12,6 +12,7 @@
 #include "CameraCaptureMac.h"
 #include "CameraCaptureWin.h"
 
+#include <chrono>
 #include <iostream>
 
 namespace ccap
@@ -106,6 +107,123 @@ Provider* createProvider()
         std::cerr << "Unsupported platform!" << std::endl;
     }
     return nullptr;
+}
+
+std::string dumpFrameToFile(Frame* frame, std::string_view fileNameWithNoSuffix)
+{
+    if (frame->pixelFormat & ccap::kPixelFormatRGBColorBit)
+    { /// RGB or RGBA
+        auto filePath = std::string(fileNameWithNoSuffix) + ".bmp";
+        saveRgbDataAsBMP(filePath.c_str(), frame->data[0], frame->width, frame->stride[0], frame->height, true, frame->pixelFormat & ccap::kPixelFormatAlphaColorBit);
+        return filePath;
+    }
+    else if (ccap::pixelFormatInclude(frame->pixelFormat, ccap::kPixelFormatYUVColorBit))
+    {
+        auto filePath = std::string(fileNameWithNoSuffix) + ".yuv";
+        FILE* fp = fopen(filePath.c_str(), "wb");
+        if (fp)
+        {
+            fwrite(frame->data[0], frame->stride[0], frame->height, fp);
+            fwrite(frame->data[1], frame->stride[1], frame->height / 2, fp);
+            if (frame->data[2] != nullptr)
+            {
+                fwrite(frame->data[2], frame->stride[2], frame->height / 2, fp);
+            }
+            fclose(fp);
+            return filePath;
+        }
+    }
+    return {};
+}
+
+std::string dumpFrameToDirectory(Frame* frame, std::string_view directory)
+{
+    /// 创建一个基于当前时间的文件名
+    auto now = std::chrono::system_clock::now();
+    auto nowTime = std::chrono::system_clock::to_time_t(now);
+    std::tm nowTm = *std::localtime(&nowTime);
+    char filename[256];
+    std::strftime(filename, sizeof(filename), "%Y%m%d_%H%M%S", &nowTm);
+    return dumpFrameToFile(frame, std::string(directory) + '/' + filename + '_' + std::to_string(frame->width) + 'x' + std::to_string(frame->height) + '_' + std::to_string(frame->frameIndex));
+}
+
+bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t w, uint32_t stride, uint32_t h, bool isBGR, bool hasAlpha)
+{
+    FILE* fp = fopen(filename, "wb");
+    if (fp == nullptr)
+        return false;
+
+    if (hasAlpha)
+    {
+        // 32bpp, BITMAPV4HEADER
+        unsigned char file[14] = {
+            'B', 'M', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        };
+        unsigned char info[108] = {
+            108, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 32, 0, 3, 0, 0, 0, 0, 0, 0, 0,
+            0x13, 0x0B, 0, 0, 0x13, 0x0B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0x00, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF
+        };
+        if (!isBGR)
+        {
+            (uint32_t&)info[40] = 0x000000FF;
+            (uint32_t&)info[48] = 0x00FF0000;
+        }
+        int lineSize = w * 4;
+        int sizeData = lineSize * h;
+        (uint32_t&)file[2] = sizeof(file) + sizeof(info) + sizeData;
+        (uint32_t&)file[10] = sizeof(file) + sizeof(info);
+        (uint32_t&)info[4] = w;
+        (uint32_t&)info[8] = h;
+        (uint32_t&)info[20] = sizeData;
+        fwrite(file, sizeof(file), 1, fp);
+        fwrite(info, sizeof(info), 1, fp);
+        for (uint32_t i = 0; i < h; ++i)
+            fwrite(data + stride * i, lineSize, 1, fp);
+    }
+    else
+    {
+        // 24bpp, BITMAPINFOHEADER
+        unsigned char file[14] = {
+            'B', 'M', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        };
+        unsigned char info[40] = {
+            40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0x13, 0x0B, 0, 0, 0x13, 0x0B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        };
+        int lineSize = ((w * 3 + 3) / 4) * 4; // 4字节对齐
+        int sizeData = lineSize * h;
+        (uint32_t&)file[2] = sizeof(file) + sizeof(info) + sizeData;
+        (uint32_t&)file[10] = sizeof(file) + sizeof(info);
+        (uint32_t&)info[4] = w;
+        (uint32_t&)info[8] = h;
+        (uint32_t&)info[20] = sizeData;
+        fwrite(file, sizeof(file), 1, fp);
+        fwrite(info, sizeof(info), 1, fp);
+        unsigned char padding[3] = { 0, 0, 0 };
+        for (uint32_t i = 0; i < h; ++i)
+        {
+            const unsigned char* src = data + stride * i;
+            if (isBGR)
+            {
+                fwrite(src, w * 3, 1, fp);
+            }
+            else
+            {
+                // RGB转BGR
+                for (uint32_t x = 0; x < w; ++x)
+                {
+                    unsigned char bgr[3] = { src[x * 3 + 2], src[x * 3 + 1], src[x * 3 + 0] };
+                    fwrite(bgr, 3, 1, fp);
+                }
+            }
+            auto remainBytes = lineSize - w * 3;
+            if (remainBytes > 0)
+                fwrite(padding, 1, lineSize - w * 3, fp);
+        }
+    }
+    fclose(fp);
+    return true;
 }
 
 void setLogLevel(LogLevel level)
