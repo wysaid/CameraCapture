@@ -27,7 +27,10 @@ enum PixelFormatConstants : uint32_t
     kPixelFormatYUVColorFullRangeBit = 0x2000 | kPixelFormatYUVColorBit,
     kPixelFormatRGBColorBit = 0x20000,
     kPixelFormatAlphaColorBit = 0x40000,
-    kPixelFormatRGBAColorBit = kPixelFormatRGBColorBit | kPixelFormatAlphaColorBit
+    kPixelFormatRGBAColorBit = kPixelFormatRGBColorBit | kPixelFormatAlphaColorBit,
+
+    /// @brief When this flag is included in the format, it indicates that the format is a forcibly set format.
+    kPixelFormatForceToSetBit = 0x10000000,
 };
 
 /**
@@ -44,7 +47,7 @@ enum class PixelFormat : uint32_t
     /// @brief Not commonly used, likely unsupported, when used to set, may fall back to NV12*
     I420v = 1 | kPixelFormatYUVColorVideoRangeBit,
 
-    /// @brief Best performance on all platform. Always supported.
+    /// @brief Best performance on all platforms. Always supported.
     NV12v = 2 | kPixelFormatYUVColorVideoRangeBit,
 
     /// @brief Not commonly used, likely unsupported, may fall back to NV12*
@@ -53,7 +56,7 @@ enum class PixelFormat : uint32_t
     /// @brief Not commonly used, likely unsupported, may fall back to NV12*
     I420f = 1 | kPixelFormatYUVColorFullRangeBit,
 
-    /// @brief Best performance on all platform. Will fallback to NV12v if not supported.
+    /// @brief Best performance on all platforms. Will fall back to NV12v if not supported.
     NV12f = 2 | kPixelFormatYUVColorFullRangeBit,
 
     /// @brief Not commonly used, likely unsupported, may fall back to NV12*
@@ -62,7 +65,7 @@ enum class PixelFormat : uint32_t
     /// @brief Not commonly used, likely unsupported, may fall back to BGR888 (Windows) or BGRA8888 (MacOS)
     RGB888 = 4 | kPixelFormatRGBColorBit, /// 3 bytes per pixel
 
-    /// @brief Always supported on all platform. Simple to use.
+    /// @brief Always supported on all platforms. Simple to use.
     BGR888 = 5 | kPixelFormatRGBColorBit, /// 3 bytes per pixel
 
     /**
@@ -76,6 +79,14 @@ enum class PixelFormat : uint32_t
      *  @note This format is always supported on MacOS.
      */
     BGRA8888 = 7 | kPixelFormatRGBAColorBit,
+
+    /// ↓ Several formats for forced settings. After setting, it will definitely take effect. 
+    /// ↓ If the hardware does not support it, additional conversion will be performed.
+
+    /// @brief Similar to RGB888, but will perform additional conversion if not supported by the underlying hardware.
+    RGB888_Force = RGB888 | kPixelFormatForceToSetBit,
+    /// @brief Similar to BGR888, but will perform additional conversion if not supported by the underlying hardware.
+    BGR888_Force = BGR888 | kPixelFormatForceToSetBit,
 };
 
 inline bool operator&(PixelFormat lhs, PixelFormatConstants rhs)
