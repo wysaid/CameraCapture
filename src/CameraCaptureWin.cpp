@@ -70,7 +70,6 @@ typedef struct _DXVA_ExtendedFormat
 #define DXVA_NominalRange_0_255 2
 #define DXVA_NominalRange_16_235 1
 #endif
-// ...existing code...
 
 namespace ccap
 {

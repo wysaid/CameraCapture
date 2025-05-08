@@ -83,10 +83,17 @@ enum class PixelFormat : uint32_t
     /// ↓ Several formats for forced settings. After setting, it will definitely take effect.
     /// ↓ If the hardware does not support it, additional conversion will be performed.
 
-    /// @brief Similar to RGB888, but will perform additional conversion if not supported by the underlying hardware.
+    /// @brief RGB888 with forced conversion if unsupported.
     RGB888_Force = RGB888 | kPixelFormatForceToSetBit,
-    /// @brief Similar to BGR888, but will perform additional conversion if not supported by the underlying hardware.
+
+    /// @brief BGR888 with forced conversion if unsupported.
     BGR888_Force = BGR888 | kPixelFormatForceToSetBit,
+
+    /// @brief RGBA8888 with forced conversion if unsupported.
+    RGBA8888_Force = RGBA8888 | kPixelFormatForceToSetBit,
+
+    /// @brief BGRA8888 with forced conversion if unsupported.
+    BGRA8888_Force = BGRA8888 | kPixelFormatForceToSetBit,
 };
 
 inline bool operator&(PixelFormat lhs, PixelFormatConstants rhs)
@@ -190,8 +197,14 @@ enum class PropertyName
     PixelFormat = 0x10004
 };
 
-constexpr uint32_t DEFAULT_MAX_CACHE_FRAME_SIZE = 15;
-constexpr uint32_t DEFAULT_MAX_AVAILABLE_FRAME_SIZE = 3;
+enum
+{
+    /// @brief The default maximum number of frames that can be cached.
+    DEFAULT_MAX_CACHE_FRAME_SIZE = 15,
+
+    /// @brief The default maximum number of frames that can be available.
+    DEFAULT_MAX_AVAILABLE_FRAME_SIZE = 3
+};
 
 class ProviderImp;
 
