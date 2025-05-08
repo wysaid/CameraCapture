@@ -177,9 +177,14 @@ public:
      * @return true if the device was successfully opened, false otherwise.
      * @note The device name can be obtained using the `findDeviceNames` method.
      */
-    bool open(std::string_view deviceName);
+    bool open(std::string_view deviceName = "");
 
-    inline bool open() { return open(""); }
+    /**
+     * @brief Opens a camera by index.
+     * @param deviceIndex Camera index from findDeviceNames(). 0 for default, negative for the last device.
+     * @return true if successful, false otherwise.
+     */
+    bool open(int deviceIndex);
 
     /**
      * @return true if the capture device is currently open, false otherwise.

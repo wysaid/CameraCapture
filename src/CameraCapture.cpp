@@ -37,6 +37,29 @@ bool Provider::open(std::string_view deviceName)
     return m_imp->open(deviceName);
 }
 
+bool Provider::open(int deviceIndex)
+{
+    std::string deviceName;
+    if (deviceIndex != 0)
+    {
+        auto deviceNames = findDeviceNames();
+        if (!deviceNames.empty())
+        {
+            if (deviceIndex < 0)
+                deviceName = deviceNames.back();
+            else if (deviceIndex < static_cast<int>(deviceNames.size()))
+                deviceName = deviceNames[deviceIndex];
+
+            if (ccap::verboseLogEnabled())
+            {
+                printf("ccap: input device index %d, selected device name: %s\n", deviceIndex, deviceName.c_str());
+            }
+        }
+    }
+
+    return open(deviceName);
+}
+
 bool Provider::isOpened() const
 {
     return m_imp->isOpened();
@@ -102,7 +125,7 @@ Provider* createProvider()
     return new Provider(new ProviderWin());
 #endif
 
-    if (static_cast<uint32_t>(globalLogLevel) & static_cast<uint32_t>(LogLevel::Warning))
+    if (warningLogEnabled())
     {
         std::cerr << "Unsupported platform!" << std::endl;
     }
