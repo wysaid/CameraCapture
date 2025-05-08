@@ -37,7 +37,6 @@ public:
 
     using ProviderImp::getFreeFrame;
     using ProviderImp::newFrameAvailable;
-    using ProviderImp::updateFrameInfo;
 
 private:
     CameraCaptureObjc* m_imp{};
