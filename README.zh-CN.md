@@ -1,6 +1,7 @@
 # CameraCapture - 一个 C++ 轻量相机库
 
-[![Windows Build with VS2022](https://github.com/wysaid/CameraCapture/workflows/Windows%20Build%20with%20VS2022/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/windows-build.yml)
+[![Build on Windows](https://github.com/wysaid/CameraCapture/workflows/Build%20on%20Windows/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/ccap-build.yml)
+[![Build on macOS](https://github.com/wysaid/CameraCapture/workflows/Build%20on%20macOS/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/ccap-build.yml)
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 

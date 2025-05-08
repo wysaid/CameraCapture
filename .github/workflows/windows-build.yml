@@ -1,15 +1,15 @@
-name: Windows Build with VS2022
+name: windows Build
 
 on:
   push:
-    branches: [ main, master, dev ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main, master, dev ]
+    branches: [ main, master ]
   workflow_dispatch: 
 
 jobs:
   build:
-    name: Build with Visual Studio 2022
+    name: Build on Windows
     runs-on: windows-latest
     
     strategy:
@@ -38,8 +38,11 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: CameraCapture-${{ matrix.config }}-NO_LOG_${{ matrix.no_log }}
+        name: ccap-windows-${{ matrix.config }}-NO_LOG_${{ matrix.no_log }}
         path: |
           build/${{ matrix.config }}/CameraCapture.lib
-          build/${{ matrix.config }}/CameraDemo.exe
+          build/${{ matrix.config }}/0-print_camera.exe
+          build/${{ matrix.config }}/1-minimal_demo.exe
+          build/${{ matrix.config }}/2-capture_grab.exe
+          build/${{ matrix.config }}/3-capture_callback.exe
         if-no-files-found: error

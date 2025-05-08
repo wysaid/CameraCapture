@@ -1,0 +1,40 @@
+name: macOS Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: 
+
+jobs:
+  build-mac:
+    name: Build on macOS
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        config: [Debug, Release]
+        no_log: [OFF, ON]
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    - name: Configure CMake
+      run: |
+        mkdir -p build/${{ matrix.config }}
+        cd build/${{ matrix.config }}
+        cmake ../.. -DCMAKE_BUILD_TYPE=${{ matrix.config }} -DCCAP_NO_LOG=${{ matrix.no_log }}
+    - name: Build
+      run: |
+        cd build/${{ matrix.config }}
+        cmake --build . --config ${{ matrix.config }} --parallel
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ccap-macOS-${{ matrix.config }}-NO_LOG_${{ matrix.no_log }}
+        path: |
+          build/${{ matrix.config }}/libCameraCapture.a
+          build/${{ matrix.config }}/0-print_camera
+          build/${{ matrix.config }}/1-minimal_demo
+          build/${{ matrix.config }}/2-capture_grab
+          build/${{ matrix.config }}/3-capture_callback
+        if-no-files-found: error
