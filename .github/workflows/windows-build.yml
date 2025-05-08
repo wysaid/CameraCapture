@@ -2,10 +2,10 @@ name: Windows Build with VS2022
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, dev ]
   pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:  # 允许手动触发工作流
+    branches: [ main, master, dev ]
+  workflow_dispatch: 
 
 jobs:
   build:
@@ -15,6 +15,7 @@ jobs:
     strategy:
       matrix:
         config: [Debug, Release]
+        no_log: [OFF, ON]
         
     steps:
     - name: Checkout repository
@@ -27,7 +28,7 @@ jobs:
       run: |
         mkdir -p build
         cd build
-        cmake .. -G "Visual Studio 17 2022" -A x64
+        cmake .. -G "Visual Studio 17 2022" -A x64 -DCCAP_NO_LOG=${{ matrix.no_log }}
       
     - name: Build
       run: |
@@ -37,7 +38,7 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: CameraCapture-${{ matrix.config }}
+        name: CameraCapture-${{ matrix.config }}-NO_LOG_${{ matrix.no_log }}
         path: |
           build/${{ matrix.config }}/CameraCapture.lib
           build/${{ matrix.config }}/CameraDemo.exe
