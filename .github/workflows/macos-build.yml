@@ -9,7 +9,7 @@ on:
 
 jobs:
   build-mac:
-    name: Build on macOS
+    name: macOS Build
     runs-on: macos-latest
     strategy:
       matrix:

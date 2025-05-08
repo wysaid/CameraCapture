@@ -1,4 +1,4 @@
-name: windows Build
+name: Windows Build
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    name: Build on Windows
+    name: Windows Build
     runs-on: windows-latest
     
     strategy:
