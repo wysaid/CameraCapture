@@ -80,7 +80,7 @@ enum class PixelFormat : uint32_t
      */
     BGRA8888 = 7 | kPixelFormatRGBAColorBit,
 
-    /// ↓ Several formats for forced settings. After setting, it will definitely take effect. 
+    /// ↓ Several formats for forced settings. After setting, it will definitely take effect.
     /// ↓ If the hardware does not support it, additional conversion will be performed.
 
     /// @brief Similar to RGB888, but will perform additional conversion if not supported by the underlying hardware.
@@ -99,6 +99,24 @@ inline bool pixelFormatInclude(PixelFormat lhs, uint32_t rhs)
 {
     return (static_cast<uint32_t>(lhs) & rhs) == rhs;
 }
+
+/// @brief Interface for memory allocation, primarily used to allocate the `data` field in `ccap::Frame`.
+class Allocator : std::enable_shared_from_this<Allocator>
+{
+public:
+    virtual ~Allocator() = 0;
+
+    /// @brief Allocates memory, which can be accessed using the `data` field.
+    virtual void resize(size_t size) = 0;
+
+    /// @brief Provides access to the allocated memory.
+    /// @note The pointer becomes valid only after calling `resize`.
+    ///       If `resize` is called again, the pointer value may change, so it needs to be retrieved again.
+    virtual uint8_t* data() = 0;
+
+    /// @brief Returns the size of the allocated memory.
+    virtual size_t size() = 0;
+};
 
 struct Frame : std::enable_shared_from_this<Frame>
 {
@@ -137,6 +155,14 @@ struct Frame : std::enable_shared_from_this<Frame>
 
     /// @brief The unique, incremental index of the frame.
     uint64_t frameIndex = 0;
+
+    /**
+     * @brief Memory allocator for Frame::data. When zero-copy is achievable, `ccap::Provider` will not use this allocator.
+     *        If zero-copy is not achievable, this allocator will be used to allocate memory.
+     *        When the allocator is not in use, this field will be set to nullptr.
+     *        Users can customize this allocator through the `ccap::Provider::setFrameAllocator` method.
+     */
+    std::shared_ptr<Allocator> allocator;
 };
 
 enum class PropertyName
@@ -283,6 +309,13 @@ public:
      *       The frame will be automatically reused when the last reference is released.
      */
     void setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)> callback);
+
+    /**
+     * @brief Sets the frame allocator factory. After calling this method, the default Allocator implementation will be overridden.
+     * @param allocatorFactory A factory function that returns a shared pointer to an Allocator instance.
+     * @see ccap::Frame::allocator
+     */
+    void setFrameAllocator(std::function<std::shared_ptr<Allocator>()> allocatorFactory);
 
     /**
      * @brief Sets the maximum number of available frames in the cache. If this limit is exceeded, the oldest frames will be discarded.

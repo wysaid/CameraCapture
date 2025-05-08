@@ -13,6 +13,22 @@
 
 namespace ccap
 {
+DefaultAllocator::~DefaultAllocator() = default;
+void DefaultAllocator::resize(size_t size)
+{
+    m_data.resize(size);
+}
+
+uint8_t* DefaultAllocator::data()
+{
+    return m_data.data();
+}
+
+size_t DefaultAllocator::size()
+{
+    return m_data.size();
+}
+
 ProviderImp::ProviderImp()
 {
 }
@@ -72,6 +88,13 @@ void ProviderImp::setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)
     {
         m_callback = nullptr;
     }
+}
+
+void ProviderImp::setFrameAllocator(std::function<std::shared_ptr<Allocator>()> allocatorFactory)
+{
+    std::lock_guard<std::mutex> lock(m_poolMutex);
+    m_allocatorFactory = std::move(allocatorFactory);
+    m_framePool.clear();
 }
 
 std::shared_ptr<Frame> ProviderImp::grab(bool waitForNewFrame)

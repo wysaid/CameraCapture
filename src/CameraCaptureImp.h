@@ -45,6 +45,19 @@ struct FrameProperty
     }
 };
 
+/// A default allocator that uses std::vector for memory management.
+class DefaultAllocator : public Allocator
+{
+public:
+    ~DefaultAllocator() override;
+    void resize(size_t size) override;
+    uint8_t* data() override;
+    size_t size() override;
+
+private:
+    std::vector<uint8_t> m_data;
+};
+
 class ProviderImp
 {
 public:
@@ -53,6 +66,7 @@ public:
     bool set(PropertyName prop, double value);
     double get(PropertyName prop);
     void setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)> callback);
+    void setFrameAllocator(std::function<std::shared_ptr<Allocator>()> allocatorFactory);
     std::shared_ptr<Frame> grab(bool waitForNewFrame);
     void setMaxAvailableFrameSize(uint32_t size);
     void setMaxCacheFrameSize(uint32_t size);
@@ -70,6 +84,8 @@ public:
 
     inline std::atomic_uint32_t& frameIndex() { return m_frameIndex; }
 
+    inline const std::function<std::shared_ptr<Allocator>()>& getAllocatorFactory() const { return m_allocatorFactory; }
+
 protected:
     void newFrameAvailable(std::shared_ptr<Frame> frame);
     std::shared_ptr<Frame> getFreeFrame();
@@ -77,6 +93,7 @@ protected:
 protected:
     // 回调和分配器
     std::shared_ptr<std::function<bool(std::shared_ptr<Frame>)>> m_callback;
+    std::function<std::shared_ptr<Allocator>()> m_allocatorFactory;
 
     /// 相机的帧, 如果没有被取走, 也没有设置 callback 去获取, 那么会积压到这里, 最大长度为 MAX_AVAILABLE_FRAME_SIZE
     std::queue<std::shared_ptr<Frame>> m_availableFrames;
