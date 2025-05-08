@@ -42,7 +42,8 @@ if(APPLE)
         "-framework Foundation"
         "-framework AVFoundation"
         "-framework CoreVideo"
-        "-framework CoreMedia")
+        "-framework CoreMedia"
+        "-framework Accelerate")
 endif()
 
 if(MSVC)

@@ -22,21 +22,34 @@ namespace ccap
 {
 enum PixelFormatConstants : uint32_t
 {
-    kPixelFormatYUVColorBit = 0x10000,
-    kPixelFormatYUVColorVideoRangeBit = 0x1000 | kPixelFormatYUVColorBit,
-    kPixelFormatYUVColorFullRangeBit = 0x2000 | kPixelFormatYUVColorBit,
-    kPixelFormatRGBColorBit = 0x20000,
-    kPixelFormatAlphaColorBit = 0x40000,
+    kPixelFormatNV12Bit = 1,
+    kPixelFormatNV21Bit = 1 << 1,
+    kPixelFormatI420Bit = 1 << 2,
+
+    /// `kPixelFormatRGBBit` and `kPixelFormatBGRBit` are used to distinguish the order of R-G-B channels
+    kPixelFormatRGBBit = 1 << 3,
+    kPixelFormatBGRBit = 1 << 4,
+
+    /// Color Bit Mask
+    kPixelFormatYUVColorBit = 1 << 16,
+    kPixelFormatYUVColorVideoRangeBit = 1 << 17 | kPixelFormatYUVColorBit,
+    kPixelFormatYUVColorFullRangeBit = 1 << 18 | kPixelFormatYUVColorBit,
+
+    /// `kPixelFormatRGBColorBit` is used to indicate whether it is an RGB or RGBA format
+    kPixelFormatRGBColorBit = 1 << 19,
+
+    /// `kPixelFormatAlphaColorBit` is used to indicate whether there is an Alpha channel
+    kPixelFormatAlphaColorBit = 1 << 20,
     kPixelFormatRGBAColorBit = kPixelFormatRGBColorBit | kPixelFormatAlphaColorBit,
 
     /// @brief When this flag is included in the format, it indicates that the format is a forcibly set format.
-    kPixelFormatForceToSetBit = 0x10000000,
+    kPixelFormatForceToSetBit = 1 << 30,
 };
 
 /**
  * @brief Pixel format. When used for setting, it may downgrade to other supported formats.
  *        The actual format should be determined by the pixelFormat of each Frame.
- * @note For Windows, BGR888 is the default format, while BGRA8888 is the default format for macOS.
+ * @note For Windows, BGR24 is the default format, while BGRA32 is the default format for macOS.
  *       The default PixelFormat usually provides support for ZeroCopy.
  *       For better performance, consider using the NV12v or NV12f formats. These two formats are
  *       often referred to as YUV formats and are supported by almost all platforms.
@@ -45,55 +58,55 @@ enum class PixelFormat : uint32_t
 {
     Unknown = 0,
     /// @brief Not commonly used, likely unsupported, when used to set, may fall back to NV12*
-    I420v = 1 | kPixelFormatYUVColorVideoRangeBit,
+    I420v = kPixelFormatI420Bit | kPixelFormatYUVColorVideoRangeBit,
 
     /// @brief Best performance on all platforms. Always supported.
-    NV12v = 2 | kPixelFormatYUVColorVideoRangeBit,
+    NV12v = kPixelFormatNV12Bit | kPixelFormatYUVColorVideoRangeBit,
 
     /// @brief Not commonly used, likely unsupported, may fall back to NV12*
-    NV21v = 3 | kPixelFormatYUVColorVideoRangeBit,
+    NV21v = kPixelFormatNV21Bit | kPixelFormatYUVColorVideoRangeBit,
 
     /// @brief Not commonly used, likely unsupported, may fall back to NV12*
-    I420f = 1 | kPixelFormatYUVColorFullRangeBit,
+    I420f = kPixelFormatI420Bit | kPixelFormatYUVColorFullRangeBit,
 
     /// @brief Best performance on all platforms. Will fall back to NV12v if not supported.
-    NV12f = 2 | kPixelFormatYUVColorFullRangeBit,
+    NV12f = kPixelFormatNV12Bit | kPixelFormatYUVColorFullRangeBit,
 
     /// @brief Not commonly used, likely unsupported, may fall back to NV12*
-    NV21f = 3 | kPixelFormatYUVColorFullRangeBit,
+    NV21f = kPixelFormatNV21Bit | kPixelFormatYUVColorFullRangeBit,
 
-    /// @brief Not commonly used, likely unsupported, may fall back to BGR888 (Windows) or BGRA8888 (MacOS)
-    RGB888 = 4 | kPixelFormatRGBColorBit, /// 3 bytes per pixel
+    /// @brief Not commonly used, likely unsupported, may fall back to BGR24 (Windows) or BGRA32 (MacOS)
+    RGB24 = kPixelFormatRGBBit | kPixelFormatRGBColorBit, /// 3 bytes per pixel
 
     /// @brief Always supported on all platforms. Simple to use.
-    BGR888 = 5 | kPixelFormatRGBColorBit, /// 3 bytes per pixel
+    BGR24 = kPixelFormatBGRBit | kPixelFormatRGBColorBit, /// 3 bytes per pixel
 
     /**
-     * @brief RGBA8888 format, 4 bytes per pixel, alpha channel is filled with 0xFF
-     * @note Not commonly used, likely unsupported, may fall back to BGR888
+     * @brief RGBA32 format, 4 bytes per pixel, alpha channel is filled with 0xFF
+     * @note Not commonly used, likely unsupported, may fall back to BGR24
      */
-    RGBA8888 = 6 | kPixelFormatRGBAColorBit,
+    RGBA32 = RGB24 | kPixelFormatRGBAColorBit,
 
     /**
-     *  @brief BGRA8888 format, 4 bytes per pixel, alpha channel is filled with 0xFF
+     *  @brief BGRA32 format, 4 bytes per pixel, alpha channel is filled with 0xFF
      *  @note This format is always supported on MacOS.
      */
-    BGRA8888 = 7 | kPixelFormatRGBAColorBit,
+    BGRA32 = BGR24 | kPixelFormatRGBAColorBit,
 
     /// ↓ Several formats for forced settings. After setting, it will definitely take effect.
     /// ↓ If the hardware does not support it, additional conversion will be performed.
 
-    /// @brief RGB888 with forced conversion if unsupported.
-    RGB888_Force = RGB888 | kPixelFormatForceToSetBit,
+    /// @brief RGB24 with forced conversion if unsupported.
+    RGB24_Force = RGB24 | kPixelFormatForceToSetBit,
 
-    /// @brief BGR888 with forced conversion if unsupported.
-    BGR888_Force = BGR888 | kPixelFormatForceToSetBit,
+    /// @brief BGR24 with forced conversion if unsupported.
+    BGR24_Force = BGR24 | kPixelFormatForceToSetBit,
 
-    /// @brief RGBA8888 with forced conversion if unsupported.
-    RGBA8888_Force = RGBA8888 | kPixelFormatForceToSetBit,
+    /// @brief RGBA32 with forced conversion if unsupported.
+    RGBA32_Force = RGBA32 | kPixelFormatForceToSetBit,
 
-    /// @brief BGRA8888 with forced conversion if unsupported.
-    BGRA8888_Force = BGRA8888 | kPixelFormatForceToSetBit,
+    /// @brief BGRA32 with forced conversion if unsupported.
+    BGRA32_Force = BGRA32 | kPixelFormatForceToSetBit,
 };
 
 inline bool operator&(PixelFormat lhs, PixelFormatConstants rhs)
@@ -325,8 +338,9 @@ public:
 
     /**
      * @brief Sets the frame allocator factory. After calling this method, the default Allocator implementation will be overridden.
+     * @refitem #Frame::allocator
      * @param allocatorFactory A factory function that returns a shared pointer to an Allocator instance.
-     * @see ccap::Frame::allocator
+     * @note Please call this method before `start()`. Otherwise, errors may occur.
      */
     void setFrameAllocator(std::function<std::shared_ptr<Allocator>()> allocatorFactory);
 

@@ -26,9 +26,9 @@ struct FrameProperty
     double fps{ 30.0 };
     PixelFormat pixelFormat{
 #ifdef __APPLE__
-        PixelFormat::BGRA8888 ///< MacOS default
+        PixelFormat::BGRA32 ///< MacOS default
 #else
-        PixelFormat::BGR888 ///< Windows default
+        PixelFormat::BGR24 ///< Windows default
 #endif
     };
     int width{ 640 };
@@ -114,6 +114,7 @@ protected:
     std::atomic_uint32_t m_frameIndex{};
 };
 
+/// A lightweight class used to call the deleter function in the destructor of Frame
 class FakeFrame : std::enable_shared_from_this<FakeFrame>
 {
 public:

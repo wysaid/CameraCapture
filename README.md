@@ -62,10 +62,10 @@ Sample usage:
 
 1. How to select PixelFormat
 
-    On Windows, if not set, the default is `BGR888`, which is generally supported. If you want to manually select a YUV format, both `NV12f` and `NV12v` are available.
+    On Windows, if not set, the default is `BGR24`, which is generally supported. If you want to manually select a YUV format, both `NV12f` and `NV12v` are available.
     For virtual cameras (such as `Obs Virtual Camera`), the supported format may depend on the output format set by the virtual camera.
 
-    On Mac, if not set, the default is `BGRA8888`, which is generally supported. If you want to manually select a YUV format, both `NV12f` and `NV12v` are available.
+    On Mac, if not set, the default is `BGRA32`, which is generally supported. If you want to manually select a YUV format, both `NV12f` and `NV12v` are available.
     For virtual cameras (such as `Obs Virtual Camera`), the supported format may depend on the output format set by the virtual camera.
 
     When ccap encounters an unsupported PixelFormat, it will try to select the closest supported format. The actual format can be checked from `frame->PixelFormat`.

@@ -21,6 +21,7 @@ int main()
         {
             printf("    %d: %s\n", deviceIndex++, name.c_str());
         }
+        return 0;
     }
 
     fputs("Failed to find any video capture device.", stderr);

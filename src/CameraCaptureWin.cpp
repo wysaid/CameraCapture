@@ -437,7 +437,7 @@ bool ProviderWin::open(std::string_view deviceName)
                     m_frameProp.width = videoHeader->bmiHeader.biWidth;
                     m_frameProp.height = videoHeader->bmiHeader.biHeight;
                     m_frameProp.fps = 10000000.0 / videoHeader->AvgTimePerFrame;
-                    m_frameProp.pixelFormat = PixelFormat::BGR888; // Assume RGB24 format
+                    m_frameProp.pixelFormat = PixelFormat::BGR24; // Assume RGB24 format
                     auto setFormatResult = streamConfig->SetFormat(mediaType);
                     if (FAILED(setFormatResult))
                     {
@@ -553,10 +553,10 @@ HRESULT STDMETHODCALLTYPE ProviderWin::SampleCB(double sampleTime, IMediaSample*
 
     // Zero-copy, directly reference sample data
     newFrame->sizeInBytes = bufferLen;
-    newFrame->pixelFormat = PixelFormat::BGR888; // Assume RGB24 format
+    newFrame->pixelFormat = PixelFormat::BGR24; // Assume RGB24 format
     newFrame->width = m_frameProp.width;
     newFrame->height = m_frameProp.height;
-    newFrame->stride[0] = m_frameProp.width * 3; // BGR888, 3 bytes per pixel
+    newFrame->stride[0] = m_frameProp.width * 3; // BGR24, 3 bytes per pixel
     newFrame->stride[1] = 0;
     newFrame->stride[2] = 0;
     newFrame->data[0] = sampleData;
