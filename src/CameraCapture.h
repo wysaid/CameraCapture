@@ -387,6 +387,12 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
 
 //////////////////// Log ////////////////////
 
+#ifndef CCAP_NO_LOG ///< Define this macro to remove log code during compilation.
+#define _CCAP_LOG_ENABLED_ 1
+#else
+#define _CCAP_LOG_ENABLED_ 0
+#endif
+
 enum LogLevelConstants
 {
     kLogLevelErrorBit = 1,

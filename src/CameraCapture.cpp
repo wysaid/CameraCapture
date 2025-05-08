@@ -19,8 +19,6 @@ namespace ccap
 {
 Allocator::~Allocator() = default;
 
-LogLevel globalLogLevel = LogLevel::Info;
-
 Frame::Frame() = default;
 Frame::~Frame() = default;
 
@@ -254,9 +252,18 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
     return true;
 }
 
+#if _CCAP_LOG_ENABLED_
+LogLevel globalLogLevel = LogLevel::Info;
+#endif
+
 void setLogLevel(LogLevel level)
 {
+#if _CCAP_LOG_ENABLED_
     globalLogLevel = level;
+#else
+    (void)level;
+    std::cerr << "ccap: Log is not enabled in this build." << std::endl;
+#endif
 }
 
 } // namespace ccap

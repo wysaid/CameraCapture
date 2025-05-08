@@ -75,6 +75,10 @@ CameraCapture 是一个高效的、易用的、轻量级的 C++ 相机捕获库�
 
     创建了 `ccap::Provider` 之后, 可以通过 `findDeviceNames` 来获取可用的所有相机设备。
 
-3. 如何禁用所有运行时的日志, 包括错误日志
+3. 如何禁用所有运行时的日志, 包括错误日志?
 
     代码: `ccap::setLogLevel(ccap::LogLevel::None);`
+
+4. 如何在编译阶段去掉所有日志以减少包体积?
+
+    编译时加上宏定义 `CCAP_NO_LOG=1` 或者给 CMake 传入参数 `-DCCAP_NO_LOG=ON`

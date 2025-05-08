@@ -7,6 +7,8 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version")
 
+option(CCAP_NO_LOG "Disable logging" OFF)
+
 if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
     option(CCAP_BUILD_DEMO "Build ccap demo" ON)
 else()
@@ -21,13 +23,18 @@ file(GLOB LIB_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURC
 
 if(APPLE)
     file(GLOB LIB_SOURCE_MAC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.mm)
-    message(STATUS "Using Objective-C++ for macOS: ${LIB_SOURCE_MAC}")
+    message(STATUS "ccap: Using Objective-C++ for macOS: ${LIB_SOURCE_MAC}")
     list(APPEND LIB_SOURCE ${LIB_SOURCE_MAC})
 endif()
 
 add_library(CameraCapture ${LIB_SOURCE})
 target_include_directories(CameraCapture PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(CameraCapture PUBLIC "$<IF:$<CONFIG:Debug>,DEBUG=1,NDEBUG=1>")
+
+if(CCAP_NO_LOG)
+    target_compile_definitions(CameraCapture PUBLIC CCAP_NO_LOG=1)
+    message(STATUS "ccap: Disable logging")
+endif()
 
 if(APPLE)
     target_compile_options(CameraCapture PUBLIC -fobjc-arc)
@@ -62,7 +69,7 @@ if(CCAP_BUILD_DEMO)
         # 去掉文件名中的后缀
         string(REPLACE ".cpp" "" DEMO_NAME ${DEMO_NAME})
 
-        message(STATUS "Add demo: ${DEMO_NAME}")
+        message(STATUS "ccap: Add demo: ${DEMO_NAME}")
 
         add_executable(${DEMO_NAME} ${DEMO})
         target_include_directories(${DEMO_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)

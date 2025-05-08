@@ -131,6 +131,7 @@ private:
     std::function<void()> m_deleter;
 };
 
+#if _CCAP_LOG_ENABLED_
 /// For internal use.
 extern LogLevel globalLogLevel;
 
@@ -143,6 +144,21 @@ inline bool errorLogEnabled() { return globalLogLevel & kLogLevelErrorBit; }
 inline bool warningLogEnabled() { return globalLogLevel & kLogLevelWarningBit; }
 inline bool infoLogEnabled() { return globalLogLevel & kLogLevelInfoBit; }
 inline bool verboseLogEnabled() { return globalLogLevel & kLogLevelVerboseBit; }
+
+#else
+
+#if __cplusplus >= 201703L
+#define CCAP_CONSTEXPR constexpr
+#else
+#define CCAP_CONSTEXPR
+#endif
+
+inline CCAP_CONSTEXPR bool errorLogEnabled() { return false; }
+inline CCAP_CONSTEXPR bool warningLogEnabled() { return false; }
+inline CCAP_CONSTEXPR bool infoLogEnabled() { return false; }
+inline CCAP_CONSTEXPR bool verboseLogEnabled() { return false; }
+
+#endif
 
 } // namespace ccap
 

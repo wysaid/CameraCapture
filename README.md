@@ -77,3 +77,7 @@ Sample usage:
 3. How to disable all runtime logs, including error logs
 
     Code: `ccap::setLogLevel(ccap::LogLevel::None);`
+
+4. How to remove all logs at compile time to reduce package size?
+
+    Add the macro definition `CCAP_NO_LOG=1` during compilation or pass the parameter `-DCCAP_NO_LOG=ON` to CMake.
