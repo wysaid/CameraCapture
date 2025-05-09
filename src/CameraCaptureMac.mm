@@ -964,6 +964,11 @@ bool ProviderMac::isStarted() const
     return m_imp && [m_imp isRunning];
 }
 
+ProviderImp* createProviderMac()
+{
+    return new ProviderMac();
+}
+
 } // namespace ccap
 
 #endif

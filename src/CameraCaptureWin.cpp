@@ -733,5 +733,10 @@ bool ProviderWin::isStarted() const
     return m_isRunning && m_mediaControl;
 }
 
+ProviderImp* createProviderWin()
+{
+    return new ProviderWin();
+}
+
 } // namespace ccap
 #endif

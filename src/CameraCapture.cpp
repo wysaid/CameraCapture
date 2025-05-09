@@ -9,8 +9,6 @@
 #include "CameraCapture.h"
 
 #include "CameraCaptureImp.h"
-#include "CameraCaptureMac.h"
-#include "CameraCaptureWin.h"
 
 #include <chrono>
 #include <iostream>
@@ -120,10 +118,13 @@ void Provider::setMaxCacheFrameSize(uint32_t size)
 
 Provider::~Provider() = default;
 
+ProviderImp* createProviderMac();
+ProviderImp* createProviderWin();
+
 Provider* createProvider()
 {
 #if __APPLE__
-    return new Provider(new ProviderMac());
+    return new Provider(createProviderMac());
 #elif defined(_MSC_VER) || defined(_WIN32)
     return new Provider(new ProviderWin());
 #endif

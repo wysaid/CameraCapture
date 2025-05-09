@@ -114,6 +114,9 @@ private:
     bool m_isOpened{ false };
     bool m_isRunning{ false };
 };
+
+ProviderImp* createProviderWin();
+
 } // namespace ccap
 
 #endif

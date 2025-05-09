@@ -22,10 +22,6 @@ namespace ccap
 {
 enum PixelFormatConstants : uint32_t
 {
-    kPixelFormatNV12Bit = 1,
-    kPixelFormatNV21Bit = 1 << 1,
-    kPixelFormatI420Bit = 1 << 2,
-
     /// `kPixelFormatRGBBit` and `kPixelFormatBGRBit` are used to distinguish the order of R-G-B channels
     kPixelFormatRGBBit = 1 << 3,
     kPixelFormatBGRBit = 1 << 4,
@@ -57,23 +53,45 @@ enum PixelFormatConstants : uint32_t
 enum class PixelFormat : uint32_t
 {
     Unknown = 0,
-    /// @brief Not commonly used, likely unsupported, when used to set, may fall back to NV12*
-    I420v = kPixelFormatI420Bit | kPixelFormatYUVColorVideoRangeBit,
 
-    /// @brief Best performance on all platforms. Always supported.
-    NV12v = kPixelFormatNV12Bit | kPixelFormatYUVColorVideoRangeBit,
+    /**
+     * @brief Best performance on all platforms. Always supported.
+     *    On some devices, it is not possible to clearly determine whether it is FullRange or VideoRange.
+     *    In such cases, the Frame can only indicate that it is NV12.
+     *    In software design, you can implement a toggle option to allow users to choose whether the
+     *    received Frame is FullRange or VideoRange based on what they observe.
+     *
+     */
+    NV12 = 1,
 
-    /// @brief Not commonly used, likely unsupported, may fall back to NV12*
-    NV21v = kPixelFormatNV21Bit | kPixelFormatYUVColorVideoRangeBit,
+    NV12v = NV12 | kPixelFormatYUVColorVideoRangeBit,
+    NV12f = NV12 | kPixelFormatYUVColorFullRangeBit,
 
-    /// @brief Not commonly used, likely unsupported, may fall back to NV12*
-    I420f = kPixelFormatI420Bit | kPixelFormatYUVColorFullRangeBit,
+    /**
+     * @brief Not commonly used, likely unsupported, may fall back to NV12*
+     *    On some devices, it is not possible to clearly determine whether it is FullRange or VideoRange.
+     *    In such cases, the Frame can only indicate that it is NV12.
+     *    In software design, you can implement a toggle option to allow users to choose whether
+     *    the received Frame is FullRange or VideoRange based on what they observe.
+     * @refitem #NV12
+     */
+    NV21 = 1 << 1,
 
-    /// @brief Best performance on all platforms. Will fall back to NV12v if not supported.
-    NV12f = kPixelFormatNV12Bit | kPixelFormatYUVColorFullRangeBit,
+    NV21v = NV21 | kPixelFormatYUVColorVideoRangeBit,
+    NV21f = NV21 | kPixelFormatYUVColorFullRangeBit,
 
-    /// @brief Not commonly used, likely unsupported, may fall back to NV12*
-    NV21f = kPixelFormatNV21Bit | kPixelFormatYUVColorFullRangeBit,
+    /**
+     * @brief Not commonly used, likely unsupported, may fall back to NV12*
+     *    On some devices, it is not possible to clearly determine whether it is FullRange or VideoRange.
+     *    In such cases, the Frame can only indicate that it is NV12.
+     *    In software design, you can implement a toggle option to allow users to choose whether
+     *    the received Frame is FullRange or VideoRange based on what they observe.
+     * @refitem #NV12
+     */
+    I420 = 1 << 2,
+
+    I420v = I420 | kPixelFormatYUVColorVideoRangeBit,
+    I420f = I420 | kPixelFormatYUVColorFullRangeBit,
 
     /// @brief Not commonly used, likely unsupported, may fall back to BGR24 (Windows) or BGRA32 (MacOS)
     RGB24 = kPixelFormatRGBBit | kPixelFormatRGBColorBit, /// 3 bytes per pixel

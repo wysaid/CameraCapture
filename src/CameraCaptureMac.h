@@ -41,6 +41,9 @@ public:
 private:
     CameraCaptureObjc* m_imp{};
 };
+
+ProviderImp* createProviderMac();
+    
 } // namespace ccap
 
 #endif
