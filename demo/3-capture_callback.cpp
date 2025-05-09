@@ -43,14 +43,9 @@ int main(int argc, char** argv)
         std::filesystem::create_directory(captureDir);
     }
 
-    auto cameraProvider = ccap::createProvider();
-    if (!cameraProvider)
-    {
-        std::cerr << "Failed to create provider!" << std::endl;
-        return -1;
-    }
+    ccap::Provider cameraProvider;
 
-    if (auto deviceNames = cameraProvider->findDeviceNames(); !deviceNames.empty())
+    if (auto deviceNames = cameraProvider.findDeviceNames(); !deviceNames.empty())
     {
         for (const auto& name : deviceNames)
         {
@@ -62,31 +57,31 @@ int main(int argc, char** argv)
     int requestedHeight = 720;
     double requestedFps = 60;
 
-    cameraProvider->set(ccap::PropertyName::Width, requestedWidth);
-    cameraProvider->set(ccap::PropertyName::Height, requestedHeight);
+    cameraProvider.set(ccap::PropertyName::Width, requestedWidth);
+    cameraProvider.set(ccap::PropertyName::Height, requestedHeight);
 #if 1 /// switch to test.
-    cameraProvider->set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::BGR24);
+    cameraProvider.set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::BGR24);
 #else
-    cameraProvider->set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::NV12f);
+    cameraProvider.set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::NV12f);
 #endif
-    cameraProvider->set(ccap::PropertyName::FrameRate, requestedFps);
+    cameraProvider.set(ccap::PropertyName::FrameRate, requestedFps);
 
-    cameraProvider->open(deviceIndex) && cameraProvider->start();
+    cameraProvider.open(deviceIndex) && cameraProvider.start();
 
-    if (!cameraProvider->isStarted())
+    if (!cameraProvider.isStarted())
     {
         std::cerr << "Failed to start camera!" << std::endl;
         return -1;
     }
 
     /// Print the real resolution and fps after camera started.
-    int realWidth = static_cast<int>(cameraProvider->get(ccap::PropertyName::Width));
-    int realHeight = static_cast<int>(cameraProvider->get(ccap::PropertyName::Height));
-    double realFps = cameraProvider->get(ccap::PropertyName::FrameRate);
+    int realWidth = static_cast<int>(cameraProvider.get(ccap::PropertyName::Width));
+    int realHeight = static_cast<int>(cameraProvider.get(ccap::PropertyName::Height));
+    double realFps = cameraProvider.get(ccap::PropertyName::FrameRate);
 
     printf("Camera started successfully, requested resolution: %dx%d, real resolution: %dx%d, requested fps %g, real fps: %g\n", requestedWidth, requestedHeight, realWidth, realHeight, requestedFps, realFps);
 
-    cameraProvider->setNewFrameCallback([=](std::shared_ptr<ccap::Frame> frame) -> bool {
+    cameraProvider.setNewFrameCallback([=](std::shared_ptr<ccap::Frame> frame) -> bool {
         printf("Frame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes);
         if (auto dumpFile = ccap::dumpFrameToDirectory(frame.get(), captureDir); !dumpFile.empty())
         {
@@ -102,6 +97,5 @@ int main(int argc, char** argv)
     /// Wait for 10 seconds to capture frames.
     std::this_thread::sleep_for(std::chrono::seconds(5));
     std::cout << "Captured 5 seconds, stopping..." << std::endl;
-    cameraProvider = nullptr;
     return 0;
 }

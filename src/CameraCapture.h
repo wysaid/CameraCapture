@@ -129,8 +129,6 @@ enum class PixelFormat : uint32_t
 
 enum class FrameOrientation
 {
-    Default = 0,
-
     /**
      * @brief The frame is laid out in a top-to-bottom format.
      *     The first row of data corresponds to the first row of the image.
@@ -139,7 +137,7 @@ enum class FrameOrientation
      *     RGB formats are usually in this format on macOS.
      *     This is the most common layout.
      */
-    TopToBottom = Default,
+    TopToBottom = 0,
 
     /**
      * @brief The frame is laid out in a bottom-to-top format.
@@ -148,6 +146,8 @@ enum class FrameOrientation
      *     On Windows, when the data format is RGB or similar, this field is often true.
      */
     BottomToTop = 1,
+
+    Default = TopToBottom,
 };
 
 inline bool operator&(PixelFormat lhs, PixelFormatConstants rhs)
@@ -162,7 +162,7 @@ inline bool pixelFormatInclude(PixelFormat lhs, uint32_t rhs)
 }
 
 /// @brief Interface for memory allocation, primarily used to allocate the `data` field in `ccap::Frame`.
-class Allocator : std::enable_shared_from_this<Allocator>
+class Allocator
 {
 public:
     virtual ~Allocator() = 0;
@@ -179,7 +179,7 @@ public:
     virtual size_t size() = 0;
 };
 
-struct Frame : std::enable_shared_from_this<Frame>
+struct Frame
 {
     Frame();
     ~Frame();
@@ -264,19 +264,46 @@ enum
     DEFAULT_MAX_AVAILABLE_FRAME_SIZE = 3
 };
 
-struct DeviceInfo
+/**
+ * @brief Can be used to initialize the Provider. Uses deviceIndex if deviceName is empty.
+ *        deviceName is the device's name, obtainable via #findDeviceNames, and can be used to open the device.
+ */
+struct ProviderCreateInfo
 {
-    std::string name;
-    std::vector<PixelFormat> supportedPixelFormats;
+    int deviceIndex = -1;
+    std::string_view deviceName;
+    /// @brief Currently unused
+    std::string_view extraInfo;
 };
 
 class ProviderImp;
 
+/**
+ * @brief Camera capture provider. This class is used to open a camera device and capture frames from it.
+ *        The actual implementation is platform-dependent.
+ * @note This class is not thread-safe. It is recommended to use it in a single thread.
+ *       If you need to use it in multiple threads, consider using a mutex or other synchronization methods.
+ */
 class Provider
 {
 public:
-    explicit Provider(ProviderImp* imp);
-    ~Provider();
+    /// @brief Default constructor. The camera device is not opened yet.
+    ///        You can use the `open` method to open a camera device later.
+    Provider();
+
+    /**
+     * @brief Construct a new Provider object, and open the camera device.
+     * @param deviceName The name of the device to open. @see #open
+     * @param extraInfo Currently unused.
+     */
+    Provider(std::string_view deviceName, std::string_view extraInfo = "");
+
+    /**
+     * @brief Construct a new Provider object, and open the camera device.
+     * @param deviceIndex The index of the device to open. @see #open
+     * @param extraInfo Currently unused.
+     */
+    Provider(int deviceIndex, std::string_view extraInfo = "");
 
     /**
      * @brief Retrieves the names of all available capture devices. Will perform a scan.
@@ -421,11 +448,14 @@ public:
      */
     void setMaxCacheFrameSize(uint32_t size);
 
-private:
-    std::unique_ptr<ProviderImp> m_imp;
-};
+    // ↓ This part is not relevant to the user ↓
+    Provider(Provider&&) = default;
+    Provider& operator=(Provider&&) = default;
+    ~Provider();
 
-Provider* createProvider();
+private:
+    ProviderImp* m_imp;
+};
 
 //////////////////// Utils //////////////////
 
@@ -462,7 +492,7 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
 
 //////////////////// Log ////////////////////
 
-#ifndef CCAP_NO_LOG          ///< Define this macro to remove log code during compilation.
+#ifndef CCAP_NO_LOG ///< Define this macro to remove log code during compilation.
 #define _CCAP_LOG_ENABLED_ 1 // NOLINT(*-reserved-identifier)
 #else
 #define _CCAP_LOG_ENABLED_ 0

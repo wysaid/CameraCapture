@@ -1,16 +1,18 @@
 /**
- * @file CameraCaptureWin.cpp
+ * @file CameraCaptureDirectShow.cpp
  * @author wysaid (this@wysaid.org)
- * @brief Implementation for ProviderWin class using MSMF.
+ * @brief Implementation for ProviderDirectShow class using MSMF.
  * @date 2025-04
  *
  */
 
 #if defined(_WIN32) || defined(_MSC_VER)
 
-#include "CameraCaptureWin.h"
+#include "CameraCaptureDirectShow.h"
 
 #include <chrono>
+#include <guiddef.h>
+#include <initguid.h>
 #include <iostream>
 #include <vector>
 
@@ -71,13 +73,17 @@ typedef struct _DXVA_ExtendedFormat
 #define DXVA_NominalRange_16_235 1
 #endif
 
+#ifndef MEDIASUBTYPE_I420
+DEFINE_GUID(MEDIASUBTYPE_I420, 0x30323449, 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71);
+#endif
+
 namespace ccap
 {
-ProviderWin::ProviderWin() = default;
+ProviderDirectShow::ProviderDirectShow() = default;
 
-ProviderWin::~ProviderWin()
+ProviderDirectShow::~ProviderDirectShow()
 {
-    ProviderWin::close();
+    ProviderDirectShow::close();
 }
 
 static void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
@@ -94,6 +100,8 @@ static void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
         fmt = "NV12";
     else if (subtype == MEDIASUBTYPE_YV12)
         fmt = "YV12";
+    else if (subtype == MEDIASUBTYPE_I420)
+        fmt = "I420";
     else if (subtype == MEDIASUBTYPE_UYVY)
         fmt = "UYVY";
     else if (subtype == MEDIASUBTYPE_RGB32)
@@ -106,8 +114,6 @@ static void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
         fmt = "YUYV";
     else if (subtype == MEDIASUBTYPE_YVYU)
         fmt = "YVYU";
-    else if (subtype == MEDIASUBTYPE_I420)
-        fmt = "I420";
     else if (subtype == MEDIASUBTYPE_IYUV)
         fmt = "IYUV";
     else if (subtype == MEDIASUBTYPE_NV11)
@@ -178,7 +184,7 @@ static void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
     printf("%s%ld x %ld  bitcount=%ld  format=%s%s\n", prefix, vih->bmiHeader.biWidth, vih->bmiHeader.biHeight, vih->bmiHeader.biBitCount, fmt, rangeStr);
 }
 
-std::vector<std::string> ProviderWin::findDeviceNames()
+std::vector<std::string> ProviderDirectShow::findDeviceNames()
 {
     std::vector<std::string> deviceNames;
     enumerateDevices([&](IMoniker* moniker, std::string_view name) {
@@ -188,7 +194,7 @@ std::vector<std::string> ProviderWin::findDeviceNames()
     return deviceNames;
 }
 
-bool ProviderWin::setup()
+bool ProviderDirectShow::setup()
 {
     if (!m_didSetup)
     {
@@ -209,7 +215,7 @@ bool ProviderWin::setup()
     return m_didSetup;
 }
 
-void ProviderWin::enumerateDevices(std::function<bool(IMoniker* moniker, std::string_view)> callback)
+void ProviderDirectShow::enumerateDevices(std::function<bool(IMoniker* moniker, std::string_view)> callback)
 {
     if (!setup())
     {
@@ -271,7 +277,7 @@ void ProviderWin::enumerateDevices(std::function<bool(IMoniker* moniker, std::st
     enumerator->Release();
 }
 
-bool ProviderWin::open(std::string_view deviceName)
+bool ProviderDirectShow::open(std::string_view deviceName)
 {
     if (m_isOpened && m_mediaControl)
     {
@@ -563,7 +569,7 @@ bool ProviderWin::open(std::string_view deviceName)
     return true;
 }
 
-HRESULT STDMETHODCALLTYPE ProviderWin::SampleCB(double sampleTime, IMediaSample* mediaSample)
+HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMediaSample* mediaSample)
 {
     auto newFrame = getFreeFrame();
     if (!newFrame)
@@ -644,13 +650,13 @@ HRESULT STDMETHODCALLTYPE ProviderWin::SampleCB(double sampleTime, IMediaSample*
     return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE ProviderWin::BufferCB(double SampleTime, BYTE* pBuffer, long BufferLen)
+HRESULT STDMETHODCALLTYPE ProviderDirectShow::BufferCB(double SampleTime, BYTE* pBuffer, long BufferLen)
 {
     /// Never reached.
     return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE ProviderWin::QueryInterface(REFIID riid, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject)
+HRESULT STDMETHODCALLTYPE ProviderDirectShow::QueryInterface(REFIID riid, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject)
 {
     static constexpr const IID IID_ISampleGrabberCB = { 0x0579154A, 0x2B53, 0x4994, { 0xB0, 0xD0, 0xE7, 0x73, 0x14, 0x8E, 0xFF, 0x85 } };
 
@@ -671,27 +677,27 @@ HRESULT STDMETHODCALLTYPE ProviderWin::QueryInterface(REFIID riid, _COM_Outptr_ 
     return S_OK;
 }
 
-ULONG STDMETHODCALLTYPE ProviderWin::AddRef()
+ULONG STDMETHODCALLTYPE ProviderDirectShow::AddRef()
 { // Using smart pointers for management, reference counting implementation is not needed
     return S_OK;
 }
 
-ULONG STDMETHODCALLTYPE ProviderWin::Release()
+ULONG STDMETHODCALLTYPE ProviderDirectShow::Release()
 { // same as AddRef
     return S_OK;
 }
 
-bool ProviderWin::isOpened() const
+bool ProviderDirectShow::isOpened() const
 {
     return m_isOpened;
 }
 
-std::vector<PixelFormat> ProviderWin::getHardwareSupportedPixelFormats() const
+std::vector<PixelFormat> ProviderDirectShow::getHardwareSupportedPixelFormats() const
 {
     return {};
 }
 
-void ProviderWin::close()
+void ProviderDirectShow::close()
 {
     if (m_mediaControl)
     {
@@ -733,7 +739,7 @@ void ProviderWin::close()
     }
 }
 
-bool ProviderWin::start()
+bool ProviderDirectShow::start()
 {
     if (!m_isOpened)
         return false;
@@ -759,7 +765,7 @@ bool ProviderWin::start()
     return m_isRunning;
 }
 
-void ProviderWin::stop()
+void ProviderDirectShow::stop()
 {
     if (m_isRunning && m_mediaControl)
     {
@@ -773,14 +779,14 @@ void ProviderWin::stop()
     }
 }
 
-bool ProviderWin::isStarted() const
+bool ProviderDirectShow::isStarted() const
 {
     return m_isRunning && m_mediaControl;
 }
 
-ProviderImp* createProviderWin()
+ProviderImp* createProviderDirectShow()
 {
-    return new ProviderWin();
+    return new ProviderDirectShow();
 }
 
 } // namespace ccap

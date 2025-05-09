@@ -12,11 +12,10 @@
 
 int main()
 {
-    auto cameraProvider = ccap::createProvider();
-    cameraProvider->open();
-    cameraProvider->start();
+    ccap::Provider cameraProvider(0); // Open the default camera
+    cameraProvider.start();
 
-    if (!cameraProvider->isStarted())
+    if (!cameraProvider.isStarted())
     {
         std::cerr << "Failed to start camera!" << std::endl;
         return -1;
@@ -24,7 +23,7 @@ int main()
 
     for (int i = 0; i < 10; ++i)
     {
-        auto frame = cameraProvider->grab(true);
+        auto frame = cameraProvider.grab(true);
         if (frame)
         {
             printf("Frame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes);

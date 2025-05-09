@@ -11,6 +11,14 @@
 #ifndef CAMERA_CAPTURE_IMP_H
 #define CAMERA_CAPTURE_IMP_H
 
+#ifndef _CRT_SECURE_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS 1
+#endif
+
+#ifndef NOMINMAX
+#define NOMINMAX 1
+#endif
+
 #include "CameraCapture.h"
 
 #include <atomic>
@@ -155,7 +163,10 @@ inline bool verboseLogEnabled() { return globalLogLevel & kLogLevelVerboseBit; }
 #define CCAP_CONSTEXPR
 #endif
 
-inline CCAP_CONSTEXPR bool errorLogEnabled() { return false; }
+inline CCAP_CONSTEXPR bool errorLogEnabled()
+{
+    return false;
+}
 inline CCAP_CONSTEXPR bool warningLogEnabled() { return false; }
 inline CCAP_CONSTEXPR bool infoLogEnabled() { return false; }
 inline CCAP_CONSTEXPR bool verboseLogEnabled() { return false; }

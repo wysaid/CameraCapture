@@ -15,28 +15,75 @@
 
 namespace ccap
 {
+ProviderImp* createProviderMac();
+ProviderImp* createProviderDirectShow();
+ProviderImp* createProviderMSMF();
+
 Allocator::~Allocator() = default;
 
 Frame::Frame() = default;
 Frame::~Frame() = default;
 
-Provider::Provider(ccap::ProviderImp* imp) :
-    m_imp(imp)
+ProviderImp* createProvider(std::string_view extraInfo)
 {
+#if __APPLE__
+    return createProviderMac();
+#elif defined(_MSC_VER) || defined(_WIN32)
+    ProviderImp* imp = extraInfo == "DSHOW" ? createProviderDirectShow() : createProviderMSMF();
+    if (imp == nullptr) // fallback to the other one if the first one failed
+        imp = extraInfo == "DSHOW" ? createProviderMSMF() : createProviderDirectShow();
+    return imp;
+#endif
+    if (warningLogEnabled())
+    {
+        std::cerr << "Unsupported platform!" << std::endl;
+    }
+    return nullptr;
+}
+
+Provider::Provider() :
+    m_imp(createProvider(""))
+{
+}
+
+Provider::~Provider()
+{
+    delete m_imp;
+}
+
+Provider::Provider(std::string_view deviceName, std::string_view extraInfo) :
+    m_imp(createProvider(extraInfo))
+{
+    if (m_imp)
+    {
+        open(deviceName);
+    }
+}
+
+Provider::Provider(int deviceIndex, std::string_view extraInfo) :
+    m_imp(createProvider(extraInfo))
+{
+    if (m_imp)
+    {
+        open(deviceIndex);
+    }
 }
 
 std::vector<std::string> Provider::findDeviceNames()
 {
-    return m_imp->findDeviceNames();
+    return m_imp ? m_imp->findDeviceNames() : std::vector<std::string>();
 }
 
 bool Provider::open(std::string_view deviceName)
 {
-    return m_imp->open(deviceName);
+    return m_imp && m_imp->open(deviceName);
 }
 
 bool Provider::open(int deviceIndex)
 {
+    if (!m_imp)
+        return false;
+
     std::string deviceName;
     if (deviceIndex >= 0)
     {
@@ -58,12 +105,12 @@ bool Provider::open(int deviceIndex)
 
 bool Provider::isOpened() const
 {
-    return m_imp->isOpened();
+    return m_imp && m_imp->isOpened();
 }
 
 std::vector<PixelFormat> Provider::getHardwareSupportedPixelFormats() const
 {
-    return m_imp->getHardwareSupportedPixelFormats();
+    return m_imp ? m_imp->getHardwareSupportedPixelFormats() : std::vector<PixelFormat>();
 }
 
 void Provider::close()
@@ -73,17 +120,18 @@ void Provider::close()
 
 bool Provider::start()
 {
-    return m_imp->start();
+    return m_imp && m_imp->start();
 }
 
 void Provider::stop()
 {
-    m_imp->stop();
+    if (m_imp)
+        m_imp->stop();
 }
 
 bool Provider::isStarted() const
 {
-    return m_imp->isStarted();
+    return m_imp && m_imp->isStarted();
 }
 
 bool Provider::set(PropertyName prop, double value)
@@ -93,7 +141,7 @@ bool Provider::set(PropertyName prop, double value)
 
 double Provider::get(PropertyName prop)
 {
-    return m_imp->get(prop);
+    return m_imp && m_imp->get(prop);
 }
 
 std::shared_ptr<Frame> Provider::grab(bool waitForNewFrame)
@@ -119,26 +167,6 @@ void Provider::setMaxAvailableFrameSize(uint32_t size)
 void Provider::setMaxCacheFrameSize(uint32_t size)
 {
     m_imp->setMaxCacheFrameSize(size);
-}
-
-Provider::~Provider() = default;
-
-ProviderImp* createProviderMac();
-ProviderImp* createProviderWin();
-
-Provider* createProvider()
-{
-#if __APPLE__
-    return new Provider(createProviderMac());
-#elif defined(_MSC_VER) || defined(_WIN32)
-    return new Provider(createProviderWin());
-#endif
-
-    if (warningLogEnabled())
-    {
-        std::cerr << "Unsupported platform!" << std::endl;
-    }
-    return nullptr;
 }
 
 std::string dumpFrameToFile(Frame* frame, std::string_view fileNameWithNoSuffix)
@@ -208,8 +236,6 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
         (uint32_t&)info[20] = sizeData;
         fwrite(file, sizeof(file), 1, fp);
         fwrite(info, sizeof(info), 1, fp);
-
-
 
         if (isTopToBottom)
         {

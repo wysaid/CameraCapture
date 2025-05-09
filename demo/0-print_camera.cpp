@@ -12,8 +12,9 @@
 
 int main()
 {
-    auto cameraProvider = ccap::createProvider();
-    if (auto deviceNames = cameraProvider->findDeviceNames(); !deviceNames.empty())
+    ccap::Provider cameraProvider;
+
+    if (auto deviceNames = cameraProvider.findDeviceNames(); !deviceNames.empty())
     {
         printf("## Found %zu video capture device: \n", deviceNames.size());
         int deviceIndex = 0;

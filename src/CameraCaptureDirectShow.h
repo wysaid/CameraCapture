@@ -1,14 +1,14 @@
 /**
- * @file CameraCaptureWin.h
+ * @file CameraCaptureDirectShow.h
  * @author wysaid (this@wysaid.org)
- * @brief Header file for ProviderWin class.
+ * @brief Header file for ProviderDirectShow class.
  * @date 2025-04
  *
  */
 
 #pragma once
-#ifndef CAMERA_CAPTURE_WIN_H
-#define CAMERA_CAPTURE_WIN_H
+#ifndef CAMERA_CAPTURE_DSHOW_H
+#define CAMERA_CAPTURE_DSHOW_H
 
 #if defined(_WIN32) || defined(_MSC_VER)
 
@@ -77,11 +77,11 @@ EXTERN_C const CLSID CLSID_NullRenderer;
 
 namespace ccap
 {
-class ProviderWin : public ProviderImp, public ISampleGrabberCB
+class ProviderDirectShow : public ProviderImp, public ISampleGrabberCB
 {
 public:
-    ProviderWin();
-    ~ProviderWin() override;
+    ProviderDirectShow();
+    ~ProviderDirectShow() override;
     std::vector<std::string> findDeviceNames() override;
     bool open(std::string_view deviceName) override;
     bool isOpened() const override;
@@ -116,9 +116,9 @@ private:
     bool m_isRunning{ false };
 };
 
-ProviderImp* createProviderWin();
+ProviderImp* createProviderDirectShow();
 
 } // namespace ccap
 
 #endif
-#endif // CAMERA_CAPTURE_WIN_H
+#endif // CAMERA_CAPTURE_DSHOW_H
