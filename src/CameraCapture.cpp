@@ -126,7 +126,7 @@ Provider* createProvider()
 #if __APPLE__
     return new Provider(createProviderMac());
 #elif defined(_MSC_VER) || defined(_WIN32)
-    return new Provider(new ProviderWin());
+    return new Provider(createProviderWin());
 #endif
 
     if (warningLogEnabled())
