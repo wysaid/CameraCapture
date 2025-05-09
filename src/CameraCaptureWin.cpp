@@ -66,7 +66,7 @@ typedef struct _DXVA_ExtendedFormat
 
 #define DXVA_NominalRange_Unknown 0
 #define DXVA_NominalRange_Normal 1 // 16-235
-#define DXVA_NominalRange_Wide 2 // 0-255
+#define DXVA_NominalRange_Wide 2   // 0-255
 #define DXVA_NominalRange_0_255 2
 #define DXVA_NominalRange_16_235 1
 #endif

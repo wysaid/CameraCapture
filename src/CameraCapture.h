@@ -225,7 +225,7 @@ enum class PropertyName
     FrameRate = 0x10003,
 
     /// @brief The pixel format of the frame.
-    PixelFormat = 0x10004
+    PixelFormat = 0x10004,
 };
 
 enum
@@ -235,6 +235,12 @@ enum
 
     /// @brief The default maximum number of frames that can be available.
     DEFAULT_MAX_AVAILABLE_FRAME_SIZE = 3
+};
+
+struct DeviceInfo
+{
+    std::string name;
+    std::vector<PixelFormat> supportedPixelFormats;
 };
 
 class ProviderImp;
@@ -275,6 +281,15 @@ public:
      * @return true if the capture device is currently open, false otherwise.
      */
     bool isOpened() const;
+
+    /**
+     * @brief 获取相机设备直接支持的像素格式. 这个格式是相机硬件直接支持的格式, 可以避免数据转换, 选择这里面的格式可以获得更好的性能.
+     *        不在此列表里面的格式并不意味着不支持, 只是可能会有数据转换.
+     *        在 macOS 上会使用 Accelerate 框架来进行数据转换.
+     * @return std::vector<PixelFormat> A list of hardware supported pixel formats.
+     * @attention 此方法必须在 `open` 成功之后调用, 否则结果可能不正确.
+     */
+    std::vector<PixelFormat> getHardwareSupportedPixelFormats() const;
 
     /**
      * @brief Closes the capture device. After calling this, the object should no longer be used.
@@ -419,8 +434,8 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
 
 //////////////////// Log ////////////////////
 
-#ifndef CCAP_NO_LOG ///< Define this macro to remove log code during compilation.
-#define _CCAP_LOG_ENABLED_ 1
+#ifndef CCAP_NO_LOG          ///< Define this macro to remove log code during compilation.
+#define _CCAP_LOG_ENABLED_ 1 // NOLINT(*-reserved-identifier)
 #else
 #define _CCAP_LOG_ENABLED_ 0
 #endif

@@ -61,6 +61,11 @@ bool Provider::isOpened() const
     return m_imp->isOpened();
 }
 
+std::vector<PixelFormat> Provider::getHardwareSupportedPixelFormats() const
+{
+    return m_imp->getHardwareSupportedPixelFormats();
+}
+
 void Provider::close()
 {
     m_imp->close();
@@ -285,12 +290,18 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
 
 #if _CCAP_LOG_ENABLED_
 LogLevel globalLogLevel = LogLevel::Info;
+#ifdef DEBUG
+bool globalLogLevelChanged = false;
+#endif
 #endif
 
 void setLogLevel(LogLevel level)
 {
 #if _CCAP_LOG_ENABLED_
     globalLogLevel = level;
+#ifdef DEBUG
+    globalLogLevelChanged = true;
+#endif
 #else
     (void)level;
     std::cerr << "ccap: Log is not enabled in this build." << std::endl;

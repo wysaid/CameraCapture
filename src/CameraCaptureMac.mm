@@ -17,33 +17,75 @@
 #include <cassert>
 #include <cmath>
 
+#if defined(DEBUG) && _CCAP_LOG_ENABLED_
+#include <sys/sysctl.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+namespace ccap
+{
+extern bool globalLogLevelChanged;
+}
+
+static void optimizeLogIfNotSet()
+{
+    if (!ccap::globalLogLevelChanged)
+    {
+        int mib[4];
+        struct kinfo_proc info{};
+        size_t size = sizeof(info);
+
+        mib[0] = CTL_KERN;
+        mib[1] = KERN_PROC;
+        mib[2] = KERN_PROC_PID;
+        mib[3] = getpid();
+
+        info.kp_proc.p_flag = 0;
+        sysctl(mib, 4, &info, &size, NULL, 0);
+
+        if ((info.kp_proc.p_flag & P_TRACED) != 0)
+        { /// 处于调试状态, 如果没有设置过 logLevel, 那么切换至 verbose, 方便查看问题.
+            ccap::setLogLevel(ccap::LogLevel::Verbose);
+            fputs("ccap: Debug mode detected, set log level to verbose.\n", stderr);
+        }
+    }
+}
+#else
+#define optimizeLogIfNotSet() (void)0
+#endif
+
 using namespace ccap;
 
-static NSString* getCVPixelFormatName(OSType format)
+struct PixelFormatInfo
+{
+    NSString* name{ nil };
+    ccap::PixelFormat format{ ccap::PixelFormat::Unknown };
+};
+
+static PixelFormatInfo getCVPixelFormatInfo(OSType format)
 {
     switch (format)
     {
     case kCVPixelFormatType_420YpCbCr8BiPlanarFullRange:
-        return @"kCVPixelFormatType_420YpCbCr8BiPlanarFullRange";
+        return { @"kCVPixelFormatType_420YpCbCr8BiPlanarFullRange", PixelFormat::NV12f };
     case kCVPixelFormatType_32BGRA:
-        return @"kCVPixelFormatType_32BGRA";
+        return { @"kCVPixelFormatType_32BGRA", PixelFormat::BGRA32 };
     case kCVPixelFormatType_24BGR:
-        return @"kCVPixelFormatType_24BGR";
+        return { @"kCVPixelFormatType_24BGR", PixelFormat::BGR24 };
     case kCVPixelFormatType_24RGB:
-        return @"kCVPixelFormatType_24RGB";
+        return { @"kCVPixelFormatType_24RGB", PixelFormat::RGB24 };
     case kCVPixelFormatType_32ARGB:
-        return @"kCVPixelFormatType_32ARGB";
+        return { @"kCVPixelFormatType_32ARGB", PixelFormat::RGBA32 };
     case kCVPixelFormatType_32ABGR:
-        return @"kCVPixelFormatType_32ABGR";
+        return { @"kCVPixelFormatType_32ABGR", PixelFormat::BGRA32 };
     case kCVPixelFormatType_422YpCbCr8:
-        return @"kCVPixelFormatType_422YpCbCr8";
+        return { @"kCVPixelFormatType_422YpCbCr8", PixelFormat::NV12f };
     case kCVPixelFormatType_422YpCbCr8_yuvs:
-        return @"kCVPixelFormatType_422YpCbCr8_yuvs";
+        return { @"kCVPixelFormatType_422YpCbCr8_yuvs", PixelFormat::NV12f };
     case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange:
-        return @"kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange";
-
+        return { @"kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange", PixelFormat::NV12v };
     default:
-        return [NSString stringWithFormat:@"Unknown(0x%08x)", (unsigned int)format];
+        return { [NSString stringWithFormat:@"Unknown(0x%08x)", (unsigned int)format], PixelFormat::Unknown };
     }
 }
 
@@ -70,7 +112,10 @@ static NSArray<AVCaptureDevice*>* findAllDeviceName()
                                                                 position:AVCaptureDevicePositionUnspecified];
     if (verboseLogEnabled())
     {
-        NSLog(@"ccap: Available camera devices: %@", discoverySession.devices);
+        static dispatch_once_t onceToken;
+        dispatch_once(&onceToken, ^{
+            NSLog(@"ccap: Available camera devices: %@", discoverySession.devices);
+        });
     }
 
     std::vector<std::string_view> virtualDevicePatterns = {
@@ -303,7 +348,7 @@ static void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
 
     if (verboseLogEnabled())
     {
-        NSLog(@"ccap: CameraCaptureObjc init - camera name: %@", _device.localizedName);
+        NSLog(@"ccap: The camera to be used: %@", _device);
     }
 
     /// Configure device
@@ -389,7 +434,8 @@ static void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
             NSMutableArray<NSString*>* arr = [NSMutableArray new];
             for (NSNumber* format in supportedFormats)
             {
-                [arr addObject:getCVPixelFormatName([format unsignedIntValue])];
+                auto info = getCVPixelFormatInfo([format unsignedIntValue]);
+                [arr addObject:info.name];
             }
 
             NSLog(@"ccap: Supported pixel format: %@", arr);
@@ -475,7 +521,9 @@ static void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
 
             if (errorLogEnabled())
             {
-                NSLog(@"ccap: Preferred pixel format (%@) not supported, fallback to: (%@)", getCVPixelFormatName(preferredFormat), getCVPixelFormatName(_cvPixelFormat));
+                auto preferredInfo = getCVPixelFormatInfo(preferredFormat);
+                auto fallbackInfo = getCVPixelFormatInfo(_cvPixelFormat);
+                NSLog(@"ccap: Preferred pixel format (%@) not supported, fallback to: (%@)", preferredInfo.name, fallbackInfo.name);
             }
         }
 
@@ -871,6 +919,11 @@ static void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
 
 namespace ccap
 {
+ProviderMac::ProviderMac()
+{
+    optimizeLogIfNotSet();
+}
+
 ProviderMac::~ProviderMac()
 {
     if (m_imp)
@@ -924,6 +977,31 @@ bool ProviderMac::open(std::string_view deviceName)
 bool ProviderMac::isOpened() const
 {
     return m_imp && m_imp.session;
+}
+
+std::vector<PixelFormat> ProviderMac::getHardwareSupportedPixelFormats() const
+{
+    if (m_imp && m_imp.videoOutput)
+    {
+        @autoreleasepool
+        {
+            NSArray* supportedFormats = [m_imp.videoOutput availableVideoCVPixelFormatTypes];
+            std::vector<PixelFormat> formats;
+            formats.reserve(supportedFormats.count);
+            for (NSNumber* format in supportedFormats)
+            {
+                auto info = getCVPixelFormatInfo((OSType)[format unsignedIntValue]);
+                formats.push_back(info.format);
+            }
+            return formats;
+        }
+    }
+
+    if (errorLogEnabled())
+    {
+        NSLog(@"ccap: getHardwareSupportedPixelFormats called with no device opened");
+    }
+    return {};
 }
 
 void ProviderMac::close()
