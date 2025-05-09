@@ -27,7 +27,7 @@ int main(int argc, char** argv)
         deviceIndex = std::stoi(argv[1]);
     }
 
-    if (auto lastSlashPos = cwd.find_last_of("/\\"); lastSlashPos != std::string::npos)
+    if (auto lastSlashPos = cwd.find_last_of("/\\"); lastSlashPos != std::string::npos && cwd[0] != '.')
     {
         cwd = cwd.substr(0, lastSlashPos);
     }

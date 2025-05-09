@@ -180,22 +180,18 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
     if (fp == nullptr)
         return false;
 
+    unsigned char file[14] = {
+        'B', 'M', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    };
+
     if (hasAlpha)
     {
         // 32bpp, BITMAPV4HEADER
-        unsigned char file[14] = {
-            'B', 'M', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-        };
         unsigned char info[108] = {
             108, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 32, 0, 3, 0, 0, 0, 0, 0, 0, 0,
             0x13, 0x0B, 0, 0, 0x13, 0x0B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0x00, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF
         };
-        if (!isBGR)
-        {
-            (uint32_t&)info[40] = 0x000000FF;
-            (uint32_t&)info[48] = 0x00FF0000;
-        }
         int lineSize = w * 4;
         int sizeData = lineSize * h;
         (uint32_t&)file[2] = sizeof(file) + sizeof(info) + sizeData;
@@ -205,20 +201,45 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
         (uint32_t&)info[20] = sizeData;
         fwrite(file, sizeof(file), 1, fp);
         fwrite(info, sizeof(info), 1, fp);
-        for (uint32_t i = 0; i < h; ++i)
-            fwrite(data + stride * i, lineSize, 1, fp);
+        if (isBGR)
+        {
+            if (stride == lineSize)
+            {
+                fwrite(data, lineSize, h, fp);
+            }
+            else
+            {
+                for (uint32_t i = 0; i < h; ++i)
+                    fwrite(data + stride * i, lineSize, 1, fp);
+            }
+        }
+        else
+        {
+            // 交换R和B通道，写入BGRA
+            std::vector<unsigned char> line(lineSize);
+            for (uint32_t i = 0; i < h; ++i)
+            {
+                const unsigned char* src = data + stride * i;
+                for (uint32_t x = 0; x < w; ++x)
+                {
+                    const int offset = x * 4;
+                    line[offset + 0] = src[offset + 2]; // B
+                    line[offset + 1] = src[offset + 1]; // G
+                    line[offset + 2] = src[offset + 0]; // R
+                    line[offset + 3] = src[offset + 3]; // A
+                }
+                fwrite(line.data(), lineSize, 1, fp);
+            }
+        }
     }
     else
     {
         // 24bpp, BITMAPINFOHEADER
-        unsigned char file[14] = {
-            'B', 'M', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-        };
         unsigned char info[40] = {
             40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0x13, 0x0B, 0, 0, 0x13, 0x0B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
         };
-        int lineSize = ((w * 3 + 3) / 4) * 4; // 4字节对齐
+        int lineSize = ((w * 3 + 3) / 4) * 4; // 4 bytes aligned
         int sizeData = lineSize * h;
         (uint32_t&)file[2] = sizeof(file) + sizeof(info) + sizeData;
         (uint32_t&)file[10] = sizeof(file) + sizeof(info);
@@ -227,26 +248,35 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
         (uint32_t&)info[20] = sizeData;
         fwrite(file, sizeof(file), 1, fp);
         fwrite(info, sizeof(info), 1, fp);
-        unsigned char padding[3] = { 0, 0, 0 };
-        for (uint32_t i = 0; i < h; ++i)
+
+        if (isBGR)
         {
-            const unsigned char* src = data + stride * i;
-            if (isBGR)
+            unsigned char padding[3] = { 0, 0, 0 };
+            for (uint32_t i = 0; i < h; ++i)
             {
+                const unsigned char* src = data + stride * i;
                 fwrite(src, w * 3, 1, fp);
+                if (auto remainBytes = lineSize - w * 3; remainBytes > 0)
+                    fwrite(padding, 1, remainBytes, fp);
             }
-            else
+        }
+        else
+        {
+            std::vector<unsigned char> line(lineSize);
+            for (uint32_t i = 0; i < h; ++i)
             {
+                const unsigned char* src = data + stride * i;
+                auto* d = line.data();
                 // RGB转BGR
                 for (uint32_t x = 0; x < w; ++x)
                 {
-                    unsigned char bgr[3] = { src[x * 3 + 2], src[x * 3 + 1], src[x * 3 + 0] };
-                    fwrite(bgr, 3, 1, fp);
+                    const int index = x * 3;
+                    d[index] = src[index + 2];     // B
+                    d[index + 1] = src[index + 1]; // G
+                    d[index + 2] = src[index + 0]; // R
                 }
+                fwrite(line.data(), lineSize, 1, fp);
             }
-            auto remainBytes = lineSize - w * 3;
-            if (remainBytes > 0)
-                fwrite(padding, 1, lineSize - w * 3, fp);
         }
     }
     fclose(fp);
