@@ -85,6 +85,7 @@ public:
     std::vector<std::string> findDeviceNames() override;
     bool open(std::string_view deviceName) override;
     bool isOpened() const override;
+    std::vector<PixelFormat> getHardwareSupportedPixelFormats() const override;
     void close() override;
     bool start() override;
     void stop() override;

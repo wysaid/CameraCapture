@@ -66,7 +66,7 @@ typedef struct _DXVA_ExtendedFormat
 
 #define DXVA_NominalRange_Unknown 0
 #define DXVA_NominalRange_Normal 1 // 16-235
-#define DXVA_NominalRange_Wide 2   // 0-255
+#define DXVA_NominalRange_Wide 2 // 0-255
 #define DXVA_NominalRange_0_255 2
 #define DXVA_NominalRange_16_235 1
 #endif
@@ -83,27 +83,67 @@ ProviderWin::~ProviderWin()
 static void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
 {
     const GUID& subtype = pmt->subtype;
-    const char* fmt = "Unknown";
+    const char* fmt{};
     if (subtype == MEDIASUBTYPE_RGB24)
         fmt = "RGB24";
+    else if (subtype == MEDIASUBTYPE_YUY2)
+        fmt = "YUY2";
+    else if (subtype == MEDIASUBTYPE_MJPG)
+        fmt = "MJPG";
+    else if (subtype == MEDIASUBTYPE_NV12)
+        fmt = "NV12";
+    else if (subtype == MEDIASUBTYPE_YV12)
+        fmt = "YV12";
+    else if (subtype == MEDIASUBTYPE_UYVY)
+        fmt = "UYVY";
     else if (subtype == MEDIASUBTYPE_RGB32)
         fmt = "RGB32";
     else if (subtype == MEDIASUBTYPE_RGB565)
         fmt = "RGB565";
     else if (subtype == MEDIASUBTYPE_RGB555)
         fmt = "RGB555";
-    else if (subtype == MEDIASUBTYPE_YUY2)
-        fmt = "YUY2";
-    else if (subtype == MEDIASUBTYPE_YV12)
-        fmt = "YV12";
-    else if (subtype == MEDIASUBTYPE_UYVY)
-        fmt = "UYVY";
-    else if (subtype == MEDIASUBTYPE_MJPG)
-        fmt = "MJPG";
+    else if (subtype == MEDIASUBTYPE_YUYV)
+        fmt = "YUYV";
     else if (subtype == MEDIASUBTYPE_YVYU)
         fmt = "YVYU";
-    else if (subtype == MEDIASUBTYPE_NV12)
-        fmt = "NV12";
+    else if (subtype == MEDIASUBTYPE_I420)
+        fmt = "I420";
+    else if (subtype == MEDIASUBTYPE_IYUV)
+        fmt = "IYUV";
+    else if (subtype == MEDIASUBTYPE_NV11)
+        fmt = "NV11";
+    else if (subtype == MEDIASUBTYPE_NV24)
+        fmt = "NV24";
+    else if (subtype == MEDIASUBTYPE_YVU9)
+        fmt = "YVU9";
+    else if (subtype == MEDIASUBTYPE_Y411)
+        fmt = "Y411";
+    else if (subtype == MEDIASUBTYPE_Y41P)
+        fmt = "Y41P";
+    else if (subtype == MEDIASUBTYPE_CLJR)
+        fmt = "CLJR";
+    else if (subtype == MEDIASUBTYPE_IF09)
+        fmt = "IF09";
+    else if (subtype == MEDIASUBTYPE_CPLA)
+        fmt = "CPLA";
+    else if (subtype == MEDIASUBTYPE_AYUV)
+        fmt = "AYUV";
+    else if (subtype == MEDIASUBTYPE_AI44)
+        fmt = "AI44";
+    else if (subtype == MEDIASUBTYPE_IA44)
+        fmt = "IA44";
+    else if (subtype == MEDIASUBTYPE_IMC1)
+        fmt = "IMC1";
+    else if (subtype == MEDIASUBTYPE_IMC2)
+        fmt = "IMC2";
+    else if (subtype == MEDIASUBTYPE_IMC3)
+        fmt = "IMC3";
+    else if (subtype == MEDIASUBTYPE_IMC4)
+        fmt = "IMC4";
+    else if (subtype == MEDIASUBTYPE_420O)
+        fmt = "420O";
+    else
+        fmt = "Unknown";
 
     VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)pmt->pbFormat;
 
@@ -644,6 +684,11 @@ ULONG STDMETHODCALLTYPE ProviderWin::Release()
 bool ProviderWin::isOpened() const
 {
     return m_isOpened;
+}
+
+std::vector<PixelFormat> ProviderWin::getHardwareSupportedPixelFormats() const
+{
+    return {};
 }
 
 void ProviderWin::close()
