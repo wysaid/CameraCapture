@@ -27,12 +27,15 @@ namespace ccap
 extern bool globalLogLevelChanged;
 }
 
+using namespace ccap;
+
 static void optimizeLogIfNotSet()
 {
-    if (!ccap::globalLogLevelChanged)
+    if (!globalLogLevelChanged)
     {
         int mib[4];
-        struct kinfo_proc info{};
+        struct kinfo_proc info
+        {};
         size_t size = sizeof(info);
 
         mib[0] = CTL_KERN;
@@ -45,7 +48,7 @@ static void optimizeLogIfNotSet()
 
         if ((info.kp_proc.p_flag & P_TRACED) != 0)
         { /// 处于调试状态, 如果没有设置过 logLevel, 那么切换至 verbose, 方便查看问题.
-            ccap::setLogLevel(ccap::LogLevel::Verbose);
+            setLogLevel(LogLevel::Verbose);
             fputs("ccap: Debug mode detected, set log level to verbose.\n", stderr);
         }
     }
@@ -54,13 +57,14 @@ static void optimizeLogIfNotSet()
 #define optimizeLogIfNotSet() (void)0
 #endif
 
-using namespace ccap;
-
+namespace
+{
 struct PixelFormatInfo
 {
     NSString* name{ nil };
     ccap::PixelFormat format{ ccap::PixelFormat::Unknown };
 };
+}
 
 static PixelFormatInfo getCVPixelFormatInfo(OSType format)
 {

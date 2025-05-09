@@ -77,8 +77,50 @@ typedef struct _DXVA_ExtendedFormat
 DEFINE_GUID(MEDIASUBTYPE_I420, 0x30323449, 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71);
 #endif
 
+namespace
+{
+struct PixelFormtInfo
+{
+    GUID subtype;
+    const char* name;
+    ccap::PixelFormat pixelFormat;
+};
+} // namespace
+
 namespace ccap
 {
+static PixelFormtInfo s_pixelInfoList[] = {
+    { MEDIASUBTYPE_MJPG, "MJPG (need decode)", PixelFormat::Unknown },
+    { MEDIASUBTYPE_RGB24, "RGB24", PixelFormat::RGB24 },
+    { MEDIASUBTYPE_RGB32, "RGB32", PixelFormat::RGBA32 },
+    { MEDIASUBTYPE_NV12, "NV12", PixelFormat::NV12 },
+    { MEDIASUBTYPE_I420, "I420", PixelFormat::I420 },
+    { MEDIASUBTYPE_IYUV, "IYUV (I420)", PixelFormat::I420 },
+    { MEDIASUBTYPE_YUY2, "YUY2", PixelFormat::Unknown },
+    { MEDIASUBTYPE_YV12, "YV12", PixelFormat::Unknown },
+    { MEDIASUBTYPE_UYVY, "UYVY", PixelFormat::Unknown },
+    { MEDIASUBTYPE_RGB565, "RGB565", PixelFormat::Unknown },
+    { MEDIASUBTYPE_RGB555, "RGB555", PixelFormat::Unknown },
+    { MEDIASUBTYPE_YUYV, "YUYV", PixelFormat::Unknown },
+    { MEDIASUBTYPE_YVYU, "YVYU", PixelFormat::Unknown },
+    { MEDIASUBTYPE_NV11, "NV11", PixelFormat::Unknown },
+    { MEDIASUBTYPE_NV24, "NV24", PixelFormat::Unknown },
+    { MEDIASUBTYPE_YVU9, "YVU9", PixelFormat::Unknown },
+    { MEDIASUBTYPE_Y411, "Y411", PixelFormat::Unknown },
+    { MEDIASUBTYPE_Y41P, "Y41P", PixelFormat::Unknown },
+    { MEDIASUBTYPE_CLJR, "CLJR", PixelFormat::Unknown },
+    { MEDIASUBTYPE_IF09, "IF09", PixelFormat::Unknown },
+    { MEDIASUBTYPE_CPLA, "CPLA", PixelFormat::Unknown },
+    { MEDIASUBTYPE_AYUV, "AYUV", PixelFormat::Unknown },
+    { MEDIASUBTYPE_AI44, "AI44", PixelFormat::Unknown },
+    { MEDIASUBTYPE_IA44, "IA44", PixelFormat::Unknown },
+    { MEDIASUBTYPE_IMC1, "IMC1", PixelFormat::Unknown },
+    { MEDIASUBTYPE_IMC2, "IMC2", PixelFormat::Unknown },
+    { MEDIASUBTYPE_IMC3, "IMC3", PixelFormat::Unknown },
+    { MEDIASUBTYPE_IMC4, "IMC4", PixelFormat::Unknown },
+    { MEDIASUBTYPE_420O, "420O", PixelFormat::Unknown },
+};
+
 ProviderDirectShow::ProviderDirectShow() = default;
 
 ProviderDirectShow::~ProviderDirectShow()
@@ -89,99 +131,50 @@ ProviderDirectShow::~ProviderDirectShow()
 static void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
 {
     const GUID& subtype = pmt->subtype;
-    const char* fmt{};
-    if (subtype == MEDIASUBTYPE_RGB24)
-        fmt = "RGB24";
-    else if (subtype == MEDIASUBTYPE_YUY2)
-        fmt = "YUY2";
-    else if (subtype == MEDIASUBTYPE_MJPG)
-        fmt = "MJPG";
-    else if (subtype == MEDIASUBTYPE_NV12)
-        fmt = "NV12";
-    else if (subtype == MEDIASUBTYPE_YV12)
-        fmt = "YV12";
-    else if (subtype == MEDIASUBTYPE_I420)
-        fmt = "I420";
-    else if (subtype == MEDIASUBTYPE_UYVY)
-        fmt = "UYVY";
-    else if (subtype == MEDIASUBTYPE_RGB32)
-        fmt = "RGB32";
-    else if (subtype == MEDIASUBTYPE_RGB565)
-        fmt = "RGB565";
-    else if (subtype == MEDIASUBTYPE_RGB555)
-        fmt = "RGB555";
-    else if (subtype == MEDIASUBTYPE_YUYV)
-        fmt = "YUYV";
-    else if (subtype == MEDIASUBTYPE_YVYU)
-        fmt = "YVYU";
-    else if (subtype == MEDIASUBTYPE_IYUV)
-        fmt = "IYUV";
-    else if (subtype == MEDIASUBTYPE_NV11)
-        fmt = "NV11";
-    else if (subtype == MEDIASUBTYPE_NV24)
-        fmt = "NV24";
-    else if (subtype == MEDIASUBTYPE_YVU9)
-        fmt = "YVU9";
-    else if (subtype == MEDIASUBTYPE_Y411)
-        fmt = "Y411";
-    else if (subtype == MEDIASUBTYPE_Y41P)
-        fmt = "Y41P";
-    else if (subtype == MEDIASUBTYPE_CLJR)
-        fmt = "CLJR";
-    else if (subtype == MEDIASUBTYPE_IF09)
-        fmt = "IF09";
-    else if (subtype == MEDIASUBTYPE_CPLA)
-        fmt = "CPLA";
-    else if (subtype == MEDIASUBTYPE_AYUV)
-        fmt = "AYUV";
-    else if (subtype == MEDIASUBTYPE_AI44)
-        fmt = "AI44";
-    else if (subtype == MEDIASUBTYPE_IA44)
-        fmt = "IA44";
-    else if (subtype == MEDIASUBTYPE_IMC1)
-        fmt = "IMC1";
-    else if (subtype == MEDIASUBTYPE_IMC2)
-        fmt = "IMC2";
-    else if (subtype == MEDIASUBTYPE_IMC3)
-        fmt = "IMC3";
-    else if (subtype == MEDIASUBTYPE_IMC4)
-        fmt = "IMC4";
-    else if (subtype == MEDIASUBTYPE_420O)
-        fmt = "420O";
-    else
-        fmt = "Unknown";
-
-    VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)pmt->pbFormat;
+    PixelFormtInfo info = { MEDIASUBTYPE_None, "Unknown", PixelFormat::Unknown };
+    for (auto& i : s_pixelInfoList)
+    {
+        if (subtype == i.subtype)
+        {
+            info = i;
+            break;
+        }
+    }
 
     const char* rangeStr = "";
-    if (pmt->formattype == FORMAT_VideoInfo2 && pmt->cbFormat >= sizeof(VIDEOINFOHEADER2))
+    VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)pmt->pbFormat;
+
+    if (info.pixelFormat & kPixelFormatYUVColorBit)
     {
-        VIDEOINFOHEADER2* vih2 = (VIDEOINFOHEADER2*)pmt->pbFormat;
-        // Check AMCONTROL_COLORINFO_PRESENT
-        if (vih2->dwControlFlags & AMCONTROL_COLORINFO_PRESENT)
+        if (pmt->formattype == FORMAT_VideoInfo2 && pmt->cbFormat >= sizeof(VIDEOINFOHEADER2))
         {
-            // DXVA_ExtendedFormat follows immediately after VIDEOINFOHEADER2
-            BYTE* extFmtPtr = (BYTE*)vih2 + sizeof(VIDEOINFOHEADER2);
-            if (pmt->cbFormat >= sizeof(VIDEOINFOHEADER2) + sizeof(DXVA_ExtendedFormat))
-            {
-                DXVA_ExtendedFormat* extFmt = (DXVA_ExtendedFormat*)extFmtPtr;
-                if (extFmt->NominalRange == DXVA_NominalRange_0_255)
+            VIDEOINFOHEADER2* vih2 = (VIDEOINFOHEADER2*)pmt->pbFormat;
+            // Check AMCONTROL_COLORINFO_PRESENT
+            if (vih2->dwControlFlags & AMCONTROL_COLORINFO_PRESENT)
+            { // DXVA_ExtendedFormat follows immediately after VIDEOINFOHEADER2
+                BYTE* extFmtPtr = (BYTE*)vih2 + sizeof(VIDEOINFOHEADER2);
+                if (pmt->cbFormat >= sizeof(VIDEOINFOHEADER2) + sizeof(DXVA_ExtendedFormat))
                 {
-                    rangeStr = " (FullRange)";
-                }
-                else if (extFmt->NominalRange == DXVA_NominalRange_16_235)
-                {
-                    rangeStr = " (VideoRange)";
-                }
-                else
-                {
-                    rangeStr = " (UnknownRange)";
+                    DXVA_ExtendedFormat* extFmt = (DXVA_ExtendedFormat*)extFmtPtr;
+                    if (extFmt->NominalRange == DXVA_NominalRange_0_255)
+                    {
+                        rangeStr = " (FullRange)";
+                    }
+                    else if (extFmt->NominalRange == DXVA_NominalRange_16_235)
+                    {
+                        rangeStr = " (VideoRange)";
+                    }
+                    else
+                    {
+                        rangeStr = " (UnknownRange)";
+                    }
                 }
             }
         }
     }
 
-    printf("%s%ld x %ld  bitcount=%ld  format=%s%s\n", prefix, vih->bmiHeader.biWidth, vih->bmiHeader.biHeight, vih->bmiHeader.biBitCount, fmt, rangeStr);
+    printf("%s%ld x %ld  bitcount=%ld  format=%s%s\n", prefix, vih->bmiHeader.biWidth, vih->bmiHeader.biHeight, vih->bmiHeader.biBitCount, info.name, rangeStr);
+    fflush(stdout);
 }
 
 std::vector<std::string> ProviderDirectShow::findDeviceNames()
@@ -418,48 +411,53 @@ bool ProviderDirectShow::open(std::string_view deviceName)
             const int desiredWidth = m_frameProp.width;
             const int desiredHeight = m_frameProp.height;
             double closestDistance = 1.e9;
-            int bestMatchIndex = -1;
+            AM_MEDIA_TYPE* bestMatchType = nullptr;
             std::vector<AM_MEDIA_TYPE*> mediaTypes(capabilityCount);
-            std::vector<int> videoIndices;
-            std::vector<int> matchedIndices;
-            videoIndices.reserve(capabilityCount);
-            matchedIndices.reserve(capabilityCount);
+            std::vector<AM_MEDIA_TYPE*> videoTypes;
+            std::vector<AM_MEDIA_TYPE*> matchedTypes;
+            videoTypes.reserve(capabilityCount);
+            matchedTypes.reserve(capabilityCount);
 
-            for (int i = 0; i < capabilityCount; i++)
+            for (int i = 0; i < capabilityCount; ++i)
             {
                 auto& mediaType = mediaTypes[i];
                 if (SUCCEEDED(streamConfig->GetStreamCaps(i, &mediaType, capabilityData.data())))
                 {
                     if (mediaType->formattype == FORMAT_VideoInfo && mediaType->pbFormat)
                     {
-                        if (ccap::infoLogEnabled())
-                        {
-                            printMediaType(mediaType, "  ");
-                        }
-
                         VIDEOINFOHEADER* videoHeader = (VIDEOINFOHEADER*)mediaType->pbFormat;
                         if (desiredWidth <= videoHeader->bmiHeader.biWidth && desiredHeight <= videoHeader->bmiHeader.biHeight)
                         {
-                            matchedIndices.emplace_back(i);
+                            matchedTypes.emplace_back(mediaType);
+                            if (ccap::infoLogEnabled())
+                            {
+                                printMediaType(mediaType, "> ");
+                            }
+                        }
+                        else
+                        {
+                            if (ccap::infoLogEnabled())
+                            {
+                                printMediaType(mediaType, "  ");
+                            }
                         }
 
-                        videoIndices.emplace_back(i);
+                        videoTypes.emplace_back(mediaType);
                     }
                 }
             }
 
-            if (matchedIndices.empty())
+            if (matchedTypes.empty())
             {
                 if (ccap::warningLogEnabled())
                 {
                     std::cerr << "ccap: No suitable resolution found, using the closest one instead." << std::endl;
                 }
-                matchedIndices = videoIndices;
+                matchedTypes = videoTypes;
             }
 
-            for (int index : matchedIndices)
+            for (auto* mediaType : matchedTypes)
             {
-                auto& mediaType = mediaTypes[index];
                 if (mediaType->formattype == FORMAT_VideoInfo && mediaType->pbFormat)
                 {
                     VIDEOINFOHEADER* videoHeader = (VIDEOINFOHEADER*)mediaType->pbFormat;
@@ -469,14 +467,14 @@ bool ProviderDirectShow::open(std::string_view deviceName)
                     if (distance < closestDistance)
                     {
                         closestDistance = distance;
-                        bestMatchIndex = index;
+                        bestMatchType = mediaType;
                     }
                 }
             }
 
-            if (bestMatchIndex >= 0)
+            if (bestMatchType != nullptr)
             {
-                auto& mediaType = mediaTypes[bestMatchIndex];
+                auto* mediaType = bestMatchType;
                 if (mediaType->formattype == FORMAT_VideoInfo && mediaType->pbFormat)
                 {
                     VIDEOINFOHEADER* videoHeader = (VIDEOINFOHEADER*)mediaType->pbFormat;

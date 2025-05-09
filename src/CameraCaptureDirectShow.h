@@ -101,6 +101,7 @@ private:
 
     bool setup();
     void enumerateDevices(std::function<bool(IMoniker* moniker, std::string_view)> callback);
+    bool buildGraph();
 
 private:
     IGraphBuilder* m_graph = nullptr;

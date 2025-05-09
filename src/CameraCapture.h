@@ -55,7 +55,7 @@ enum class PixelFormat : uint32_t
     Unknown = 0,
 
     /**
-     * @brief Best performance on all platforms. Always supported.
+     * @brief YUV 4:2:0 semi-planar format. Best performance on all platforms. Always supported.
      *    On some devices, it is not possible to clearly determine whether it is FullRange or VideoRange.
      *    In such cases, the Frame can only indicate that it is NV12.
      *    In software design, you can implement a toggle option to allow users to choose whether the
@@ -86,6 +86,7 @@ enum class PixelFormat : uint32_t
      *    In such cases, the Frame can only indicate that it is NV12.
      *    In software design, you can implement a toggle option to allow users to choose whether
      *    the received Frame is FullRange or VideoRange based on what they observe.
+     * @note This format is also known by other names, such as YUV420P or IYUV.
      * @refitem #NV12
      */
     I420 = 1 << 2,
