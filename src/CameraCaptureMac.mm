@@ -79,12 +79,12 @@ static NSArray<AVCaptureDevice*>* findAllDeviceName()
     };
 
     auto countIndex = [&](AVCaptureDevice* device) {
-        NSUInteger idx = [allTypes indexOfObject:device.deviceType] * 100;
+        NSUInteger idx = [allTypes indexOfObject:device.deviceType] * 100 + 1000;
         if (idx == NSNotFound)
             return allTypes.count * 100;
 
         // Here, check if it is a virtual camera like OBS, and if so, add 10 to the index.
-        std::string name = [device.localizedName UTF8String];
+        std::string name = [[device.localizedName lowercaseString] UTF8String];
 
         for (auto& pattern : virtualDevicePatterns)
         {
