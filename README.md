@@ -32,13 +32,12 @@ Sample usage:
 1. Start the camera and grab a frame:
 
     ```cpp
-    auto cameraProvider = ccap::createProvider();
-    cameraProvider->open();
-    cameraProvider->start();
+    ccap::Provider cameraProvider(0); // Open the default camera
 
-    if (cameraProvider->isStarted())
+    if (cameraProvider.isStarted())
     {
-        if (auto frame = cameraProvider->grab(true))
+        auto frame = cameraProvider.grab(true);
+        if (frame)
         {
             printf("Frame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes);
         }
@@ -48,12 +47,14 @@ Sample usage:
 2. List available camera device names and print them:
 
     ```cpp
-    auto cameraProvider = ccap::createProvider();
-    if (auto deviceNames = cameraProvider->findDeviceNames(); !deviceNames.empty())
+    ccap::Provider cameraProvider;
+    if (auto deviceNames = cameraProvider.findDeviceNames(); !deviceNames.empty())
     {
+        printf("## Found %zu video capture device: \n", deviceNames.size());
+        int deviceIndex = 0;
         for (const auto& name : deviceNames)
         {
-            std::cout << "## Found video capture device: " << name << std::endl;
+            printf("    %d: %s\n", deviceIndex++, name.c_str());
         }
     }
     ```

@@ -34,13 +34,12 @@ CameraCapture 是一个高效的、易用的、轻量级的 C++ 相机捕获库�
 1. 启动相机， 并获取一帧数据:
 
     ```cpp
-    auto cameraProvider = ccap::createProvider();
-    cameraProvider->open();
-    cameraProvider->start();
+    ccap::Provider cameraProvider(0); // Open the default camera
 
-    if (cameraProvider->isStarted())
+    if (cameraProvider.isStarted())
     {
-        if (auto frame = cameraProvider->grab(true))
+        auto frame = cameraProvider.grab(true);
+        if (frame)
         {
             printf("Frame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes);
         }
@@ -50,12 +49,14 @@ CameraCapture 是一个高效的、易用的、轻量级的 C++ 相机捕获库�
 2. 列举当前可用的相机设备名, 并打印出来
 
     ```cpp
-    auto cameraProvider = ccap::createProvider();
-    if (auto deviceNames = cameraProvider->findDeviceNames(); !deviceNames.empty())
+    ccap::Provider cameraProvider;
+    if (auto deviceNames = cameraProvider.findDeviceNames(); !deviceNames.empty())
     {
+        printf("## Found %zu video capture device: \n", deviceNames.size());
+        int deviceIndex = 0;
         for (const auto& name : deviceNames)
         {
-            std::cout << "## Found video capture device: " << name << std::endl;
+            printf("    %d: %s\n", deviceIndex++, name.c_str());
         }
     }
     ```
