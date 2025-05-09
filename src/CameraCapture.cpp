@@ -146,7 +146,7 @@ std::string dumpFrameToFile(Frame* frame, std::string_view fileNameWithNoSuffix)
     if (frame->pixelFormat & ccap::kPixelFormatRGBColorBit)
     { /// RGB or RGBA
         auto filePath = std::string(fileNameWithNoSuffix) + ".bmp";
-        saveRgbDataAsBMP(filePath.c_str(), frame->data[0], frame->width, frame->stride[0], frame->height, true, frame->pixelFormat & ccap::kPixelFormatAlphaColorBit);
+        saveRgbDataAsBMP(filePath.c_str(), frame->data[0], frame->width, frame->stride[0], frame->height, true, frame->pixelFormat & ccap::kPixelFormatAlphaColorBit, frame->orientation == FrameOrientation::TopToBottom);
         return filePath;
     }
     else if (ccap::pixelFormatInclude(frame->pixelFormat, ccap::kPixelFormatYUVColorBit))
@@ -179,7 +179,7 @@ std::string dumpFrameToDirectory(Frame* frame, std::string_view directory)
     return dumpFrameToFile(frame, std::string(directory) + '/' + filename + '_' + std::to_string(frame->width) + 'x' + std::to_string(frame->height) + '_' + std::to_string(frame->frameIndex));
 }
 
-bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t w, uint32_t stride, uint32_t h, bool isBGR, bool hasAlpha)
+bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t w, uint32_t stride, uint32_t h, bool isBGR, bool hasAlpha, bool isTopToBottom)
 {
     FILE* fp = fopen(filename, "wb");
     if (fp == nullptr)
@@ -189,6 +189,8 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
         'B', 'M', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     };
 
+    int srcLineOffset = static_cast<int>(stride);
+
     if (hasAlpha)
     {
         // 32bpp, BITMAPV4HEADER
@@ -197,8 +199,8 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
             0x13, 0x0B, 0, 0, 0x13, 0x0B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0x00, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF
         };
-        int lineSize = w * 4;
-        int sizeData = lineSize * h;
+        auto lineSize = w * 4;
+        auto sizeData = lineSize * h;
         (uint32_t&)file[2] = sizeof(file) + sizeof(info) + sizeData;
         (uint32_t&)file[10] = sizeof(file) + sizeof(info);
         (uint32_t&)info[4] = w;
@@ -206,16 +208,21 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
         (uint32_t&)info[20] = sizeData;
         fwrite(file, sizeof(file), 1, fp);
         fwrite(info, sizeof(info), 1, fp);
+
+
+
+        if (isTopToBottom)
+        {
+            data += srcLineOffset * (h - 1);
+            srcLineOffset = -srcLineOffset;
+        }
+
         if (isBGR)
         {
-            if (stride == lineSize)
+            for (uint32_t i = 0; i < h; ++i)
             {
-                fwrite(data, lineSize, h, fp);
-            }
-            else
-            {
-                for (uint32_t i = 0; i < h; ++i)
-                    fwrite(data + stride * i, lineSize, 1, fp);
+                fwrite(data, lineSize, 1, fp);
+                data += srcLineOffset;
             }
         }
         else
@@ -224,16 +231,16 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
             std::vector<unsigned char> line(lineSize);
             for (uint32_t i = 0; i < h; ++i)
             {
-                const unsigned char* src = data + stride * i;
                 for (uint32_t x = 0; x < w; ++x)
                 {
-                    const int offset = x * 4;
-                    line[offset + 0] = src[offset + 2]; // B
-                    line[offset + 1] = src[offset + 1]; // G
-                    line[offset + 2] = src[offset + 0]; // R
-                    line[offset + 3] = src[offset + 3]; // A
+                    const auto offset = x * 4;
+                    line[offset + 0] = data[offset + 2]; // B
+                    line[offset + 1] = data[offset + 1]; // G
+                    line[offset + 2] = data[offset + 0]; // R
+                    line[offset + 3] = data[offset + 3]; // A
                 }
                 fwrite(line.data(), lineSize, 1, fp);
+                data += srcLineOffset;
             }
         }
     }
@@ -244,8 +251,8 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
             40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0x13, 0x0B, 0, 0, 0x13, 0x0B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
         };
-        int lineSize = ((w * 3 + 3) / 4) * 4; // 4 bytes aligned
-        int sizeData = lineSize * h;
+        auto lineSize = ((w * 3 + 3) / 4) * 4; // 4 bytes aligned
+        auto sizeData = lineSize * h;
         (uint32_t&)file[2] = sizeof(file) + sizeof(info) + sizeData;
         (uint32_t&)file[10] = sizeof(file) + sizeof(info);
         (uint32_t&)info[4] = w;
@@ -257,12 +264,13 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
         if (isBGR)
         {
             unsigned char padding[3] = { 0, 0, 0 };
+            auto remainBytes = lineSize - w * 3;
             for (uint32_t i = 0; i < h; ++i)
             {
-                const unsigned char* src = data + stride * i;
-                fwrite(src, w * 3, 1, fp);
-                if (auto remainBytes = lineSize - w * 3; remainBytes > 0)
+                fwrite(data, w * 3, 1, fp);
+                if (remainBytes > 0)
                     fwrite(padding, 1, remainBytes, fp);
+                data += srcLineOffset;
             }
         }
         else
@@ -270,17 +278,17 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
             std::vector<unsigned char> line(lineSize);
             for (uint32_t i = 0; i < h; ++i)
             {
-                const unsigned char* src = data + stride * i;
                 auto* d = line.data();
                 // RGB转BGR
                 for (uint32_t x = 0; x < w; ++x)
                 {
                     const int index = x * 3;
-                    d[index] = src[index + 2];     // B
-                    d[index + 1] = src[index + 1]; // G
-                    d[index + 2] = src[index + 0]; // R
+                    d[index] = data[index + 2];     // B
+                    d[index + 1] = data[index + 1]; // G
+                    d[index + 2] = data[index + 0]; // R
                 }
                 fwrite(line.data(), lineSize, 1, fp);
+                data += srcLineOffset;
             }
         }
     }

@@ -64,7 +64,7 @@ int main(int argc, char** argv)
     cameraProvider->set(ccap::PropertyName::Width, requestedWidth);
     cameraProvider->set(ccap::PropertyName::Height, requestedHeight);
 #if 1 /// switch to test.
-    cameraProvider->set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::BGR24_Force);
+    cameraProvider->set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::BGR24);
 #else
     cameraProvider->set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::NV12f);
 #endif
@@ -97,11 +97,11 @@ int main(int argc, char** argv)
             std::cerr << "Failed to save frame!" << std::endl;
         }
 
-        if (frame->frameIndex >= 100)
+        if (frame->frameIndex >= 10)
         {
             frame = nullptr;
             cameraProvider = nullptr;
-            std::cout << "Captured 100 frames, stopping..." << std::endl;
+            std::cout << "Captured 10 frames, stopping..." << std::endl;
             break;
         }
     }

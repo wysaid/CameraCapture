@@ -809,6 +809,7 @@ static void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
     newFrame->width = width;
     newFrame->height = height;
     newFrame->pixelFormat = _cameraPixelFormat;
+    newFrame->orientation = FrameOrientation::TopToBottom;
 
     if (_cameraPixelFormat & kPixelFormatYUVColorBit)
     {
@@ -819,7 +820,6 @@ static void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
         bytes = yBytes + uvBytes;
 
         newFrame->data[2] = nullptr;
-
         newFrame->stride[0] = yBytesPerRow;
         newFrame->stride[1] = uvBytesPerRow;
         newFrame->stride[2] = 0;

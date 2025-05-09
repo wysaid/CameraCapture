@@ -65,7 +65,7 @@ int main(int argc, char** argv)
     cameraProvider->set(ccap::PropertyName::Width, requestedWidth);
     cameraProvider->set(ccap::PropertyName::Height, requestedHeight);
 #if 1 /// switch to test.
-    cameraProvider->set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::BGRA32);
+    cameraProvider->set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::BGR24);
 #else
     cameraProvider->set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::NV12f);
 #endif
@@ -100,8 +100,8 @@ int main(int argc, char** argv)
     });
 
     /// Wait for 10 seconds to capture frames.
-    std::this_thread::sleep_for(std::chrono::seconds(10));
-    std::cout << "Captured 10 seconds, stopping..." << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+    std::cout << "Captured 5 seconds, stopping..." << std::endl;
     cameraProvider = nullptr;
     return 0;
 }

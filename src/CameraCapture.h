@@ -127,6 +127,29 @@ enum class PixelFormat : uint32_t
     BGRA32_Force = BGRA32 | kPixelFormatForceToSetBit,
 };
 
+enum class FrameOrientation
+{
+    Default = 0,
+
+    /**
+     * @brief The frame is laid out in a top-to-bottom format.
+     *     The first row of data corresponds to the first row of the image.
+     *     In other words, the image's (0, 0) point aligns with the data's (0, 0) point.
+     *     YUV formats are usually in this format.
+     *     RGB formats are usually in this format on macOS.
+     *     This is the most common layout.
+     */
+    TopToBottom = Default,
+
+    /**
+     * @brief The frame is laid out in a bottom-to-top format.
+     *     The first row of data corresponds to the last row of the image.
+     *     In other words, the image's (0, 0) point aligns with the data's (0, height - 1) point.
+     *     On Windows, when the data format is RGB or similar, this field is often true.
+     */
+    BottomToTop = 1,
+};
+
 inline bool operator&(PixelFormat lhs, PixelFormatConstants rhs)
 {
     return (static_cast<uint32_t>(lhs) & rhs) != 0;
@@ -194,11 +217,15 @@ struct Frame : std::enable_shared_from_this<Frame>
     /// @brief The unique, incremental index of the frame.
     uint64_t frameIndex = 0;
 
+    /// @brief The orientation of the frame. @see #FrameOrientation
+    FrameOrientation orientation = FrameOrientation::Default;
+
     /**
      * @brief Memory allocator for Frame::data. When zero-copy is achievable, `ccap::Provider` will not use this allocator.
      *        If zero-copy is not achievable, this allocator will be used to allocate memory.
      *        When the allocator is not in use, this field will be set to nullptr.
      *        Users can customize this allocator through the `ccap::Provider::setFrameAllocator` method.
+     * @attention 正常情况下, 使用者不需要关心这个字段.
      */
     std::shared_ptr<Allocator> allocator;
 };
@@ -428,9 +455,10 @@ std::string dumpFrameToDirectory(Frame* frame, std::string_view directory);
  * @brief Save RGB data as BMP file.
  * @param isBGR Indicates if the data is in B-G-R bytes order. If true, the data is in B-G-R order; otherwise, it is in R-G-B order.
  * @param hasAlpha Indicates if the data has an alpha channel. The alpha channel is always at the end of the pixel byte order.
+ * @param isTopToBottom Indicates if the data is in top-to-bottom order.
  * @return true if the operation was successful, false otherwise.
  */
-bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t w, uint32_t stride, uint32_t h, bool isBGR, bool hasAlpha);
+bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t w, uint32_t lineOffset, uint32_t h, bool isBGR, bool hasAlpha, bool isTopToBottom = false);
 
 //////////////////// Log ////////////////////
 
