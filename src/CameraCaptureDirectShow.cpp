@@ -17,6 +17,10 @@
 #include <iostream>
 #include <vector>
 
+#if _CCAP_LOG_ENABLED_
+#include <deque>
+#endif
+
 // 需要链接以下库
 #pragma comment(lib, "strmiids.lib")
 
@@ -716,34 +720,36 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     newFrame = fakeFrame;
 
     if (ccap::verboseLogEnabled())
-    {
-        static uint64_t s_lastFrameTime = 0;
-        static int s_frameCounter{};
-        static double s_duration{};
-        static double s_fps = 1;
+    { /// 通常不会多线程调用相机接口, 而且 verbose 日志只是用于调试, 所以这里不加锁.
+        static uint64_t s_lastFrameTime;
+        static std::deque<uint64_t> s_durations;
 
         if (s_lastFrameTime != 0)
         {
-            s_duration += (newFrame->timestamp - s_lastFrameTime) / 1.e9;
+            auto dur = newFrame->timestamp - s_lastFrameTime;
+            s_durations.emplace_back(dur);
         }
+
         s_lastFrameTime = newFrame->timestamp;
-        ++s_frameCounter;
 
-        double currentFps;
-        if (s_duration > 0.0)
-            currentFps = s_frameCounter / s_duration;
-        else
-            currentFps = 1.0;
-        constexpr double alpha = 0.8; // Smoothing factor, smaller value means smoother
-        s_fps = alpha * currentFps + (1.0 - alpha) * s_fps;
-
-        if (s_duration > 1.0 || s_frameCounter >= 30)
+        /// use a window of 30 frames to calculate the fps
+        if (s_durations.size() > 30)
         {
-            s_frameCounter = 0;
-            s_duration = 0;
+            s_durations.pop_front();
         }
 
-        printf("ccap: New frame available: %lux%lu, bytes %lu, Data address: %p, fps: %g\n", newFrame->width, newFrame->height, newFrame->sizeInBytes, newFrame->data[0], s_fps);
+        double fps = 0.0;
+
+        if (!s_durations.empty())
+        {
+            double sum = 0.0;
+            for (auto& d : s_durations)
+            {
+                sum += d / 1e9f;
+            }
+            fps = std::round(s_durations.size() / sum * 10) / 10.0;
+        }
+        printf("ccap: New frame available: %lux%lu, bytes %lu, Data address: %p, fps: %g\n", newFrame->width, newFrame->height, newFrame->sizeInBytes, newFrame->data[0], fps);
     }
 
     newFrameAvailable(std::move(newFrame));

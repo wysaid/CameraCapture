@@ -17,6 +17,10 @@
 #include <cassert>
 #include <cmath>
 
+#if _CCAP_LOG_ENABLED_
+#include <deque>
+#endif
+
 #if defined(DEBUG) && _CCAP_LOG_ENABLED_
 #include <sys/sysctl.h>
 #include <sys/types.h>
@@ -278,11 +282,6 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
 {
     ProviderMac* _provider;
 
-    /// for verbose log
-    uint64_t _frameCounter;
-    uint64_t _lastFrameTime;
-    double _duration;
-    double _fps;
     PixelFormat _cameraPixelFormat;
     PixelFormat _convertPixelFormat;
 }
@@ -309,9 +308,6 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
     self = [super init];
     if (self)
     {
-        _duration = 0;
-        _fps = 0;
-        _frameCounter = 0;
         _provider = provider;
     }
     return self;
@@ -912,25 +908,37 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
     newFrame->frameIndex = _provider->frameIndex()++;
 
     if (verboseLogEnabled())
-    {
-        if (_lastFrameTime != 0)
-        {
-            _duration += (newFrame->timestamp - _lastFrameTime) / 1.e9;
-        }
-        _lastFrameTime = newFrame->timestamp;
-        ++_frameCounter;
+    { /// 通常不会多线程调用相机接口, 而且 verbose 日志只是用于调试, 所以这里不加锁.
+        static uint64_t s_lastFrameTime;
+        static std::deque<uint64_t> s_durations;
 
-        if (_duration > 0.5 || _frameCounter >= 30)
+        if (s_lastFrameTime != 0)
         {
-            auto newFps = _frameCounter / _duration;
-            constexpr double alpha = 0.8; // Smoothing factor, smaller value means smoother
-            _fps = alpha * newFps + (1.0 - alpha) * _fps;
-            _frameCounter = 0;
-            _duration = 0;
+            auto dur = newFrame->timestamp - s_lastFrameTime;
+            s_durations.emplace_back(dur);
         }
 
-        double roundedFps = std::round(_fps * 10.0) / 10.0;
-        NSLog(@"ccap: New frame available: %lux%lu, bytes %lu, Data address: %p, fps: %g", width, height, bytes, newFrame->data[0], roundedFps);
+        s_lastFrameTime = newFrame->timestamp;
+
+        /// use a window of 30 frames to calculate the fps
+        if (s_durations.size() > 30)
+        {
+            s_durations.pop_front();
+        }
+
+        double fps = 0.0;
+
+        if (!s_durations.empty())
+        {
+            double sum = 0.0;
+            for (auto& d : s_durations)
+            {
+                sum += d / 1e9f;
+            }
+            fps = std::round(s_durations.size() / sum * 10) / 10.0;
+        }
+
+        NSLog(@"ccap: New frame available: %lux%lu, bytes %lu, Data address: %p, fps: %g", width, height, bytes, newFrame->data[0], fps);
     }
 
     _provider->newFrameAvailable(std::move(newFrame));
