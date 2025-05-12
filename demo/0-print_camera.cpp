@@ -41,7 +41,7 @@ void printCameraInfo(const std::string& deviceName)
     ccap::Provider cameraProvider(deviceName); /// 需要 Open Camera
     if (!cameraProvider.isOpened())
     {
-        fprintf(stderr, "### Failed to open video capture device. %s\n", deviceName.c_str());
+        fprintf(stderr, "### Failed to open video capture device: %s\n", deviceName.c_str());
         return;
     }
 

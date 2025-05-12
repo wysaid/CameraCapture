@@ -351,47 +351,8 @@ std::vector<std::string> ProviderDirectShow::findDeviceNames()
     return deviceNames;
 }
 
-bool ProviderDirectShow::open(std::string_view deviceName)
+bool ProviderDirectShow::buildGraph()
 {
-    if (m_isOpened && m_mediaControl)
-    {
-        if (ccap::errorLogEnabled())
-        {
-            std::cerr << "ccap: Camera already opened, please close it first." << std::endl;
-        }
-        return false;
-    }
-
-    bool found = false;
-
-    enumerateDevices([&](IMoniker* moniker, std::string_view name) {
-        if (deviceName.empty() || deviceName == name)
-        {
-            m_deviceName = name;
-            auto hr = moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&m_deviceFilter);
-            if (SUCCEEDED(hr))
-            {
-                if (ccap::verboseLogEnabled())
-                {
-                    std::cout << "ccap: Using video capture device: " << name << std::endl;
-                }
-                found = true;
-                return true; // stop enumeration when returning true
-            }
-        }
-        // continue enumerating when returning false
-        return false;
-    });
-
-    if (!found)
-    {
-        if (ccap::errorLogEnabled())
-        {
-            std::cerr << "ccap: No matching video capture device found." << std::endl;
-        }
-        return false;
-    }
-
     HRESULT hr = S_OK;
 
     // Create Filter Graph
@@ -427,9 +388,13 @@ bool ProviderDirectShow::open(std::string_view deviceName)
         }
         return false;
     }
+    return true;
+}
 
+bool ProviderDirectShow::createStream()
+{
     // Create SampleGrabber
-    hr = CoCreateInstance(CLSID_SampleGrabber, nullptr, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&m_sampleGrabberFilter);
+    HRESULT hr = CoCreateInstance(CLSID_SampleGrabber, nullptr, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&m_sampleGrabberFilter);
     if (FAILED(hr))
     {
         if (ccap::errorLogEnabled())
@@ -438,6 +403,7 @@ bool ProviderDirectShow::open(std::string_view deviceName)
         }
         return false;
     }
+
     hr = m_sampleGrabberFilter->QueryInterface(IID_ISampleGrabber, (void**)&m_sampleGrabber);
     if (FAILED(hr))
     {
@@ -609,8 +575,62 @@ bool ProviderDirectShow::open(std::string_view deviceName)
     m_sampleGrabber->SetOneShot(FALSE);
     m_sampleGrabber->SetCallback(this, 0); // 0 = SampleCB
 
+    return true;
+}
+
+bool ProviderDirectShow::open(std::string_view deviceName)
+{
+    if (m_isOpened && m_mediaControl)
+    {
+        if (ccap::errorLogEnabled())
+        {
+            std::cerr << "ccap: Camera already opened, please close it first." << std::endl;
+        }
+        return false;
+    }
+
+    bool found = false;
+
+    enumerateDevices([&](IMoniker* moniker, std::string_view name) {
+        if (deviceName.empty() || deviceName == name)
+        {
+            m_deviceName = name;
+            auto hr = moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&m_deviceFilter);
+            if (SUCCEEDED(hr))
+            {
+                if (ccap::verboseLogEnabled())
+                {
+                    std::cout << "ccap: Using video capture device: " << name << std::endl;
+                }
+                found = true;
+                return true; // stop enumeration when returning true
+            }
+        }
+        // continue enumerating when returning false
+        return false;
+    });
+
+    if (!found)
+    {
+        if (ccap::errorLogEnabled())
+        {
+            std::cerr << "ccap: No matching video capture device found." << std::endl;
+        }
+        return false;
+    }
+
+    if (!buildGraph())
+    {
+        return false;
+    }
+
+    if (!createStream())
+    {
+        return false;
+    }
+
     // Retrieve IMediaControl
-    hr = m_graph->QueryInterface(IID_IMediaControl, (void**)&m_mediaControl);
+    HRESULT hr = m_graph->QueryInterface(IID_IMediaControl, (void**)&m_mediaControl);
     if (FAILED(hr))
     {
         if (ccap::errorLogEnabled())
@@ -700,7 +720,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
         static uint64_t s_lastFrameTime = 0;
         static int s_frameCounter{};
         static double s_duration{};
-        static double s_fps{ 0.0 };
+        static double s_fps = 1;
 
         if (s_lastFrameTime != 0)
         {
@@ -709,17 +729,21 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
         s_lastFrameTime = newFrame->timestamp;
         ++s_frameCounter;
 
-        if (s_duration > 0.5 || s_frameCounter >= 30)
+        double currentFps;
+        if (s_duration > 0.0)
+            currentFps = s_frameCounter / s_duration;
+        else
+            currentFps = 1.0;
+        constexpr double alpha = 0.8; // Smoothing factor, smaller value means smoother
+        s_fps = alpha * currentFps + (1.0 - alpha) * s_fps;
+
+        if (s_duration > 1.0 || s_frameCounter >= 30)
         {
-            auto newFps = s_frameCounter / s_duration;
-            constexpr double alpha = 0.8; // Smoothing factor, smaller value means smoother
-            s_fps = alpha * newFps + (1.0 - alpha) * s_fps;
             s_frameCounter = 0;
             s_duration = 0;
         }
 
-        double roundedFps = std::round(s_fps * 10.0) / 10.0;
-        printf("ccap: New frame available: %lux%lu, bytes %lu, Data address: %p, fps: %g\n", newFrame->width, newFrame->height, newFrame->sizeInBytes, newFrame->data[0], roundedFps);
+        printf("ccap: New frame available: %lux%lu, bytes %lu, Data address: %p, fps: %g\n", newFrame->width, newFrame->height, newFrame->sizeInBytes, newFrame->data[0], s_fps);
     }
 
     newFrameAvailable(std::move(newFrame));

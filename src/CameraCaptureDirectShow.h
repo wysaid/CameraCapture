@@ -103,6 +103,8 @@ private:
     void enumerateDevices(std::function<bool(IMoniker* moniker, std::string_view)> callback);
     bool buildGraph();
 
+    bool createStream();
+
     void enumerateMediaInfo(std::function<bool(AM_MEDIA_TYPE* mediaType, const char* name, PixelFormat pixelFormat, const DeviceInfo::Resolution& resolution)> callback);
 
 private:
