@@ -120,8 +120,8 @@ constexpr const char* unavailableMsg = "ccap unavailable by now";
 
 PixelFormtInfo s_pixelInfoList[] = {
     { MEDIASUBTYPE_MJPG, "MJPG (need decode)", PixelFormat::Unknown },
-    { MEDIASUBTYPE_RGB24, "RGB24", PixelFormat::RGB24 },
-    { MEDIASUBTYPE_RGB32, "RGB32", PixelFormat::RGBA32 },
+    { MEDIASUBTYPE_RGB24, "BGR24", PixelFormat::BGR24 },   /// 这里的 RGB24 实际上是 BGR 顺序
+    { MEDIASUBTYPE_RGB32, "BGRA32", PixelFormat::BGRA32 }, /// 同上
     { MEDIASUBTYPE_NV12, "NV12", PixelFormat::NV12 },
     { MEDIASUBTYPE_I420, "I420", PixelFormat::I420 },
     { MEDIASUBTYPE_IYUV, "IYUV (I420)", PixelFormat::I420 },
