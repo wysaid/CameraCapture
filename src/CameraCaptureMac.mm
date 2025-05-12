@@ -87,7 +87,7 @@ PixelFormatInfo getPixelFormatInfo(OSType format)
         return { @"kCVPixelFormatType_422YpCbCr8_yuvs", PixelFormat::Unknown, unavailableMsg };
 
         /////////////// ↓ RGB(A) ↓ ///////////////
-        
+
     case kCVPixelFormatType_32BGRA:
         return { @"kCVPixelFormatType_32BGRA", MakeFormatInfo(PixelFormat::BGRA32) };
     case kCVPixelFormatType_24BGR:
@@ -1020,7 +1020,7 @@ std::optional<DeviceInfo> ProviderMac::getDeviceInfo() const
                     auto info = getPixelFormatInfo((OSType)[format unsignedIntValue]);
                     if (info.format != PixelFormat::Unknown)
                     {
-                        formats.push_back({ info.format, info.description });
+                        formats.emplace_back(info.format);
                     }
                     else if (verboseLogEnabled())
                     {
