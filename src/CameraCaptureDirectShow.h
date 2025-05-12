@@ -85,7 +85,7 @@ public:
     std::vector<std::string> findDeviceNames() override;
     bool open(std::string_view deviceName) override;
     bool isOpened() const override;
-    std::vector<PixelFormat> getHardwareSupportedPixelFormats() const override;
+    std::optional<DeviceInfo> getDeviceInfo() const override;
     void close() override;
     bool start() override;
     void stop() override;
@@ -103,6 +103,8 @@ private:
     void enumerateDevices(std::function<bool(IMoniker* moniker, std::string_view)> callback);
     bool buildGraph();
 
+    void enumerateMediaInfo(std::function<bool(AM_MEDIA_TYPE* mediaType, const char* name, PixelFormat pixelFormat, const DeviceInfo::Resolution& resolution)> callback);
+
 private:
     IGraphBuilder* m_graph = nullptr;
     ICaptureGraphBuilder2* m_captureBuilder = nullptr;
@@ -110,6 +112,7 @@ private:
     IBaseFilter* m_sampleGrabberFilter = nullptr;
     ISampleGrabber* m_sampleGrabber = nullptr;
     IMediaControl* m_mediaControl = nullptr;
+    std::string m_deviceName;
 
     // 状态变量
     bool m_didSetup{ false };

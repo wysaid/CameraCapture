@@ -69,7 +69,7 @@ struct PixelFormatInfo
 
 PixelFormatInfo getPixelFormatInfo(OSType format)
 { /// macOS 下, 实际可用的 pixelFormat 比较有限, 这里仅列举可能出现的.
-    constexpr const char* unavailableMsg = "ccap unavailable by now";
+    constexpr const char* unavailableMsg = "ccap unavailable for now";
 
     switch (format)
     {

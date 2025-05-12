@@ -152,11 +152,6 @@ enum class FrameOrientation
     Default = TopToBottom,
 };
 
-inline bool operator&(PixelFormat lhs, PixelFormatConstants rhs)
-{
-    return (static_cast<uint32_t>(lhs) & rhs) != 0;
-}
-
 /// check if the pixel format `lhs` includes all bits of the pixel format `rhs`.
 inline bool pixelFormatInclude(PixelFormat lhs, uint32_t rhs)
 {
@@ -273,16 +268,10 @@ struct DeviceInfo
 {
     std::string deviceName;
 
-    struct PixelFormatInfo
-    {
-        PixelFormat pixelFormat;
-        std::string description;
-    };
-
     /**
      * @brief 由硬件支持的像素格式, 被硬件支持, 被硬件支持的格式, 可以避免数据转换, 选择这里面的格式可以获得更好的性能.
      */
-    std::vector<PixelFormatInfo> supportedPixelFormats;
+    std::vector<PixelFormat> supportedPixelFormats;
 
     struct Resolution
     {
@@ -507,6 +496,8 @@ std::string dumpFrameToDirectory(Frame* frame, std::string_view directory);
  * @return true if the operation was successful, false otherwise.
  */
 bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t w, uint32_t lineOffset, uint32_t h, bool isBGR, bool hasAlpha, bool isTopToBottom = false);
+
+std::string_view pixelFormatToString(PixelFormat format);
 
 //////////////////// Log ////////////////////
 

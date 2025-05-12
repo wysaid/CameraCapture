@@ -141,6 +141,11 @@ private:
     std::function<void()> m_deleter;
 };
 
+inline bool operator&(PixelFormat lhs, PixelFormatConstants rhs)
+{
+    return (static_cast<uint32_t>(lhs) & rhs) != 0;
+}
+
 #if _CCAP_LOG_ENABLED_
 /// For internal use.
 extern LogLevel globalLogLevel;

@@ -322,10 +322,54 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
     return true;
 }
 
+std::string_view pixelFormatToString(PixelFormat format)
+{
+    (uint32_t&)format &= ~kPixelFormatForceToSetBit; // Remove the force set bit
+
+    switch (format)
+    {
+    case PixelFormat::NV12:
+        return "NV12";
+    case PixelFormat::NV12v:
+        return "NV12v";
+    case PixelFormat::NV12f:
+        return "NV12f";
+
+    case PixelFormat::NV21:
+        return "NV21";
+    case PixelFormat::NV21v:
+        return "NV21v";
+    case PixelFormat::NV21f:
+        return "NV21f";
+
+    case PixelFormat::I420:
+        return "I420";
+    case PixelFormat::I420v:
+        return "I420v";
+    case PixelFormat::I420f:
+        return "I420f";
+
+    case PixelFormat::RGB24:
+        return "RGB24";
+    case PixelFormat::RGBA32:
+        return "RGBA32";
+
+    case PixelFormat::BGR24:
+        return "BGR24";
+    case PixelFormat::BGRA32:
+        return "BGRA32";
+    default:
+        break;
+    }
+    return "Unknown";
+}
+
 #if _CCAP_LOG_ENABLED_
-LogLevel globalLogLevel = LogLevel::Info;
 #ifdef DEBUG
+LogLevel globalLogLevel = LogLevel::Info;
 bool globalLogLevelChanged = false;
+#else
+LogLevel globalLogLevel = LogLevel::Error;
 #endif
 #endif
 

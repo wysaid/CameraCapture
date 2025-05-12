@@ -34,7 +34,7 @@ bool ProviderMSMF::isOpened() const
     return m_isOpened;
 }
 
-std::vector<PixelFormat> ProviderMSMF::getHardwareSupportedPixelFormats() const
+std::optional<DeviceInfo> ProviderMSMF::getDeviceInfo() const
 {
     return {};
 }

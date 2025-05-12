@@ -10,6 +10,7 @@
 
 #include "CameraCaptureDirectShow.h"
 
+#include <algorithm>
 #include <chrono>
 #include <guiddef.h>
 #include <initguid.h>
@@ -68,7 +69,7 @@ typedef struct _DXVA_ExtendedFormat
 
 #define DXVA_NominalRange_Unknown 0
 #define DXVA_NominalRange_Normal 1 // 16-235
-#define DXVA_NominalRange_Wide 2 // 0-255
+#define DXVA_NominalRange_Wide 2   // 0-255
 #define DXVA_NominalRange_0_255 2
 #define DXVA_NominalRange_16_235 1
 #endif
@@ -77,19 +78,47 @@ typedef struct _DXVA_ExtendedFormat
 DEFINE_GUID(MEDIASUBTYPE_I420, 0x30323449, 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71);
 #endif
 
+using namespace ccap;
+
 namespace
 {
+// Release the format block for a media type.
+void freeMediaType(AM_MEDIA_TYPE& mt)
+{
+    if (mt.cbFormat != 0)
+    {
+        CoTaskMemFree((PVOID)mt.pbFormat);
+        mt.cbFormat = 0;
+        mt.pbFormat = NULL;
+    }
+    if (mt.pUnk != NULL)
+    {
+        // pUnk should not be used.
+        mt.pUnk->Release();
+        mt.pUnk = NULL;
+    }
+}
+
+// Delete a media type structure that was allocated on the heap.
+void deleteMediaType(AM_MEDIA_TYPE* pmt)
+{
+    if (pmt != NULL)
+    {
+        freeMediaType(*pmt);
+        CoTaskMemFree(pmt);
+    }
+}
+
 struct PixelFormtInfo
 {
     GUID subtype;
     const char* name;
-    ccap::PixelFormat pixelFormat;
+    PixelFormat pixelFormat;
 };
-} // namespace
 
-namespace ccap
-{
-static PixelFormtInfo s_pixelInfoList[] = {
+constexpr const char* unavailableMsg = "ccap unavailable by now";
+
+PixelFormtInfo s_pixelInfoList[] = {
     { MEDIASUBTYPE_MJPG, "MJPG (need decode)", PixelFormat::Unknown },
     { MEDIASUBTYPE_RGB24, "RGB24", PixelFormat::RGB24 },
     { MEDIASUBTYPE_RGB32, "RGB32", PixelFormat::RGBA32 },
@@ -121,25 +150,29 @@ static PixelFormtInfo s_pixelInfoList[] = {
     { MEDIASUBTYPE_420O, "420O", PixelFormat::Unknown },
 };
 
-ProviderDirectShow::ProviderDirectShow() = default;
-
-ProviderDirectShow::~ProviderDirectShow()
+PixelFormtInfo findPixelFormatInfo(const GUID& subtype)
 {
-    ProviderDirectShow::close();
-}
-
-static void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
-{
-    const GUID& subtype = pmt->subtype;
-    PixelFormtInfo info = { MEDIASUBTYPE_None, "Unknown", PixelFormat::Unknown };
     for (auto& i : s_pixelInfoList)
     {
         if (subtype == i.subtype)
         {
-            info = i;
-            break;
+            return i;
         }
     }
+    return { MEDIASUBTYPE_None, "Unknown", PixelFormat::Unknown };
+}
+
+struct MediaInfo
+{
+    DeviceInfo::Resolution resolution;
+    PixelFormtInfo pixelFormatInfo;
+    std::shared_ptr<AM_MEDIA_TYPE*> mediaType;
+};
+
+void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
+{
+    const GUID& subtype = pmt->subtype;
+    PixelFormtInfo info = findPixelFormatInfo(subtype);
 
     const char* rangeStr = "";
     VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)pmt->pbFormat;
@@ -177,14 +210,16 @@ static void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
     fflush(stdout);
 }
 
-std::vector<std::string> ProviderDirectShow::findDeviceNames()
+} // namespace
+
+namespace ccap
 {
-    std::vector<std::string> deviceNames;
-    enumerateDevices([&](IMoniker* moniker, std::string_view name) {
-        deviceNames.emplace_back(name.data(), name.size());
-        return false; // continue enumerating
-    });
-    return deviceNames;
+
+ProviderDirectShow::ProviderDirectShow() = default;
+
+ProviderDirectShow::~ProviderDirectShow()
+{
+    ProviderDirectShow::close();
 }
 
 bool ProviderDirectShow::setup()
@@ -270,6 +305,52 @@ void ProviderDirectShow::enumerateDevices(std::function<bool(IMoniker* moniker, 
     enumerator->Release();
 }
 
+void ProviderDirectShow::enumerateMediaInfo(std::function<bool(AM_MEDIA_TYPE* mediaType, const char* name, PixelFormat pixelFormat, const DeviceInfo::Resolution& resolution)> callback)
+{
+    IAMStreamConfig* streamConfig = nullptr;
+    HRESULT hr = m_captureBuilder->FindInterface(&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, m_deviceFilter, IID_IAMStreamConfig, (void**)&streamConfig);
+    if (SUCCEEDED(hr) && streamConfig)
+    {
+        int capabilityCount = 0, capabilitySize = 0;
+        streamConfig->GetNumberOfCapabilities(&capabilityCount, &capabilitySize);
+
+        std::vector<BYTE> capabilityData(capabilitySize);
+        for (int i = 0; i < capabilityCount; ++i)
+        {
+            AM_MEDIA_TYPE* mediaType{};
+            if (SUCCEEDED(streamConfig->GetStreamCaps(i, &mediaType, capabilityData.data())))
+            {
+                if (mediaType->formattype == FORMAT_VideoInfo && mediaType->pbFormat)
+                {
+                    VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)mediaType->pbFormat;
+                    auto info = findPixelFormatInfo(mediaType->subtype);
+                    if (callback(mediaType, info.name, info.pixelFormat, { (uint32_t)vih->bmiHeader.biWidth, (uint32_t)vih->bmiHeader.biHeight }))
+                    {
+                        break; // stop enumeration when returning true
+                    }
+                }
+            }
+
+            if (mediaType != nullptr)
+            {
+                deleteMediaType(mediaType);
+            }
+        }
+
+        streamConfig->Release();
+    }
+}
+
+std::vector<std::string> ProviderDirectShow::findDeviceNames()
+{
+    std::vector<std::string> deviceNames;
+    enumerateDevices([&](IMoniker* moniker, std::string_view name) {
+        deviceNames.emplace_back(name.data(), name.size());
+        return false; // continue enumerating
+    });
+    return deviceNames;
+}
+
 bool ProviderDirectShow::open(std::string_view deviceName)
 {
     if (m_isOpened && m_mediaControl)
@@ -286,6 +367,7 @@ bool ProviderDirectShow::open(std::string_view deviceName)
     enumerateDevices([&](IMoniker* moniker, std::string_view name) {
         if (deviceName.empty() || deviceName == name)
         {
+            m_deviceName = name;
             auto hr = moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&m_deviceFilter);
             if (SUCCEEDED(hr))
             {
@@ -400,9 +482,9 @@ bool ProviderDirectShow::open(std::string_view deviceName)
         {
             int capabilityCount = 0, capabilitySize = 0;
             streamConfig->GetNumberOfCapabilities(&capabilityCount, &capabilitySize);
-            if (ccap::infoLogEnabled())
+            if (verboseLogEnabled())
             {
-                std::cout << "ccap: Found " << capabilityCount << " supported resolutions." << std::endl;
+                printf("ccap: (%s) Found %d supported resolutions.\n", m_deviceName.c_str(), capabilityCount);
             }
 
             std::vector<BYTE> capabilityData(capabilitySize);
@@ -418,6 +500,8 @@ bool ProviderDirectShow::open(std::string_view deviceName)
             videoTypes.reserve(capabilityCount);
             matchedTypes.reserve(capabilityCount);
 
+            // auto allMediaInfo = getAllSupportedMediaInfo(m_captureBuilder, m_deviceFilter);
+
             for (int i = 0; i < capabilityCount; ++i)
             {
                 auto& mediaType = mediaTypes[i];
@@ -429,14 +513,14 @@ bool ProviderDirectShow::open(std::string_view deviceName)
                         if (desiredWidth <= videoHeader->bmiHeader.biWidth && desiredHeight <= videoHeader->bmiHeader.biHeight)
                         {
                             matchedTypes.emplace_back(mediaType);
-                            if (ccap::infoLogEnabled())
+                            if (verboseLogEnabled())
                             {
                                 printMediaType(mediaType, "> ");
                             }
                         }
                         else
                         {
-                            if (ccap::infoLogEnabled())
+                            if (verboseLogEnabled())
                             {
                                 printMediaType(mediaType, "  ");
                             }
@@ -501,13 +585,7 @@ bool ProviderDirectShow::open(std::string_view deviceName)
             {
                 if (mediaType != nullptr)
                 {
-                    if (mediaType->cbFormat != 0)
-                    {
-                        CoTaskMemFree((PVOID)mediaType->pbFormat);
-                        mediaType->cbFormat = 0;
-                        mediaType->pbFormat = nullptr;
-                    }
-                    CoTaskMemFree(mediaType);
+                    deleteMediaType(mediaType);
                 }
             }
 
@@ -690,9 +768,58 @@ bool ProviderDirectShow::isOpened() const
     return m_isOpened;
 }
 
-std::vector<PixelFormat> ProviderDirectShow::getHardwareSupportedPixelFormats() const
+std::optional<DeviceInfo> ProviderDirectShow::getDeviceInfo() const
 {
-    return {};
+    std::optional<DeviceInfo> info;
+    bool hasMJPG = false;
+
+    const_cast<ProviderDirectShow*>(this)->enumerateMediaInfo([&](AM_MEDIA_TYPE* mediaType, const char* name, PixelFormat pixelFormat, const DeviceInfo::Resolution& resolution) {
+        if (!info)
+        {
+            info.emplace();
+            info->deviceName = m_deviceName;
+        }
+        auto pixFormat = findPixelFormatInfo(mediaType->subtype);
+        auto& pixFormats = info->supportedPixelFormats;
+        if (pixelFormat != PixelFormat::Unknown)
+        {
+            pixFormats.emplace_back(pixFormat.pixelFormat);
+        }
+        else if (mediaType->subtype == MEDIASUBTYPE_MJPG)
+        { /// 支持 MJPEG 格式, 可以解码为 BGR24 等格式
+            hasMJPG = true;
+        }
+        info->supportedResolutions.push_back(resolution);
+        return false; // continue enumerating
+    });
+
+    if (info)
+    {
+        auto& resolutions = info->supportedResolutions;
+        std::sort(resolutions.begin(), resolutions.end(), [](const DeviceInfo::Resolution& a, const DeviceInfo::Resolution& b) {
+            return a.width * a.height < b.width * b.height;
+        });
+        resolutions.erase(std::unique(resolutions.begin(), resolutions.end(), [](const DeviceInfo::Resolution& a, const DeviceInfo::Resolution& b) {
+                              return a.width == b.width && a.height == b.height;
+                          }),
+                          resolutions.end());
+
+        auto& pixFormats = info->supportedPixelFormats;
+
+        if (hasMJPG)
+        {
+            pixFormats.emplace_back(PixelFormat::NV12);
+            pixFormats.emplace_back(PixelFormat::I420);
+            pixFormats.emplace_back(PixelFormat::BGR24);
+            pixFormats.emplace_back(PixelFormat::BGRA32);
+            pixFormats.emplace_back(PixelFormat::RGB24);
+            pixFormats.emplace_back(PixelFormat::RGBA32);
+        }
+        std::sort(pixFormats.begin(), pixFormats.end());
+        pixFormats.erase(std::unique(pixFormats.begin(), pixFormats.end()), pixFormats.end());
+    }
+
+    return info;
 }
 
 void ProviderDirectShow::close()

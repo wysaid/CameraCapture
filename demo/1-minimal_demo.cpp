@@ -1,10 +1,10 @@
 /**
-* @file minimal_demo.cpp
-* @author wysaid (this@wysaid.org)
-* @brief Demo for ccap.
-* @date 2025-05
-*
-*/
+ * @file minimal_demo.cpp
+ * @author wysaid (this@wysaid.org)
+ * @brief Demo for ccap.
+ * @date 2025-05
+ *
+ */
 
 #include "CameraCapture.h"
 

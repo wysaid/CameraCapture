@@ -36,16 +36,24 @@ std::vector<std::string> findCameraNames()
 
 void printCameraInfo(const std::string& deviceName)
 {
+    ccap::setLogLevel(ccap::LogLevel::Verbose);
+
     ccap::Provider cameraProvider(deviceName); /// 需要 Open Camera
     if (!cameraProvider.isOpened())
     {
-        fputs("Failed to open video capture device.", stderr);
+        fprintf(stderr, "### Failed to open video capture device. %s\n", deviceName.c_str());
         return;
     }
 
-    printf("Info for device: %s\n", deviceName.c_str());
-
     auto deviceInfo = cameraProvider.getDeviceInfo();
+    if (!deviceInfo)
+    {
+        fputs("Failed to get device info.", stderr);
+        return;
+    }
+
+    printf("===== Info for device: %s =======\n", deviceName.c_str());
+
     printf("  Supported resolutions:\n");
     for (const auto& resolution : deviceInfo->supportedResolutions)
     {
@@ -53,12 +61,12 @@ void printCameraInfo(const std::string& deviceName)
     }
 
     printf("  Supported pixel formats:\n");
-    for (const auto& info : deviceInfo->supportedPixelFormats)
+    for (auto pixelFormat : deviceInfo->supportedPixelFormats)
     {
-        printf("    %s\n", info.description.c_str());
+        printf("    %s\n", ccap::pixelFormatToString(pixelFormat).data());
     }
 
-    puts("===== Info end =======");
+    puts("===== Info end =======\n");
 }
 
 int main()
