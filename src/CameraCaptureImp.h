@@ -82,7 +82,7 @@ public:
     virtual std::vector<std::string> findDeviceNames() = 0;
     virtual bool open(std::string_view deviceName) = 0;
     virtual bool isOpened() const = 0;
-    virtual std::vector<PixelFormat> getHardwareSupportedPixelFormats() const = 0;
+    virtual std::optional<DeviceInfo> getDeviceInfo() const = 0;
     virtual void close() = 0;
     virtual bool start() = 0;
     virtual void stop() = 0;

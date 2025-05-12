@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -266,15 +267,34 @@ enum
 };
 
 /**
- * @brief Can be used to initialize the Provider. Uses deviceIndex if deviceName is empty.
- *        deviceName is the device's name, obtainable via #findDeviceNames, and can be used to open the device.
+ * @brief Device information structure. This structure contains some information about the device.
  */
-struct ProviderCreateInfo
+struct DeviceInfo
 {
-    int deviceIndex = -1;
-    std::string_view deviceName;
-    /// @brief Currently unused
-    std::string_view extraInfo;
+    std::string deviceName;
+
+    struct PixelFormatInfo
+    {
+        PixelFormat pixelFormat;
+        std::string description;
+    };
+
+    /**
+     * @brief 由硬件支持的像素格式, 被硬件支持, 被硬件支持的格式, 可以避免数据转换, 选择这里面的格式可以获得更好的性能.
+     */
+    std::vector<PixelFormatInfo> supportedPixelFormats;
+
+    struct Resolution
+    {
+        uint32_t width;
+        uint32_t height;
+    };
+
+    /**
+     * @brief 由硬件支持的分辨率, 这个分辨率是相机硬件直接支持的分辨率, 可以避免分辨率转换, 选择这里面的分辨率可以获得更好的性能.
+     *
+     */
+    std::vector<Resolution> supportedResolutions;
 };
 
 class ProviderImp;
@@ -297,14 +317,14 @@ public:
      * @param deviceName The name of the device to open. @see #open
      * @param extraInfo Currently unused.
      */
-    Provider(std::string_view deviceName, std::string_view extraInfo = "");
+    explicit Provider(std::string_view deviceName, std::string_view extraInfo = "");
 
     /**
      * @brief Construct a new Provider object, and open the camera device.
      * @param deviceIndex The index of the device to open. @see #open
      * @param extraInfo Currently unused.
      */
-    Provider(int deviceIndex, std::string_view extraInfo = "");
+    explicit Provider(int deviceIndex, std::string_view extraInfo = "");
 
     /**
      * @brief Retrieves the names of all available capture devices. Will perform a scan.
@@ -338,13 +358,10 @@ public:
     bool isOpened() const;
 
     /**
-     * @brief 获取相机设备直接支持的像素格式. 这个格式是相机硬件直接支持的格式, 可以避免数据转换, 选择这里面的格式可以获得更好的性能.
-     *        不在此列表里面的格式并不意味着不支持, 只是可能会有数据转换.
-     *        在 macOS 上会使用 Accelerate 框架来进行数据转换.
-     * @return std::vector<PixelFormat> A list of hardware supported pixel formats.
-     * @attention 此方法必须在 `open` 成功之后调用, 否则结果可能不正确.
+     * @brief 获取设备信息, 包含当前设备名, 支持的分辨率， 支持的像素格式等信息.
+     * @return DeviceInfo 设备信息. 需要在 `open` 成功之后调用. 如果没有成功打开设备, 返回 std::nullopt.
      */
-    std::vector<PixelFormat> getHardwareSupportedPixelFormats() const;
+    std::optional<DeviceInfo> getDeviceInfo() const;
 
     /**
      * @brief Closes the capture device. After calling this, the object should no longer be used.
@@ -493,7 +510,7 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
 
 //////////////////// Log ////////////////////
 
-#ifndef CCAP_NO_LOG ///< Define this macro to remove log code during compilation.
+#ifndef CCAP_NO_LOG          ///< Define this macro to remove log code during compilation.
 #define _CCAP_LOG_ENABLED_ 1 // NOLINT(*-reserved-identifier)
 #else
 #define _CCAP_LOG_ENABLED_ 0

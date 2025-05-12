@@ -34,8 +34,7 @@ static void optimizeLogIfNotSet()
     if (!globalLogLevelChanged)
     {
         int mib[4];
-        struct kinfo_proc info
-        {};
+        struct kinfo_proc info{};
         size_t size = sizeof(info);
 
         mib[0] = CTL_KERN;
@@ -63,37 +62,78 @@ struct PixelFormatInfo
 {
     NSString* name{ nil };
     ccap::PixelFormat format{ ccap::PixelFormat::Unknown };
+    std::string description;
 };
-}
 
-static PixelFormatInfo getCVPixelFormatInfo(OSType format)
-{
+#define MakeFormatInfo(format) format, #format
+
+PixelFormatInfo getPixelFormatInfo(OSType format)
+{ /// macOS 下, 实际可用的 pixelFormat 比较有限, 这里仅列举可能出现的.
+    constexpr const char* unavailableMsg = "ccap unavailable by now";
+
     switch (format)
     {
     case kCVPixelFormatType_420YpCbCr8BiPlanarFullRange:
-        return { @"kCVPixelFormatType_420YpCbCr8BiPlanarFullRange", PixelFormat::NV12f };
-    case kCVPixelFormatType_32BGRA:
-        return { @"kCVPixelFormatType_32BGRA", PixelFormat::BGRA32 };
-    case kCVPixelFormatType_24BGR:
-        return { @"kCVPixelFormatType_24BGR", PixelFormat::BGR24 };
-    case kCVPixelFormatType_24RGB:
-        return { @"kCVPixelFormatType_24RGB", PixelFormat::RGB24 };
-    case kCVPixelFormatType_32ARGB:
-        return { @"kCVPixelFormatType_32ARGB", PixelFormat::RGBA32 };
-    case kCVPixelFormatType_32ABGR:
-        return { @"kCVPixelFormatType_32ABGR", PixelFormat::BGRA32 };
-    case kCVPixelFormatType_422YpCbCr8:
-        return { @"kCVPixelFormatType_422YpCbCr8", PixelFormat::NV12f };
-    case kCVPixelFormatType_422YpCbCr8_yuvs:
-        return { @"kCVPixelFormatType_422YpCbCr8_yuvs", PixelFormat::NV12f };
+        return { @"kCVPixelFormatType_420YpCbCr8BiPlanarFullRange", MakeFormatInfo(PixelFormat::NV12f) };
     case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange:
-        return { @"kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange", PixelFormat::NV12v };
+        return { @"kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange", MakeFormatInfo(PixelFormat::NV12v) };
+    case kCVPixelFormatType_420YpCbCr8PlanarFullRange:
+        return { @"kCVPixelFormatType_420YpCbCr8PlanarFullRange", MakeFormatInfo(PixelFormat::I420f) };
+    case kCVPixelFormatType_420YpCbCr8Planar:
+        return { @"kCVPixelFormatType_420YpCbCr8Planar", MakeFormatInfo(PixelFormat::I420v) };
+    case kCVPixelFormatType_422YpCbCr8:
+        return { @"kCVPixelFormatType_422YpCbCr8", PixelFormat::Unknown, unavailableMsg };
+    case kCVPixelFormatType_422YpCbCr8_yuvs:
+        return { @"kCVPixelFormatType_422YpCbCr8_yuvs", PixelFormat::Unknown, unavailableMsg };
+
+        /////////////// ↓ RGB(A) ↓ ///////////////
+        
+    case kCVPixelFormatType_32BGRA:
+        return { @"kCVPixelFormatType_32BGRA", MakeFormatInfo(PixelFormat::BGRA32) };
+    case kCVPixelFormatType_24BGR:
+        return { @"kCVPixelFormatType_24BGR", MakeFormatInfo(PixelFormat::BGR24) };
+    case kCVPixelFormatType_24RGB:
+        return { @"kCVPixelFormatType_24RGB", MakeFormatInfo(PixelFormat::RGB24) };
+    case kCVPixelFormatType_32RGBA:
+        return { @"kCVPixelFormatType_32RGBA", MakeFormatInfo(PixelFormat::RGBA32) };
+    case kCVPixelFormatType_32ARGB:
+        return { @"kCVPixelFormatType_32ARGB", PixelFormat::Unknown, unavailableMsg };
     default:
-        return { [NSString stringWithFormat:@"Unknown(0x%08x)", (unsigned int)format], PixelFormat::Unknown };
+        return { [NSString stringWithFormat:@"Unknown(0x%08x)", (unsigned int)format], MakeFormatInfo(PixelFormat::Unknown) };
     }
 }
 
-static NSArray<AVCaptureDevice*>* findAllDeviceName()
+struct ResolutionInfo
+{
+    AVCaptureSessionPreset preset = nil;
+    DeviceInfo::Resolution resolution{};
+};
+
+std::vector<ResolutionInfo> allSupportedResolutions(AVCaptureSession* session)
+{
+    std::vector<ResolutionInfo> info = {
+        { AVCaptureSessionPreset320x240, { 320, 240 } },
+        { AVCaptureSessionPreset352x288, { 352, 288 } },
+        { AVCaptureSessionPreset640x480, { 640, 480 } },
+        { AVCaptureSessionPreset960x540, { 960, 540 } },
+        { AVCaptureSessionPreset1280x720, { 1280, 720 } },
+        { AVCaptureSessionPreset1920x1080, { 1920, 1080 } },
+        { AVCaptureSessionPreset3840x2160, { 3840, 2160 } },
+    };
+
+    auto r = std::remove_if(info.begin(), info.end(), ^bool(const ResolutionInfo& i) {
+        return ![session canSetSessionPreset:i.preset];
+    });
+
+    if (r != info.end())
+    {
+        info.erase(r, info.end());
+    }
+    return info;
+}
+} // namespace
+
+NSArray<AVCaptureDevice*>* findAllDeviceName()
 {
     // 按类型顺序排序
     NSMutableArray* allTypes = [NSMutableArray new];
@@ -114,7 +154,7 @@ static NSArray<AVCaptureDevice*>* findAllDeviceName()
         [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:allTypes
                                                                mediaType:AVMediaTypeVideo
                                                                 position:AVCaptureDevicePositionUnspecified];
-    if (verboseLogEnabled())
+    if (infoLogEnabled())
     {
         static dispatch_once_t onceToken;
         dispatch_once(&onceToken, ^{
@@ -164,7 +204,7 @@ static NSArray<AVCaptureDevice*>* findAllDeviceName()
     }];
 }
 
-static void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
+void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
 {
     auto* inputBytes = frame->data[0];
     auto inputLineSize = frame->stride[0];
@@ -232,7 +272,7 @@ static void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
             }
         }
     }
-}
+} // namespace
 
 @interface CameraCaptureObjc : NSObject<AVCaptureVideoDataOutputSampleBufferDelegate>
 {
@@ -284,25 +324,21 @@ static void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
 
     if (AVCaptureSessionPreset preset = AVCaptureSessionPresetHigh; _resolution.width > 0 && _resolution.height > 0)
     { /// Handle resolution
-        NSArray* resolutions = @[
-            @[ @320, @240, AVCaptureSessionPreset320x240 ],
-            @[ @352, @288, AVCaptureSessionPreset352x288 ],
-            @[ @640, @480, AVCaptureSessionPreset640x480 ],
-            @[ @960, @540, AVCaptureSessionPreset960x540 ],
-            @[ @1280, @720, AVCaptureSessionPreset1280x720 ],
-            @[ @1920, @1080, AVCaptureSessionPreset1920x1080 ],
-            @[ @3840, @2160, AVCaptureSessionPreset3840x2160 ],
-        ];
 
+        auto allInfo = allSupportedResolutions(_session);
         CGSize inputSize = _resolution;
 
-        for (NSArray* res in resolutions)
+        for (auto& info : allInfo)
         {
-            if ([res[0] intValue] >= _resolution.width && [res[1] intValue] >= _resolution.height)
+            auto width = info.resolution.width;
+            auto height = info.resolution.height;
+
+            /// 这里的 info 是有序的， 从小到大排列, 所以找到第一个符合的即可.
+            if (width >= _resolution.width && height >= _resolution.height)
             {
-                _resolution.width = [res[0] intValue];
-                _resolution.height = [res[1] intValue];
-                preset = res[2];
+                _resolution.width = width;
+                _resolution.height = height;
+                preset = info.preset;
                 break;
             }
         }
@@ -350,7 +386,7 @@ static void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
         return NO;
     }
 
-    if (verboseLogEnabled())
+    if (infoLogEnabled())
     {
         NSLog(@"ccap: The camera to be used: %@", _device);
     }
@@ -398,24 +434,6 @@ static void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
     _videoOutput = [[AVCaptureVideoDataOutput alloc] init];
     [_videoOutput setAlwaysDiscardsLateVideoFrames:YES]; // better performance
 
-    { // set portrait orientation
-        AVCaptureConnection* conn = [_videoOutput connectionWithMediaType:AVMediaTypeVideo];
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-        if ([conn isVideoOrientationSupported])
-        {
-            [conn setVideoOrientation:AVCaptureVideoOrientationPortrait];
-        }
-#pragma clang diagnostic pop
-        else
-        {
-            if (verboseLogEnabled())
-            {
-                NSLog(@"ccap: Video orientation not supported");
-            }
-        }
-    }
-
     auto requiredPixelFormat = _provider->getFrameProperty().pixelFormat;
 
     { /// Handle pixel format
@@ -433,15 +451,14 @@ static void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
         _convertPixelFormat = _cameraPixelFormat;
 
         NSArray* supportedFormats = [_videoOutput availableVideoCVPixelFormatTypes];
-        if (verboseLogEnabled())
+        if (infoLogEnabled())
         {
-            NSMutableArray<NSString*>* arr = [NSMutableArray new];
+            NSMutableArray* arr = [NSMutableArray new];
             for (NSNumber* format in supportedFormats)
             {
-                auto info = getCVPixelFormatInfo([format unsignedIntValue]);
-                [arr addObject:info.name];
+                auto info = getPixelFormatInfo([format unsignedIntValue]);
+                [arr addObject:[NSString stringWithFormat:@"%@ (%s)", info.name, info.description.c_str()]];
             }
-
             NSLog(@"ccap: Supported pixel format: %@", arr);
         }
 
@@ -525,9 +542,9 @@ static void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
 
             if (errorLogEnabled())
             {
-                auto preferredInfo = getCVPixelFormatInfo(preferredFormat);
-                auto fallbackInfo = getCVPixelFormatInfo(_cvPixelFormat);
-                NSLog(@"ccap: Preferred pixel format (%@) not supported, fallback to: (%@)", preferredInfo.name, fallbackInfo.name);
+                auto preferredInfo = getPixelFormatInfo(preferredFormat);
+                auto fallbackInfo = getPixelFormatInfo(_cvPixelFormat);
+                NSLog(@"ccap: Preferred pixel format (%@-%s) not supported, fallback to: (%@-%s)", preferredInfo.name, preferredInfo.description.c_str(), fallbackInfo.name, fallbackInfo.description.c_str());
             }
         }
 
@@ -983,29 +1000,48 @@ bool ProviderMac::isOpened() const
     return m_imp && m_imp.session;
 }
 
-std::vector<PixelFormat> ProviderMac::getHardwareSupportedPixelFormats() const
+std::optional<DeviceInfo> ProviderMac::getDeviceInfo() const
 {
+    std::optional<DeviceInfo> deviceInfo;
     if (m_imp && m_imp.videoOutput)
     {
         @autoreleasepool
         {
-            NSArray* supportedFormats = [m_imp.videoOutput availableVideoCVPixelFormatTypes];
-            std::vector<PixelFormat> formats;
-            formats.reserve(supportedFormats.count);
-            for (NSNumber* format in supportedFormats)
+            NSString* deviceName = [m_imp.device localizedName];
+            if ([deviceName length] > 0)
             {
-                auto info = getCVPixelFormatInfo((OSType)[format unsignedIntValue]);
-                formats.push_back(info.format);
+                deviceInfo.emplace();
+                deviceInfo->deviceName = [deviceName UTF8String];
+                NSArray* supportedFormats = [m_imp.videoOutput availableVideoCVPixelFormatTypes];
+                auto& formats = deviceInfo->supportedPixelFormats;
+                formats.reserve(supportedFormats.count);
+                for (NSNumber* format in supportedFormats)
+                {
+                    auto info = getPixelFormatInfo((OSType)[format unsignedIntValue]);
+                    if (info.format != PixelFormat::Unknown)
+                    {
+                        formats.push_back({ info.format, info.description });
+                    }
+                    else if (verboseLogEnabled())
+                    {
+                        NSLog(@"ccap: The OS native pixel format %@ currently not implemented", info.name);
+                    }
+                }
+
+                auto allResolutions = allSupportedResolutions(m_imp.session);
+                for (auto& info : allResolutions)
+                {
+                    deviceInfo->supportedResolutions.emplace_back(info.resolution);
+                }
             }
-            return formats;
         }
     }
 
-    if (errorLogEnabled())
+    if (!deviceInfo && errorLogEnabled())
     {
-        NSLog(@"ccap: getHardwareSupportedPixelFormats called with no device opened");
+        NSLog(@"ccap: getDeviceInfo called with no device opened");
     }
-    return {};
+    return deviceInfo;
 }
 
 void ProviderMac::close()

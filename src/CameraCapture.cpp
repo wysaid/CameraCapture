@@ -108,9 +108,9 @@ bool Provider::isOpened() const
     return m_imp && m_imp->isOpened();
 }
 
-std::vector<PixelFormat> Provider::getHardwareSupportedPixelFormats() const
+std::optional<DeviceInfo> Provider::getDeviceInfo() const
 {
-    return m_imp ? m_imp->getHardwareSupportedPixelFormats() : std::vector<PixelFormat>();
+    return m_imp ? m_imp->getDeviceInfo() : std::nullopt;
 }
 
 void Provider::close()
