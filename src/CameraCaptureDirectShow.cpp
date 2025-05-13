@@ -347,10 +347,26 @@ void ProviderDirectShow::enumerateMediaInfo(std::function<bool(AM_MEDIA_TYPE* me
 
 std::vector<std::string> ProviderDirectShow::findDeviceNames()
 {
-    std::vector<std::string> deviceNames;
+    if (!m_allDeviceNames.empty())
+    {
+        return m_allDeviceNames;
+    }
+
     enumerateDevices([&](IMoniker* moniker, std::string_view name) {
-        deviceNames.emplace_back(name.data(), name.size());
-        return false; // continue enumerating
+        // 尝试绑定设备，判断是否可用
+        IBaseFilter* filter = nullptr;
+        HRESULT hr = moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&filter);
+        if (SUCCEEDED(hr) && filter)
+        {
+            m_allDeviceNames.emplace_back(name.data(), name.size());
+            filter->Release();
+        }
+        else if (infoLogEnabled())
+        {
+            fprintf(stderr, "ccap: \"%s\" is not a valid video capture device, removed\n", name.data());
+        }
+        // 不可用设备不加入列表
+        return false; // 继续枚举
     });
 
     { /// Place virtual camera names at the end
@@ -359,7 +375,7 @@ std::vector<std::string> ProviderDirectShow::findDeviceNames()
             "virtual",
             "fake",
         };
-        std::stable_sort(deviceNames.begin(), deviceNames.end(), [&](const std::string& name1, const std::string& name2) {
+        std::stable_sort(m_allDeviceNames.begin(), m_allDeviceNames.end(), [&](const std::string& name1, const std::string& name2) {
             std::string copyName1(name1.size(), '\0');
             std::string copyName2(name2.size(), '\0');
             std::transform(name1.begin(), name1.end(), copyName1.begin(), ::tolower);
@@ -386,7 +402,7 @@ std::vector<std::string> ProviderDirectShow::findDeviceNames()
         });
     }
 
-    return deviceNames;
+    return m_allDeviceNames;
 }
 
 bool ProviderDirectShow::buildGraph()
@@ -694,14 +710,14 @@ bool ProviderDirectShow::open(std::string_view deviceName)
     {
         if (ccap::errorLogEnabled())
         {
-            fprintf(stderr, "ccap: No video capture device %s\n", deviceName.empty() ? "" : deviceName.data());
+            fprintf(stderr, "ccap: No video capture device: %s\n", deviceName.empty() ? "" : deviceName.data());
         }
         return false;
     }
 
     if (infoLogEnabled())
     {
-        fprintf(stderr, "ccap: Found video capture device %s\n", m_deviceName.c_str());
+        fprintf(stderr, "ccap: Found video capture device: %s\n", m_deviceName.c_str());
     }
 
     if (!buildGraph())

@@ -117,6 +117,7 @@ private:
     ISampleGrabber* m_sampleGrabber = nullptr;
     IMediaControl* m_mediaControl = nullptr;
     std::string m_deviceName;
+    std::vector<std::string> m_allDeviceNames;
 
     // 状态变量
     bool m_didSetup{ false };
