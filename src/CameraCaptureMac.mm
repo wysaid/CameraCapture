@@ -21,6 +21,8 @@
 #include <deque>
 #endif
 
+using namespace ccap;
+
 #if defined(DEBUG) && _CCAP_LOG_ENABLED_
 #include <sys/sysctl.h>
 #include <sys/types.h>
@@ -30,8 +32,6 @@ namespace ccap
 {
 extern bool globalLogLevelChanged;
 }
-
-using namespace ccap;
 
 static void optimizeLogIfNotSet()
 {
@@ -74,7 +74,6 @@ struct PixelFormatInfo
 PixelFormatInfo getPixelFormatInfo(OSType format)
 { /// macOS 下, 实际可用的 pixelFormat 比较有限, 这里仅列举可能出现的.
     constexpr const char* unavailableMsg = "ccap unavailable for now";
-
     switch (format)
     {
     case kCVPixelFormatType_420YpCbCr8BiPlanarFullRange:
