@@ -141,7 +141,7 @@ bool Provider::set(PropertyName prop, double value)
 
 double Provider::get(PropertyName prop)
 {
-    return m_imp && m_imp->get(prop);
+    return m_imp ? m_imp->get(prop) : NAN;
 }
 
 std::shared_ptr<Frame> Provider::grab(bool waitForNewFrame)
