@@ -99,6 +99,9 @@ protected:
     void newFrameAvailable(std::shared_ptr<Frame> frame);
     std::shared_ptr<Frame> getFreeFrame();
 
+    // 尝试主动抓取, 如果失败, 会返回 nullptr
+    virtual void fetchNewFrame();
+
 protected:
     // 回调和分配器
     std::shared_ptr<std::function<bool(std::shared_ptr<Frame>)>> m_callback;

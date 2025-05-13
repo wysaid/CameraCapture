@@ -9,7 +9,7 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment ve
 
 option(CCAP_NO_LOG "Disable logging" OFF)
 
-if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     option(CCAP_BUILD_DEMO "Build ccap demo" ON)
 else()
     option(CCAP_BUILD_DEMO "Build ccap demo" OFF)
@@ -62,6 +62,7 @@ else()
 endif()
 
 if(CCAP_BUILD_DEMO)
+    message(STATUS "ccap: CCAP_BUILD_DEMO=${CCAP_BUILD_DEMO}")
     file(GLOB DEMO_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/demo/*.cpp)
 
     foreach(DEMO ${DEMO_SOURCE})

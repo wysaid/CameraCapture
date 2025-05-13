@@ -107,6 +107,8 @@ private:
 
     void enumerateMediaInfo(std::function<bool(AM_MEDIA_TYPE* mediaType, const char* name, PixelFormat pixelFormat, const DeviceInfo::Resolution& resolution)> callback);
 
+    void fetchNewFrame() override;
+
 private:
     IGraphBuilder* m_graph = nullptr;
     ICaptureGraphBuilder2* m_captureBuilder = nullptr;

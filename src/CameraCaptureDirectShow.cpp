@@ -364,19 +364,19 @@ std::vector<std::string> ProviderDirectShow::findDeviceNames()
             std::string copyName2(name2.size(), '\0');
             std::transform(name1.begin(), name1.end(), copyName1.begin(), ::tolower);
             std::transform(name2.begin(), name2.end(), copyName2.begin(), ::tolower);
-            int index1 = std::find_if(std::begin(keywords), std::end(keywords),
-                                      [&](std::string_view keyword) {
-                                          return copyName1.find(keyword) != std::string::npos;
-                                      }) -
+            int64_t index1 = std::find_if(std::begin(keywords), std::end(keywords),
+                                          [&](std::string_view keyword) {
+                                              return copyName1.find(keyword) != std::string::npos;
+                                          }) -
                 std::begin(keywords);
             if (index1 == std::size(keywords))
             {
                 index1 = -1;
             }
 
-            int index2 = std::find_if(std::begin(keywords), std::end(keywords), [&](std::string_view keyword) {
-                             return copyName2.find(keyword) != std::string::npos;
-                         }) -
+            int64_t index2 = std::find_if(std::begin(keywords), std::end(keywords), [&](std::string_view keyword) {
+                                 return copyName2.find(keyword) != std::string::npos;
+                             }) -
                 std::begin(keywords);
             if (index2 == std::size(keywords))
             {
@@ -453,19 +453,21 @@ bool ProviderDirectShow::createStream()
     }
 
     // Set the media type for the SampleGrabber
-    AM_MEDIA_TYPE mt;
-    ZeroMemory(&mt, sizeof(mt));
-    mt.majortype = MEDIATYPE_Video;
-    mt.subtype = MEDIASUBTYPE_RGB24;
-    mt.formattype = FORMAT_VideoInfo;
-    hr = m_sampleGrabber->SetMediaType(&mt);
-    if (FAILED(hr))
     {
-        if (ccap::errorLogEnabled())
+        AM_MEDIA_TYPE mt;
+        ZeroMemory(&mt, sizeof(mt));
+        mt.majortype = MEDIATYPE_Video;
+        mt.subtype = GUID_NULL; // MEDIASUBTYPE_NV12;
+        mt.formattype = GUID_NULL;
+        hr = m_sampleGrabber->SetMediaType(&mt);
+        if (FAILED(hr))
         {
-            std::cerr << "ccap: SetMediaType failed, hr=0x" << std::hex << hr << std::endl;
+            if (ccap::errorLogEnabled())
+            {
+                std::cerr << "ccap: SetMediaType failed, hr=0x" << std::hex << hr << std::endl;
+            }
+            return false;
         }
-        return false;
     }
 
     // Add SampleGrabber to the Graph
@@ -552,7 +554,7 @@ bool ProviderDirectShow::createStream()
                     double width = static_cast<double>(videoHeader->bmiHeader.biWidth);
                     double height = static_cast<double>(videoHeader->bmiHeader.biHeight);
                     double distance = std::abs((width - desiredWidth) + std::abs(height - desiredHeight));
-                    if (distance < closestDistance)
+                    if (distance < closestDistance && mediaType->subtype == MEDIASUBTYPE_I420)
                     {
                         closestDistance = distance;
                         bestMatchType = mediaType;
@@ -569,7 +571,7 @@ bool ProviderDirectShow::createStream()
                     m_frameProp.width = videoHeader->bmiHeader.biWidth;
                     m_frameProp.height = videoHeader->bmiHeader.biHeight;
                     m_frameProp.fps = 10000000.0 / videoHeader->AvgTimePerFrame;
-                    m_frameProp.pixelFormat = PixelFormat::BGR24; // Assume RGB24 format
+                    m_frameProp.pixelFormat = PixelFormat::I420; // Assume RGB24 format
                     auto setFormatResult = streamConfig->SetFormat(mediaType);
                     if (FAILED(setFormatResult))
                     {
@@ -606,6 +608,30 @@ bool ProviderDirectShow::createStream()
             std::cerr << "ccap: RenderStream failed, result=0x" << std::hex << hr << std::endl;
         }
         return false;
+    }
+
+    // 获取当前媒体类型验证
+    {
+        AM_MEDIA_TYPE mt;
+        hr = m_sampleGrabber->GetConnectedMediaType(&mt);
+        if (SUCCEEDED(hr))
+        {
+            if (verboseLogEnabled())
+            {
+                // 输出媒体类型信息
+                auto info = findPixelFormatInfo(mt.subtype);
+                fprintf(stderr, "ccap: Connected media type: %s\n", info.name);
+            }
+            freeMediaType(mt);
+        }
+        else
+        {
+            if (ccap::errorLogEnabled())
+            {
+                std::cerr << "ccap: GetConnectedMediaType failed, hr=0x" << std::hex << hr << std::endl;
+            }
+            return false;
+        }
     }
 
     // Set SampleGrabber callback
@@ -754,7 +780,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
 
     // Zero-copy, directly reference sample data
     newFrame->sizeInBytes = bufferLen;
-    newFrame->pixelFormat = PixelFormat::BGR24; // Assume RGB24 format
+    newFrame->pixelFormat = PixelFormat::I420; // Assume RGB24 format
     newFrame->width = m_frameProp.width;
     newFrame->height = m_frameProp.height;
     newFrame->stride[0] = m_frameProp.width * 3; // BGR24, 3 bytes per pixel
@@ -813,8 +839,14 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
 
 HRESULT STDMETHODCALLTYPE ProviderDirectShow::BufferCB(double SampleTime, BYTE* pBuffer, long BufferLen)
 {
-    /// Never reached.
+    fprintf(stderr, "ccap: BufferCB called, SampleTime: %f, BufferLen: %ld\n", SampleTime, BufferLen);
+
+    // This callback is not used in this implementation
     return S_OK;
+}
+
+void ProviderDirectShow::fetchNewFrame()
+{ /// 参考 SampleCB， 尝试主动获取一帧数据
 }
 
 HRESULT STDMETHODCALLTYPE ProviderDirectShow::QueryInterface(REFIID riid, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject)

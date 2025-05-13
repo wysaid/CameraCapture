@@ -63,7 +63,7 @@ enum class PixelFormat : uint32_t
      *    received Frame is FullRange or VideoRange based on what they observe.
      *
      */
-    NV12 = 1,
+    NV12 = 1 | kPixelFormatYUVColorBit,
 
     NV12v = NV12 | kPixelFormatYUVColorVideoRangeBit,
     NV12f = NV12 | kPixelFormatYUVColorFullRangeBit,
@@ -76,7 +76,7 @@ enum class PixelFormat : uint32_t
      *    the received Frame is FullRange or VideoRange based on what they observe.
      * @refitem #NV12
      */
-    NV21 = 1 << 1,
+    NV21 = 1 << 1 | kPixelFormatYUVColorBit,
 
     NV21v = NV21 | kPixelFormatYUVColorVideoRangeBit,
     NV21f = NV21 | kPixelFormatYUVColorFullRangeBit,
@@ -90,7 +90,7 @@ enum class PixelFormat : uint32_t
      * @note This format is also known by other names, such as YUV420P or IYUV.
      * @refitem #NV12
      */
-    I420 = 1 << 2,
+    I420 = 1 << 2 | kPixelFormatYUVColorBit,
 
     I420v = I420 | kPixelFormatYUVColorVideoRangeBit,
     I420f = I420 | kPixelFormatYUVColorFullRangeBit,
