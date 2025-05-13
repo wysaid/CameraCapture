@@ -179,7 +179,7 @@ std::string dumpFrameToFile(Frame* frame, std::string_view fileNameWithNoSuffix)
     }
     else if (ccap::pixelFormatInclude(frame->pixelFormat, ccap::kPixelFormatYUVColorBit))
     {
-        auto filePath = std::string(fileNameWithNoSuffix) + ".yuv";
+        auto filePath = std::string(fileNameWithNoSuffix) + '.' + pixelFormatToString(frame->pixelFormat).data() + ".yuv";
         FILE* fp = fopen(filePath.c_str(), "wb");
         if (fp)
         {

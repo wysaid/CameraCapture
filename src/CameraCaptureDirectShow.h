@@ -119,6 +119,8 @@ private:
     std::string m_deviceName;
     std::vector<std::string> m_allDeviceNames;
 
+    bool m_firstFrameArrived = false;
+
     // 状态变量
     bool m_didSetup{ false };
     bool m_isOpened{ false };

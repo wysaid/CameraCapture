@@ -11,6 +11,7 @@
 #include "CameraCaptureDirectShow.h"
 
 #include <algorithm>
+#include <cassert>
 #include <chrono>
 #include <guiddef.h>
 #include <initguid.h>
@@ -181,6 +182,10 @@ void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
     const char* rangeStr = "";
     VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)pmt->pbFormat;
 
+    auto width = vih->bmiHeader.biWidth;
+    auto height = vih->bmiHeader.biHeight;
+    double fps = vih->AvgTimePerFrame != 0 ? 10000000.0 / vih->AvgTimePerFrame : 0;
+
     if (info.pixelFormat & kPixelFormatYUVColorBit)
     {
         if (pmt->formattype == FORMAT_VideoInfo2 && pmt->cbFormat >= sizeof(VIDEOINFOHEADER2))
@@ -210,7 +215,7 @@ void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
         }
     }
 
-    printf("%s%ld x %ld  bitcount=%ld  format=%s%s\n", prefix, vih->bmiHeader.biWidth, vih->bmiHeader.biHeight, vih->bmiHeader.biBitCount, info.name, rangeStr);
+    printf("%s%ld x %ld  bitcount=%ld  format=%s%s, fps=%g\n", prefix, width, height, vih->bmiHeader.biBitCount, info.name, rangeStr, fps);
     fflush(stdout);
 }
 
@@ -223,6 +228,10 @@ ProviderDirectShow::ProviderDirectShow() = default;
 
 ProviderDirectShow::~ProviderDirectShow()
 {
+    if (verboseLogEnabled())
+    {
+        fprintf(stderr, "ccap: ProviderDirectShow destructor called\n");
+    }
     ProviderDirectShow::close();
 }
 
@@ -584,21 +593,27 @@ bool ProviderDirectShow::createStream()
                 if (mediaType->formattype == FORMAT_VideoInfo && mediaType->pbFormat)
                 {
                     VIDEOINFOHEADER* videoHeader = (VIDEOINFOHEADER*)mediaType->pbFormat;
-                    m_frameProp.width = videoHeader->bmiHeader.biWidth;
-                    m_frameProp.height = videoHeader->bmiHeader.biHeight;
-                    m_frameProp.fps = 10000000.0 / videoHeader->AvgTimePerFrame;
-                    m_frameProp.pixelFormat = PixelFormat::I420; // Assume RGB24 format
                     auto setFormatResult = streamConfig->SetFormat(mediaType);
-                    if (FAILED(setFormatResult))
+
+                    if (SUCCEEDED(setFormatResult))
+                    {
+                        m_frameProp.width = videoHeader->bmiHeader.biWidth;
+                        m_frameProp.height = videoHeader->bmiHeader.biHeight;
+                        m_frameProp.fps = 10000000.0 / videoHeader->AvgTimePerFrame;
+                        auto pixFormatInfo = findPixelFormatInfo(mediaType->subtype);
+                        m_frameProp.pixelFormat = pixFormatInfo.pixelFormat;
+
+                        if (ccap::infoLogEnabled())
+                        {
+                            printMediaType(mediaType, "ccap: SetFormat succeeded: ");
+                        }
+                    }
+                    else
                     {
                         if (ccap::errorLogEnabled())
                         {
-                            std::cerr << "ccap: SetFormat failed, result=0x" << std::hex << setFormatResult << std::endl;
+                            fprintf(stderr, "ccap: SetFormat failed, result=0x%lx\n", setFormatResult);
                         }
-                    }
-                    else if (ccap::infoLogEnabled())
-                    {
-                        printMediaType(mediaType, "ccap: SetFormat succeeded: ");
                     }
                 }
             }
@@ -789,6 +804,29 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
         return S_OK;
     }
 
+    if (!m_firstFrameArrived)
+    {
+        m_firstFrameArrived = true;
+        AM_MEDIA_TYPE mt;
+        HRESULT hr = m_sampleGrabber->GetConnectedMediaType(&mt);
+        if (SUCCEEDED(hr))
+        {
+            VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)mt.pbFormat;
+            m_frameProp.width = vih->bmiHeader.biWidth;
+            m_frameProp.height = vih->bmiHeader.biHeight;
+            m_frameProp.fps = 10000000.0 / vih->AvgTimePerFrame;
+            auto info = findPixelFormatInfo(mt.subtype);
+            m_frameProp.pixelFormat = info.pixelFormat;
+
+            if (verboseLogEnabled())
+            {
+                printMediaType(&mt, "ccap: First frame media type: ");
+            }
+
+            freeMediaType(mt); // 用完记得释放
+        }
+    }
+
     long bufferLen = mediaSample->GetActualDataLength();
 
     // Convert to nanoseconds
@@ -796,15 +834,46 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
 
     // Zero-copy, directly reference sample data
     newFrame->sizeInBytes = bufferLen;
-    newFrame->pixelFormat = PixelFormat::I420; // Assume RGB24 format
+    newFrame->pixelFormat = m_frameProp.pixelFormat;
     newFrame->width = m_frameProp.width;
     newFrame->height = m_frameProp.height;
-    newFrame->stride[0] = m_frameProp.width * 3; // BGR24, 3 bytes per pixel
-    newFrame->stride[1] = 0;
-    newFrame->stride[2] = 0;
-    newFrame->data[0] = sampleData;
-    newFrame->data[1] = nullptr;
-    newFrame->data[2] = nullptr;
+
+    if (newFrame->pixelFormat & kPixelFormatYUVColorBit)
+    {
+        newFrame->data[0] = sampleData;
+        newFrame->data[1] = sampleData + m_frameProp.width * m_frameProp.height;
+
+        newFrame->stride[0] = m_frameProp.width;
+
+        if (pixelFormatInclude(newFrame->pixelFormat, PixelFormat::I420))
+        {
+            newFrame->stride[1] = m_frameProp.width / 2;
+            newFrame->stride[2] = m_frameProp.width / 2;
+
+            newFrame->data[2] = sampleData + m_frameProp.width * m_frameProp.height * 5 / 4;
+        }
+        else
+        {
+            newFrame->stride[1] = m_frameProp.width;
+            newFrame->stride[2] = 0;
+            newFrame->data[2] = nullptr;
+        }
+
+        assert(newFrame->stride[0] * newFrame->height + newFrame->stride[1] * newFrame->height / 2 + newFrame->stride[2] * newFrame->height / 2 <= bufferLen);
+    }
+    else
+    {
+        auto stride = m_frameProp.width * (newFrame->pixelFormat & kPixelFormatAlphaColorBit ? 4 : 3);
+        newFrame->stride[0] = ((stride + 3) / 4) * 4; // 4-byte aligned
+        newFrame->stride[1] = 0;
+        newFrame->stride[2] = 0;
+
+        newFrame->data[0] = sampleData;
+        newFrame->data[1] = nullptr;
+        newFrame->data[2] = nullptr;
+
+        assert(newFrame->stride[0] * newFrame->height <= bufferLen);
+    }
 
     mediaSample->AddRef(); // Ensure data lifecycle
     auto manager = std::make_shared<FakeFrame>([newFrame, mediaSample]() mutable {
@@ -955,6 +1024,16 @@ std::optional<DeviceInfo> ProviderDirectShow::getDeviceInfo() const
 
 void ProviderDirectShow::close()
 {
+    if (verboseLogEnabled())
+    {
+        fprintf(stderr, "ccap: ProviderDirectShow close called\n");
+    }
+
+    if (m_isRunning)
+    {
+        stop();
+    }
+
     if (m_mediaControl)
     {
         m_mediaControl->Stop();
@@ -1023,6 +1102,21 @@ bool ProviderDirectShow::start()
 
 void ProviderDirectShow::stop()
 {
+    if (verboseLogEnabled())
+    {
+        fprintf(stderr, "ccap: ProviderDirectShow stop called\n");
+    }
+
+    if (m_grabFrameWaiting)
+    {
+        if (verboseLogEnabled())
+        {
+            fprintf(stderr, "ccap: Frame waiting stopped\n");
+        }
+        m_grabFrameWaiting = false;
+        m_frameCondition.notify_all();
+    }
+
     if (m_isRunning && m_mediaControl)
     {
         m_mediaControl->Stop();

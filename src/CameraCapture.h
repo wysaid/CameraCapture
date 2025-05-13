@@ -153,9 +153,14 @@ enum class FrameOrientation
 };
 
 /// check if the pixel format `lhs` includes all bits of the pixel format `rhs`.
-inline bool pixelFormatInclude(PixelFormat lhs, uint32_t rhs)
+inline bool pixelFormatInclude(PixelFormat lhs, PixelFormatConstants rhs)
 {
     return (static_cast<uint32_t>(lhs) & rhs) == rhs;
+}
+
+inline bool pixelFormatInclude(PixelFormat lhs, PixelFormat rhs)
+{
+    return (static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)) == static_cast<uint32_t>(rhs);
 }
 
 /// @brief Interface for memory allocation, primarily used to allocate the `data` field in `ccap::Frame`.
