@@ -97,10 +97,6 @@ void ProviderImp::setFrameAllocator(std::function<std::shared_ptr<Allocator>()> 
     m_framePool.clear();
 }
 
-void ProviderImp::fetchNewFrame()
-{
-}
-
 std::shared_ptr<Frame> ProviderImp::grab(bool waitForNewFrame)
 {
     std::unique_lock<std::mutex> lock(m_availableFrameMutex);
@@ -115,8 +111,6 @@ std::shared_ptr<Frame> ProviderImp::grab(bool waitForNewFrame)
             }
             return nullptr;
         }
-
-        fetchNewFrame();
 
         m_grabFrameWaiting = true;
         m_frameCondition.wait(lock, [this]() {

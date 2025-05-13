@@ -104,10 +104,17 @@ private:
     bool buildGraph();
 
     bool createStream();
+    bool setGrabberSubtype(GUID subtype);
 
-    void enumerateMediaInfo(std::function<bool(AM_MEDIA_TYPE* mediaType, const char* name, PixelFormat pixelFormat, const DeviceInfo::Resolution& resolution)> callback);
+    struct MediaInfo
+    {
+        ~MediaInfo();
+        IAMStreamConfig* streamConfig = nullptr;
+        std::vector<AM_MEDIA_TYPE*> mediaTypes;
+        std::vector<AM_MEDIA_TYPE*> videoMediaTypes;
+    };
 
-    void fetchNewFrame() override;
+    std::unique_ptr<MediaInfo> enumerateMediaInfo(std::function<bool(AM_MEDIA_TYPE* mediaType, const char* name, PixelFormat pixelFormat, const DeviceInfo::Resolution& resolution)> callback);
 
 private:
     IGraphBuilder* m_graph = nullptr;
@@ -125,6 +132,8 @@ private:
     bool m_didSetup{ false };
     bool m_isOpened{ false };
     bool m_isRunning{ false };
+
+    std::mutex m_callbackMutex;
 };
 
 ProviderImp* createProviderDirectShow();

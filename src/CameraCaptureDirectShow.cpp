@@ -317,9 +317,25 @@ void ProviderDirectShow::enumerateDevices(std::function<bool(IMoniker* moniker, 
     enumerator->Release();
 }
 
-void ProviderDirectShow::enumerateMediaInfo(std::function<bool(AM_MEDIA_TYPE* mediaType, const char* name, PixelFormat pixelFormat, const DeviceInfo::Resolution& resolution)> callback)
+ProviderDirectShow::MediaInfo::~MediaInfo()
 {
-    IAMStreamConfig* streamConfig = nullptr;
+    for (auto& mediaType : mediaTypes)
+    {
+        deleteMediaType(mediaType);
+    }
+
+    if (streamConfig)
+    {
+        streamConfig->Release();
+    }
+}
+
+std::unique_ptr<ProviderDirectShow::MediaInfo> ProviderDirectShow::enumerateMediaInfo(std::function<bool(AM_MEDIA_TYPE* mediaType, const char* name, PixelFormat pixelFormat, const DeviceInfo::Resolution& resolution)> callback)
+{
+    auto mediaInfo = std::make_unique<MediaInfo>();
+    auto& streamConfig = mediaInfo->streamConfig;
+    auto& mediaTypes = mediaInfo->mediaTypes;
+    auto& videoMediaTypes = mediaInfo->videoMediaTypes;
     HRESULT hr = m_captureBuilder->FindInterface(&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, m_deviceFilter, IID_IAMStreamConfig, (void**)&streamConfig);
     if (SUCCEEDED(hr) && streamConfig)
     {
@@ -327,6 +343,8 @@ void ProviderDirectShow::enumerateMediaInfo(std::function<bool(AM_MEDIA_TYPE* me
         streamConfig->GetNumberOfCapabilities(&capabilityCount, &capabilitySize);
 
         std::vector<BYTE> capabilityData(capabilitySize);
+        mediaTypes.reserve(capabilityCount);
+        videoMediaTypes.reserve(capabilityCount);
         for (int i = 0; i < capabilityCount; ++i)
         {
             AM_MEDIA_TYPE* mediaType{};
@@ -334,23 +352,32 @@ void ProviderDirectShow::enumerateMediaInfo(std::function<bool(AM_MEDIA_TYPE* me
             {
                 if (mediaType->formattype == FORMAT_VideoInfo && mediaType->pbFormat)
                 {
-                    VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)mediaType->pbFormat;
-                    auto info = findPixelFormatInfo(mediaType->subtype);
-                    if (callback(mediaType, info.name, info.pixelFormat, { (uint32_t)vih->bmiHeader.biWidth, (uint32_t)vih->bmiHeader.biHeight }))
+                    videoMediaTypes.emplace_back(mediaType);
+                    if (callback)
                     {
-                        break; // stop enumeration when returning true
+                        VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)mediaType->pbFormat;
+                        auto info = findPixelFormatInfo(mediaType->subtype);
+                        if (callback(mediaType, info.name, info.pixelFormat, { (uint32_t)vih->bmiHeader.biWidth, (uint32_t)vih->bmiHeader.biHeight }))
+                        {
+                            break; // stop enumeration when returning true
+                        }
                     }
                 }
             }
 
             if (mediaType != nullptr)
             {
-                deleteMediaType(mediaType);
+                mediaTypes.emplace_back(mediaType);
             }
         }
-
-        streamConfig->Release();
     }
+
+    if (mediaTypes.empty())
+    {
+        mediaInfo = nullptr;
+    }
+
+    return mediaInfo;
 }
 
 std::vector<std::string> ProviderDirectShow::findDeviceNames()
@@ -453,6 +480,26 @@ bool ProviderDirectShow::buildGraph()
     return true;
 }
 
+bool ProviderDirectShow::setGrabberSubtype(GUID subtype)
+{
+    if (m_sampleGrabber)
+    {
+        AM_MEDIA_TYPE mt;
+        ZeroMemory(&mt, sizeof(mt));
+        mt.majortype = MEDIATYPE_Video;
+        mt.subtype = subtype;
+        mt.formattype = FORMAT_VideoInfo;
+        HRESULT hr = m_sampleGrabber->SetMediaType(&mt);
+        if (SUCCEEDED(hr))
+            return false;
+
+        if (ccap::errorLogEnabled())
+            fprintf(stderr, "ccap: SetMediaType failed, hr=0x%lx\n", hr);
+    }
+
+    return false;
+}
+
 bool ProviderDirectShow::createStream()
 {
     // Create SampleGrabber
@@ -476,21 +523,119 @@ bool ProviderDirectShow::createStream()
         return false;
     }
 
-    // Set the media type for the SampleGrabber
+    if (auto mediaInfo = enumerateMediaInfo(nullptr))
     {
-        AM_MEDIA_TYPE mt;
-        ZeroMemory(&mt, sizeof(mt));
-        mt.majortype = MEDIATYPE_Video;
-        mt.subtype = GUID_NULL;
-        mt.formattype = GUID_NULL;
-        hr = m_sampleGrabber->SetMediaType(&mt);
-        if (FAILED(hr))
+        // Desired resolution
+        const int desiredWidth = m_frameProp.width;
+        const int desiredHeight = m_frameProp.height;
+        double closestDistance = 1.e9;
+
+        auto& videoTypes = mediaInfo->videoMediaTypes;
+        auto& streamConfig = mediaInfo->streamConfig;
+        std::vector<AM_MEDIA_TYPE*> matchedTypes;
+        std::vector<AM_MEDIA_TYPE*> bestMatchedTypes;
+
+        for (auto* mediaType : videoTypes)
         {
-            if (ccap::errorLogEnabled())
+            VIDEOINFOHEADER* videoHeader = (VIDEOINFOHEADER*)mediaType->pbFormat;
+            if (desiredWidth <= videoHeader->bmiHeader.biWidth && desiredHeight <= videoHeader->bmiHeader.biHeight)
             {
-                std::cerr << "ccap: SetMediaType failed, hr=0x" << std::hex << hr << std::endl;
+                matchedTypes.emplace_back(mediaType);
+                if (verboseLogEnabled())
+                    printMediaType(mediaType, "> ");
             }
-            return false;
+            else
+            {
+                if (verboseLogEnabled())
+                    printMediaType(mediaType, "  ");
+            }
+        }
+
+        if (matchedTypes.empty())
+        {
+            if (ccap::warningLogEnabled())
+            {
+                std::cerr << "ccap: No suitable resolution found, using the closest one instead." << std::endl;
+            }
+            matchedTypes = videoTypes;
+        }
+
+        for (auto* mediaType : matchedTypes)
+        {
+            if (mediaType->formattype == FORMAT_VideoInfo && mediaType->pbFormat)
+            {
+                VIDEOINFOHEADER* videoHeader = (VIDEOINFOHEADER*)mediaType->pbFormat;
+                double width = static_cast<double>(videoHeader->bmiHeader.biWidth);
+                double height = static_cast<double>(videoHeader->bmiHeader.biHeight);
+                double distance = std::abs((width - desiredWidth) + std::abs(height - desiredHeight));
+                if (distance < closestDistance)
+                {
+                    closestDistance = distance;
+                    bestMatchedTypes = { mediaType };
+                }
+                else if (std::abs(distance - closestDistance) < 1e-5)
+                {
+                    bestMatchedTypes.emplace_back(mediaType);
+                }
+            }
+        }
+
+        if (!bestMatchedTypes.empty())
+        { /// 分辨率已经找到最为接近的了, 接下来尝试选择一个合适的format.
+
+            auto preferredPixelFormat = m_frameProp.pixelFormat;
+            AM_MEDIA_TYPE* mediaType = nullptr;
+
+            /// 当格式为 YUV 的时候, 只能找到一个合适的格式
+            auto rightFormat = std::find_if(bestMatchedTypes.begin(), bestMatchedTypes.end(), [&](AM_MEDIA_TYPE* mediaType) {
+                auto pixFormatInfo = findPixelFormatInfo(mediaType->subtype);
+                return pixFormatInfo.pixelFormat == preferredPixelFormat || (!(preferredPixelFormat & kPixelFormatYUVColorBit) && pixFormatInfo.subtype == MEDIASUBTYPE_MJPG);
+            });
+
+            if (rightFormat != bestMatchedTypes.end())
+            {
+                mediaType = *rightFormat;
+            }
+
+            if (mediaType == nullptr)
+            {
+                mediaType = bestMatchedTypes[0];
+            }
+
+            VIDEOINFOHEADER* videoHeader = (VIDEOINFOHEADER*)mediaType->pbFormat;
+            m_frameProp.width = videoHeader->bmiHeader.biWidth;
+            m_frameProp.height = videoHeader->bmiHeader.biHeight;
+            m_frameProp.fps = 10000000.0 / videoHeader->AvgTimePerFrame;
+            auto pixFormatInfo = findPixelFormatInfo(mediaType->subtype);
+            auto subtype = mediaType->subtype;
+
+            if (subtype == MEDIASUBTYPE_MJPG)
+            {
+                m_frameProp.pixelFormat = (m_frameProp.pixelFormat & kPixelFormatAlphaColorBit) ? PixelFormat::RGBA32 : PixelFormat::BGR24;
+                subtype = (m_frameProp.pixelFormat & kPixelFormatAlphaColorBit) ? MEDIASUBTYPE_RGB32 : MEDIASUBTYPE_RGB24;
+            }
+            else
+            {
+                m_frameProp.pixelFormat = pixFormatInfo.pixelFormat;
+            }
+
+            setGrabberSubtype(subtype);
+            auto setFormatResult = streamConfig->SetFormat(mediaType);
+
+            if (SUCCEEDED(setFormatResult))
+            {
+                if (ccap::infoLogEnabled())
+                {
+                    printMediaType(mediaType, "ccap: SetFormat succeeded: ");
+                }
+            }
+            else
+            {
+                if (ccap::errorLogEnabled())
+                {
+                    fprintf(stderr, "ccap: SetFormat failed, result=0x%lx\n", setFormatResult);
+                }
+            }
         }
     }
 
@@ -503,164 +648,6 @@ bool ProviderDirectShow::createStream()
             std::cerr << "ccap: AddFilter Sample Grabber failed, result=0x" << std::hex << hr << std::endl;
         }
         return false;
-    }
-
-    { // Retrieve supported resolutions from the camera device
-        IAMStreamConfig* streamConfig = nullptr;
-        hr = m_captureBuilder->FindInterface(&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, m_deviceFilter, IID_IAMStreamConfig, (void**)&streamConfig);
-        if (SUCCEEDED(hr) && streamConfig)
-        {
-            int capabilityCount = 0, capabilitySize = 0;
-            streamConfig->GetNumberOfCapabilities(&capabilityCount, &capabilitySize);
-            if (verboseLogEnabled())
-            {
-                printf("ccap: (%s) Found %d supported resolutions.\n", m_deviceName.c_str(), capabilityCount);
-            }
-
-            std::vector<BYTE> capabilityData(capabilitySize);
-
-            // Desired resolution
-            const int desiredWidth = m_frameProp.width;
-            const int desiredHeight = m_frameProp.height;
-            double closestDistance = 1.e9;
-            std::vector<AM_MEDIA_TYPE*> mediaTypes(capabilityCount);
-            std::vector<AM_MEDIA_TYPE*> videoTypes;
-            std::vector<AM_MEDIA_TYPE*> matchedTypes;
-            std::vector<AM_MEDIA_TYPE*> bestMatchedTypes;
-            videoTypes.reserve(capabilityCount);
-            matchedTypes.reserve(capabilityCount);
-
-            // auto allMediaInfo = getAllSupportedMediaInfo(m_captureBuilder, m_deviceFilter);
-
-            for (int i = 0; i < capabilityCount; ++i)
-            {
-                auto& mediaType = mediaTypes[i];
-                if (SUCCEEDED(streamConfig->GetStreamCaps(i, &mediaType, capabilityData.data())))
-                {
-                    if (mediaType->formattype == FORMAT_VideoInfo && mediaType->pbFormat)
-                    {
-                        VIDEOINFOHEADER* videoHeader = (VIDEOINFOHEADER*)mediaType->pbFormat;
-                        if (desiredWidth <= videoHeader->bmiHeader.biWidth && desiredHeight <= videoHeader->bmiHeader.biHeight)
-                        {
-                            matchedTypes.emplace_back(mediaType);
-                            if (verboseLogEnabled())
-                            {
-                                printMediaType(mediaType, "> ");
-                            }
-                        }
-                        else
-                        {
-                            if (verboseLogEnabled())
-                            {
-                                printMediaType(mediaType, "  ");
-                            }
-                        }
-
-                        videoTypes.emplace_back(mediaType);
-                    }
-                    else
-                    {
-                        if (mediaType->formattype == FORMAT_VideoInfo)
-                        {
-                            if (errorLogEnabled())
-                            {
-                                fprintf(stderr, "ccap: Find video media type, but no format block found.\n");
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (matchedTypes.empty())
-            {
-                if (ccap::warningLogEnabled())
-                {
-                    std::cerr << "ccap: No suitable resolution found, using the closest one instead." << std::endl;
-                }
-                matchedTypes = videoTypes;
-            }
-
-            for (auto* mediaType : matchedTypes)
-            {
-                if (mediaType->formattype == FORMAT_VideoInfo && mediaType->pbFormat)
-                {
-                    VIDEOINFOHEADER* videoHeader = (VIDEOINFOHEADER*)mediaType->pbFormat;
-                    double width = static_cast<double>(videoHeader->bmiHeader.biWidth);
-                    double height = static_cast<double>(videoHeader->bmiHeader.biHeight);
-                    double distance = std::abs((width - desiredWidth) + std::abs(height - desiredHeight));
-                    if (distance < closestDistance)
-                    {
-                        closestDistance = distance;
-                        bestMatchedTypes = { mediaType };
-                    }
-                    else if (std::abs(distance - closestDistance) < 1e-5)
-                    {
-                        bestMatchedTypes.emplace_back(mediaType);
-                    }
-                }
-            }
-
-            if (!bestMatchedTypes.empty())
-            { /// 分辨率已经找到最为接近的了, 接下来尝试选择一个合适的format.
-
-                auto preferredPixelFormat = m_frameProp.pixelFormat;
-                AM_MEDIA_TYPE* mediaType = nullptr;
-
-                /// 当格式为 YUV 的时候, 只能找到一个合适的格式
-                auto rightFormat = std::find_if(bestMatchedTypes.begin(), bestMatchedTypes.end(), [&](AM_MEDIA_TYPE* mediaType) {
-                    auto pixFormatInfo = findPixelFormatInfo(mediaType->subtype);
-                    return pixFormatInfo.pixelFormat == preferredPixelFormat || (!(preferredPixelFormat & kPixelFormatYUVColorBit) && pixFormatInfo.subtype == MEDIASUBTYPE_MJPG);
-                });
-
-                if (rightFormat != bestMatchedTypes.end())
-                {
-                    mediaType = *rightFormat;
-                }
-
-                if (mediaType == nullptr)
-                {
-                    mediaType = bestMatchedTypes[0];
-                }
-
-                // auto* mediaType = bestMatchType;
-                if (mediaType->formattype == FORMAT_VideoInfo && mediaType->pbFormat)
-                {
-                    VIDEOINFOHEADER* videoHeader = (VIDEOINFOHEADER*)mediaType->pbFormat;
-                    auto setFormatResult = streamConfig->SetFormat(mediaType);
-
-                    if (SUCCEEDED(setFormatResult))
-                    {
-                        m_frameProp.width = videoHeader->bmiHeader.biWidth;
-                        m_frameProp.height = videoHeader->bmiHeader.biHeight;
-                        m_frameProp.fps = 10000000.0 / videoHeader->AvgTimePerFrame;
-                        auto pixFormatInfo = findPixelFormatInfo(mediaType->subtype);
-                        m_frameProp.pixelFormat = pixFormatInfo.pixelFormat;
-
-                        if (ccap::infoLogEnabled())
-                        {
-                            printMediaType(mediaType, "ccap: SetFormat succeeded: ");
-                        }
-                    }
-                    else
-                    {
-                        if (ccap::errorLogEnabled())
-                        {
-                            fprintf(stderr, "ccap: SetFormat failed, result=0x%lx\n", setFormatResult);
-                        }
-                    }
-                }
-            }
-
-            for (auto* mediaType : mediaTypes)
-            {
-                if (mediaType != nullptr)
-                {
-                    deleteMediaType(mediaType);
-                }
-            }
-
-            streamConfig->Release();
-        }
     }
 
     hr = m_captureBuilder->RenderStream(&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, m_deviceFilter, m_sampleGrabberFilter, nullptr);
@@ -816,6 +803,8 @@ bool ProviderDirectShow::open(std::string_view deviceName)
 
 HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMediaSample* mediaSample)
 {
+    std::lock_guard<std::mutex> lock(m_callbackMutex);
+
     auto newFrame = getFreeFrame();
     if (!newFrame)
     {
@@ -863,7 +852,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
         }
     }
 
-    long bufferLen = mediaSample->GetActualDataLength();
+    uint32_t bufferLen = mediaSample->GetActualDataLength();
 
     // Convert to nanoseconds
     newFrame->timestamp = static_cast<uint64_t>(sampleTime * 1e9);
@@ -966,10 +955,6 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::BufferCB(double SampleTime, BYTE* 
     return S_OK;
 }
 
-void ProviderDirectShow::fetchNewFrame()
-{ /// 参考 SampleCB， 尝试主动获取一帧数据
-}
-
 HRESULT STDMETHODCALLTYPE ProviderDirectShow::QueryInterface(REFIID riid, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject)
 {
     static constexpr const IID IID_ISampleGrabberCB = { 0x0579154A, 0x2B53, 0x4994, { 0xB0, 0xD0, 0xE7, 0x73, 0x14, 0x8E, 0xFF, 0x85 } };
@@ -1017,11 +1002,11 @@ std::optional<DeviceInfo> ProviderDirectShow::getDeviceInfo() const
             info.emplace();
             info->deviceName = m_deviceName;
         }
-        auto pixFormat = findPixelFormatInfo(mediaType->subtype);
+
         auto& pixFormats = info->supportedPixelFormats;
         if (pixelFormat != PixelFormat::Unknown)
         {
-            pixFormats.emplace_back(pixFormat.pixelFormat);
+            pixFormats.emplace_back(pixelFormat);
         }
         else if (mediaType->subtype == MEDIASUBTYPE_MJPG)
         { /// 支持 MJPEG 格式, 可以解码为 BGR24 等格式
@@ -1070,9 +1055,15 @@ void ProviderDirectShow::close()
         stop();
     }
 
+    if (m_sampleGrabber != nullptr)
+    {
+        std::lock_guard<std::mutex> lock(m_callbackMutex);
+        m_sampleGrabber->SetCallback(nullptr, 0); // 0 = SampleCB
+        m_sampleGrabber->SetBufferSamples(FALSE);
+    }
+
     if (m_mediaControl)
     {
-        m_mediaControl->Stop();
         m_mediaControl->Release();
         m_mediaControl = nullptr;
     }
