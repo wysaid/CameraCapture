@@ -26,7 +26,7 @@ int main()
         auto frame = cameraProvider.grab(true);
         if (frame)
         {
-            printf("Frame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes);
+            printf("Frame %lld grabbed: width = %d, height = %d, bytes: %d, format: %s\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes, ccap::pixelFormatToString(frame->pixelFormat).data());
         }
         else
         {

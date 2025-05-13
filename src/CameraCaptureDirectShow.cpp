@@ -74,7 +74,7 @@ typedef struct _DXVA_ExtendedFormat
 
 #define DXVA_NominalRange_Unknown 0
 #define DXVA_NominalRange_Normal 1 // 16-235
-#define DXVA_NominalRange_Wide 2   // 0-255
+#define DXVA_NominalRange_Wide 2 // 0-255
 #define DXVA_NominalRange_0_255 2
 #define DXVA_NominalRange_16_235 1
 #endif
@@ -223,7 +223,6 @@ void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
 
 namespace ccap
 {
-
 ProviderDirectShow::ProviderDirectShow() = default;
 
 ProviderDirectShow::~ProviderDirectShow()
@@ -482,7 +481,7 @@ bool ProviderDirectShow::createStream()
         AM_MEDIA_TYPE mt;
         ZeroMemory(&mt, sizeof(mt));
         mt.majortype = MEDIATYPE_Video;
-        mt.subtype = GUID_NULL; // MEDIASUBTYPE_NV12;
+        mt.subtype = GUID_NULL;
         mt.formattype = GUID_NULL;
         hr = m_sampleGrabber->SetMediaType(&mt);
         if (FAILED(hr))
@@ -524,10 +523,10 @@ bool ProviderDirectShow::createStream()
             const int desiredWidth = m_frameProp.width;
             const int desiredHeight = m_frameProp.height;
             double closestDistance = 1.e9;
-            AM_MEDIA_TYPE* bestMatchType = nullptr;
             std::vector<AM_MEDIA_TYPE*> mediaTypes(capabilityCount);
             std::vector<AM_MEDIA_TYPE*> videoTypes;
             std::vector<AM_MEDIA_TYPE*> matchedTypes;
+            std::vector<AM_MEDIA_TYPE*> bestMatchedTypes;
             videoTypes.reserve(capabilityCount);
             matchedTypes.reserve(capabilityCount);
 
@@ -559,6 +558,16 @@ bool ProviderDirectShow::createStream()
 
                         videoTypes.emplace_back(mediaType);
                     }
+                    else
+                    {
+                        if (mediaType->formattype == FORMAT_VideoInfo)
+                        {
+                            if (errorLogEnabled())
+                            {
+                                fprintf(stderr, "ccap: Find video media type, but no format block found.\n");
+                            }
+                        }
+                    }
                 }
             }
 
@@ -579,17 +588,41 @@ bool ProviderDirectShow::createStream()
                     double width = static_cast<double>(videoHeader->bmiHeader.biWidth);
                     double height = static_cast<double>(videoHeader->bmiHeader.biHeight);
                     double distance = std::abs((width - desiredWidth) + std::abs(height - desiredHeight));
-                    if (distance < closestDistance && mediaType->subtype == MEDIASUBTYPE_I420)
+                    if (distance < closestDistance)
                     {
                         closestDistance = distance;
-                        bestMatchType = mediaType;
+                        bestMatchedTypes = { mediaType };
+                    }
+                    else if (std::abs(distance - closestDistance) < 1e-5)
+                    {
+                        bestMatchedTypes.emplace_back(mediaType);
                     }
                 }
             }
 
-            if (bestMatchType != nullptr)
-            {
-                auto* mediaType = bestMatchType;
+            if (!bestMatchedTypes.empty())
+            { /// 分辨率已经找到最为接近的了, 接下来尝试选择一个合适的format.
+
+                auto preferredPixelFormat = m_frameProp.pixelFormat;
+                AM_MEDIA_TYPE* mediaType = nullptr;
+
+                /// 当格式为 YUV 的时候, 只能找到一个合适的格式
+                auto rightFormat = std::find_if(bestMatchedTypes.begin(), bestMatchedTypes.end(), [&](AM_MEDIA_TYPE* mediaType) {
+                    auto pixFormatInfo = findPixelFormatInfo(mediaType->subtype);
+                    return pixFormatInfo.pixelFormat == preferredPixelFormat || (!(preferredPixelFormat & kPixelFormatYUVColorBit) && pixFormatInfo.subtype == MEDIASUBTYPE_MJPG);
+                });
+
+                if (rightFormat != bestMatchedTypes.end())
+                {
+                    mediaType = *rightFormat;
+                }
+
+                if (mediaType == nullptr)
+                {
+                    mediaType = bestMatchedTypes[0];
+                }
+
+                // auto* mediaType = bestMatchType;
                 if (mediaType->formattype == FORMAT_VideoInfo && mediaType->pbFormat)
                 {
                     VIDEOINFOHEADER* videoHeader = (VIDEOINFOHEADER*)mediaType->pbFormat;
@@ -816,7 +849,10 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
             m_frameProp.height = vih->bmiHeader.biHeight;
             m_frameProp.fps = 10000000.0 / vih->AvgTimePerFrame;
             auto info = findPixelFormatInfo(mt.subtype);
-            m_frameProp.pixelFormat = info.pixelFormat;
+            if (info.pixelFormat != PixelFormat::Unknown)
+            {
+                m_frameProp.pixelFormat = info.pixelFormat;
+            }
 
             if (verboseLogEnabled())
             {
