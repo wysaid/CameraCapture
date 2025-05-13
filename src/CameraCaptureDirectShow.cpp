@@ -352,6 +352,40 @@ std::vector<std::string> ProviderDirectShow::findDeviceNames()
         deviceNames.emplace_back(name.data(), name.size());
         return false; // continue enumerating
     });
+
+    { /// Place virtual camera names at the end
+        std::string_view keywords[] = {
+            "obs",
+            "virtual",
+            "fake",
+        };
+        std::stable_sort(deviceNames.begin(), deviceNames.end(), [&](const std::string& name1, const std::string& name2) {
+            std::string copyName1(name1.size(), '\0');
+            std::string copyName2(name2.size(), '\0');
+            std::transform(name1.begin(), name1.end(), copyName1.begin(), ::tolower);
+            std::transform(name2.begin(), name2.end(), copyName2.begin(), ::tolower);
+            int index1 = std::find_if(std::begin(keywords), std::end(keywords),
+                                      [&](std::string_view keyword) {
+                                          return copyName1.find(keyword) != std::string::npos;
+                                      }) -
+                std::begin(keywords);
+            if (index1 == std::size(keywords))
+            {
+                index1 = -1;
+            }
+
+            int index2 = std::find_if(std::begin(keywords), std::end(keywords), [&](std::string_view keyword) {
+                             return copyName2.find(keyword) != std::string::npos;
+                         }) -
+                std::begin(keywords);
+            if (index2 == std::size(keywords))
+            {
+                index2 = -1;
+            }
+            return index1 < index2;
+        });
+    }
+
     return deviceNames;
 }
 
@@ -598,16 +632,32 @@ bool ProviderDirectShow::open(std::string_view deviceName)
     enumerateDevices([&](IMoniker* moniker, std::string_view name) {
         if (deviceName.empty() || deviceName == name)
         {
-            m_deviceName = name;
             auto hr = moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&m_deviceFilter);
             if (SUCCEEDED(hr))
             {
+                m_deviceName = name;
                 if (ccap::verboseLogEnabled())
                 {
                     std::cout << "ccap: Using video capture device: " << name << std::endl;
                 }
                 found = true;
                 return true; // stop enumeration when returning true
+            }
+            else
+            {
+                if (ccap::errorLogEnabled())
+                {
+                    if (!deviceName.empty())
+                    {
+                        fprintf(stderr, "ccap: \"%s\" is not a valid video capture device, bind failed, result=%x\n", deviceName.data(), hr);
+                        return true; // stop enumeration when returning true
+                    }
+                }
+
+                if (infoLogEnabled())
+                {
+                    fprintf(stderr, "ccap: bind \"%s\" failed(result=%x), try next device...\n", name.data(), hr);
+                }
             }
         }
         // continue enumerating when returning false
@@ -618,9 +668,14 @@ bool ProviderDirectShow::open(std::string_view deviceName)
     {
         if (ccap::errorLogEnabled())
         {
-            std::cerr << "ccap: No matching video capture device found." << std::endl;
+            fprintf(stderr, "ccap: No video capture device %s\n", deviceName.empty() ? "" : deviceName.data());
         }
         return false;
+    }
+
+    if (infoLogEnabled())
+    {
+        fprintf(stderr, "ccap: Found video capture device %s\n", m_deviceName.c_str());
     }
 
     if (!buildGraph())
@@ -838,8 +893,6 @@ std::optional<DeviceInfo> ProviderDirectShow::getDeviceInfo() const
 
         if (hasMJPG)
         {
-            pixFormats.emplace_back(PixelFormat::NV12);
-            pixFormats.emplace_back(PixelFormat::I420);
             pixFormats.emplace_back(PixelFormat::BGR24);
             pixFormats.emplace_back(PixelFormat::BGRA32);
             pixFormats.emplace_back(PixelFormat::RGB24);
