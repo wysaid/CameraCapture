@@ -486,7 +486,7 @@ bool ProviderDirectShow::buildGraph()
     return true;
 }
 
-bool ProviderDirectShow::setGrabberSubtype(GUID subtype)
+bool ProviderDirectShow::setGrabberOutputSubtype(GUID subtype)
 {
     if (m_sampleGrabber)
     {
@@ -625,7 +625,7 @@ bool ProviderDirectShow::createStream()
                 m_frameProp.pixelFormat = pixFormatInfo.pixelFormat;
             }
 
-            setGrabberSubtype(subtype);
+            setGrabberOutputSubtype(subtype);
             auto setFormatResult = streamConfig->SetFormat(mediaType);
 
             if (SUCCEEDED(setFormatResult))

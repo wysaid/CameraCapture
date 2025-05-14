@@ -99,12 +99,17 @@ private:
     ULONG STDMETHODCALLTYPE AddRef(void) override;
     ULONG STDMETHODCALLTYPE Release(void) override;
 
+    // 初始化 com, 在所有操作之前调用
     bool setup();
-    void enumerateDevices(std::function<bool(IMoniker* moniker, std::string_view)> callback);
-    bool buildGraph();
 
+    // 随时可用, 自动调用 setup.
+    void enumerateDevices(std::function<bool(IMoniker* moniker, std::string_view)> callback);
+
+    // open 阶段分别执行 buildGraph、createStream 和 setGrabberOutputSubtype
+    // 其中任意一个失败了, 都会 open 失败.
+    bool buildGraph();
     bool createStream();
-    bool setGrabberSubtype(GUID subtype);
+    bool setGrabberOutputSubtype(GUID subtype);
 
     struct MediaInfo
     {
