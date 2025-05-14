@@ -23,7 +23,7 @@ int main()
 
     for (int i = 0; i < 10; ++i)
     {
-        auto frame = cameraProvider.grab(true);
+        auto frame = cameraProvider.grab(3000);
         if (frame)
         {
             printf("Frame %lld grabbed: width = %d, height = %d, bytes: %d, format: %s\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes, ccap::pixelFormatToString(frame->pixelFormat).data());

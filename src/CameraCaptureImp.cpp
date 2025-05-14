@@ -102,11 +102,11 @@ void ProviderImp::setFrameAllocator(std::function<std::shared_ptr<Allocator>()> 
     m_framePool.clear();
 }
 
-std::shared_ptr<Frame> ProviderImp::grab(bool waitForNewFrame)
+std::shared_ptr<Frame> ProviderImp::grab(uint32_t timeoutInMs)
 {
     std::unique_lock<std::mutex> lock(m_availableFrameMutex);
 
-    if (m_availableFrames.empty() && waitForNewFrame)
+    if (m_availableFrames.empty() && timeoutInMs > 0)
     {
         if (!isStarted())
         {
@@ -115,15 +115,20 @@ std::shared_ptr<Frame> ProviderImp::grab(bool waitForNewFrame)
         }
 
         m_grabFrameWaiting = true;
-        m_frameCondition.wait(lock, [this]() {
-            auto ret = m_grabFrameWaiting && !m_availableFrames.empty();
-            if (!ret)
-            {
-                CCAP_LOG_V("ccap: Grab called with no frame available, waiting for new frame...\n");
-            }
-            return ret;
-        });
-        m_grabFrameWaiting = false;
+
+        if (!m_frameCondition.wait_for(lock, std::chrono::milliseconds(timeoutInMs), [this]() {
+                auto ret = m_grabFrameWaiting && !m_availableFrames.empty();
+                if (!ret)
+                {
+                    CCAP_LOG_V("ccap: Grab called with no frame available, waiting for new frame...\n");
+                }
+                return ret;
+            }))
+        {
+            m_grabFrameWaiting = false;
+            CCAP_LOG_V("ccap: Grab timed out after %u ms\n", timeoutInMs);
+            return nullptr;
+        }
     }
 
     if (!m_availableFrames.empty())

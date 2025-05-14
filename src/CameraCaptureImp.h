@@ -75,7 +75,7 @@ public:
     double get(PropertyName prop);
     void setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)> callback);
     void setFrameAllocator(std::function<std::shared_ptr<Allocator>()> allocatorFactory);
-    std::shared_ptr<Frame> grab(bool waitForNewFrame);
+    std::shared_ptr<Frame> grab(uint32_t timeoutInMs);
     void setMaxAvailableFrameSize(uint32_t size);
     void setMaxCacheFrameSize(uint32_t size);
 

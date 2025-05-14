@@ -141,9 +141,9 @@ double Provider::get(PropertyName prop)
     return m_imp ? m_imp->get(prop) : NAN;
 }
 
-std::shared_ptr<Frame> Provider::grab(bool waitForNewFrame)
+std::shared_ptr<Frame> Provider::grab(uint32_t timeoutInMs)
 {
-    return m_imp->grab(waitForNewFrame);
+    return m_imp->grab(timeoutInMs);
 }
 
 void Provider::setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)> callback)

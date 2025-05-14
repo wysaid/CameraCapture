@@ -16,6 +16,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 // ccap is short for (C)amera(CAP)ture
@@ -408,16 +409,15 @@ public:
 
     /**
      * @brief Grab a new frame. Can be called from any thread, but avoid concurrent calls.
-     * @param waitForNewFrame If true, wait for a new frame to be available.
-     *       If false, return nullptr immediately when no new frame available.
-     *       If the provider is not opened or paused, errors will be printed to `stderr`.
+     *      This method will block the current thread until a new frame is available.
+     * @param timeout The maximum wait time (milliseconds). 0 means return immediately. The default is 0xffffffff (wait indefinitely).
      * @return a valid `shared_ptr<Frame>` if a new frame is available, nullptr otherwise.
      * @note The returned frame is a shared pointer, and the caller can hold and use it later in any thread.
      *       You don't need to deep copy this `std::shared_ptr<Frame>` object, even if you want to use it in
      *       different threads or at different times. Just save the smart pointer.
      *       The frame will be automatically reused when the last reference is released.
      */
-    std::shared_ptr<Frame> grab(bool waitForNewFrame);
+    std::shared_ptr<Frame> grab(uint32_t timeoutInMs = 0xffffffff);
 
     /**
      * @brief Registers a callback to receive new frames.
@@ -463,6 +463,14 @@ public:
     Provider(Provider&&) = default;
     Provider& operator=(Provider&&) = default;
     ~Provider();
+
+    // // Safety check: Prevent passing bool type to the grab function
+    // template <typename T>
+    // std::shared_ptr<Frame> grab(T t)
+    // {
+    //     static_assert(!std::is_same<std::decay_t<T>, bool>::value, "Do not pass bool to grab(), use uint32_t milliseconds instead.");
+    //     return grab(static_cast<uint32_t>(t));
+    // }
 
 private:
     ProviderImp* m_imp;
