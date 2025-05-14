@@ -38,9 +38,6 @@ enum PixelFormatConstants : uint32_t
     /// `kPixelFormatAlphaColorBit` is used to indicate whether there is an Alpha channel
     kPixelFormatAlphaColorBit = 1 << 20,
     kPixelFormatRGBAColorBit = kPixelFormatRGBColorBit | kPixelFormatAlphaColorBit,
-
-    /// @brief When this flag is included in the format, it indicates that the format is a forcibly set format.
-    kPixelFormatForceToSetBit = 1 << 30,
 };
 
 /**
@@ -112,21 +109,6 @@ enum class PixelFormat : uint32_t
      *  @note This format is always supported on MacOS.
      */
     BGRA32 = BGR24 | kPixelFormatRGBAColorBit,
-
-    /// ↓ Several formats for forced settings. After setting, it will definitely take effect.
-    /// ↓ If the hardware does not support it, additional conversion will be performed.
-
-    /// @brief RGB24 with forced conversion if unsupported.
-    RGB24_Force = RGB24 | kPixelFormatForceToSetBit,
-
-    /// @brief BGR24 with forced conversion if unsupported.
-    BGR24_Force = BGR24 | kPixelFormatForceToSetBit,
-
-    /// @brief RGBA32 with forced conversion if unsupported.
-    RGBA32_Force = RGBA32 | kPixelFormatForceToSetBit,
-
-    /// @brief BGRA32 with forced conversion if unsupported.
-    BGRA32_Force = BGRA32 | kPixelFormatForceToSetBit,
 };
 
 enum class FrameOrientation
@@ -251,10 +233,28 @@ enum class PropertyName
     Height = 0x10002,
 
     /// @brief The frame rate of the camera, aka FPS (frames per second).
-    FrameRate = 0x10003,
+    FrameRate = 0x20000,
 
-    /// @brief The pixel format of the frame.
-    PixelFormat = 0x10004,
+    /**
+     * @brief The pixel format of the frame. This is the format that will be used for the frame.
+     *        If not directly supported, data conversion will be attempted.
+     *        If conversion is not supported, it will still fall back (after fallback).
+     * @note When used for setting, the parameter type is ccap::PixelFormat.
+     */
+    PixelFormat = 0x30000,
+
+    /**
+     * @brief Disable PixelFormat conversion; prefer fallback to other hardware-supported formats.
+     *        When set to a nonzero value, pixel format conversion is not allowed.
+     *        Note: The frame's pixelFormat may differ from the requested pixelFormat.
+     */
+    DisablePixelFormatConvert = 0x30001,
+
+    /**
+     * @brief The frame orientation. Will correct the orientation in RGB* PixelFormat, which may incur additional performance overhead.
+     * @attention When the output pixel format is YUV, this property has no effect.
+     */
+    FrameOrientation = 0x40000,
 };
 
 enum

@@ -119,6 +119,8 @@ protected:
 
     bool m_propertyChanged{ false };
     bool m_grabFrameWaiting{ false };
+    bool m_tryConvertPixelFormat{ true };
+    FrameOrientation m_frameOrientation = FrameOrientation::Default;
 
     std::atomic_uint32_t m_frameIndex{};
 };

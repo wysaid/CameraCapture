@@ -76,6 +76,8 @@ static void optimizeLogIfNotSet()
 
 namespace
 {
+constexpr FrameOrientation kDefaultFrameOrientation = FrameOrientation::TopToBottom;
+
 struct PixelFormatInfo
 {
     NSString* name{ nil };
@@ -220,7 +222,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName()
     }];
 }
 
-void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
+void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip)
 {
     auto* inputBytes = frame->data[0];
     auto inputLineSize = frame->stride[0];
@@ -287,6 +289,11 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
                 vImageConvert_RGB888toRGBA8888(&src, nullptr, 0xff, &dst, false, kvImageNoFlags);
             }
         }
+    }
+
+    if (verticalFlip)
+    {
+        // vImageVerticalReflect(&dst, &dst, kvImageNoFlags);
     }
 } // namespace
 
@@ -430,7 +437,6 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
         _cameraPixelFormat = requiredPixelFormat;
 
         static_assert(sizeof(_cameraPixelFormat) == sizeof(uint32_t), "size must match");
-        (uint32_t&)_cameraPixelFormat &= ~(uint32_t)kPixelFormatForceToSetBit; // remove the force set bit
 
         if (_cameraPixelFormat == PixelFormat::Unknown)
         { /// Default to BGRA32 if not set
@@ -520,7 +526,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
 
             if (_cameraPixelFormat != _convertPixelFormat)
             {
-                if (!((requiredPixelFormat & kPixelFormatForceToSetBit) && (_cameraPixelFormat & kPixelFormatRGBColorBit)))
+                if (!(_provider->tryConvertPixelFormat() && (_cameraPixelFormat & kPixelFormatRGBColorBit)))
                 { /// Currently only RGB format conversion is supported.
 
                     CCAP_NSLOG_E(@"ccap: CameraCaptureObjc init - convert pixel format not supported!!!");
@@ -780,10 +786,10 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
     newFrame->width = width;
     newFrame->height = height;
     newFrame->pixelFormat = _cameraPixelFormat;
-    newFrame->orientation = FrameOrientation::TopToBottom;
 
     if (_cameraPixelFormat & kPixelFormatYUVColorBit)
     {
+        newFrame->orientation = kDefaultFrameOrientation;
         auto yBytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 0);
         auto uvBytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 1);
         size_t yBytes = CVPixelBufferGetHeightOfPlane(imageBuffer, 0) * yBytesPerRow;
@@ -812,6 +818,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
     }
     else
     {
+        newFrame->orientation = _provider->frameOrientation();
         bytes = CVPixelBufferGetDataSize(imageBuffer);
         newFrame->sizeInBytes = bytes;
 
@@ -822,7 +829,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
         newFrame->stride[1] = 0;
         newFrame->stride[2] = 0;
 
-        if (_cameraPixelFormat == _convertPixelFormat)
+        if (_cameraPixelFormat == _convertPixelFormat && newFrame->orientation == kDefaultFrameOrientation)
         {
             CFRetain(imageBuffer);
             auto manager = std::make_shared<FakeFrame>([imageBuffer, newFrame]() mutable {
@@ -838,7 +845,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
         }
         else
         {
-            CCAP_NSLOG_V(@"ccap: captureOutput - perform convert, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
+            CCAP_NSLOG_V(@"ccap: captureOutput - perform convert, width: %d, height: %d, flip: %d", (int)newFrame->width, (int)newFrame->height, (int)(newFrame->orientation != kDefaultFrameOrientation));
 
             if (!newFrame->allocator)
             {
@@ -846,7 +853,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
                 newFrame->allocator = f ? f() : std::make_shared<DefaultAllocator>();
             }
 
-            inplaceConvertFrame(newFrame.get(), _convertPixelFormat);
+            inplaceConvertFrame(newFrame.get(), _convertPixelFormat, (int)(newFrame->orientation != kDefaultFrameOrientation));
         }
     }
 
@@ -896,6 +903,7 @@ namespace ccap
 ProviderMac::ProviderMac()
 {
     optimizeLogIfNotSet();
+    m_frameOrientation = kDefaultFrameOrientation;
 }
 
 ProviderMac::~ProviderMac()

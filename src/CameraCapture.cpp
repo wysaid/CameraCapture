@@ -321,8 +321,6 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
 
 std::string_view pixelFormatToString(PixelFormat format)
 {
-    (uint32_t&)format &= ~kPixelFormatForceToSetBit; // Remove the force set bit
-
     switch (format)
     {
     case PixelFormat::NV12:
