@@ -147,7 +147,7 @@ void ProviderImp::newFrameAvailable(std::shared_ptr<Frame> frame)
 {
     bool retainNewFrame = true;
     if (auto c = m_callback; c && *c)
-    { // 防止调用回调过程中回调被删除, callback 引用计数加 1
+    { // Prevent callback from being deleted during invocation, increase callback ref count
         retainNewFrame = (*c)(std::move(frame));
     }
 
@@ -164,7 +164,7 @@ void ProviderImp::newFrameAvailable(std::shared_ptr<Frame> frame)
 
     if (m_grabFrameWaiting && !m_availableFrames.empty())
     {
-        // 通知等待线程
+        // Notify waiting threads
         m_frameCondition.notify_all();
     }
 }

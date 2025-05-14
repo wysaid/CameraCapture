@@ -33,7 +33,7 @@ public:
     bool isStarted() const override;
 
 private:
-    // 状态变量
+    // Status variables
     bool m_didSetup{ false };
     bool m_isOpened{ false };
     bool m_isRunning{ false };

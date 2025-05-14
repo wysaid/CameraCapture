@@ -227,7 +227,7 @@ struct Frame
      *        If zero-copy is not achievable, this allocator will be used to allocate memory.
      *        When the allocator is not in use, this field will be set to nullptr.
      *        Users can customize this allocator through the `ccap::Provider::setFrameAllocator` method.
-     * @attention 正常情况下, 使用者不需要关心这个字段.
+     * @attention Normally, users do not need to care about this field.
      */
     std::shared_ptr<Allocator> allocator;
 };
@@ -274,7 +274,7 @@ struct DeviceInfo
     std::string deviceName;
 
     /**
-     * @brief 由硬件支持的像素格式, 被硬件支持, 被硬件支持的格式, 可以避免数据转换, 选择这里面的格式可以获得更好的性能.
+     * @brief Pixel formats supported by hardware. Choosing formats from this list avoids data conversion and provides better performance.
      */
     std::vector<PixelFormat> supportedPixelFormats;
 
@@ -285,8 +285,7 @@ struct DeviceInfo
     };
 
     /**
-     * @brief 由硬件支持的分辨率, 这个分辨率是相机硬件直接支持的分辨率, 可以避免分辨率转换, 选择这里面的分辨率可以获得更好的性能.
-     *
+     * @brief Resolutions supported by hardware. Choosing resolutions from this list avoids resolution conversion and provides better performance.
      */
     std::vector<Resolution> supportedResolutions;
 };
@@ -352,8 +351,8 @@ public:
     bool isOpened() const;
 
     /**
-     * @brief 获取设备信息, 包含当前设备名, 支持的分辨率， 支持的像素格式等信息.
-     * @return DeviceInfo 设备信息. 需要在 `open` 成功之后调用. 如果没有成功打开设备, 返回 std::nullopt.
+     * @brief Get device info, including current device name, supported resolutions, supported pixel formats, etc.
+     * @return DeviceInfo. Should be called after `open` succeeds. If the device is not opened, returns std::nullopt.
      */
     std::optional<DeviceInfo> getDeviceInfo() const;
 
@@ -479,6 +478,7 @@ private:
  * @param fileNameWithNoSuffix The name of the file to save the frame data.
  *        The suffix will be automatically added based on the pixel format.
  * @return The full path of the saved file if successful, or an empty string if the operation failed.
+ * @note Note: This method uses a simple way to save data for debugging purposes. Not performance optimized. Do not use in performance-sensitive code.
  */
 std::string dumpFrameToFile(Frame* frame, std::string_view fileNameWithNoSuffix);
 
@@ -490,6 +490,7 @@ std::string dumpFrameToFile(Frame* frame, std::string_view fileNameWithNoSuffix)
  * @param directory The directory to save the frame data.
  *        The file name will be automatically generated based on the current time and frame index.
  * @return The full path of the saved file if successful, or an empty string if the operation failed.
+ * @note Note: This method uses a simple way to save data for debugging purposes. Not performance optimized. Do not use in performance-sensitive code.
  */
 std::string dumpFrameToDirectory(Frame* frame, std::string_view directory);
 

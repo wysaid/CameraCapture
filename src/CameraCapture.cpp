@@ -198,7 +198,7 @@ std::string dumpFrameToFile(Frame* frame, std::string_view fileNameWithNoSuffix)
 
 std::string dumpFrameToDirectory(Frame* frame, std::string_view directory)
 {
-    /// 创建一个基于当前时间的文件名
+    // Create a filename based on current time
     auto now = std::chrono::system_clock::now();
     auto nowTime = std::chrono::system_clock::to_time_t(now);
     std::tm nowTm = *std::localtime(&nowTime);
@@ -253,7 +253,7 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
         }
         else
         {
-            // 交换R和B通道，写入BGRA
+            // Swap R and B channels, write as BGRA
             std::vector<unsigned char> line(lineSize);
             for (uint32_t i = 0; i < h; ++i)
             {
@@ -305,7 +305,7 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
             for (uint32_t i = 0; i < h; ++i)
             {
                 auto* d = line.data();
-                // RGB转BGR
+                // RGB to BGR
                 for (uint32_t x = 0; x < w; ++x)
                 {
                     const int index = x * 3;

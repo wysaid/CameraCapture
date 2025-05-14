@@ -99,14 +99,14 @@ private:
     ULONG STDMETHODCALLTYPE AddRef(void) override;
     ULONG STDMETHODCALLTYPE Release(void) override;
 
-    // 初始化 com, 在所有操作之前调用
+    // Initialize com, call this before all operations
     bool setup();
 
-    // 随时可用, 自动调用 setup.
+    // Available at anytime, automatically calls setup.
     void enumerateDevices(std::function<bool(IMoniker* moniker, std::string_view)> callback);
 
-    // open 阶段分别执行 buildGraph、createStream 和 setGrabberOutputSubtype
-    // 其中任意一个失败了, 都会 open 失败.
+    // During open phase, buildGraph, createStream and setGrabberOutputSubtype are executed in sequence.
+    // If any of these fails, the open operation will fail.
     bool buildGraph();
     bool createStream();
     bool setGrabberOutputSubtype(GUID subtype);

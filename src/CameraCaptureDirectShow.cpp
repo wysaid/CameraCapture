@@ -22,7 +22,7 @@
 #include <deque>
 #endif
 
-// 需要链接以下库
+// The following libraries need to be linked
 #pragma comment(lib, "strmiids.lib")
 
 /// @see <https://doxygen.reactos.org/d9/dce/structtagVIDEOINFOHEADER2.html>
@@ -125,8 +125,8 @@ constexpr const char* unavailableMsg = "ccap unavailable by now";
 
 PixelFormtInfo s_pixelInfoList[] = {
     { MEDIASUBTYPE_MJPG, "MJPG (need decode)", PixelFormat::Unknown },
-    { MEDIASUBTYPE_RGB24, "BGR24", PixelFormat::BGR24 },   /// 这里的 RGB24 实际上是 BGR 顺序
-    { MEDIASUBTYPE_RGB32, "BGRA32", PixelFormat::BGRA32 }, /// 同上
+    { MEDIASUBTYPE_RGB24, "BGR24", PixelFormat::BGR24 },   // RGB24 here is actually BGR order
+    { MEDIASUBTYPE_RGB32, "BGRA32", PixelFormat::BGRA32 }, // Same as above
     { MEDIASUBTYPE_NV12, "NV12", PixelFormat::NV12 },
     { MEDIASUBTYPE_I420, "I420", PixelFormat::I420 },
     { MEDIASUBTYPE_IYUV, "IYUV (I420)", PixelFormat::I420 },
@@ -394,7 +394,7 @@ std::vector<std::string> ProviderDirectShow::findDeviceNames()
     }
 
     enumerateDevices([&](IMoniker* moniker, std::string_view name) {
-        // 尝试绑定设备，判断是否可用
+        // Try to bind device, check if available
         IBaseFilter* filter = nullptr;
         HRESULT hr = moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&filter);
         if (SUCCEEDED(hr) && filter)
@@ -406,11 +406,11 @@ std::vector<std::string> ProviderDirectShow::findDeviceNames()
         {
             fprintf(stderr, "ccap: \"%s\" is not a valid video capture device, removed\n", name.data());
         }
-        // 不可用设备不加入列表
-        return false; // 继续枚举
+        // Unavailable devices are not added to the list
+        return false; // Continue enumeration
     });
 
-    { /// Place virtual camera names at the end
+    { // Place virtual camera names at the end
         std::string_view keywords[] = {
             "obs",
             "virtual",
@@ -587,12 +587,12 @@ bool ProviderDirectShow::createStream()
         }
 
         if (!bestMatchedTypes.empty())
-        { /// 分辨率已经找到最为接近的了, 接下来尝试选择一个合适的format.
+        { // Resolution is closest, now try to select a suitable format.
 
             auto preferredPixelFormat = m_frameProp.pixelFormat;
             AM_MEDIA_TYPE* mediaType = nullptr;
 
-            /// 当格式为 YUV 的时候, 只能找到一个合适的格式
+            // When format is YUV, only one suitable format can be found
             auto rightFormat = std::find_if(bestMatchedTypes.begin(), bestMatchedTypes.end(), [&](AM_MEDIA_TYPE* mediaType) {
                 auto pixFormatInfo = findPixelFormatInfo(mediaType->subtype);
                 return pixFormatInfo.pixelFormat == preferredPixelFormat || (!(preferredPixelFormat & kPixelFormatYUVColorBit) && pixFormatInfo.subtype == MEDIASUBTYPE_MJPG);
@@ -702,8 +702,7 @@ bool ProviderDirectShow::createStream()
             pMediaFilter->Release();
         }
     }
-
-    // 获取当前媒体类型验证
+    // Get and verify the current media type
     {
         AM_MEDIA_TYPE mt;
         hr = m_sampleGrabber->GetConnectedMediaType(&mt);
@@ -711,7 +710,7 @@ bool ProviderDirectShow::createStream()
         {
             if (verboseLogEnabled())
             {
-                // 输出媒体类型信息
+                // Output media type information
                 auto info = findPixelFormatInfo(mt.subtype);
                 fprintf(stderr, "ccap: Connected media type: %s\n", info.name);
             }
@@ -893,12 +892,12 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
                 printMediaType(&mt, "ccap: First frame media type: ");
             }
 
-            freeMediaType(mt); // 用完记得释放
+            freeMediaType(mt); // Remember to free after use
         }
     }
 
     if (fixTimestamp)
-    { /// sampleTime 是错误的, 此时自己实现一下. 在使用虚拟相机时经常遇到.
+    { // sampleTime is wrong, implement it yourself. This often happens when using virtual cameras.
         newFrame->timestamp = (std::chrono::steady_clock::now() - m_startTime).count();
     }
     else
@@ -962,7 +961,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     newFrame = fakeFrame;
 
     if (ccap::verboseLogEnabled())
-    { /// 通常不会多线程调用相机接口, 而且 verbose 日志只是用于调试, 所以这里不加锁.
+    { // Usually camera interfaces are not called from multiple threads, and verbose log is for debugging, so no lock here.
         static uint64_t s_lastFrameTime;
         static std::deque<uint64_t> s_durations;
 
@@ -974,7 +973,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
 
         s_lastFrameTime = newFrame->timestamp;
 
-        /// use a window of 30 frames to calculate the fps
+        // use a window of 30 frames to calculate the fps
         if (s_durations.size() > 30)
         {
             s_durations.pop_front();
@@ -1060,7 +1059,7 @@ std::optional<DeviceInfo> ProviderDirectShow::getDeviceInfo() const
             pixFormats.emplace_back(pixelFormat);
         }
         else if (mediaType->subtype == MEDIASUBTYPE_MJPG)
-        { /// 支持 MJPEG 格式, 可以解码为 BGR24 等格式
+        { // Supports MJPEG format, can be decoded to BGR24 and other formats
             hasMJPG = true;
         }
         info->supportedResolutions.push_back(resolution);

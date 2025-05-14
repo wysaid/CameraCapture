@@ -50,7 +50,7 @@ static void optimizeLogIfNotSet()
         sysctl(mib, 4, &info, &size, NULL, 0);
 
         if ((info.kp_proc.p_flag & P_TRACED) != 0)
-        { /// 处于调试状态, 如果没有设置过 logLevel, 那么切换至 verbose, 方便查看问题.
+        { /// In debug mode, if logLevel has not been set, switch to verbose for easier troubleshooting.
             setLogLevel(LogLevel::Verbose);
             fputs("ccap: Debug mode detected, set log level to verbose.\n", stderr);
         }
@@ -72,7 +72,7 @@ struct PixelFormatInfo
 #define MakeFormatInfo(format) format, #format
 
 PixelFormatInfo getPixelFormatInfo(OSType format)
-{ /// macOS 下, 实际可用的 pixelFormat 比较有限, 这里仅列举可能出现的.
+{ /// On macOS, available pixelFormats are limited, only listing the possible ones here.
     constexpr const char* unavailableMsg = "ccap unavailable for now";
     switch (format)
     {
@@ -138,7 +138,6 @@ std::vector<ResolutionInfo> allSupportedResolutions(AVCaptureSession* session)
 
 NSArray<AVCaptureDevice*>* findAllDeviceName()
 {
-    // 按类型顺序排序
     NSMutableArray* allTypes = [NSMutableArray new];
     [allTypes addObject:AVCaptureDeviceTypeBuiltInWideAngleCamera];
     if (@available(macOS 14.0, *))
@@ -225,20 +224,20 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
     vImage_Buffer dst = { frame->data[0], frame->height, frame->width, newLineSize };
     auto inputChannelCount = (inputFormat & kPixelFormatAlphaColorBit) ? 4 : 3;
 
-    bool isInputRGB = inputFormat & kPixelFormatRGBBit; ///< 不是 RGB 就是 BGR
-    bool isOutputRGB = toFormat & kPixelFormatRGBBit;   ///< 不是 RGB 就是 BGR
-    bool swapRB = isInputRGB != isOutputRGB;            ///< 是否需要交换 R 和 B 通道
+    bool isInputRGB = inputFormat & kPixelFormatRGBBit; ///< Not RGB means BGR
+    bool isOutputRGB = toFormat & kPixelFormatRGBBit;   ///< Not RGB means BGR
+    bool swapRB = isInputRGB != isOutputRGB;            ///< Whether R and B channels need to be swapped
 
-    //// 这里的 input 和 output 的交叉转换要写很多 switch case, 之类简化一下.
+    //// The cross-conversion between input and output would require many switch cases, simplifying here.
 
     if (inputChannelCount == outputChannelCount)
-    { /// 通道数相同的转换, 只能是 RGB <-> BGR, RGBA <-> BGRA, swapRB 肯定为 true.
+    { /// Conversion with the same number of channels, only RGB <-> BGR, RGBA <-> BGRA, swapRB must be true.
         assert(swapRB);
         if (inputChannelCount == 4)
         {
-            // RGBA8888 <-> BGRA8888: 需要通道重排
-            // vImagePermuteChannels_ARGB8888 需要4个索引，来实现任意通道的排列
-            // RGBA8888: [R, G, B, A]，BGRA8888: [B, G, R, A]
+            // RGBA8888 <-> BGRA8888: Channel reordering required
+            // vImagePermuteChannels_ARGB8888 needs 4 indices to implement arbitrary channel arrangement
+            // RGBA8888: [R, G, B, A], BGRA8888: [B, G, R, A]
             uint8_t permuteMap[4] = { 2, 1, 0, 3 };
             vImagePermuteChannels_ARGB8888(&src, &dst, permuteMap, kvImageNoFlags);
         }
@@ -250,27 +249,27 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
         }
     }
     else
-    { // 数据通道不相同, 只能是 4通道 <-> 3通道
+    { // Different number of channels, only 4 channels <-> 3 channels
 
         if (inputChannelCount == 4)
-        { // 4通道 -> 3通道
+        { // 4 channels -> 3 channels
             if (swapRB)
-            { // 可能情况:  RGBA->BGR, BGRA->RGB
+            { // Possible cases: RGBA->BGR, BGRA->RGB
                 vImageConvert_RGBA8888toBGR888(&src, &dst, kvImageNoFlags);
             }
             else
-            { // 可能情况: RGBA->RGB, BGRA->BGR
+            { // Possible cases: RGBA->RGB, BGRA->BGR
                 vImageConvert_RGBA8888toRGB888(&src, &dst, kvImageNoFlags);
             }
         }
         else
-        { /// 3通道 -> 4通道
+        { /// 3 channels -> 4 channels
             if (swapRB)
-            { // 可能情况: BGR->RGBA, RGB->BGRA
+            { // Possible cases: BGR->RGBA, RGB->BGRA
                 vImageConvert_RGB888toBGRA8888(&src, nullptr, 0xff, &dst, false, kvImageNoFlags);
             }
             else
-            { // 可能情况: BGR->BGRA, RGB->RGBA
+            { // Possible cases: BGR->BGRA, RGB->RGBA
                 vImageConvert_RGB888toRGBA8888(&src, nullptr, 0xff, &dst, false, kvImageNoFlags);
             }
         }
@@ -324,18 +323,17 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
         CGSize inputSize = _resolution;
 
         for (auto& info : allInfo)
-        {
-            auto width = info.resolution.width;
-            auto height = info.resolution.height;
+        {        auto width = info.resolution.width;
+        auto height = info.resolution.height;
 
-            /// 这里的 info 是有序的， 从小到大排列, 所以找到第一个符合的即可.
-            if (width >= _resolution.width && height >= _resolution.height)
-            {
-                _resolution.width = width;
-                _resolution.height = height;
-                preset = info.preset;
-                break;
-            }
+        /// The info is sorted from small to large, so find the first match.
+        if (width >= _resolution.width && height >= _resolution.height)
+        {
+            _resolution.width = width;
+            _resolution.height = height;
+            preset = info.preset;
+            break;
+        }
         }
 
         if (![_session canSetSessionPreset:preset])
@@ -526,7 +524,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
             if (_cameraPixelFormat != _convertPixelFormat)
             {
                 if (!((requiredPixelFormat & kPixelFormatForceToSetBit) && (_cameraPixelFormat & kPixelFormatRGBColorBit)))
-                { /// 暂时只支持 RGB 格式的 convert.
+                { /// Currently only RGB format conversion is supported.
                     if (errorLogEnabled())
                     {
                         NSLog(@"ccap: CameraCaptureObjc init - convert pixel format not supported!!!");
@@ -796,7 +794,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
     }
 }
 
-// 处理每一帧的数据
+// Process each frame of data
 - (void)captureOutput:(AVCaptureOutput*)output didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection*)connection
 {
     if (!_provider)
@@ -806,15 +804,15 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
         return;
     }
 
-    // 获取图像缓冲区
+    // Get the image buffer
     CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
 
-    // 锁定图像缓冲区以访问其内容
+    // Lock the image buffer to access its content
     CVPixelBufferLockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
 
     auto newFrame = _provider->getFreeFrame();
 
-    // 获取分辨率
+    // Get resolution
     size_t width = CVPixelBufferGetWidth(imageBuffer);
     size_t height = CVPixelBufferGetHeight(imageBuffer);
     size_t bytes{};
@@ -907,7 +905,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
     newFrame->frameIndex = _provider->frameIndex()++;
 
     if (verboseLogEnabled())
-    { /// 通常不会多线程调用相机接口, 而且 verbose 日志只是用于调试, 所以这里不加锁.
+    { /// Generally, camera interfaces are not called in multiple threads, and verbose logs are only for debugging, so no lock is needed here.
         static uint64_t s_lastFrameTime;
         static std::deque<uint64_t> s_durations;
 
