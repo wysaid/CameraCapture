@@ -30,14 +30,13 @@ enum PixelFormatConstants : uint32_t
 
     /// Color Bit Mask
     kPixelFormatYUVColorBit = 1 << 16,
-    kPixelFormatYUVColorVideoRangeBit = 1 << 17 | kPixelFormatYUVColorBit,
-    kPixelFormatYUVColorFullRangeBit = 1 << 18 | kPixelFormatYUVColorBit,
+    kPixelFormatYUVColorFullRangeBit = 1 << 17 | kPixelFormatYUVColorBit,
 
     /// `kPixelFormatRGBColorBit` is used to indicate whether it is an RGB or RGBA format
-    kPixelFormatRGBColorBit = 1 << 19,
+    kPixelFormatRGBColorBit = 1 << 18,
 
     /// `kPixelFormatAlphaColorBit` is used to indicate whether there is an Alpha channel
-    kPixelFormatAlphaColorBit = 1 << 20,
+    kPixelFormatAlphaColorBit = 1 << 19,
     kPixelFormatRGBAColorBit = kPixelFormatRGBColorBit | kPixelFormatAlphaColorBit,
 };
 
@@ -54,29 +53,24 @@ enum class PixelFormat : uint32_t
     Unknown = 0,
 
     /**
-     * @brief YUV 4:2:0 semi-planar format. Best performance on all platforms. Always supported.
+     * @brief YUV 4:2:0 semi-planar format. Generally provides good performance.
      *    On some devices, it is not possible to clearly determine whether it is FullRange or VideoRange.
      *    In such cases, the Frame can only indicate that it is NV12.
-     *    In software design, you can implement a toggle option to allow users to choose whether the
-     *    received Frame is FullRange or VideoRange based on what they observe.
      *
      */
     NV12 = 1 | kPixelFormatYUVColorBit,
 
-    NV12v = NV12 | kPixelFormatYUVColorVideoRangeBit,
+    /// @brief FullRange YUV 4:2:0 semi-planar format. Generally provides good performance.
     NV12f = NV12 | kPixelFormatYUVColorFullRangeBit,
 
     /**
      * @brief Not commonly used, likely unsupported, may fall back to NV12*
      *    On some devices, it is not possible to clearly determine whether it is FullRange or VideoRange.
      *    In such cases, the Frame can only indicate that it is NV12.
-     *    In software design, you can implement a toggle option to allow users to choose whether
-     *    the received Frame is FullRange or VideoRange based on what they observe.
      * @refitem #NV12
      */
     NV21 = 1 << 1 | kPixelFormatYUVColorBit,
 
-    NV21v = NV21 | kPixelFormatYUVColorVideoRangeBit,
     NV21f = NV21 | kPixelFormatYUVColorFullRangeBit,
 
     /**
@@ -90,7 +84,6 @@ enum class PixelFormat : uint32_t
      */
     I420 = 1 << 2 | kPixelFormatYUVColorBit,
 
-    I420v = I420 | kPixelFormatYUVColorVideoRangeBit,
     I420f = I420 | kPixelFormatYUVColorFullRangeBit,
 
     /// @brief Not commonly used, likely unsupported, may fall back to BGR24 (Windows) or BGRA32 (MacOS)

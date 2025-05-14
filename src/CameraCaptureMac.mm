@@ -95,11 +95,11 @@ PixelFormatInfo getPixelFormatInfo(OSType format)
     case kCVPixelFormatType_420YpCbCr8BiPlanarFullRange:
         return { @"kCVPixelFormatType_420YpCbCr8BiPlanarFullRange", MakeFormatInfo(PixelFormat::NV12f) };
     case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange:
-        return { @"kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange", MakeFormatInfo(PixelFormat::NV12v) };
+        return { @"kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange", MakeFormatInfo(PixelFormat::NV12) };
     case kCVPixelFormatType_420YpCbCr8PlanarFullRange:
         return { @"kCVPixelFormatType_420YpCbCr8PlanarFullRange", MakeFormatInfo(PixelFormat::I420f) };
     case kCVPixelFormatType_420YpCbCr8Planar:
-        return { @"kCVPixelFormatType_420YpCbCr8Planar", MakeFormatInfo(PixelFormat::I420v) };
+        return { @"kCVPixelFormatType_420YpCbCr8Planar", MakeFormatInfo(PixelFormat::I420) };
     case kCVPixelFormatType_422YpCbCr8:
         return { @"kCVPixelFormatType_422YpCbCr8", PixelFormat::Unknown, unavailableMsg };
     case kCVPixelFormatType_422YpCbCr8_yuvs:
@@ -494,7 +494,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
                 {
                     if (!hasFullRange && supportVideoRange)
                     {
-                        _cameraPixelFormat = PixelFormat::NV12v;
+                        _cameraPixelFormat = PixelFormat::NV12;
                         _cvPixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
                     }
                     else
@@ -664,12 +664,12 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
 {
     switch (_cameraPixelFormat)
     {
-    case PixelFormat::NV21v: /// MacOS does not support NV21, fallback to NV12
-    case PixelFormat::I420v:
-        CCAP_NSLOG_E(@"ccap: NV21v/I420v is not supported on macOS, fallback to NV12v");
-    case PixelFormat::NV12v:
+    case PixelFormat::NV21: /// MacOS does not support NV21, fallback to NV12
+    case PixelFormat::I420:
+        CCAP_NSLOG_E(@"ccap: NV21/I420 is not supported on macOS, fallback to NV12");
+    case PixelFormat::NV12:
         _cvPixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
-        _cameraPixelFormat = PixelFormat::NV12v;
+        _cameraPixelFormat = PixelFormat::NV12;
         break;
     case PixelFormat::NV21f: /// MacOS does not support NV21, fallback to NV12
     case PixelFormat::I420f:
