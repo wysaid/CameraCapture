@@ -23,6 +23,20 @@
 
 using namespace ccap;
 
+#if _CCAP_LOG_ENABLED_
+
+#define CCAP_NSLOG(logLevel, ...) CCAP_CALL_LOG(logLevel, NSLog(__VA_ARGS__))
+#define CCAP_NSLOG_E(...) CCAP_NSLOG(LogLevel::Error, __VA_ARGS__)
+#define CCAP_NSLOG_W(...) CCAP_NSLOG(LogLevel::Warning, __VA_ARGS__)
+#define CCAP_NSLOG_I(...) CCAP_NSLOG(LogLevel::Info, __VA_ARGS__)
+#define CCAP_NSLOG_V(...) CCAP_NSLOG(LogLevel::Verbose, __VA_ARGS__)
+#else
+#define CCAP_NSLOG_E(...) ((void)0)
+#define CCAP_NSLOG_W(...) ((void)0)
+#define CCAP_NSLOG_I(...) ((void)0)
+#define CCAP_NSLOG_V(...) ((void)0)
+#endif
+
 #if defined(DEBUG) && _CCAP_LOG_ENABLED_
 #include <sys/sysctl.h>
 #include <sys/types.h>
@@ -323,35 +337,30 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
         CGSize inputSize = _resolution;
 
         for (auto& info : allInfo)
-        {        auto width = info.resolution.width;
-        auto height = info.resolution.height;
-
-        /// The info is sorted from small to large, so find the first match.
-        if (width >= _resolution.width && height >= _resolution.height)
         {
-            _resolution.width = width;
-            _resolution.height = height;
-            preset = info.preset;
-            break;
-        }
+            auto width = info.resolution.width;
+            auto height = info.resolution.height;
+
+            /// The info is sorted from small to large, so find the first match.
+            if (width >= _resolution.width && height >= _resolution.height)
+            {
+                _resolution.width = width;
+                _resolution.height = height;
+                preset = info.preset;
+                break;
+            }
         }
 
         if (![_session canSetSessionPreset:preset])
         {
-            if (errorLogEnabled())
-            {
-                NSLog(@"ccap: CameraCaptureObjc init - session preset not supported, using AVCaptureSessionPresetHigh");
-            }
+            CCAP_NSLOG_E(@"ccap: CameraCaptureObjc init - session preset not supported, using AVCaptureSessionPresetHigh");
             preset = AVCaptureSessionPresetHigh;
         }
 
         [_session setSessionPreset:preset];
 
-        if (infoLogEnabled())
-        {
-            NSLog(@"ccap: Expected camera resolution: (%gx%g), actual matched camera resolution: (%gx%g)",
-                  inputSize.width, inputSize.height, _resolution.width, _resolution.height);
-        }
+        CCAP_NSLOG_I(@"ccap: Expected camera resolution: (%gx%g), actual matched camera resolution: (%gx%g)",
+                     inputSize.width, inputSize.height, _resolution.width, _resolution.height);
     }
 
     if (_cameraName != nil && _cameraName.length > 0)
@@ -374,15 +383,11 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
 
     if (![_device hasMediaType:AVMediaTypeVideo])
     { /// No video device found
-        if (errorLogEnabled())
-            NSLog(@"ccap: No video device found");
+        CCAP_NSLOG_E(@"ccap: No video device found");
         return NO;
     }
 
-    if (infoLogEnabled())
-    {
-        NSLog(@"ccap: The camera to be used: %@", _device);
-    }
+    CCAP_NSLOG_I(@"ccap: The camera to be used: %@", _device);
 
     /// Configure device
 
@@ -391,10 +396,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
     if ([_device isFocusModeSupported:AVCaptureFocusModeContinuousAutoFocus])
     {
         [_device setFocusMode:AVCaptureFocusModeContinuousAutoFocus];
-        if (verboseLogEnabled())
-        {
-            NSLog(@"ccap: Set focus mode to continuous auto focus");
-        }
+        CCAP_NSLOG_V(@"ccap: Set focus mode to continuous auto focus");
     }
     [_device unlockForConfiguration];
 
@@ -405,10 +407,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
         [AVCaptureDeviceInput deviceInputWithDevice:self.device error:&error];
         if (error)
         {
-            if (errorLogEnabled())
-            {
-                NSLog(@"ccap: Open camera failed: %@", error);
-            }
+            CCAP_NSLOG_E(@"ccap: Open camera failed: %@", error);
             return NO;
         }
     }
@@ -417,10 +416,8 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
     if ([_session canAddInput:_videoInput])
     {
         [_session addInput:_videoInput];
-        if (verboseLogEnabled())
-        {
-            NSLog(@"ccap: Add input to session");
-        }
+
+        CCAP_NSLOG_V(@"ccap: Add input to session");
     }
 
     // Create output device
@@ -525,10 +522,8 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
             {
                 if (!((requiredPixelFormat & kPixelFormatForceToSetBit) && (_cameraPixelFormat & kPixelFormatRGBColorBit)))
                 { /// Currently only RGB format conversion is supported.
-                    if (errorLogEnabled())
-                    {
-                        NSLog(@"ccap: CameraCaptureObjc init - convert pixel format not supported!!!");
-                    }
+
+                    CCAP_NSLOG_E(@"ccap: CameraCaptureObjc init - convert pixel format not supported!!!");
                     _convertPixelFormat = _cameraPixelFormat;
                 }
             }
@@ -552,10 +547,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
     if ([_session canAddOutput:_videoOutput])
     {
         [_session addOutput:_videoOutput];
-        if (verboseLogEnabled())
-        {
-            NSLog(@"ccap: Add output to session");
-        }
+        CCAP_NSLOG_V(@"ccap: Add output to session");
     }
 
     [_session commitConfiguration];
@@ -616,10 +608,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
                 }
                 else
                 {
-                    if (errorLogEnabled())
-                    {
-                        NSLog(@"ccap: Desired fps (%g) not supported, skipping", fps);
-                    }
+                    CCAP_NSLOG_E(@"ccap: Desired fps (%g) not supported, skipping", fps);
                 }
             }
         }
@@ -649,20 +638,14 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
     {
     case PixelFormat::NV21v: /// MacOS does not support NV21, fallback to NV12
     case PixelFormat::I420v:
-        if (errorLogEnabled())
-        {
-            NSLog(@"ccap: NV21v/I420v is not supported on macOS, fallback to NV12v");
-        }
+        CCAP_NSLOG_E(@"ccap: NV21v/I420v is not supported on macOS, fallback to NV12v");
     case PixelFormat::NV12v:
         _cvPixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
         _cameraPixelFormat = PixelFormat::NV12v;
         break;
     case PixelFormat::NV21f: /// MacOS does not support NV21, fallback to NV12
     case PixelFormat::I420f:
-        if (errorLogEnabled())
-        {
-            NSLog(@"ccap: NV21f/I420f is not supported on macOS, fallback to NV12f");
-        }
+        CCAP_NSLOG_E(@"ccap: NV21f/I420f is not supported on macOS, fallback to NV12f");
     case PixelFormat::NV12f:
         _cvPixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarFullRange;
         _cameraPixelFormat = PixelFormat::NV12f;
@@ -697,10 +680,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
                 CMVideoDimensions dimensions = CMVideoFormatDescriptionGetDimensions(formatDescription);
                 if (dimensions.width != _resolution.width || dimensions.height != _resolution.height)
                 {
-                    if (infoLogEnabled())
-                    {
-                        NSLog(@"ccap: Actual camera resolution: %dx%d", dimensions.width, dimensions.height);
-                    }
+                    CCAP_NSLOG_I(@"ccap: Actual camera resolution: %dx%d", dimensions.width, dimensions.height);
 
                     _resolution.width = dimensions.width;
                     _resolution.height = dimensions.height;
@@ -716,20 +696,14 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
         }
     }
 
-    if (errorLogEnabled())
-    {
-        NSLog(@"ccap: No connections available");
-    }
+    CCAP_NSLOG_E(@"ccap: No connections available");
 }
 
 - (BOOL)start
 {
     if (_session && ![_session isRunning])
     {
-        if (verboseLogEnabled())
-        {
-            NSLog(@"ccap: CameraCaptureObjc start");
-        }
+        CCAP_NSLOG_V(@"ccap: CameraCaptureObjc start");
         [_session startRunning];
     }
     return [_session isRunning];
@@ -739,10 +713,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
 {
     if (_session && [_session isRunning])
     {
-        if (verboseLogEnabled())
-        {
-            NSLog(@"ccap: CameraCaptureObjc stop");
-        }
+        CCAP_NSLOG_V(@"ccap: CameraCaptureObjc stop");
         [_session stopRunning];
     }
 }
@@ -756,10 +727,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
 {
     if (_session)
     {
-        if (verboseLogEnabled())
-        {
-            NSLog(@"ccap: CameraCaptureObjc destroy");
-        }
+        CCAP_NSLOG_V(@"ccap: CameraCaptureObjc destroy");
 
         [_session stopRunning];
         [_videoOutput setSampleBufferDelegate:nil queue:dispatch_get_main_queue()];
@@ -781,17 +749,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
 
 - (void)dealloc
 {
-    if (verboseLogEnabled())
-    {
-        NSLog(@"ccap: CameraCaptureObjc dealloc - begin");
-    }
-
     [self destroy];
-
-    if (verboseLogEnabled())
-    {
-        NSLog(@"ccap: CameraCaptureObjc dealloc - end");
-    }
 }
 
 // Process each frame of data
@@ -799,8 +757,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
 {
     if (!_provider)
     {
-        if (errorLogEnabled())
-            NSLog(@"ccap: CameraCaptureObjc captureOutput - provider is nil");
+        CCAP_NSLOG_E(@"ccap: CameraCaptureObjc captureOutput - provider is nil");
         return;
     }
 
@@ -843,11 +800,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
         auto manager = std::make_shared<FakeFrame>([imageBuffer, newFrame]() mutable {
             CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
             CFRelease(imageBuffer);
-            if (verboseLogEnabled())
-            {
-                NSLog(@"ccap: recycled YUV frame, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
-            }
-
+            CCAP_NSLOG_V(@"ccap: recycled YUV frame, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
             /// Make ref count + 1
             newFrame = nullptr;
         });
@@ -875,10 +828,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
             auto manager = std::make_shared<FakeFrame>([imageBuffer, newFrame]() mutable {
                 CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
                 CFRelease(imageBuffer);
-                if (verboseLogEnabled())
-                {
-                    NSLog(@"ccap: recycled RGBA frame, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
-                }
+                CCAP_NSLOG_V(@"ccap: recycled RGBA frame, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
                 /// Make ref count + 1
                 newFrame = nullptr;
             });
@@ -888,10 +838,8 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat)
         }
         else
         {
-            if (verboseLogEnabled())
-            {
-                NSLog(@"ccap: captureOutput - perform convert, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
-            }
+            CCAP_NSLOG_V(@"ccap: captureOutput - perform convert, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
+
             if (!newFrame->allocator)
             {
                 auto&& f = _provider->getAllocatorFactory();
@@ -981,10 +929,7 @@ bool ProviderMac::open(std::string_view deviceName)
 {
     if (m_imp != nil)
     {
-        if (errorLogEnabled())
-        {
-            NSLog(@"ccap: Camera is already opened");
-        }
+        CCAP_NSLOG_E(@"ccap: Camera is already opened");
         return false;
     }
 
@@ -1027,9 +972,9 @@ std::optional<DeviceInfo> ProviderMac::getDeviceInfo() const
                     {
                         formats.emplace_back(info.format);
                     }
-                    else if (verboseLogEnabled())
+                    else
                     {
-                        NSLog(@"ccap: The OS native pixel format %@ currently not implemented", info.name);
+                        CCAP_NSLOG_V(@"ccap: The OS native pixel format %@ currently not implemented", info.name);
                     }
                 }
 
@@ -1042,9 +987,9 @@ std::optional<DeviceInfo> ProviderMac::getDeviceInfo() const
         }
     }
 
-    if (!deviceInfo && errorLogEnabled())
+    if (!deviceInfo)
     {
-        NSLog(@"ccap: getDeviceInfo called with no device opened");
+        CCAP_NSLOG_E(@"ccap: getDeviceInfo called with no device opened");
     }
     return deviceInfo;
 }
@@ -1058,10 +1003,7 @@ bool ProviderMac::start()
 {
     if (!isOpened())
     {
-        if (warningLogEnabled())
-        {
-            NSLog(@"ccap: camera start called with no device opened");
-        }
+        CCAP_NSLOG_W(@"ccap: camera start called with no device opened");
         return false;
     }
 

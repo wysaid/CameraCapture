@@ -11,7 +11,7 @@
 #include "CameraCaptureImp.h"
 
 #include <chrono>
-#include <iostream>
+#include <cstdio>
 
 namespace ccap
 {
@@ -36,7 +36,7 @@ ProviderImp* createProvider(std::string_view extraInfo)
 #endif
     if (warningLogEnabled())
     {
-        std::cerr << "Unsupported platform!" << std::endl;
+        CCAP_LOG_W("ccap: Unsupported platform!\n");
     }
     return nullptr;
 }
@@ -93,10 +93,7 @@ bool Provider::open(int deviceIndex)
             deviceIndex = std::min(deviceIndex, static_cast<int>(deviceNames.size()) - 1);
             deviceName = deviceNames[deviceIndex];
 
-            if (ccap::verboseLogEnabled())
-            {
-                printf("ccap: input device index %d, selected device name: %s\n", deviceIndex, deviceName.c_str());
-            }
+            CCAP_LOG_V("ccap: input device index %d, selected device name: %s\n", deviceIndex, deviceName.c_str());
         }
     }
 
@@ -382,7 +379,7 @@ void setLogLevel(LogLevel level)
 #endif
 #else
     (void)level;
-    std::cerr << "ccap: Log is not enabled in this build." << std::endl;
+    fprintf(stderr, "ccap: Log is not enabled in this build.\n");
 #endif
 }
 

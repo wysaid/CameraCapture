@@ -15,7 +15,6 @@
 #include <chrono>
 #include <guiddef.h>
 #include <initguid.h>
-#include <iostream>
 #include <vector>
 
 #if _CCAP_LOG_ENABLED_
@@ -231,10 +230,7 @@ bool setupCom()
 
         if (!s_didSetup)
         {
-            if (ccap::errorLogEnabled())
-            {
-                std::cerr << "ccap: CoInitializeEx failed, hr=0x" << std::hex << hr << std::endl;
-            }
+            CCAP_LOG_E("ccap: CoInitializeEx failed, hr=0x%08X\n", hr);
         }
     }
     return s_didSetup;
@@ -248,10 +244,8 @@ ProviderDirectShow::ProviderDirectShow() = default;
 
 ProviderDirectShow::~ProviderDirectShow()
 {
-    if (verboseLogEnabled())
-    {
-        fprintf(stderr, "ccap: ProviderDirectShow destructor called\n");
-    }
+    CCAP_LOG_V("ccap: ProviderDirectShow destructor called\n");
+
     ProviderDirectShow::close();
 }
 
@@ -273,25 +267,22 @@ void ProviderDirectShow::enumerateDevices(std::function<bool(IMoniker* moniker, 
     auto result = CoCreateInstance(CLSID_SystemDeviceEnum, nullptr, CLSCTX_INPROC_SERVER, IID_ICreateDevEnum, (void**)&deviceEnum);
     if (FAILED(result))
     {
-        if (ccap::errorLogEnabled())
-        {
-            std::cerr << "ccap: CoCreateInstance CLSID_SystemDeviceEnum failed, result=0x" << std::hex << result << std::endl;
-        }
+        CCAP_LOG_E("ccap: CoCreateInstance CLSID_SystemDeviceEnum failed, result=0x%08X\n", result);
         return;
     }
 
     IEnumMoniker* enumerator = nullptr;
     result = deviceEnum->CreateClassEnumerator(CLSID_VideoInputDeviceCategory, &enumerator, 0);
     deviceEnum->Release();
-    if (FAILED(result) || !enumerator)
+    if (auto failed = FAILED(result); failed || !enumerator)
     {
-        if (ccap::errorLogEnabled())
+        if (failed)
         {
-            std::cerr << "ccap: CreateClassEnumerator CLSID_VideoInputDeviceCategory failed, result=0x" << std::hex << result << std::endl;
-            if (result == S_OK)
-            {
-                std::cerr << "ccap: No video capture devices found." << std::endl;
-            }
+            CCAP_LOG_E("ccap: CreateClassEnumerator CLSID_VideoInputDeviceCategory failed, result=0x%08X\n", result);
+        }
+        else
+        {
+            CCAP_LOG_E("ccap: No video capture devices found.\n");
         }
 
         return;
@@ -402,9 +393,9 @@ std::vector<std::string> ProviderDirectShow::findDeviceNames()
             m_allDeviceNames.emplace_back(name.data(), name.size());
             filter->Release();
         }
-        else if (infoLogEnabled())
+        else
         {
-            fprintf(stderr, "ccap: \"%s\" is not a valid video capture device, removed\n", name.data());
+            CCAP_LOG_I("ccap: \"%s\" is not a valid video capture device, removed\n", name.data());
         }
         // Unavailable devices are not added to the list
         return false; // Continue enumeration
@@ -454,10 +445,7 @@ bool ProviderDirectShow::buildGraph()
     hr = CoCreateInstance(CLSID_FilterGraph, nullptr, CLSCTX_INPROC_SERVER, IID_IGraphBuilder, (void**)&m_graph);
     if (FAILED(hr))
     {
-        if (ccap::errorLogEnabled())
-        {
-            std::cerr << "ccap: CoCreateInstance CLSID_FilterGraph failed, hr=0x" << std::hex << hr << std::endl;
-        }
+        CCAP_LOG_E("ccap: CoCreateInstance CLSID_FilterGraph failed, hr=0x%08X\n", hr);
         return false;
     }
 
@@ -465,10 +453,7 @@ bool ProviderDirectShow::buildGraph()
     hr = CoCreateInstance(CLSID_CaptureGraphBuilder2, nullptr, CLSCTX_INPROC_SERVER, IID_ICaptureGraphBuilder2, (void**)&m_captureBuilder);
     if (FAILED(hr))
     {
-        if (ccap::errorLogEnabled())
-        {
-            std::cerr << "ccap: CoCreateInstance CLSID_CaptureGraphBuilder2 failed, hr=0x" << std::hex << hr << std::endl;
-        }
+        CCAP_LOG_E("ccap: CoCreateInstance CLSID_CaptureGraphBuilder2 failed, hr=0x%08X\n", hr);
         return false;
     }
     m_captureBuilder->SetFiltergraph(m_graph);
@@ -477,10 +462,7 @@ bool ProviderDirectShow::buildGraph()
     hr = m_graph->AddFilter(m_deviceFilter, L"Video Capture");
     if (FAILED(hr))
     {
-        if (ccap::errorLogEnabled())
-        {
-            std::cerr << "ccap: AddFilter Video Capture failed, hr=0x" << std::hex << hr << std::endl;
-        }
+        CCAP_LOG_E("ccap: AddFilter Video Capture failed, hr=0x%08X\n", hr);
         return false;
     }
     return true;
@@ -499,8 +481,7 @@ bool ProviderDirectShow::setGrabberOutputSubtype(GUID subtype)
         if (SUCCEEDED(hr))
             return false;
 
-        if (ccap::errorLogEnabled())
-            fprintf(stderr, "ccap: SetMediaType failed, hr=0x%lx\n", hr);
+        CCAP_LOG_E("ccap: SetMediaType failed, hr=0x%lx\n", hr);
     }
 
     return false;
@@ -512,20 +493,14 @@ bool ProviderDirectShow::createStream()
     HRESULT hr = CoCreateInstance(CLSID_SampleGrabber, nullptr, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&m_sampleGrabberFilter);
     if (FAILED(hr))
     {
-        if (ccap::errorLogEnabled())
-        {
-            std::cerr << "ccap: CoCreateInstance CLSID_SampleGrabber failed, hr=0x" << std::hex << hr << std::endl;
-        }
+        CCAP_LOG_E("ccap: CoCreateInstance CLSID_SampleGrabber failed, hr=0x%08X\n", hr);
         return false;
     }
 
     hr = m_sampleGrabberFilter->QueryInterface(IID_ISampleGrabber, (void**)&m_sampleGrabber);
     if (FAILED(hr))
     {
-        if (ccap::errorLogEnabled())
-        {
-            std::cerr << "ccap: QueryInterface ISampleGrabber failed, hr=0x" << std::hex << hr << std::endl;
-        }
+        CCAP_LOG_E("ccap: QueryInterface ISampleGrabber failed, hr=0x%08X\n", hr);
         return false;
     }
 
@@ -559,10 +534,7 @@ bool ProviderDirectShow::createStream()
 
         if (matchedTypes.empty())
         {
-            if (ccap::warningLogEnabled())
-            {
-                std::cerr << "ccap: No suitable resolution found, using the closest one instead." << std::endl;
-            }
+            CCAP_LOG_W("ccap: No suitable resolution found, using the closest one instead.\n");
             matchedTypes = videoTypes;
         }
 
@@ -637,10 +609,7 @@ bool ProviderDirectShow::createStream()
             }
             else
             {
-                if (ccap::errorLogEnabled())
-                {
-                    fprintf(stderr, "ccap: SetFormat failed, result=0x%lx\n", setFormatResult);
-                }
+                CCAP_LOG_E("ccap: SetFormat failed, result=0x%lx\n", setFormatResult);
             }
         }
     }
@@ -649,40 +618,28 @@ bool ProviderDirectShow::createStream()
     hr = m_graph->AddFilter(m_sampleGrabberFilter, L"Sample Grabber");
     if (FAILED(hr))
     {
-        if (ccap::errorLogEnabled())
-        {
-            std::cerr << "ccap: AddFilter Sample Grabber failed, result=0x" << std::hex << hr << std::endl;
-        }
+        CCAP_LOG_E("ccap: AddFilter Sample Grabber failed, result=0x%lx\n", hr);
         return false;
     }
 
     hr = CoCreateInstance(CLSID_NullRenderer, NULL, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)(&m_dstNullFilter));
     if (FAILED(hr))
     {
-        if (ccap::errorLogEnabled())
-        {
-            fprintf(stderr, "ccap: CoCreateInstance CLSID_NullRenderer failed, result=0x%lx\n", hr);
-        }
+        CCAP_LOG_E("ccap: CoCreateInstance CLSID_NullRenderer failed, result=0x%lx\n", hr);
         return false;
     }
 
     hr = m_graph->AddFilter(m_dstNullFilter, L"NullRenderer");
     if (FAILED(hr))
     {
-        if (ccap::errorLogEnabled())
-        {
-            fprintf(stderr, "ccap: AddFilter NullRenderer failed, result=0x%lx\n", hr);
-        }
+        CCAP_LOG_E("ccap: AddFilter NullRenderer failed, result=0x%lx\n", hr);
         return hr;
     }
 
     hr = m_captureBuilder->RenderStream(&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video, m_deviceFilter, m_sampleGrabberFilter, m_dstNullFilter);
     if (FAILED(hr))
     {
-        if (ccap::errorLogEnabled())
-        {
-            std::cerr << "ccap: RenderStream failed, result=0x" << std::hex << hr << std::endl;
-        }
+        CCAP_LOG_E("ccap: RenderStream failed, result=0x%lx\n", hr);
         return false;
     }
 
@@ -691,10 +648,7 @@ bool ProviderDirectShow::createStream()
         hr = m_graph->QueryInterface(IID_IMediaFilter, (void**)&pMediaFilter);
         if (FAILED(hr))
         {
-            if (ccap::errorLogEnabled())
-            {
-                fprintf(stderr, "ccap: QueryInterface IMediaFilter failed, result=0x%lx\n", hr);
-            }
+            CCAP_LOG_E("ccap: QueryInterface IMediaFilter failed, result=0x%lx\n", hr);
         }
         else
         {
@@ -708,20 +662,12 @@ bool ProviderDirectShow::createStream()
         hr = m_sampleGrabber->GetConnectedMediaType(&mt);
         if (SUCCEEDED(hr))
         {
-            if (verboseLogEnabled())
-            {
-                // Output media type information
-                auto info = findPixelFormatInfo(mt.subtype);
-                fprintf(stderr, "ccap: Connected media type: %s\n", info.name);
-            }
+            CCAP_LOG_V("ccap: Connected media type: %s\n", findPixelFormatInfo(mt.subtype).name);
             freeMediaType(mt);
         }
         else
         {
-            if (ccap::errorLogEnabled())
-            {
-                std::cerr << "ccap: GetConnectedMediaType failed, hr=0x" << std::hex << hr << std::endl;
-            }
+            CCAP_LOG_E("ccap: GetConnectedMediaType failed, hr=0x%lx\n", hr);
             return false;
         }
     }
@@ -738,10 +684,7 @@ bool ProviderDirectShow::open(std::string_view deviceName)
 {
     if (m_isOpened && m_mediaControl)
     {
-        if (ccap::errorLogEnabled())
-        {
-            std::cerr << "ccap: Camera already opened, please close it first." << std::endl;
-        }
+        CCAP_LOG_E("ccap: Camera already opened, please close it first.\n");
         return false;
     }
 
@@ -753,29 +696,20 @@ bool ProviderDirectShow::open(std::string_view deviceName)
             auto hr = moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&m_deviceFilter);
             if (SUCCEEDED(hr))
             {
+                CCAP_LOG_V("ccap: Using video capture device: %s\n", name.data());
                 m_deviceName = name;
-                if (ccap::verboseLogEnabled())
-                {
-                    std::cout << "ccap: Using video capture device: " << name << std::endl;
-                }
                 found = true;
                 return true; // stop enumeration when returning true
             }
             else
             {
-                if (ccap::errorLogEnabled())
+                if (!deviceName.empty())
                 {
-                    if (!deviceName.empty())
-                    {
-                        fprintf(stderr, "ccap: \"%s\" is not a valid video capture device, bind failed, result=%x\n", deviceName.data(), hr);
-                        return true; // stop enumeration when returning true
-                    }
+                    CCAP_LOG_E("ccap: \"%s\" is not a valid video capture device, bind failed, result=%x\n", deviceName.data(), hr);
+                    return true; // stop enumeration when returning true
                 }
 
-                if (infoLogEnabled())
-                {
-                    fprintf(stderr, "ccap: bind \"%s\" failed(result=%x), try next device...\n", name.data(), hr);
-                }
+                CCAP_LOG_I("ccap: bind \"%s\" failed(result=%x), try next device...\n", name.data(), hr);
             }
         }
         // continue enumerating when returning false
@@ -784,17 +718,11 @@ bool ProviderDirectShow::open(std::string_view deviceName)
 
     if (!found)
     {
-        if (ccap::errorLogEnabled())
-        {
-            fprintf(stderr, "ccap: No video capture device: %s\n", deviceName.empty() ? "" : deviceName.data());
-        }
+        CCAP_LOG_E("ccap: No video capture device: %s\n", deviceName.empty() ? unavailableMsg : deviceName.data());
         return false;
     }
 
-    if (infoLogEnabled())
-    {
-        fprintf(stderr, "ccap: Found video capture device: %s\n", m_deviceName.c_str());
-    }
+    CCAP_LOG_I("ccap: Found video capture device: %s\n", m_deviceName.c_str());
 
     if (!buildGraph())
     {
@@ -810,10 +738,7 @@ bool ProviderDirectShow::open(std::string_view deviceName)
     HRESULT hr = m_graph->QueryInterface(IID_IMediaControl, (void**)&m_mediaControl);
     if (FAILED(hr))
     {
-        if (ccap::errorLogEnabled())
-        {
-            std::cerr << "ccap: QueryInterface IMediaControl failed, result=0x" << std::hex << hr << std::endl;
-        }
+        CCAP_LOG_E("ccap: QueryInterface IMediaControl failed, result=0x%lx\n", hr);
         return false;
     }
 
@@ -822,19 +747,13 @@ bool ProviderDirectShow::open(std::string_view deviceName)
         hr = m_graph->QueryInterface(IID_IVideoWindow, (LPVOID*)&videoWindow);
         if (FAILED(hr))
         {
-            if (ccap::errorLogEnabled())
-            {
-                std::cerr << "ccap: QueryInterface IVideoWindow failed, result=0x" << std::hex << hr << std::endl;
-            }
+            CCAP_LOG_E("ccap: QueryInterface IVideoWindow failed, result=0x%lx\n", hr);
             return hr;
         }
         videoWindow->put_AutoShow(false);
     }
 
-    if (ccap::verboseLogEnabled())
-    {
-        std::cout << "ccap: Camera opened successfully." << std::endl;
-    }
+    CCAP_LOG_V("ccap: Graph built successfully.\n");
 
     m_isOpened = true;
     m_isRunning = false;
@@ -849,21 +768,18 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     auto newFrame = getFreeFrame();
     if (!newFrame)
     {
-        if (!newFrame && ccap::warningLogEnabled())
+        if (!newFrame)
         {
-            std::cerr << "ccap: Frame pool is full, a new frame skipped..." << std::endl;
+            CCAP_LOG_W("ccap: Frame pool is full, a new frame skipped...\n");
         }
         return S_OK;
     }
 
     // Get sample data
     BYTE* sampleData = nullptr;
-    if (FAILED(mediaSample->GetPointer(&sampleData)))
+    if (auto hr = mediaSample->GetPointer(&sampleData); FAILED(hr))
     {
-        if (ccap::errorLogEnabled())
-        {
-            std::cerr << "ccap: GetPointer failed." << std::endl;
-        }
+        CCAP_LOG_E("ccap: GetPointer failed, hr=0x%lx\n", hr);
         return S_OK;
     }
 
@@ -990,7 +906,8 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
             }
             fps = std::round(s_durations.size() / sum * 10) / 10.0;
         }
-        printf("ccap: New frame available: %lux%lu, bytes %lu, Data address: %p, fps: %g\n", newFrame->width, newFrame->height, newFrame->sizeInBytes, newFrame->data[0], fps);
+
+        CCAP_LOG_V("ccap: New frame available: %lux%lu, bytes %lu, Data address: %p, fps: %g\n", newFrame->width, newFrame->height, newFrame->sizeInBytes, newFrame->data[0], fps);
     }
 
     newFrameAvailable(std::move(newFrame));
@@ -999,8 +916,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
 
 HRESULT STDMETHODCALLTYPE ProviderDirectShow::BufferCB(double SampleTime, BYTE* pBuffer, long BufferLen)
 {
-    fprintf(stderr, "ccap: BufferCB called, SampleTime: %f, BufferLen: %ld\n", SampleTime, BufferLen);
-
+    CCAP_LOG_E("ccap: BufferCB called, SampleTime: %f, BufferLen: %ld\n", SampleTime, BufferLen);
     // This callback is not used in this implementation
     return S_OK;
 }
@@ -1095,10 +1011,7 @@ std::optional<DeviceInfo> ProviderDirectShow::getDeviceInfo() const
 
 void ProviderDirectShow::close()
 {
-    if (verboseLogEnabled())
-    {
-        fprintf(stderr, "ccap: ProviderDirectShow close called\n");
-    }
+    CCAP_LOG_V("ccap: ProviderDirectShow close called\n");
 
     if (m_isRunning)
     {
@@ -1150,10 +1063,7 @@ void ProviderDirectShow::close()
     m_isOpened = false;
     m_isRunning = false;
 
-    if (ccap::verboseLogEnabled())
-    {
-        std::cout << "ccap: Camera closed." << std::endl;
-    }
+    CCAP_LOG_V("ccap: Camera closed.\n");
 }
 
 bool ProviderDirectShow::start()
@@ -1166,17 +1076,11 @@ bool ProviderDirectShow::start()
         m_isRunning = !FAILED(hr);
         if (!m_isRunning)
         {
-            if (ccap::errorLogEnabled())
-            {
-                std::cerr << "ccap: IMediaControl->Run() failed, hr=0x" << std::hex << hr << std::endl;
-            }
+            CCAP_LOG_E("ccap: IMediaControl->Run() failed, hr=0x%08X\n", hr);
         }
         else
         {
-            if (ccap::verboseLogEnabled())
-            {
-                std::cout << "ccap: Camera started." << std::endl;
-            }
+            CCAP_LOG_V("ccap: IMediaControl->Run() succeeded.\n");
         }
     }
     return m_isRunning;
@@ -1184,17 +1088,12 @@ bool ProviderDirectShow::start()
 
 void ProviderDirectShow::stop()
 {
-    if (verboseLogEnabled())
-    {
-        fprintf(stderr, "ccap: ProviderDirectShow stop called\n");
-    }
+    CCAP_LOG_V("ccap: ProviderDirectShow stop called\n");
 
     if (m_grabFrameWaiting)
     {
-        if (verboseLogEnabled())
-        {
-            fprintf(stderr, "ccap: Frame waiting stopped\n");
-        }
+        CCAP_LOG_V("ccap: Frame waiting stopped\n");
+
         m_grabFrameWaiting = false;
         m_frameCondition.notify_all();
     }
@@ -1204,10 +1103,7 @@ void ProviderDirectShow::stop()
         m_mediaControl->Stop();
         m_isRunning = false;
 
-        if (ccap::verboseLogEnabled())
-        {
-            std::cout << "ccap: Camera stopped." << std::endl;
-        }
+        CCAP_LOG_V("ccap: IMediaControl->Stop() succeeded.\n");
     }
 }
 

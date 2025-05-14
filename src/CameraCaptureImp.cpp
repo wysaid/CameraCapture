@@ -9,7 +9,6 @@
 #include "CameraCaptureImp.h"
 
 #include <cmath>
-#include <iostream>
 
 namespace ccap
 {
@@ -105,19 +104,16 @@ std::shared_ptr<Frame> ProviderImp::grab(bool waitForNewFrame)
     {
         if (!isStarted())
         {
-            if (warningLogEnabled())
-            {
-                std::cerr << "ccap: Grab called when camera is not started!" << std::endl;
-            }
+            CCAP_LOG_W("ccap: Grab called when camera is not started!");
             return nullptr;
         }
 
         m_grabFrameWaiting = true;
         m_frameCondition.wait(lock, [this]() {
             auto ret = m_grabFrameWaiting && !m_availableFrames.empty();
-            if (!ret && verboseLogEnabled())
+            if (!ret)
             {
-                std::cerr << "ccap: Grab called with no frame available, waiting for new frame..." << std::endl;
+                CCAP_LOG_V("ccap: Grab called with no frame available, waiting for new frame...\n");
             }
             return ret;
         });
@@ -188,10 +184,7 @@ std::shared_ptr<Frame> ProviderImp::getFreeFrame()
         {
             if (m_framePool.size() > m_maxCacheFrameSize)
             {
-                if (warningLogEnabled())
-                {
-                    std::cerr << "ccap: Frame pool is full, new frame allocated..." << std::endl;
-                }
+                CCAP_LOG_W("ccap: Frame pool is full, new frame allocated...");
                 m_framePool.erase(m_framePool.end());
             }
         }

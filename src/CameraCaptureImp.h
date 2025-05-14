@@ -160,6 +160,23 @@ inline bool warningLogEnabled() { return globalLogLevel & kLogLevelWarningBit; }
 inline bool infoLogEnabled() { return globalLogLevel & kLogLevelInfoBit; }
 inline bool verboseLogEnabled() { return globalLogLevel & kLogLevelVerboseBit; }
 
+#define CCAP_CALL_LOG(logLevel, ...)                   \
+    do                                                 \
+    {                                                  \
+        if ((static_cast<uint32_t>(logLevel) &         \
+             static_cast<uint32_t>(globalLogLevel)) == \
+            static_cast<uint32_t>(logLevel))           \
+        {                                              \
+            __VA_ARGS__;                               \
+        }                                              \
+    } while (0)
+
+#define CCAP_LOG(logLevel, ...) CCAP_CALL_LOG(logLevel, fprintf(stderr, __VA_ARGS__))
+
+#define CCAP_LOG_E(...) CCAP_LOG(LogLevel::Error, __VA_ARGS__)
+#define CCAP_LOG_W(...) CCAP_LOG(LogLevel::Warning, __VA_ARGS__)
+#define CCAP_LOG_I(...) CCAP_LOG(LogLevel::Info, __VA_ARGS__)
+#define CCAP_LOG_V(...) CCAP_LOG(LogLevel::Verbose, __VA_ARGS__)
 #else
 
 #if __cplusplus >= 201703L
@@ -168,14 +185,15 @@ inline bool verboseLogEnabled() { return globalLogLevel & kLogLevelVerboseBit; }
 #define CCAP_CONSTEXPR
 #endif
 
-inline CCAP_CONSTEXPR bool errorLogEnabled()
-{
-    return false;
-}
+inline CCAP_CONSTEXPR bool errorLogEnabled() { return false; }
 inline CCAP_CONSTEXPR bool warningLogEnabled() { return false; }
 inline CCAP_CONSTEXPR bool infoLogEnabled() { return false; }
 inline CCAP_CONSTEXPR bool verboseLogEnabled() { return false; }
 
+#define CCAP_LOG_E(...) ((void)0)
+#define CCAP_LOG_W(...) ((void)0)
+#define CCAP_LOG_I(...) ((void)0)
+#define CCAP_LOG_V(...) ((void)0)
 #endif
 
 } // namespace ccap
