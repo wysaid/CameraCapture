@@ -677,7 +677,6 @@ bool ProviderDirectShow::createStream()
     }
 
     hr = m_captureBuilder->RenderStream(&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video, m_deviceFilter, m_sampleGrabberFilter, m_dstNullFilter);
-
     if (FAILED(hr))
     {
         if (ccap::errorLogEnabled())
@@ -685,6 +684,23 @@ bool ProviderDirectShow::createStream()
             std::cerr << "ccap: RenderStream failed, result=0x" << std::hex << hr << std::endl;
         }
         return false;
+    }
+
+    {
+        IMediaFilter* pMediaFilter = 0;
+        hr = m_graph->QueryInterface(IID_IMediaFilter, (void**)&pMediaFilter);
+        if (FAILED(hr))
+        {
+            if (ccap::errorLogEnabled())
+            {
+                fprintf(stderr, "ccap: QueryInterface IMediaFilter failed, result=0x%lx\n", hr);
+            }
+        }
+        else
+        {
+            pMediaFilter->SetSyncSource(NULL);
+            pMediaFilter->Release();
+        }
     }
 
     // 获取当前媒体类型验证
@@ -852,9 +868,12 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
         return S_OK;
     }
 
+    bool fixTimestamp = m_firstFrameArrived && sampleTime == 0.0;
+
     if (!m_firstFrameArrived)
     {
         m_firstFrameArrived = true;
+        m_startTime = std::chrono::steady_clock::now();
         AM_MEDIA_TYPE mt;
         HRESULT hr = m_sampleGrabber->GetConnectedMediaType(&mt);
         if (SUCCEEDED(hr))
@@ -878,10 +897,16 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
         }
     }
 
-    uint32_t bufferLen = mediaSample->GetActualDataLength();
+    if (fixTimestamp)
+    { /// sampleTime 是错误的, 此时自己实现一下. 在使用虚拟相机时经常遇到.
+        newFrame->timestamp = (std::chrono::steady_clock::now() - m_startTime).count();
+    }
+    else
+    {
+        newFrame->timestamp = static_cast<uint64_t>(sampleTime * 1e9);
+    }
 
-    // Convert to nanoseconds
-    newFrame->timestamp = static_cast<uint64_t>(sampleTime * 1e9);
+    uint32_t bufferLen = mediaSample->GetActualDataLength();
 
     // Zero-copy, directly reference sample data
     newFrame->sizeInBytes = bufferLen;
