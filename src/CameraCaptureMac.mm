@@ -222,7 +222,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName()
     }];
 }
 
-void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip)
+void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
 {
     auto* inputBytes = frame->data[0];
     auto inputLineSize = frame->stride[0];
@@ -231,18 +231,29 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip)
     // Ensure 16/32 byte alignment for best performance
     auto newLineSize = outputChannelCount == 3 ? ((frame->width * 3 + 31) & ~31) : (frame->width * 4);
     auto inputFormat = frame->pixelFormat;
+
+    auto inputChannelCount = (inputFormat & kPixelFormatAlphaColorBit) ? 4 : 3;
+
+    bool isInputRGB = inputFormat & kPixelFormatRGBBit; ///< Not RGB means BGR
+    bool isOutputRGB = toFormat & kPixelFormatRGBBit;   ///< Not RGB means BGR
+    bool swapRB = isInputRGB != isOutputRGB;            ///< Whether R and B channels need to be swapped
+
     frame->stride[0] = newLineSize;
     frame->allocator->resize(newLineSize * frame->height);
     frame->data[0] = frame->allocator->data();
     frame->pixelFormat = toFormat;
 
     vImage_Buffer src = { inputBytes, frame->height, frame->width, inputLineSize };
-    vImage_Buffer dst = { frame->data[0], frame->height, frame->width, newLineSize };
-    auto inputChannelCount = (inputFormat & kPixelFormatAlphaColorBit) ? 4 : 3;
-
-    bool isInputRGB = inputFormat & kPixelFormatRGBBit; ///< Not RGB means BGR
-    bool isOutputRGB = toFormat & kPixelFormatRGBBit;   ///< Not RGB means BGR
-    bool swapRB = isInputRGB != isOutputRGB;            ///< Whether R and B channels need to be swapped
+    vImage_Buffer dst;
+    if (!verticalFlip) // 大概率是这个, 放前面
+    {
+        dst = { frame->data[0], frame->height, frame->width, newLineSize };
+    }
+    else
+    { /// 当需要 flip 的时候, 先把结果写入到 memCache
+        memCache.resize(newLineSize * frame->height);
+        dst = { memCache.data(), frame->height, frame->width, newLineSize };
+    }
 
     //// The cross-conversion between input and output would require many switch cases, simplifying here.
 
@@ -292,8 +303,18 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip)
     }
 
     if (verticalFlip)
-    {
-        // vImageVerticalReflect(&dst, &dst, kvImageNoFlags);
+    { /// vImageVerticalReflect 不支持 inplace 操作, 所以只要 flip, 就需要用到这个 memCache
+        if (outputChannelCount == 4)
+        { /// 4 通道直接交换
+            vImage_Buffer realDst = { frame->data[0], frame->height, frame->width, newLineSize };
+            vImageVerticalReflect_ARGB8888(&dst, &realDst, kvImageNoFlags);
+        }
+        else /// 3 通道需要交换, 因为不存在 `vImageVerticalReflect_RGB888`, 所以转成单通道来实现.
+        {
+            vImage_Buffer fakeSrc = { memCache.data(), frame->height, newLineSize, newLineSize };
+            vImage_Buffer fakeDst = { frame->data[0], frame->height, newLineSize, newLineSize };
+            vImageVerticalReflect_Planar8(&fakeSrc, &fakeDst, kvImageNoFlags);
+        }
     }
 } // namespace
 
@@ -303,6 +324,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip)
 
     PixelFormat _cameraPixelFormat;
     PixelFormat _convertPixelFormat;
+    std::vector<uint8_t> _memoryCache; ///< Memory cache used for storing temporary computation results
 }
 
 @property (nonatomic, strong) AVCaptureSession* session;
@@ -853,7 +875,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip)
                 newFrame->allocator = f ? f() : std::make_shared<DefaultAllocator>();
             }
 
-            inplaceConvertFrame(newFrame.get(), _convertPixelFormat, (int)(newFrame->orientation != kDefaultFrameOrientation));
+            inplaceConvertFrame(newFrame.get(), _convertPixelFormat, (int)(newFrame->orientation != kDefaultFrameOrientation), _memoryCache);
         }
     }
 

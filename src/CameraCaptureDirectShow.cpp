@@ -86,6 +86,8 @@ using namespace ccap;
 
 namespace
 {
+constexpr FrameOrientation kDefaultFrameOrientation = FrameOrientation::BottomToTop;
+
 // Release the format block for a media type.
 void freeMediaType(AM_MEDIA_TYPE& mt)
 {
@@ -240,7 +242,10 @@ bool setupCom()
 
 namespace ccap
 {
-ProviderDirectShow::ProviderDirectShow() = default;
+ProviderDirectShow::ProviderDirectShow()
+{
+    m_frameOrientation = kDefaultFrameOrientation;
+}
 
 ProviderDirectShow::~ProviderDirectShow()
 {
@@ -823,14 +828,15 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
 
     uint32_t bufferLen = mediaSample->GetActualDataLength();
 
-    // Zero-copy, directly reference sample data
     newFrame->sizeInBytes = bufferLen;
     newFrame->pixelFormat = m_frameProp.pixelFormat;
     newFrame->width = m_frameProp.width;
     newFrame->height = m_frameProp.height;
+    newFrame->orientation = m_frameOrientation;
 
     if (newFrame->pixelFormat & kPixelFormatYUVColorBit)
     {
+        // Zero-copy, directly reference sample data
         newFrame->data[0] = sampleData;
         newFrame->data[1] = sampleData + m_frameProp.width * m_frameProp.height;
 
@@ -859,6 +865,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
         newFrame->stride[1] = 0;
         newFrame->stride[2] = 0;
 
+        // Zero-copy, directly reference sample data
         newFrame->data[0] = sampleData;
         newFrame->data[1] = nullptr;
         newFrame->data[2] = nullptr;

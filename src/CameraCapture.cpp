@@ -284,6 +284,12 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
         fwrite(file, sizeof(file), 1, fp);
         fwrite(info, sizeof(info), 1, fp);
 
+        if (isTopToBottom)
+        {
+            data += srcLineOffset * (h - 1);
+            srcLineOffset = -srcLineOffset;
+        }
+
         if (isBGR)
         {
             unsigned char padding[3] = { 0, 0, 0 };
