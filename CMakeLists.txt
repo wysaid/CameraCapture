@@ -1,19 +1,37 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(CameraCapture LANGUAGES CXX)
-
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
-set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version")
-
 option(CCAP_NO_LOG "Disable logging" OFF)
+
+if(WIN32)
+    option(ENABLE_LIBYUV "Enable libyuv" ON)
+endif()
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     option(CCAP_BUILD_DEMO "Build ccap demo" ON)
 else()
     option(CCAP_BUILD_DEMO "Build ccap demo" OFF)
 endif()
+
+project(CameraCapture LANGUAGES CXX)
+
+if(WIN32 AND ENABLE_LIBYUV)
+    if(NOT DEFINED LIBYUV_DIR OR NOT EXISTS "${LIBYUV_DIR}/README.md")
+        message(STATUS "ccap: Fetching libyuv from GitHub...")
+        include(${CMAKE_CURRENT_SOURCE_DIR}/deps/libyuv.cmake)
+    endif()
+
+    if(ENABLE_LIBYUV)
+        set(UNIT_TEST OFF CACHE BOOL "Disable libyuv unit tests" FORCE)
+        add_subdirectory(${LIBYUV_DIR})
+        set(YUV_INCLUDE_DIRS ${LIBYUV_DIR}/include)
+        message(STATUS "ccap: Using libyuv from ${LIBYUV_DIR}")
+    endif()
+endif()
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version")
 
 if(NOT MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
@@ -59,6 +77,12 @@ if(MSVC)
     )
 else()
     target_compile_options(CameraCapture PUBLIC -std=c++17)
+endif()
+
+if(WIN32 AND ENABLE_LIBYUV)
+    target_include_directories(CameraCapture PRIVATE ${YUV_INCLUDE_DIRS})
+    target_link_libraries(CameraCapture yuv)
+    target_compile_definitions(CameraCapture PRIVATE ENABLE_LIBYUV=1)
 endif()
 
 if(CCAP_BUILD_DEMO)

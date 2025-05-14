@@ -17,6 +17,10 @@
 #include <initguid.h>
 #include <vector>
 
+#if ENABLE_LIBYUV
+#include <libyuv.h>
+#endif
+
 #if _CCAP_LOG_ENABLED_
 #include <deque>
 #endif
@@ -237,6 +241,31 @@ bool setupCom()
     }
     return s_didSetup;
 }
+
+#if ENABLE_LIBYUV
+
+bool inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
+{
+    // auto* inputBytes = frame->data[0];
+    // auto inputLineSize = frame->stride[0];
+    // bool isInputYUV = (frame->pixelFormat & kPixelFormatYUVColorBit) != 0;
+    // bool isOutputYUV = (toFormat & kPixelFormatYUVColorBit) != 0;
+    // auto outputChannelCount = (toFormat & kPixelFormatAlphaColorBit) ? 4 : 3;
+    // // Ensure 16/32 byte alignment for best performance
+    // auto newLineSize = outputChannelCount == 3 ? ((frame->width * 3 + 31) & ~31) : (frame->width * 4);
+    // auto inputFormat = frame->pixelFormat;
+
+    return false;
+}
+
+#else
+
+constexpr bool inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
+{
+    // No inplace conversion available
+    return false;
+}
+#endif
 
 } // namespace
 
@@ -594,12 +623,12 @@ bool ProviderDirectShow::createStream()
 
             if (subtype == MEDIASUBTYPE_MJPG)
             {
-                m_frameProp.pixelFormat = (m_frameProp.pixelFormat & kPixelFormatAlphaColorBit) ? PixelFormat::RGBA32 : PixelFormat::BGR24;
+                m_cameraPixelFormat = (m_frameProp.pixelFormat & kPixelFormatAlphaColorBit) ? PixelFormat::RGBA32 : PixelFormat::BGR24;
                 subtype = (m_frameProp.pixelFormat & kPixelFormatAlphaColorBit) ? MEDIASUBTYPE_RGB32 : MEDIASUBTYPE_RGB24;
             }
             else
             {
-                m_frameProp.pixelFormat = pixFormatInfo.pixelFormat;
+                m_cameraPixelFormat = pixFormatInfo.pixelFormat;
             }
 
             setGrabberOutputSubtype(subtype);
@@ -805,7 +834,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
             auto info = findPixelFormatInfo(mt.subtype);
             if (info.pixelFormat != PixelFormat::Unknown)
             {
-                m_frameProp.pixelFormat = info.pixelFormat;
+                m_cameraPixelFormat = info.pixelFormat;
             }
 
             if (verboseLogEnabled())
@@ -829,10 +858,14 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     uint32_t bufferLen = mediaSample->GetActualDataLength();
 
     newFrame->sizeInBytes = bufferLen;
-    newFrame->pixelFormat = m_frameProp.pixelFormat;
+    newFrame->pixelFormat = m_cameraPixelFormat;
     newFrame->width = m_frameProp.width;
     newFrame->height = m_frameProp.height;
     newFrame->orientation = m_frameOrientation;
+
+    bool shouldConvert = newFrame->pixelFormat != m_frameProp.pixelFormat;
+    bool shouldFlip = m_frameOrientation != kDefaultFrameOrientation;
+    bool zeroCopy = !shouldConvert && !shouldFlip;
 
     if (newFrame->pixelFormat & kPixelFormatYUVColorBit)
     {
@@ -873,15 +906,24 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
         assert(newFrame->stride[0] * newFrame->height <= bufferLen);
     }
 
-    mediaSample->AddRef(); // Ensure data lifecycle
-    auto manager = std::make_shared<FakeFrame>([newFrame, mediaSample]() mutable {
-        newFrame = nullptr;
-        mediaSample->Release();
-    });
+    if (!zeroCopy)
+    { /// 如果执行 convert 失败, 则回退到使用 sampleData, 需要继续走 zeroCopy 的逻辑
+        zeroCopy = !inplaceConvertFrame(newFrame.get(), newFrame->pixelFormat, shouldFlip, m_memCache);
+        CCAP_LOG_V("ccap: inplaceConvertFrame %s, requested pixel format: %s, actual pixel format: %s\n", zeroCopy ? "failed" : "succeeded", pixelFormatToString(m_frameProp.pixelFormat).data(), pixelFormatToString(newFrame->pixelFormat).data());
+    }
+
+    if (zeroCopy)
+    {
+        mediaSample->AddRef(); // Ensure data lifecycle
+        auto manager = std::make_shared<FakeFrame>([newFrame, mediaSample]() mutable {
+            newFrame = nullptr;
+            mediaSample->Release();
+        });
+
+        newFrame = std::shared_ptr<Frame>(manager, newFrame.get());
+    }
 
     newFrame->frameIndex = m_frameIndex++;
-    auto fakeFrame = std::shared_ptr<Frame>(manager, newFrame.get());
-    newFrame = fakeFrame;
 
     if (ccap::verboseLogEnabled())
     { // Usually camera interfaces are not called from multiple threads, and verbose log is for debugging, so no lock here.

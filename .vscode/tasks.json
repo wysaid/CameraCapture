@@ -93,6 +93,7 @@
                 "Clean Project",
                 "Load Project (Debug)"
             ],
+            "dependsOrder": "sequence"
         },
         {
             "label": "Reload Project (Release)",
@@ -106,6 +107,7 @@
                 "Clean Project",
                 "Load Project (Release)"
             ],
+            "dependsOrder": "sequence"
         },
         {
             "label": "Build Project (Debug)",

@@ -16,6 +16,7 @@ jobs:
       matrix:
         config: [Debug, Release]
         no_log: [OFF, ON]
+        use_libyuv: [OFF, ON]
         
     steps:
     - name: Checkout repository
@@ -28,7 +29,7 @@ jobs:
       run: |
         mkdir -p build
         cd build
-        cmake .. -G "Visual Studio 17 2022" -A x64 -DCCAP_NO_LOG=${{ matrix.no_log }}
+        cmake .. -G "Visual Studio 17 2022" -A x64 -DCCAP_NO_LOG=${{ matrix.no_log }} -DENABLE_LIBYUV=${{ matrix.use_libyuv }}
       
     - name: Build
       run: |
@@ -38,7 +39,7 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ccap-windows-${{ matrix.config }}-NO_LOG_${{ matrix.no_log }}
+        name: ccap-windows-${{ matrix.config }}-NO_LOG_${{ matrix.no_log }}-USE_LIBYUV_${{ matrix.use_libyuv }}
         path: |
           build/${{ matrix.config }}/CameraCapture.lib
           build/${{ matrix.config }}/0-print_camera.exe

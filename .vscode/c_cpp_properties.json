@@ -8,13 +8,15 @@
             "compilerPath": "${default}",
             "defines": [
                 "DEBUG=1",
-                "_WIN32=1"
+                "_WIN32=1",
+                "ENABLE_LIBYUV=1"
             ],
             "configurationProvider": "ms-vscode.cmake-tools",
             "includePath": [
                 "${workspaceFolder}",
                 "${workspaceFolder}/demo",
-                "${workspaceFolder}/src"
+                "${workspaceFolder}/src",
+                "${workspaceFolder}/build/_deps/libyuv-src/include"
             ]
         }
     ]
