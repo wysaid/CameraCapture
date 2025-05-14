@@ -1133,6 +1133,11 @@ void ProviderDirectShow::close()
         m_deviceFilter->Release();
         m_deviceFilter = nullptr;
     }
+    if (m_dstNullFilter)
+    {
+        m_dstNullFilter->Release();
+        m_dstNullFilter = nullptr;
+    }
     if (m_captureBuilder)
     {
         m_captureBuilder->Release();
