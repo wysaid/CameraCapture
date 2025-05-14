@@ -74,7 +74,7 @@ typedef struct _DXVA_ExtendedFormat
 
 #define DXVA_NominalRange_Unknown 0
 #define DXVA_NominalRange_Normal 1 // 16-235
-#define DXVA_NominalRange_Wide 2 // 0-255
+#define DXVA_NominalRange_Wide 2   // 0-255
 #define DXVA_NominalRange_0_255 2
 #define DXVA_NominalRange_16_235 1
 #endif
@@ -219,6 +219,27 @@ void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
     fflush(stdout);
 }
 
+bool setupCom()
+{
+    static bool s_didSetup = false;
+    if (!s_didSetup)
+    {
+        // Initialize COM without performing uninitialization, as other parts may also use COM
+        // Use COINIT_APARTMENTTHREADED mode here, as we only use COM in a single thread
+        auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+        s_didSetup = !(FAILED(hr) && hr != RPC_E_CHANGED_MODE);
+
+        if (!s_didSetup)
+        {
+            if (ccap::errorLogEnabled())
+            {
+                std::cerr << "ccap: CoInitializeEx failed, hr=0x" << std::hex << hr << std::endl;
+            }
+        }
+    }
+    return s_didSetup;
+}
+
 } // namespace
 
 namespace ccap
@@ -236,22 +257,7 @@ ProviderDirectShow::~ProviderDirectShow()
 
 bool ProviderDirectShow::setup()
 {
-    if (!m_didSetup)
-    {
-        // Initialize COM without performing uninitialization, as other parts may also use COM
-        // Use COINIT_APARTMENTTHREADED mode here, as we only use COM in a single thread
-        auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-        m_didSetup = !(FAILED(hr) && hr != RPC_E_CHANGED_MODE);
-
-        if (!m_didSetup)
-        {
-            if (ccap::errorLogEnabled())
-            {
-                std::cerr << "ccap: CoInitializeEx failed, hr=0x" << std::hex << hr << std::endl;
-            }
-        }
-    }
-
+    m_didSetup = setupCom();
     return m_didSetup;
 }
 
@@ -650,7 +656,27 @@ bool ProviderDirectShow::createStream()
         return false;
     }
 
-    hr = m_captureBuilder->RenderStream(&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, m_deviceFilter, m_sampleGrabberFilter, nullptr);
+    hr = CoCreateInstance(CLSID_NullRenderer, NULL, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)(&m_dstNullFilter));
+    if (FAILED(hr))
+    {
+        if (ccap::errorLogEnabled())
+        {
+            fprintf(stderr, "ccap: CoCreateInstance CLSID_NullRenderer failed, result=0x%lx\n", hr);
+        }
+        return false;
+    }
+
+    hr = m_graph->AddFilter(m_dstNullFilter, L"NullRenderer");
+    if (FAILED(hr))
+    {
+        if (ccap::errorLogEnabled())
+        {
+            fprintf(stderr, "ccap: AddFilter NullRenderer failed, result=0x%lx\n", hr);
+        }
+        return hr;
+    }
+
+    hr = m_captureBuilder->RenderStream(&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video, m_deviceFilter, m_sampleGrabberFilter, m_dstNullFilter);
 
     if (FAILED(hr))
     {

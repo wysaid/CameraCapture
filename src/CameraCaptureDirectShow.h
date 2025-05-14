@@ -121,6 +121,7 @@ private:
     ICaptureGraphBuilder2* m_captureBuilder = nullptr;
     IBaseFilter* m_deviceFilter = nullptr;
     IBaseFilter* m_sampleGrabberFilter = nullptr;
+    IBaseFilter* m_dstNullFilter = nullptr;
     ISampleGrabber* m_sampleGrabber = nullptr;
     IMediaControl* m_mediaControl = nullptr;
     std::string m_deviceName;
