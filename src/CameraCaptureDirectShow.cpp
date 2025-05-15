@@ -270,32 +270,6 @@ void rgbShuffle(const uint8_t* src, int srcStride,
     }
 }
 
-void rgbaShuffle(const uint8_t* src, int srcStride,
-                 uint8_t* dst, int dstStride,
-                 int width, int height,
-                 const uint8_t shuffle[4])
-{
-    if (height < 0)
-    {
-        height = -height;
-        dst = dst + (height - 1) * dstStride;
-        dstStride = -dstStride;
-    }
-    for (int y = 0; y < height; ++y)
-    {
-        const uint8_t* srcRow = src + y * srcStride;
-        uint8_t* dstRow = dst + y * dstStride;
-        for (int x = 0; x < width; ++x)
-        {
-            dstRow[0] = srcRow[shuffle[0]];
-            dstRow[1] = srcRow[shuffle[1]];
-            dstRow[2] = srcRow[shuffle[2]];
-            dstRow[3] = srcRow[shuffle[3]];
-            srcRow += 4;
-            dstRow += 4;
-        }
-    }
-}
 void rgba2bgr(const uint8_t* src, int srcStride,
               uint8_t* dst, int dstStride,
               int width, int height)
@@ -470,6 +444,219 @@ bool inplaceConvertFrameYUV2YUV(Frame* frame, PixelFormat toFormat, bool vertica
     return false;
 }
 
+#else
+
+void rgbaShuffle(const uint8_t* src, int srcStride,
+                 uint8_t* dst, int dstStride,
+                 int width, int height,
+                 const uint8_t shuffle[4])
+{
+    if (height < 0)
+    {
+        height = -height;
+        dst = dst + (height - 1) * dstStride;
+        dstStride = -dstStride;
+    }
+    for (int y = 0; y < height; ++y)
+    {
+        const uint8_t* srcRow = src + y * srcStride;
+        uint8_t* dstRow = dst + y * dstStride;
+        for (int x = 0; x < width; ++x)
+        {
+            dstRow[0] = srcRow[shuffle[0]];
+            dstRow[1] = srcRow[shuffle[1]];
+            dstRow[2] = srcRow[shuffle[2]];
+            dstRow[3] = srcRow[shuffle[3]];
+            srcRow += 4;
+            dstRow += 4;
+        }
+    }
+}
+
+inline void yuv2rgb601(int y, int u, int v, int& r, int& g, int& b)
+{
+    r = (298 * y + 409 * v + 128) >> 8;
+    g = (298 * y - 100 * u - 208 * v + 128) >> 8;
+    b = (298 * y + 516 * u + 128) >> 8;
+    r = std::clamp(r, 0, 255);
+    g = std::clamp(g, 0, 255);
+    b = std::clamp(b, 0, 255);
+}
+
+void nv12ToBGRA32(const uint8_t* srcY, int srcYStride,
+                  const uint8_t* srcUV, int srcUVStride,
+                  uint8_t* dst, int dstStride,
+                  int width, int height)
+{
+    // 如果 height < 0，则反向写入 dst，src 顺序读取
+    if (height < 0)
+    {
+        height = -height;
+        dst = dst + (height - 1) * dstStride;
+        dstStride = -dstStride;
+    }
+
+    for (int y = 0; y < height; ++y)
+    {
+        const uint8_t* srcRowY = srcY + y * srcYStride;
+        const uint8_t* srcRowUV = srcUV + (y / 2) * srcUVStride;
+        uint8_t* dstRow = dst + y * dstStride;
+
+        for (int x = 0; x < width; x += 2)
+        {
+            int y0 = srcRowY[x + 0] - 16;
+            int y1 = srcRowY[x + 1] - 16;
+            int u = srcRowUV[x] - 128;
+            int v = srcRowUV[x + 1] - 128;
+
+            int r0, g0, b0, r1, g1, b1;
+            yuv2rgb601(y0, u, v, r0, g0, b0);
+            yuv2rgb601(y1, u, v, r1, g1, b1);
+
+            dstRow[(x + 0) * 4 + 0] = b0;
+            dstRow[(x + 0) * 4 + 1] = g0;
+            dstRow[(x + 0) * 4 + 2] = r0;
+            dstRow[(x + 0) * 4 + 3] = 255;
+
+            dstRow[(x + 1) * 4 + 0] = b1;
+            dstRow[(x + 1) * 4 + 1] = g1;
+            dstRow[(x + 1) * 4 + 2] = r1;
+            dstRow[(x + 1) * 4 + 3] = 255;
+        }
+    }
+}
+
+void nv12ToBGR24(const uint8_t* srcY, int srcYStride,
+                 const uint8_t* srcUV, int srcUVStride,
+                 uint8_t* dst, int dstStride,
+                 int width, int height)
+{
+    // 如果 height < 0，则反向写入 dst，src 顺序读取
+    if (height < 0)
+    {
+        height = -height;
+        dst = dst + (height - 1) * dstStride;
+        dstStride = -dstStride;
+    }
+
+    for (int y = 0; y < height; ++y)
+    {
+        const uint8_t* srcRowY = srcY + y * srcYStride;
+        const uint8_t* srcRowUV = srcUV + (y / 2) * srcUVStride;
+        uint8_t* dstRow = dst + y * dstStride;
+
+        for (int x = 0; x < width; x += 2)
+        {
+            int y0 = srcRowY[x + 0] - 16;
+            int y1 = srcRowY[x + 1] - 16;
+            int u = srcRowUV[x] - 128;
+            int v = srcRowUV[x + 1] - 128;
+
+            int r0, g0, b0, r1, g1, b1;
+            yuv2rgb601(y0, u, v, r0, g0, b0);
+            yuv2rgb601(y1, u, v, r1, g1, b1);
+
+            dstRow[(x + 0) * 3 + 0] = b0;
+            dstRow[(x + 0) * 3 + 1] = g0;
+            dstRow[(x + 0) * 3 + 2] = r0;
+
+            dstRow[(x + 1) * 3 + 0] = b1;
+            dstRow[(x + 1) * 3 + 1] = g1;
+            dstRow[(x + 1) * 3 + 2] = r1;
+        }
+    }
+}
+
+void i420ToBGRA32(const uint8_t* srcY, int srcYStride,
+                  const uint8_t* srcU, int srcUStride,
+                  const uint8_t* srcV, int srcVStride,
+                  uint8_t* dst, int dstStride,
+                  int width, int height)
+{
+    // 如果 height < 0，则反向写入 dst，src 顺序读取
+    if (height < 0)
+    {
+        height = -height;
+        dst = dst + (height - 1) * dstStride;
+        dstStride = -dstStride;
+    }
+
+    for (int y = 0; y < height; ++y)
+    {
+        const uint8_t* srcRowY = srcY + y * srcYStride;
+        const uint8_t* srcRowU = srcU + (y / 2) * srcUStride;
+        const uint8_t* srcRowV = srcV + (y / 2) * srcVStride;
+        uint8_t* dstRow = dst + y * dstStride;
+
+        for (int x = 0; x < width; x += 2)
+        {
+            int y0 = srcRowY[x + 0] - 16;
+            int y1 = srcRowY[x + 1] - 16;
+            int u = srcRowU[x / 2] - 128;
+            int v = srcRowV[x / 2] - 128;
+
+            int r0, g0, b0, r1, g1, b1;
+            yuv2rgb601(y0, u, v, r0, g0, b0);
+            yuv2rgb601(y1, u, v, r1, g1, b1);
+
+            dstRow[(x + 0) * 4 + 0] = b0;
+            dstRow[(x + 0) * 4 + 1] = g0;
+            dstRow[(x + 0) * 4 + 2] = r0;
+            dstRow[(x + 0) * 4 + 3] = 255;
+
+            dstRow[(x + 1) * 4 + 0] = b1;
+            dstRow[(x + 1) * 4 + 1] = g1;
+            dstRow[(x + 1) * 4 + 2] = r1;
+            dstRow[(x + 1) * 4 + 3] = 255;
+        }
+    }
+}
+
+void i420ToBGR24(const uint8_t* srcY, int srcYStride,
+                 const uint8_t* srcU, int srcUStride,
+                 const uint8_t* srcV, int srcVStride,
+                 uint8_t* dst, int dstStride,
+                 int width, int height)
+{
+    // 如果 height < 0，则反向写入 dst，src 顺序读取
+    if (height < 0)
+    {
+        height = -height;
+        dst = dst + (height - 1) * dstStride;
+        dstStride = -dstStride;
+    }
+
+    for (int y = 0; y < height; ++y)
+    {
+        const uint8_t* srcRowY = srcY + y * srcYStride;
+        const uint8_t* srcRowU = srcU + (y / 2) * srcUStride;
+        const uint8_t* srcRowV = srcV + (y / 2) * srcVStride;
+        uint8_t* dstRow = dst + y * dstStride;
+
+        for (int x = 0; x < width; x += 2)
+        {
+            int y0 = srcRowY[x + 0] - 16;
+            int y1 = srcRowY[x + 1] - 16;
+            int u = srcRowU[x / 2] - 128;
+            int v = srcRowV[x / 2] - 128;
+
+            int r0, g0, b0, r1, g1, b1;
+            yuv2rgb601(y0, u, v, r0, g0, b0);
+            yuv2rgb601(y1, u, v, r1, g1, b1);
+
+            dstRow[(x + 0) * 3 + 0] = b0;
+            dstRow[(x + 0) * 3 + 1] = g0;
+            dstRow[(x + 0) * 3 + 2] = r0;
+
+            dstRow[(x + 1) * 3 + 0] = b1;
+            dstRow[(x + 1) * 3 + 1] = g1;
+            dstRow[(x + 1) * 3 + 2] = r1;
+        }
+    }
+}
+
+#endif
+
 bool inplaceConvertFrameYUV2BGR(Frame* frame, PixelFormat toFormat, std::vector<uint8_t>& memCache)
 { /// (NV12/I420) -> (BGR24/BGRA32)
 
@@ -511,17 +698,33 @@ bool inplaceConvertFrameYUV2BGR(Frame* frame, PixelFormat toFormat, std::vector<
 
         if (outputHasAlpha)
         {
+#if ENABLE_LIBYUV
             return libyuv::NV12ToARGB(inputData0, stride0,
                                       inputData1, stride1,
                                       frame->data[0], newLineSize,
                                       width, height) == 0;
+#else
+            nv12ToBGRA32(inputData0, stride0,
+                         inputData1, stride1,
+                         frame->data[0], newLineSize,
+                         width, height);
+            return true;
+#endif
         }
         else
         {
+#if ENABLE_LIBYUV
             return libyuv::NV12ToRGB24(inputData0, stride0,
                                        inputData1, stride1,
                                        frame->data[0], newLineSize,
                                        width, height) == 0;
+#else
+            nv12ToBGR24(inputData0, stride0,
+                        inputData1, stride1,
+                        frame->data[0], newLineSize,
+                        width, height);
+            return true;
+#endif
         }
     }
     else if (pixelFormatInclude(frame->pixelFormat, PixelFormat::I420))
@@ -529,40 +732,45 @@ bool inplaceConvertFrameYUV2BGR(Frame* frame, PixelFormat toFormat, std::vector<
 
         if (outputHasAlpha)
         {
+#if ENABLE_LIBYUV
             return libyuv::I420ToARGB(inputData0, stride0,
                                       inputData1, stride1,
                                       inputData2, stride2,
                                       frame->data[0], newLineSize,
                                       width, height) == 0;
+#else
+            i420ToBGRA32(inputData0, stride0,
+                         inputData1, stride1,
+                         inputData2, stride2,
+                         frame->data[0], newLineSize,
+                         width, height);
+            return true;
+#endif
         }
         else
         {
+#if ENABLE_LIBYUV
             return libyuv::I420ToRGB24(inputData0, stride0,
                                        inputData1, stride1,
                                        inputData2, stride2,
                                        frame->data[0], newLineSize,
                                        width, height) == 0;
+#else
+            i420ToBGR24(inputData0, stride0,
+                        inputData1, stride1,
+                        inputData2, stride2,
+                        frame->data[0], newLineSize,
+                        width, height);
+            return true;
+#endif
         }
     }
 
     return false;
 }
 
-bool inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
+bool inplaceConvertFrameRGB(Frame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
 {
-    assert(frame->pixelFormat != toFormat);
-
-    bool isInputYUV = (frame->pixelFormat & kPixelFormatYUVColorBit) != 0;
-    bool isOutputYUV = (toFormat & kPixelFormatYUVColorBit) != 0;
-    if (isInputYUV || isOutputYUV) // yuv <-> rgb
-    {
-        if (isInputYUV && isOutputYUV) // yuv <-> yuv
-            return inplaceConvertFrameYUV2YUV(frame, toFormat, verticalFlip, memCache);
-        else if (isInputYUV) // yuv -> BGR
-            return inplaceConvertFrameYUV2BGR(frame, toFormat, memCache);
-        return false; // no rgb -> yuv
-    }
-
     // rgb(a) 互转
 
     uint8_t* inputBytes = frame->data[0];
@@ -592,9 +800,11 @@ bool inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
         if (inputChannelCount == 4) // RGBA <-> BGRA
         {
             const uint8_t kShuffleMap[4] = { 2, 1, 0, 3 }; // RGBA->BGRA 或 BGRA->RGBA
-
-            // rgbaShuffle(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1), kShuffleMap);
+#if ENABLE_LIBYUV
             libyuv::ARGBShuffle(inputBytes, inputLineSize, outputBytes, newLineSize, kShuffleMap, frame->width, frame->height * (verticalFlip ? 1 : -1));
+#else
+            rgbaShuffle(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1), kShuffleMap);
+#endif
         }
         else // RGB <-> BGR
         {
@@ -627,18 +837,29 @@ bool inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
             }
         }
     }
-
     return true;
 }
 
-#else
-
-constexpr bool inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
+bool inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
 {
-    // No inplace conversion available
-    return false;
-}
+    assert(frame->pixelFormat != toFormat);
+
+    bool isInputYUV = (frame->pixelFormat & kPixelFormatYUVColorBit) != 0;
+    bool isOutputYUV = (toFormat & kPixelFormatYUVColorBit) != 0;
+    if (isInputYUV || isOutputYUV) // yuv <-> rgb
+    {
+#if ENABLE_LIBYUV
+        if (isInputYUV && isOutputYUV) // yuv <-> yuv
+            return inplaceConvertFrameYUV2YUV(frame, toFormat, verticalFlip, memCache);
 #endif
+
+        if (isInputYUV) // yuv -> BGR
+            return inplaceConvertFrameYUV2BGR(frame, toFormat, memCache);
+        return false; // no rgb -> yuv
+    }
+
+    return inplaceConvertFrameRGB(frame, toFormat, verticalFlip, memCache);
+}
 
 } // namespace
 
@@ -1289,8 +1510,26 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
             newFrame->allocator = m_allocatorFactory ? m_allocatorFactory() : std::make_shared<DefaultAllocator>();
         }
 
-        zeroCopy = !inplaceConvertFrame(newFrame.get(), m_frameProp.pixelFormat, shouldFlip, m_memCache);
-        CCAP_LOG_V("ccap: inplaceConvertFrame %s, requested pixel format: %s, actual pixel format: %s\n", zeroCopy ? "failed" : "succeeded", pixelFormatToString(m_frameProp.pixelFormat).data(), pixelFormatToString(m_cameraPixelFormat).data());
+        if (verboseLogEnabled())
+        {
+            std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
+            uint64_t duration = 0;
+
+            zeroCopy = !inplaceConvertFrame(newFrame.get(), m_frameProp.pixelFormat, shouldFlip, m_memCache);
+
+            double durInMs = (std::chrono::steady_clock::now() - startTime).count() / 1.e6;
+#ifdef DEBUG
+            constexpr const char* mode = "(using Debug mode)";
+#else
+            constexpr const char* mode = "(using Release mode)";
+#endif
+
+            CCAP_LOG_V("ccap: inplaceConvertFrame %s, requested pixel format: %s, actual pixel format: %s, cost time %s: %g(ms)\n", zeroCopy ? "failed" : "succeeded", pixelFormatToString(m_frameProp.pixelFormat).data(), pixelFormatToString(m_cameraPixelFormat).data(), mode, durInMs);
+        }
+        else
+        {
+            zeroCopy = inplaceConvertFrame(newFrame.get(), m_frameProp.pixelFormat, shouldFlip, m_memCache);
+        }
     }
 
     if (zeroCopy)

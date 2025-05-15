@@ -9,7 +9,7 @@
             "defines": [
                 "DEBUG=1",
                 "_WIN32=1",
-                "ENABLE_LIBYUV=1"
+                // "ENABLE_LIBYUV=1"
             ],
             "configurationProvider": "ms-vscode.cmake-tools",
             "includePath": [
