@@ -14,8 +14,10 @@ CameraCapture 是一个高效的、易用的、轻量级的 C++ 相机捕获库�
 - C++17 或更高版本
 - CMake 3.10 或更高版本
 - 系统依赖:
-  - Windows: DirectShow
-  - MacOS 10.13+: Foundation, AVFoundation, CoreVideo, CoreMedia
+  - Windows: DirectShow (对于相机设备兼容性略好于 MSMF) / MSMF (后续版本提供)
+  - MacOS 10.13+: Foundation, AVFoundation, CoreVideo, CoreMedia, Accelerate
+- 可选的第三方依赖:
+  - Windows: libyuv (如果禁用 libyuv, 那么需要格式转换的时候会使用内置的 cpu 转换)
 
 ## 如何使用
 
@@ -80,10 +82,18 @@ CameraCapture 是一个高效的、易用的、轻量级的 C++ 相机捕获库�
 
    创建了 `ccap::Provider` 之后, 可以通过 `findDeviceNames` 来获取可用的所有相机设备。
 
-3. 如何禁用所有运行时的日志, 包括错误日志?
+3. 如何运行时禁用所有的日志, 包括错误日志?
 
    代码: `ccap::setLogLevel(ccap::LogLevel::None);`
 
 4. 如何在编译阶段去掉所有日志以减少包体积?
 
-   编译时加上宏定义 `CCAP_NO_LOG=1` 或者给 CMake 传入参数 `-DCCAP_NO_LOG=ON`
+   - 如果是编译本项目, 给 CMake 传入参数 `-DCCAP_NO_LOG=ON` 即可.
+   - 如果是引用源码, 编译时加上全局宏定义 `CCAP_NO_LOG=1` 即可.
+
+4. 如何去掉所有第三方依赖?
+
+   本项目在 Windows 默认依赖了 libyuv, 在 macOS 上无第三方依赖. 下面针对 libyuv 说明
+   - 如果是编译本项目, 给CMake 传入参数 `-DENABLE_LIBYUV=OFF` 即可.
+   - 如果是引用源码, 默认不带 libyuv, 如果希望使用 libyuv, 可以加上全局宏定义 `ENABLE_LIBYUV=1`
+

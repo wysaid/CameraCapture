@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <emmintrin.h> // SSE2
 #include <guiddef.h>
 #include <initguid.h>
 #include <vector>
@@ -242,18 +243,202 @@ bool setupCom()
     return s_didSetup;
 }
 
+// void RGBShuffle_SSE2(const uint8_t* src, int src_stride,
+//                      uint8_t* dst, int dst_stride,
+//                      int width, int height,
+//                      const uint8_t shuffle[3])
+// {
+//     if (height < 0)
+//     {
+//         height = -height;
+//         src = src + (height - 1) * src_stride;
+//         src_stride = -src_stride;
+//     }
+
+//     for (int y = 0; y < height; ++y)
+//     {
+//         const uint8_t* s = src + y * src_stride;
+//         uint8_t* d = dst + y * dst_stride;
+//         for (int x = 0; x < width; ++x)
+//         {
+//             __m128i rgb = _mm_loadu_si128((const __m128i*)s);
+//             __m128i r = _mm_shuffle_epi8(rgb, _mm_set1_epi32(shuffle[0]));
+//             __m128i g = _mm_shuffle_epi8(rgb, _mm_set1_epi32(shuffle[1]));
+//             __m128i b = _mm_shuffle_epi8(rgb, _mm_set1_epi32(shuffle[2]));
+//             _mm_storeu_si128((__m128i*)d, _mm_or_si128(_mm_or_si128(r, g), b));
+//             s += 3;
+//             d += 3;
+//         }
+//     }
+// }
+
+// 交换 R 和 B，G 不变，支持 height < 0 上下翻转
+void rgbShuffle(const uint8_t* src, int srcStride,
+                uint8_t* dst, int dstStride,
+                int width, int height,
+                const uint8_t shuffle[3])
+{
+    if (height < 0)
+    {
+        height = -height;
+        src = src + (height - 1) * srcStride;
+        srcStride = -srcStride;
+    }
+    for (int y = 0; y < height; ++y)
+    {
+        const uint8_t* srcRow = src + y * srcStride;
+        uint8_t* dstRow = dst + y * dstStride;
+        for (int x = 0; x < width; ++x)
+        {
+            dstRow[0] = srcRow[shuffle[0]];
+            dstRow[1] = srcRow[shuffle[1]];
+            dstRow[2] = srcRow[shuffle[2]];
+            srcRow += 3;
+            dstRow += 3;
+        }
+    }
+}
+
+void rgbaShuffle(const uint8_t* src, int srcStride,
+                 uint8_t* dst, int dstStride,
+                 int width, int height,
+                 const uint8_t shuffle[4])
+{
+    if (height < 0)
+    {
+        height = -height;
+        dst = dst + (height - 1) * dstStride;
+        dstStride = -dstStride;
+    }
+    for (int y = 0; y < height; ++y)
+    {
+        const uint8_t* srcRow = src + y * srcStride;
+        uint8_t* dstRow = dst + y * dstStride;
+        for (int x = 0; x < width; ++x)
+        {
+            dstRow[0] = srcRow[shuffle[0]];
+            dstRow[1] = srcRow[shuffle[1]];
+            dstRow[2] = srcRow[shuffle[2]];
+            dstRow[3] = srcRow[shuffle[3]];
+            srcRow += 4;
+            dstRow += 4;
+        }
+    }
+}
+void rgba2bgr(const uint8_t* src, int srcStride,
+              uint8_t* dst, int dstStride,
+              int width, int height)
+{
+    // 如果 height < 0，则反向写入 dst，src 顺序读取
+    if (height < 0)
+    {
+        height = -height;
+        dst = dst + (height - 1) * dstStride;
+        dstStride = -dstStride;
+    }
+
+    for (int y = 0; y < height; ++y)
+    {
+        const uint8_t* srcRow = src + y * srcStride;
+        uint8_t* dstRow = dst + y * dstStride;
+        for (int x = 0; x < width; ++x)
+        {
+            // RGBA -> BGR (去掉A)
+            dstRow[0] = srcRow[2]; // B
+            dstRow[1] = srcRow[1]; // G
+            dstRow[2] = srcRow[0]; // R
+            srcRow += 4;
+            dstRow += 3;
+        }
+    }
+}
+
 #if ENABLE_LIBYUV
+
+bool inplaceConvertFrameRGB2YUV(Frame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
+{
+    return false;
+}
+
+bool inplaceConvertFrameYUV2RGB(Frame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
+{ /// 仅支持 yuv 格式转换为 BGR24
+    return false;
+}
 
 bool inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
 {
-    // auto* inputBytes = frame->data[0];
-    // auto inputLineSize = frame->stride[0];
-    // bool isInputYUV = (frame->pixelFormat & kPixelFormatYUVColorBit) != 0;
-    // bool isOutputYUV = (toFormat & kPixelFormatYUVColorBit) != 0;
-    // auto outputChannelCount = (toFormat & kPixelFormatAlphaColorBit) ? 4 : 3;
-    // // Ensure 16/32 byte alignment for best performance
-    // auto newLineSize = outputChannelCount == 3 ? ((frame->width * 3 + 31) & ~31) : (frame->width * 4);
-    // auto inputFormat = frame->pixelFormat;
+    bool isInputYUV = (frame->pixelFormat & kPixelFormatYUVColorBit) != 0;
+    bool isOutputYUV = (toFormat & kPixelFormatYUVColorBit) != 0;
+    if (isInputYUV != isOutputYUV)
+    { /// yuv <-> rgb
+        if (isInputYUV)
+            return inplaceConvertFrameYUV2RGB(frame, toFormat, verticalFlip, memCache);
+        else
+            return inplaceConvertFrameRGB2YUV(frame, toFormat, verticalFlip, memCache);
+    }
+
+    // rgb(a) 互转
+
+    uint8_t* inputBytes = frame->data[0];
+    int inputLineSize = frame->stride[0];
+    auto outputChannelCount = (toFormat & kPixelFormatAlphaColorBit) ? 4 : 3;
+    // Ensure 16/32 byte alignment for best performance
+    auto newLineSize = outputChannelCount == 3 ? ((frame->width * 3 + 31) & ~31) : (frame->width * 4);
+    auto inputFormat = frame->pixelFormat;
+
+    auto inputChannelCount = (inputFormat & kPixelFormatAlphaColorBit) ? 4 : 3;
+
+    bool isInputRGB = inputFormat & kPixelFormatRGBBit; ///< Not RGB means BGR
+    bool isOutputRGB = toFormat & kPixelFormatRGBBit;   ///< Not RGB means BGR
+    bool swapRB = isInputRGB != isOutputRGB;            ///< Whether R and B channels need to be swapped
+
+    frame->allocator->resize(newLineSize * frame->height);
+
+    uint8_t* outputBytes = frame->allocator->data();
+
+    frame->stride[0] = newLineSize;
+    frame->data[0] = outputBytes;
+    frame->pixelFormat = toFormat;
+
+    if (inputChannelCount == outputChannelCount)
+    { /// only RGB <-> BGR, RGBA <-> BGRA
+        assert(swapRB);
+        if (inputChannelCount == 4) // RGBA <-> BGRA
+        {
+            const uint8_t kShuffleMap[4] = { 2, 1, 0, 3 }; // RGBA->BGRA 或 BGRA->RGBA
+            rgbaShuffle(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1), kShuffleMap);
+        }
+        else // RGB <-> BGR
+        {
+            const uint8_t kShuffleMap[3] = { 2, 1, 0 }; // RGB->BGR 或 BGR->RGB
+            rgbShuffle(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1), kShuffleMap);
+        }
+    }
+    else /// Different number of channels, only 4 channels <-> 3 channels
+    {
+        if (inputChannelCount == 4) // RGBA <-> RGB
+        {                           // 4 channels -> 3 channels
+            if (swapRB)
+            { // Possible cases: RGBA->BGR, BGRA->RGB
+                libyuv::ARGBToRGB(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
+            }
+            else
+            { // Possible cases: RGBA->RGB, BGRA->BGR
+                libyuv::ARGBToRGB(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
+            }
+        }
+        else // BGR <-> BGRA
+        {
+            if (swapRB)
+            {
+                libyuv::RGBAToARGB(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
+            }
+            else
+            {
+                libyuv::RGBAToARGB(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
+            }
+        }
+    }
 
     return false;
 }
