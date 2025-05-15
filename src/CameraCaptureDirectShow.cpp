@@ -1,7 +1,7 @@
 /**
  * @file CameraCaptureDirectShow.cpp
  * @author wysaid (this@wysaid.org)
- * @brief Implementation for ProviderDirectShow class using MSMF.
+ * @brief Implementation for Provider class using DSHOW.
  * @date 2025-04
  *
  */

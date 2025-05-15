@@ -13,19 +13,22 @@ CameraCapture is an efficient, easy-to-use, and lightweight C++ camera capture l
 - C++17 or higher
 - CMake 3.10 or higher
 - System dependencies:
-  - Windows: DirectShow
-  - MacOS 10.13+: Foundation, AVFoundation, CoreVideo, CoreMedia
+  - Windows: DirectShow (better compatibility than MSMF for camera devices; MSMF support may be added in future versions)
+  - MacOS 10.13+: Foundation, AVFoundation, CoreVideo, CoreMedia, Accelerate
+- Optional third-party dependencies:
+  - Windows: libyuv (if libyuv is disabled, built-in conversion will be used for pixel format conversion)
 
 ## How to Use
 
-Usage is very simple. This project provides a header file and a static library, which can be directly added to your project.
+Usage is very simple. This project provides a header file and a static library, which can be directly added to your project.  
+Alternatively, you can add the source code of this project directly to your own project.
 
 Several demos are included in this project for your reference:
 
-1. [Print Camera Devices](./demo/0-print_camera.cpp)  
-2. [Simple Demo for Grabbing a Frame](./demo/1-minimal_demo.cpp)  
-3. [Demo for Continuously Grabbing Frames](./demo/2-capture_grab.cpp)  
-4. [Demo for Getting Frames via Callback](./demo/3-capture_callback.cpp)  
+1. [Print Camera Devices](./demo/0-print_camera.cpp)
+2. [Simple Demo for Grabbing a Frame](./demo/1-minimal_demo.cpp)
+3. [Demo for Continuously Grabbing Frames](./demo/2-capture_grab.cpp)
+4. [Demo for Getting Frames via Callback](./demo/3-capture_callback.cpp)
 
 Sample usage:
 
@@ -63,11 +66,13 @@ Sample usage:
 
 1. How to select PixelFormat
 
-    On Windows, if not set, the default is `BGR24`, which is generally supported. If you want to manually select a YUV format, both `NV12f` and `NV12v` are available.
+    On Windows, if not set, the default is `BGR24`, which is generally supported. If you want to manually select a YUV format, both `NV12f` and `NV12v` are available.  
     For virtual cameras (such as `Obs Virtual Camera`), the supported format may depend on the output format set by the virtual camera.
 
-    On Mac, if not set, the default is `BGRA32`, which is generally supported. If you want to manually select a YUV format, both `NV12f` and `NV12v` are available.
+    On Mac, if not set, the default is `BGRA32`, which is generally supported. If you want to manually select a YUV format, both `NV12f` and `NV12v` are available.  
     For virtual cameras (such as `Obs Virtual Camera`), the supported format may depend on the output format set by the virtual camera.
+
+    On different platforms, the underlying accelerated libraries will be used for conversion.
 
     When ccap encounters an unsupported PixelFormat, it will try to select the closest supported format. The actual format can be checked from `frame->PixelFormat`.
 
@@ -81,4 +86,11 @@ Sample usage:
 
 4. How to remove all logs at compile time to reduce package size?
 
-    Add the macro definition `CCAP_NO_LOG=1` during compilation or pass the parameter `-DCCAP_NO_LOG=ON` to CMake.
+    - If you are building this project, pass the parameter `-DCCAP_NO_LOG=ON` to CMake.
+    - If you are including the source code, add the global macro definition `CCAP_NO_LOG=1` during compilation.
+
+5. How to enable libyuv on Windows for accelerated pixel format conversion?
+
+    This project can easily use libyuv for pixel format conversion on Windows, while on macOS there are no third-party dependencies.  
+    - If you are building this project, pass the parameter `-DENABLE_LIBYUV=ON` to CMake.
+    - If you are including the source code, by default libyuv is not enabled. You can enable it by adding the global macro definition `ENABLE_LIBYUV=1` during compilation.
