@@ -19,7 +19,6 @@ endif()
 FetchContent_Declare(
     libyuv
     GIT_REPOSITORY ${LIBYUV_REPO_PRIMARY}
-
     GIT_TAG ${LIBYUV_VERSION}
 )
 FetchContent_GetProperties(libyuv)
@@ -27,8 +26,9 @@ FetchContent_GetProperties(libyuv)
 if(NOT libyuv_POPULATED)
     message(STATUS "Trying to fetch libyuv from primary repo: ${LIBYUV_REPO_PRIMARY}")
     FetchContent_Populate(libyuv)
+    FetchContent_GetProperties(libyuv) # 重新获取属性
 
-    if(NOT EXISTS "${libyuv_SOURCE_DIR}/README.md")
+    if(NOT libyuv_POPULATED OR NOT EXISTS "${libyuv_SOURCE_DIR}/README.md")
         message(WARNING "Failed to clone ${LIBYUV_REPO_PRIMARY}, trying secondary repo: ${LIBYUV_REPO_SECONDARY}")
 
         # 重新声明并尝试备用仓库
@@ -38,6 +38,7 @@ if(NOT libyuv_POPULATED)
             GIT_TAG ${LIBYUV_VERSION}
         )
         FetchContent_Populate(libyuv)
+        FetchContent_GetProperties(libyuv) # 再次获取属性
     endif()
 endif()
 

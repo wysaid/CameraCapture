@@ -52,7 +52,8 @@ static void optimizeLogIfNotSet()
     if (!globalLogLevelChanged)
     {
         int mib[4];
-        struct kinfo_proc info{};
+        struct kinfo_proc info
+        {};
         size_t size = sizeof(info);
 
         mib[0] = CTL_KERN;
@@ -930,11 +931,7 @@ ProviderMac::ProviderMac()
 
 ProviderMac::~ProviderMac()
 {
-    if (m_imp)
-    {
-        [m_imp destroy];
-        m_imp = nil;
-    }
+    ProviderMac::close();
 }
 
 std::vector<std::string> ProviderMac::findDeviceNames()
@@ -1026,7 +1023,11 @@ std::optional<DeviceInfo> ProviderMac::getDeviceInfo() const
 
 void ProviderMac::close()
 {
-    m_imp = nil;
+    if (m_imp)
+    {
+        [m_imp destroy];
+        m_imp = nil;
+    }
 }
 
 bool ProviderMac::start()

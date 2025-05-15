@@ -64,7 +64,8 @@ int main(int argc, char** argv)
     cameraProvider.set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::NV12f);
 #endif
     cameraProvider.set(ccap::PropertyName::FrameRate, requestedFps);
-    cameraProvider.set(ccap::PropertyName::FrameOrientation, ccap::FrameOrientation::BottomToTop);
+    
+    // cameraProvider.set(ccap::PropertyName::FrameOrientation, ccap::FrameOrientation::BottomToTop);
 
     cameraProvider.open(deviceIndex) && cameraProvider.start();
 

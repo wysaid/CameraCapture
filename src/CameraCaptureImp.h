@@ -26,6 +26,7 @@
 #include <deque>
 #include <mutex>
 #include <queue>
+#include <optional>
 
 namespace ccap
 {

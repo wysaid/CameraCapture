@@ -171,7 +171,9 @@ std::string dumpFrameToFile(Frame* frame, std::string_view fileNameWithNoSuffix)
     if (frame->pixelFormat & ccap::kPixelFormatRGBColorBit)
     { /// RGB or RGBA
         auto filePath = std::string(fileNameWithNoSuffix) + ".bmp";
-        saveRgbDataAsBMP(filePath.c_str(), frame->data[0], frame->width, frame->stride[0], frame->height, true, frame->pixelFormat & ccap::kPixelFormatAlphaColorBit, frame->orientation == FrameOrientation::TopToBottom);
+        bool isBGR = (frame->pixelFormat & ccap::kPixelFormatBGRBit) != 0;
+
+        saveRgbDataAsBMP(filePath.c_str(), frame->data[0], frame->width, frame->stride[0], frame->height, isBGR, frame->pixelFormat & ccap::kPixelFormatAlphaColorBit, frame->orientation == FrameOrientation::TopToBottom);
         return filePath;
     }
     else if (ccap::pixelFormatInclude(frame->pixelFormat, ccap::kPixelFormatYUVColorBit))

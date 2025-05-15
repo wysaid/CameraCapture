@@ -246,7 +246,8 @@ enum class PropertyName
 
     /**
      * @brief The frame orientation. Will correct the orientation in RGB* PixelFormat, which may incur additional performance overhead.
-     * @attention When the output pixel format is YUV, this property has no effect.
+     * @attention When the camera output pixel format is YUV, this property has no effect.
+     *      It is recommended that users do not set this option, but instead adapt to the orientation information obtained from the Frame.
      */
     FrameOrientation = 0x40000,
 };
