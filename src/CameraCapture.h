@@ -67,16 +67,6 @@ enum class PixelFormat : uint32_t
      * @brief Not commonly used, likely unsupported, may fall back to NV12*
      *    On some devices, it is not possible to clearly determine whether it is FullRange or VideoRange.
      *    In such cases, the Frame can only indicate that it is NV12.
-     * @refitem #NV12
-     */
-    NV21 = 1 << 1 | kPixelFormatYUVColorBit,
-
-    NV21f = NV21 | kPixelFormatYUVColorFullRangeBit,
-
-    /**
-     * @brief Not commonly used, likely unsupported, may fall back to NV12*
-     *    On some devices, it is not possible to clearly determine whether it is FullRange or VideoRange.
-     *    In such cases, the Frame can only indicate that it is NV12.
      *    In software design, you can implement a toggle option to allow users to choose whether
      *    the received Frame is FullRange or VideoRange based on what they observe.
      * @note This format is also known by other names, such as YUV420P or IYUV.
@@ -167,7 +157,7 @@ struct Frame
     /**
      * @brief Frame data, stored the raw bytes of a frame.
      *     For pixel format I420: `data[0]` contains Y, `data[1]` contains U, and `data[2]` contains V.
-     *     For pixel format NV12/NV21: `data[0]` contains Y, `data[1]` contains interleaved UV, and `data[2]` is nullptr.
+     *     For pixel format NV12: `data[0]` contains Y, `data[1]` contains interleaved UV, and `data[2]` is nullptr.
      *     For other formats: `data[0]` contains the data, while `data[1]` and `data[2]` are nullptr.
      */
     uint8_t* data[3] = {};
@@ -509,7 +499,7 @@ std::string_view pixelFormatToString(PixelFormat format);
 
 //////////////////// Log ////////////////////
 
-#ifndef CCAP_NO_LOG          ///< Define this macro to remove log code during compilation.
+#ifndef CCAP_NO_LOG ///< Define this macro to remove log code during compilation.
 #define _CCAP_LOG_ENABLED_ 1 // NOLINT(*-reserved-identifier)
 #else
 #define _CCAP_LOG_ENABLED_ 0

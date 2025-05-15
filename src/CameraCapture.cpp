@@ -336,11 +336,6 @@ std::string_view pixelFormatToString(PixelFormat format)
     case PixelFormat::NV12f:
         return "NV12f";
 
-    case PixelFormat::NV21:
-        return "NV21";
-    case PixelFormat::NV21f:
-        return "NV21f";
-
     case PixelFormat::I420:
         return "I420";
     case PixelFormat::I420f:

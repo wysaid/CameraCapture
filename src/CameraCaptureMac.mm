@@ -665,16 +665,14 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
 {
     switch (_cameraPixelFormat)
     {
-    case PixelFormat::NV21: /// MacOS does not support NV21, fallback to NV12
     case PixelFormat::I420:
-        CCAP_NSLOG_E(@"ccap: NV21/I420 is not supported on macOS, fallback to NV12");
+        CCAP_NSLOG_E(@"ccap: I420 is not supported on macOS, fallback to NV12");
     case PixelFormat::NV12:
         _cvPixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
         _cameraPixelFormat = PixelFormat::NV12;
         break;
-    case PixelFormat::NV21f: /// MacOS does not support NV21, fallback to NV12
     case PixelFormat::I420f:
-        CCAP_NSLOG_E(@"ccap: NV21f/I420f is not supported on macOS, fallback to NV12f");
+        CCAP_NSLOG_E(@"ccap: I420f is not supported on macOS, fallback to NV12f");
     case PixelFormat::NV12f:
         _cvPixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarFullRange;
         _cameraPixelFormat = PixelFormat::NV12f;

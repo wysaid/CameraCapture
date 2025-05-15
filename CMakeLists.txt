@@ -2,14 +2,16 @@ cmake_minimum_required(VERSION 3.10)
 
 option(CCAP_NO_LOG "Disable logging" OFF)
 
-if(WIN32)
-    option(ENABLE_LIBYUV "Enable libyuv" ON)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    set(CCAP_IS_ROOT_PROJECT ON)
+else()
+    set(CCAP_IS_ROOT_PROJECT OFF)
 endif()
 
-if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    option(CCAP_BUILD_DEMO "Build ccap demo" ON)
-else()
-    option(CCAP_BUILD_DEMO "Build ccap demo" OFF)
+option(CCAP_BUILD_DEMO "Build ccap demo" ${CCAP_IS_ROOT_PROJECT})
+
+if(WIN32)
+    option(ENABLE_LIBYUV "Enable libyuv" ${CCAP_IS_ROOT_PROJECT})
 endif()
 
 project(CameraCapture LANGUAGES CXX)

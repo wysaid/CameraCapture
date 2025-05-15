@@ -556,15 +556,10 @@ bool inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
     bool isOutputYUV = (toFormat & kPixelFormatYUVColorBit) != 0;
     if (isInputYUV || isOutputYUV) // yuv <-> rgb
     {
-        ///  NV21 非常少见, 不做处理. 后续删掉
-        if (!pixelFormatInclude(frame->pixelFormat, PixelFormat::NV21))
-        {
-            if (isInputYUV && isOutputYUV) // yuv <-> yuv
-                return inplaceConvertFrameYUV2YUV(frame, toFormat, verticalFlip, memCache);
-            else if (isInputYUV) // yuv -> BGR
-                return inplaceConvertFrameYUV2BGR(frame, toFormat, memCache);
-        }
-
+        if (isInputYUV && isOutputYUV) // yuv <-> yuv
+            return inplaceConvertFrameYUV2YUV(frame, toFormat, verticalFlip, memCache);
+        else if (isInputYUV) // yuv -> BGR
+            return inplaceConvertFrameYUV2BGR(frame, toFormat, memCache);
         return false; // no rgb -> yuv
     }
 
