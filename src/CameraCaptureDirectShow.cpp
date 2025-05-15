@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
-#include <emmintrin.h> // SSE2
+// #include <emmintrin.h> // SSE2
 #include <guiddef.h>
 #include <initguid.h>
 #include <vector>
@@ -353,28 +353,221 @@ void rgba2bgr(const uint8_t* src, int srcStride,
     }
 }
 
+void rgba2rgb(const uint8_t* src, int srcStride,
+              uint8_t* dst, int dstStride,
+              int width, int height)
+{
+    // 如果 height < 0，则反向写入 dst，src 顺序读取
+    if (height < 0)
+    {
+        height = -height;
+        dst = dst + (height - 1) * dstStride;
+        dstStride = -dstStride;
+    }
+
+    for (int y = 0; y < height; ++y)
+    {
+        const uint8_t* srcRow = src + y * srcStride;
+        uint8_t* dstRow = dst + y * dstStride;
+        for (int x = 0; x < width; ++x)
+        {
+            // RGBA -> RGB (去掉A)
+            dstRow[0] = srcRow[2]; // R
+            dstRow[1] = srcRow[1]; // G
+            dstRow[2] = srcRow[0]; // B
+            srcRow += 4;
+            dstRow += 3;
+        }
+    }
+}
+
+void rgb2bgra(const uint8_t* src, int srcStride,
+              uint8_t* dst, int dstStride,
+              int width, int height)
+{
+    // 如果 height < 0，则反向写入 dst，src 顺序读取
+    if (height < 0)
+    {
+        height = -height;
+        dst = dst + (height - 1) * dstStride;
+        dstStride = -dstStride;
+    }
+
+    for (int y = 0; y < height; ++y)
+    {
+        const uint8_t* srcRow = src + y * srcStride;
+        uint8_t* dstRow = dst + y * dstStride;
+        for (int x = 0; x < width; ++x)
+        {
+            // RGB -> BGRA (添加A)
+            dstRow[0] = srcRow[2]; // B
+            dstRow[1] = srcRow[1]; // G
+            dstRow[2] = srcRow[0]; // R
+            dstRow[3] = 255;       // A
+            srcRow += 3;
+            dstRow += 4;
+        }
+    }
+}
+
+void rgb2rgba(const uint8_t* src, int srcStride,
+              uint8_t* dst, int dstStride,
+              int width, int height)
+{
+    // 如果 height < 0，则反向写入 dst，src 顺序读取
+    if (height < 0)
+    {
+        height = -height;
+        dst = dst + (height - 1) * dstStride;
+        dstStride = -dstStride;
+    }
+
+    for (int y = 0; y < height; ++y)
+    {
+        const uint8_t* srcRow = src + y * srcStride;
+        uint8_t* dstRow = dst + y * dstStride;
+        for (int x = 0; x < width; ++x)
+        {
+            // RGB -> RGBA (添加A)
+            dstRow[0] = srcRow[0]; // R
+            dstRow[1] = srcRow[1]; // G
+            dstRow[2] = srcRow[2]; // B
+            dstRow[3] = 255;       // A
+            srcRow += 3;
+            dstRow += 4;
+        }
+    }
+}
+
 #if ENABLE_LIBYUV
 
-bool inplaceConvertFrameRGB2YUV(Frame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
+bool inplaceConvertFrameYUV2YUV(Frame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
 {
+    /// (NV12/I420) <-> (NV12/I420)
+    assert((frame->pixelFormat & kPixelFormatYUVColorBit) != 0 && (toFormat & kPixelFormatYUVColorBit) != 0);
+    bool isInputNV12 = pixelFormatInclude(frame->pixelFormat, PixelFormat::NV12);
+    bool isOutputNV12 = pixelFormatInclude(toFormat, PixelFormat::NV12);
+    bool isInputI420 = pixelFormatInclude(frame->pixelFormat, PixelFormat::I420);
+    bool isOutputI420 = pixelFormatInclude(toFormat, PixelFormat::I420);
+
+    assert(!(isInputNV12 && isOutputNV12)); // 相同类型不应该进来
+    assert(!(isInputI420 && isOutputI420)); // 相同类型不应该进来
+    uint8_t* inputData0 = frame->data[0];
+    uint8_t* inputData1 = frame->data[1];
+    uint8_t* inputData2 = frame->data[2];
+    int stride0 = frame->stride[0];
+    int stride1 = frame->stride[1];
+    int stride2 = frame->stride[2];
+    int width = frame->width;
+    int height = frame->height;
+
+    // NV12/I420 都是 YUV420P 格式
+    frame->allocator->resize(stride0 * width + (stride1 + stride2) * height / 2);
+    frame->data[0] = frame->allocator->data();
+
+    uint8_t* outputData0 = frame->data[0];
+    frame->data[1] = outputData0 + stride0 * height;
+
+    if (isInputNV12)
+    { /// NV12 -> I420
+        frame->stride[1] = stride1 / 2;
+        frame->stride[2] = frame->stride[1];
+        frame->data[2] = isOutputI420 ? frame->data[1] + stride1 * height / 2 : nullptr;
+        frame->pixelFormat = toFormat;
+
+        return libyuv::NV12ToI420(inputData0, stride0,
+                                  inputData1, stride1,
+                                  outputData0, stride0,
+                                  frame->data[1], frame->stride[1],
+                                  frame->data[2], frame->stride[2],
+                                  width, height) == 0;
+    }
+    else if (isInputI420)
+    { // I420 -> NV12
+        frame->stride[1] = stride1 + stride2;
+        frame->stride[2] = 0;
+        frame->data[2] = nullptr;
+
+        return libyuv::I420ToNV12(inputData0, stride0,
+                                  inputData1, stride1,
+                                  inputData2, stride2,
+                                  frame->data[0], stride0,
+                                  frame->data[1], frame->stride[1],
+                                  width, height) == 0;
+    }
+
     return false;
 }
 
-bool inplaceConvertFrameYUV2RGB(Frame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
-{ /// 仅支持 yuv 格式转换为 BGR24
+bool inplaceConvertFrameYUV2RGB24(Frame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
+{ /// (NV12/I420) -> (RGB24)
+
+    /// TODO: 这里修正一下 toFormat, 只支持 YUV -> RGB24. 简化一下 SDK 的设计. 后续再完善.
+    toFormat = PixelFormat::RGB24;
+
+    auto inputFormat = frame->pixelFormat;
+    assert((inputFormat & kPixelFormatYUVColorBit) != 0 && (toFormat & kPixelFormatYUVColorBit) == 0);
+    bool isInputNV12 = pixelFormatInclude(inputFormat, PixelFormat::NV12);
+    bool isInputI420 = pixelFormatInclude(inputFormat, PixelFormat::I420);
+
+    uint8_t* inputData0 = frame->data[0];
+    uint8_t* inputData1 = frame->data[1];
+    uint8_t* inputData2 = frame->data[2];
+    int stride0 = frame->stride[0];
+    int stride1 = frame->stride[1];
+    int stride2 = frame->stride[2];
+    int width = frame->width;
+    int height = frame->height;
+
+    auto newLineSize = (frame->width * 3 + 31) & ~31;
+
+    frame->allocator->resize(newLineSize * width);
+    frame->data[0] = frame->allocator->data();
+    frame->stride[0] = newLineSize;
+    frame->data[1] = nullptr;
+    frame->data[2] = nullptr;
+    frame->stride[1] = 0;
+    frame->stride[2] = 0;
+    frame->pixelFormat = toFormat;
+
+    if (isInputNV12)
+    { // NV12 -> RGB24
+
+        return libyuv::NV12ToRGB24(inputData0, stride0,
+                                   inputData1, stride1,
+                                   frame->data[0], newLineSize,
+                                   width, height) == 0;
+    }
+    else if (pixelFormatInclude(frame->pixelFormat, PixelFormat::I420))
+    { // I420 -> RGB24
+        return libyuv::I420ToRGB24(inputData0, stride0,
+                                   inputData1, stride1,
+                                   inputData2, stride2,
+                                   frame->data[0], newLineSize,
+                                   width, height) == 0;
+    }
+
     return false;
 }
 
 bool inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
 {
+    assert(frame->pixelFormat != toFormat);
+
     bool isInputYUV = (frame->pixelFormat & kPixelFormatYUVColorBit) != 0;
     bool isOutputYUV = (toFormat & kPixelFormatYUVColorBit) != 0;
-    if (isInputYUV != isOutputYUV)
-    { /// yuv <-> rgb
-        if (isInputYUV)
-            return inplaceConvertFrameYUV2RGB(frame, toFormat, verticalFlip, memCache);
-        else
-            return inplaceConvertFrameRGB2YUV(frame, toFormat, verticalFlip, memCache);
+    if (isInputYUV || isOutputYUV) // yuv <-> rgb
+    {
+        ///  NV21 非常少见, 不做处理. 后续删掉
+        if (!pixelFormatInclude(frame->pixelFormat, PixelFormat::NV21))
+        {
+            if (isInputYUV && isOutputYUV) // yuv <-> yuv
+                return inplaceConvertFrameYUV2YUV(frame, toFormat, verticalFlip, memCache);
+            else if (isInputYUV) // yuv -> rgb
+                return inplaceConvertFrameYUV2RGB24(frame, toFormat, verticalFlip, memCache);
+        }
+
+        return false; // no rgb -> yuv
     }
 
     // rgb(a) 互转
@@ -416,31 +609,31 @@ bool inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
     }
     else /// Different number of channels, only 4 channels <-> 3 channels
     {
-        if (inputChannelCount == 4) // RGBA <-> RGB
-        {                           // 4 channels -> 3 channels
+        if (inputChannelCount == 4) // 4 channels -> 3 channels
+        {
             if (swapRB)
             { // Possible cases: RGBA->BGR, BGRA->RGB
-                libyuv::ARGBToRGB(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
+                rgba2bgr(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
             }
             else
             { // Possible cases: RGBA->RGB, BGRA->BGR
-                libyuv::ARGBToRGB(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
+                rgba2rgb(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
             }
         }
-        else // BGR <-> BGRA
+        else // 3 channels -> 4 channels
         {
             if (swapRB)
-            {
-                libyuv::RGBAToARGB(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
+            { // Possible cases: BGR->RGBA, RGB->BGRA
+                rgb2bgra(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
             }
             else
-            {
-                libyuv::RGBAToARGB(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
+            { // Possible cases: BGR->BGRA, RGB->RGBA
+                rgb2rgba(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
             }
         }
     }
 
-    return false;
+    return true;
 }
 
 #else
@@ -1093,7 +1286,13 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
 
     if (!zeroCopy)
     { /// 如果执行 convert 失败, 则回退到使用 sampleData, 需要继续走 zeroCopy 的逻辑
-        zeroCopy = !inplaceConvertFrame(newFrame.get(), newFrame->pixelFormat, shouldFlip, m_memCache);
+
+        if (!newFrame->allocator)
+        {
+            newFrame->allocator = m_allocatorFactory ? m_allocatorFactory() : std::make_shared<DefaultAllocator>();
+        }
+
+        zeroCopy = !inplaceConvertFrame(newFrame.get(), m_frameProp.pixelFormat, shouldFlip, m_memCache);
         CCAP_LOG_V("ccap: inplaceConvertFrame %s, requested pixel format: %s, actual pixel format: %s\n", zeroCopy ? "failed" : "succeeded", pixelFormatToString(m_frameProp.pixelFormat).data(), pixelFormatToString(newFrame->pixelFormat).data());
     }
 
