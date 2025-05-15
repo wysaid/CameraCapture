@@ -53,7 +53,7 @@ struct FrameProperty
     }
 };
 
-/// A default allocator that uses std::vector for memory management.
+/// A default allocator
 class DefaultAllocator : public Allocator
 {
 public:
@@ -63,7 +63,8 @@ public:
     size_t size() override;
 
 private:
-    std::vector<uint8_t> m_data;
+    uint8_t* m_data = nullptr;
+    size_t m_size = 0;
 };
 
 class ProviderImp

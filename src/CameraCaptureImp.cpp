@@ -12,20 +12,33 @@
 
 namespace ccap
 {
-DefaultAllocator::~DefaultAllocator() = default;
+DefaultAllocator::~DefaultAllocator()
+{
+    if (m_data)
+        std::free(m_data);
+}
+
 void DefaultAllocator::resize(size_t size)
 {
-    m_data.resize(size);
+    if (size <= m_size && m_data != nullptr)
+        return;
+    if (m_data)
+        std::free(m_data);
+
+    // 64字节对齐，size必须是对齐的倍数
+    size_t alignedSize = (size + 63) & ~size_t(63);
+    m_data = static_cast<uint8_t*>(std::aligned_alloc(64, alignedSize));
+    m_size = alignedSize;
 }
 
 uint8_t* DefaultAllocator::data()
 {
-    return m_data.data();
+    return m_data;
 }
 
 size_t DefaultAllocator::size()
 {
-    return m_data.size();
+    return m_size;
 }
 
 ProviderImp::ProviderImp()
