@@ -53,14 +53,15 @@ int main(int argc, char** argv)
         }
     }
 
-    int requestedWidth = 1280;
-    int requestedHeight = 720;
+    int requestedWidth = 1920;
+    int requestedHeight = 1080;
     double requestedFps = 60;
 
     cameraProvider.set(ccap::PropertyName::Width, requestedWidth);
     cameraProvider.set(ccap::PropertyName::Height, requestedHeight);
 #if 1 /// switch to test.
     cameraProvider.set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::BGR24);
+    // cameraProvider.set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::BGRA32);
 #else
     cameraProvider.set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::NV12f);
 #endif

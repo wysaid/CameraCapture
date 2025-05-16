@@ -60,11 +60,12 @@ int main(int argc, char** argv)
     cameraProvider.set(ccap::PropertyName::Height, requestedHeight);
 #if 1 /// switch to test.
     cameraProvider.set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::BGR24);
+    // cameraProvider.set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::BGRA32);
 #else
     cameraProvider.set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::NV12f);
 #endif
     cameraProvider.set(ccap::PropertyName::FrameRate, requestedFps);
-    
+
     // cameraProvider.set(ccap::PropertyName::FrameOrientation, ccap::FrameOrientation::BottomToTop);
 
     cameraProvider.open(deviceIndex) && cameraProvider.start();

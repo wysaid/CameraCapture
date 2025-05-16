@@ -547,7 +547,6 @@ void nv12ToBGRA32_AVX2(const uint8_t* srcY, int srcYStride,
                        uint8_t* dst, int dstStride,
                        int width, int height)
 {
-    // 支持 height < 0 上下翻转
     if (height < 0)
     {
         height = -height;
@@ -555,7 +554,6 @@ void nv12ToBGRA32_AVX2(const uint8_t* srcY, int srcYStride,
         dstStride = -dstStride;
     }
 
-    // 仅支持 width 为 16 的倍数，否则尾部需补齐
     for (int y = 0; y < height; ++y)
     {
         const uint8_t* yRow = srcY + y * srcYStride;
@@ -568,54 +566,52 @@ void nv12ToBGRA32_AVX2(const uint8_t* srcY, int srcYStride,
             // 1. 加载 16 个 Y
             __m128i y_vals = _mm_loadu_si128((const __m128i*)(yRow + x));
 
-            // 2. 加载 16 个 UV（8 对），UV 交错排列
+            // 2. 加载 16 字节 UV（8 对）
             __m128i uv_vals = _mm_loadu_si128((const __m128i*)(uvRow + x));
 
-            // 拆分 U/V
-            __m128i u_vals = _mm_and_si128(uv_vals, _mm_set1_epi16(0x00FF));
-            __m128i v_vals = _mm_srli_epi16(uv_vals, 8);
+            // 3. 拆分 U/V
+            __m128i u8 = _mm_and_si128(uv_vals, _mm_set1_epi16(0x00FF));
+            __m128i v8 = _mm_srli_epi16(uv_vals, 8);
 
-            // 展开 U/V 到 16 个像素（每 2 个像素用同一组 U/V）
-            __m128i u_vals_16 = _mm_unpacklo_epi8(u_vals, u_vals);
-            __m128i v_vals_16 = _mm_unpacklo_epi8(v_vals, v_vals);
-            u_vals_16 = _mm_packus_epi16(u_vals_16, _mm_unpackhi_epi8(u_vals, u_vals));
-            v_vals_16 = _mm_packus_epi16(v_vals_16, _mm_unpackhi_epi8(v_vals, v_vals));
+            // 4. 打包成 8字节 U/V
+            u8 = _mm_packus_epi16(u8, _mm_setzero_si128());
+            v8 = _mm_packus_epi16(v8, _mm_setzero_si128());
 
-            // 3. 转换为 int16
+            // 5. 每个U/V扩展为2个像素
+            __m128i u_lo = _mm_unpacklo_epi8(u8, u8);
+            __m128i v_lo = _mm_unpacklo_epi8(v8, v8);
+
+            // 6. 拼成16字节
+            __m256i u_16 = _mm256_cvtepu8_epi16(u_lo);
+            __m256i v_16 = _mm256_cvtepu8_epi16(v_lo);
             __m256i y_16 = _mm256_cvtepu8_epi16(y_vals);
-            __m256i u_16 = _mm256_cvtepu8_epi16(u_vals_16);
-            __m256i v_16 = _mm256_cvtepu8_epi16(v_vals_16);
 
-            // 4. 偏移
+            // 7. 偏移
             y_16 = _mm256_sub_epi16(y_16, _mm256_set1_epi16(16));
             u_16 = _mm256_sub_epi16(u_16, _mm256_set1_epi16(128));
             v_16 = _mm256_sub_epi16(v_16, _mm256_set1_epi16(128));
 
-            // 5. YUV -> RGB (BT.601)
-            // R = (298 * Y + 409 * V + 128) >> 8
-            // G = (298 * Y - 100 * U - 208 * V + 128) >> 8
-            // B = (298 * Y + 516 * U + 128) >> 8
+            // 8. YUV -> RGB (BT.601), 数据相比 cpu 版有压缩, 精度可能有肉眼不可见的差异
+            __m256i c74 = _mm256_set1_epi16(74);
+            __m256i c102 = _mm256_set1_epi16(102);
+            __m256i c25 = _mm256_set1_epi16(25);
+            __m256i c52 = _mm256_set1_epi16(52);
+            __m256i c129 = _mm256_set1_epi16(129);
 
-            __m256i c298 = _mm256_set1_epi16(298);
-            __m256i c409 = _mm256_set1_epi16(409);
-            __m256i c100 = _mm256_set1_epi16(100);
-            __m256i c208 = _mm256_set1_epi16(208);
-            __m256i c516 = _mm256_set1_epi16(516);
+            __m256i y74 = _mm256_mullo_epi16(y_16, c74);
 
-            __m256i y298 = _mm256_mullo_epi16(y_16, c298);
+            __m256i r = _mm256_add_epi16(y74, _mm256_mullo_epi16(v_16, c102));
+            r = _mm256_add_epi16(r, _mm256_set1_epi16(32));
+            r = _mm256_srai_epi16(r, 6);
 
-            __m256i r = _mm256_add_epi16(y298, _mm256_mullo_epi16(v_16, c409));
-            r = _mm256_add_epi16(r, _mm256_set1_epi16(128));
-            r = _mm256_srai_epi16(r, 8);
+            __m256i g = _mm256_sub_epi16(y74, _mm256_mullo_epi16(u_16, c25));
+            g = _mm256_sub_epi16(g, _mm256_mullo_epi16(v_16, c52));
+            g = _mm256_add_epi16(g, _mm256_set1_epi16(32));
+            g = _mm256_srai_epi16(g, 6);
 
-            __m256i g = _mm256_sub_epi16(y298, _mm256_mullo_epi16(u_16, c100));
-            g = _mm256_sub_epi16(g, _mm256_mullo_epi16(v_16, c208));
-            g = _mm256_add_epi16(g, _mm256_set1_epi16(128));
-            g = _mm256_srai_epi16(g, 8);
-
-            __m256i b = _mm256_add_epi16(y298, _mm256_mullo_epi16(u_16, c516));
-            b = _mm256_add_epi16(b, _mm256_set1_epi16(128));
-            b = _mm256_srai_epi16(b, 8);
+            __m256i b = _mm256_add_epi16(y74, _mm256_mullo_epi16(u_16, c129));
+            b = _mm256_add_epi16(b, _mm256_set1_epi16(32));
+            b = _mm256_srai_epi16(b, 6);
 
             // clamp 0~255
             __m256i zero = _mm256_setzero_si256();
@@ -624,19 +620,47 @@ void nv12ToBGRA32_AVX2(const uint8_t* srcY, int srcYStride,
             g = _mm256_max_epi16(zero, _mm256_min_epi16(g, maxv));
             b = _mm256_max_epi16(zero, _mm256_min_epi16(b, maxv));
 
-            // 打包 BGRA
-            __m256i a = _mm256_set1_epi16(255);
+#if 0
+            // 打包 BGRA32
+            alignas(32) uint16_t b_arr[16], g_arr[16], r_arr[16];
+            _mm256_store_si256((__m256i*)b_arr, b);
+            _mm256_store_si256((__m256i*)g_arr, g);
+            _mm256_store_si256((__m256i*)r_arr, r);
 
-            // 交错打包
-            __m256i bg = _mm256_or_si256(b, _mm256_slli_epi16(g, 8));
-            __m256i ra = _mm256_or_si256(r, _mm256_slli_epi16(a, 8));
+            for (int i = 0; i < 16; ++i)
+            {
+                int idx = (x + i) * 4;
+                dstRow[idx + 0] = (uint8_t)b_arr[i];
+                dstRow[idx + 1] = (uint8_t)g_arr[i];
+                dstRow[idx + 2] = (uint8_t)r_arr[i];
+                dstRow[idx + 3] = 255;
+            }
+#else // 打包 BGRA32（AVX2优化，去掉循环）, 通常性能更好.
 
-            __m256i bgra_lo = _mm256_unpacklo_epi16(bg, ra);
-            __m256i bgra_hi = _mm256_unpackhi_epi16(bg, ra);
+            // 先将 16x16bit 压缩成 16x8bit，只用低128位
+            __m128i b8 = _mm_packus_epi16(_mm256_castsi256_si128(b), _mm256_extracti128_si256(b, 1));
+            __m128i g8 = _mm_packus_epi16(_mm256_castsi256_si128(g), _mm256_extracti128_si256(g, 1));
+            __m128i r8 = _mm_packus_epi16(_mm256_castsi256_si128(r), _mm256_extracti128_si256(r, 1));
+            __m128i a8 = _mm_set1_epi8((char)255);
 
-            // 存储
-            _mm256_storeu_si256((__m256i*)(dstRow + x * 4), bgra_lo);
-            _mm256_storeu_si256((__m256i*)(dstRow + x * 4 + 32), bgra_hi);
+            // 按 BGRA 顺序交错打包
+            __m128i bg0 = _mm_unpacklo_epi8(b8, g8);      // B0 G0 B1 G1 ...
+            __m128i ra0 = _mm_unpacklo_epi8(r8, a8);      // R0 A0 R1 A1 ...
+            __m128i bgra0 = _mm_unpacklo_epi16(bg0, ra0); // B0 G0 R0 A0 ...
+            __m128i bgra1 = _mm_unpackhi_epi16(bg0, ra0); // B4 G4 R4 A4 ...
+
+            __m128i bg1 = _mm_unpackhi_epi8(b8, g8);
+            __m128i ra1 = _mm_unpackhi_epi8(r8, a8);
+            __m128i bgra2 = _mm_unpacklo_epi16(bg1, ra1);
+            __m128i bgra3 = _mm_unpackhi_epi16(bg1, ra1);
+
+            // 写入 16*4=64 字节，正好16像素
+            _mm_storeu_si128((__m128i*)(dstRow + x * 4 + 0), bgra0);
+            _mm_storeu_si128((__m128i*)(dstRow + x * 4 + 16), bgra1);
+
+            _mm_storeu_si128((__m128i*)(dstRow + x * 4 + 32), bgra2);
+            _mm_storeu_si128((__m128i*)(dstRow + x * 4 + 48), bgra3);
+#endif
         }
 
         // 处理剩余像素
@@ -791,6 +815,7 @@ void nv12ToBGR24_AVX2(const uint8_t* srcY, int srcYStride,
             g = _mm256_max_epi16(zero, _mm256_min_epi16(g, maxv));
             b = _mm256_max_epi16(zero, _mm256_min_epi16(b, maxv));
 
+#if 0
             // 打包 BGR24
             alignas(32) uint16_t b_arr[16], g_arr[16], r_arr[16];
             _mm256_store_si256((__m256i*)b_arr, b);
@@ -803,6 +828,53 @@ void nv12ToBGR24_AVX2(const uint8_t* srcY, int srcYStride,
                 dstRow[(x + i) * 3 + 1] = (uint8_t)g_arr[i];
                 dstRow[(x + i) * 3 + 2] = (uint8_t)r_arr[i];
             }
+#else // 打包 BGR24（AVX2优化，去掉循环）, 通常性能更好.
+
+            // 先将 16x16bit 压缩成 16x8bit，只用低128位
+            __m128i b8 = _mm_packus_epi16(_mm256_castsi256_si128(b), _mm256_extracti128_si256(b, 1));
+            __m128i g8 = _mm_packus_epi16(_mm256_castsi256_si128(g), _mm256_extracti128_si256(g, 1));
+            __m128i r8 = _mm_packus_epi16(_mm256_castsi256_si128(r), _mm256_extracti128_si256(r, 1));
+
+            // 交错打包成 BGRBGRBGR...（16像素，48字节）
+            alignas(16) uint8_t b_arr[16], g_arr[16], r_arr[16];
+            _mm_store_si128((__m128i*)b_arr, b8);
+            _mm_store_si128((__m128i*)g_arr, g8);
+            _mm_store_si128((__m128i*)r_arr, r8);
+
+            // 利用SSE/AVX2打包成BGR24（可用storeu_si128写3次，每次16字节，或直接memcpy 3次）
+            // 这里用SIMD风格的memcpy，避免标量for循环
+            uint8_t* pDst = dstRow + x * 3;
+            __m128i bgr0, bgr1, bgr2;
+
+            // 打包前8像素（24字节）
+            bgr0 = _mm_set_epi8(
+                r_arr[7], g_arr[7], b_arr[7],
+                r_arr[6], g_arr[6], b_arr[6],
+                r_arr[5], g_arr[5], b_arr[5],
+                r_arr[4], g_arr[4], b_arr[4],
+                r_arr[3], g_arr[3], b_arr[3],
+                r_arr[2], g_arr[2], b_arr[2],
+                r_arr[1], g_arr[1], b_arr[1],
+                r_arr[0], g_arr[0], b_arr[0]);
+            _mm_storeu_si128((__m128i*)pDst, bgr0);
+
+            // 打包中间8像素（24字节）
+            bgr1 = _mm_set_epi8(
+                r_arr[15], g_arr[15], b_arr[15],
+                r_arr[14], g_arr[14], b_arr[14],
+                r_arr[13], g_arr[13], b_arr[13],
+                r_arr[12], g_arr[12], b_arr[12],
+                r_arr[11], g_arr[11], b_arr[11],
+                r_arr[10], g_arr[10], b_arr[10],
+                r_arr[9], g_arr[9], b_arr[9],
+                r_arr[8], g_arr[8], b_arr[8]);
+            _mm_storeu_si128((__m128i*)(pDst + 16), bgr1);
+
+            // 剩余8字节（最后8像素的最后8字节，需手动memcpy或store）
+            memcpy(pDst + 32, &b_arr[8], 8);
+            memcpy(pDst + 40, &g_arr[8], 8);
+            memcpy(pDst + 48, &r_arr[8], 8);
+#endif
         }
 
         // 处理剩余像素
