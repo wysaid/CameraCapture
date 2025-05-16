@@ -8,7 +8,7 @@
 
 #if __APPLE__
 
-#include "CameraCaptureMac.h"
+#include "ccap_imp_macos.h"
 
 #import <AVFoundation/AVFoundation.h>
 #import <Accelerate/Accelerate.h>

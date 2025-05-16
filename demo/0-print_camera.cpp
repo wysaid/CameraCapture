@@ -6,7 +6,7 @@
  *
  */
 
-#include "CameraCapture.h"
+#include "ccap.h"
 
 #include <cstdio>
 #include <string>

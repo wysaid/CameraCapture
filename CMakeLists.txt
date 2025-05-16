@@ -11,7 +11,7 @@ endif()
 option(CCAP_BUILD_DEMO "Build ccap demo" ${CCAP_IS_ROOT_PROJECT})
 
 if(WIN32)
-    option(ENABLE_LIBYUV "Enable libyuv" ${CCAP_IS_ROOT_PROJECT})
+    option(ENABLE_LIBYUV "Enable libyuv" OFF)
 endif()
 
 project(CameraCapture LANGUAGES CXX)
@@ -56,7 +56,7 @@ if(APPLE)
 endif()
 
 add_library(CameraCapture ${LIB_SOURCE})
-target_include_directories(CameraCapture PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(CameraCapture PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_definitions(CameraCapture PUBLIC "$<IF:$<CONFIG:Debug>,DEBUG=1,NDEBUG=1>")
 
 if(CCAP_NO_LOG)
@@ -108,7 +108,6 @@ if(CCAP_BUILD_DEMO)
         message(STATUS "ccap: Add demo: ${DEMO_NAME}")
 
         add_executable(${DEMO_NAME} ${DEMO})
-        target_include_directories(${DEMO_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
         target_link_libraries(${DEMO_NAME} CameraCapture)
     endforeach()
 endif()

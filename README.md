@@ -6,9 +6,9 @@
 
 ## Overview
 
-CameraCapture is an efficient, easy-to-use, and lightweight C++ camera capture library designed to simplify the process of capturing and processing camera images. It supports Windows and MacOS platforms, and except for the system's built-in low-level libraries, it does not depend on OpenCV, FFmpeg, or any other large third-party libraries. It provides a simple and user-friendly API, making it ideal for developers who need to quickly implement camera capture functionality.
+ccap `(C)amera(CAP)ture` is an efficient, easy-to-use, and lightweight C++ camera capture library designed to simplify the process of capturing and processing camera images. It supports Windows and MacOS platforms, and except for the system's built-in low-level libraries, it does not depend on OpenCV, FFmpeg, or any other large third-party libraries. It provides a simple and user-friendly API, making it ideal for developers who need to quickly implement camera capture functionality.
 
-## Dependencies
+## Build
 
 - C++17 or higher
 - CMake 3.10 or higher

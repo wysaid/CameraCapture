@@ -8,7 +8,7 @@
 
 #if defined(_WIN32) || defined(_MSC_VER)
 
-#include "CameraCaptureDirectShow.h"
+#include "ccap_imp_windows.h"
 
 #include <algorithm>
 #include <cassert>

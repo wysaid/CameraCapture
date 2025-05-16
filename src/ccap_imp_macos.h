@@ -12,7 +12,7 @@
 
 #if __APPLE__
 
-#include "CameraCaptureImp.h"
+#include "ccap_imp.h"
 
 #if __OBJC__
 @class CameraCaptureObjc;

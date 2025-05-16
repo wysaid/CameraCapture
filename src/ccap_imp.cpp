@@ -6,7 +6,7 @@
  *
  */
 
-#include "CameraCaptureImp.h"
+#include "ccap_imp.h"
 
 #include <cassert>
 #include <cmath>

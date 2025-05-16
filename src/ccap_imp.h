@@ -19,14 +19,15 @@
 #define NOMINMAX 1
 #endif
 
-#include "CameraCapture.h"
+#include "ccap_core.h"
+#include "ccap_utils.h"
 
 #include <atomic>
 #include <condition_variable>
 #include <deque>
 #include <mutex>
-#include <queue>
 #include <optional>
+#include <queue>
 
 namespace ccap
 {

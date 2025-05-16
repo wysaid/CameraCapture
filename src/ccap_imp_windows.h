@@ -12,7 +12,7 @@
 
 #if defined(_WIN32) || defined(_MSC_VER)
 
-#include "CameraCaptureImp.h"
+#include "ccap_imp.h"
 
 #include <atomic>
 #include <deque>
