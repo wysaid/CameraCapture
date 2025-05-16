@@ -810,8 +810,9 @@ void nv12ToBGR24_AVX2(const uint8_t* srcY, int srcYStride,
         {
             int y0 = yRow[x + 0] - 16;
             int y1 = yRow[x + 1] - 16;
-            int u = uvRow[x] - 128;
-            int v = uvRow[x + 1] - 128;
+            // 修正UV索引计算
+            int u = uvRow[(x / 2) * 2] - 128;     // U在偶数位置
+            int v = uvRow[(x / 2) * 2 + 1] - 128; // V在奇数位置
 
             int r0, g0, b0, r1, g1, b1;
             yuv2rgb601(y0, u, v, r0, g0, b0);
