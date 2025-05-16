@@ -350,7 +350,7 @@ bool inplaceConvertFrameYUV2BGR(Frame* frame, PixelFormat toFormat, std::vector<
                                       frame->data[0], newLineSize,
                                       width, height) == 0;
 #else
-            nv12ToBGRA32(inputData0, stride0,
+            nv12ToBgra32(inputData0, stride0,
                          inputData1, stride1,
                          frame->data[0], newLineSize,
                          width, height);
@@ -365,7 +365,7 @@ bool inplaceConvertFrameYUV2BGR(Frame* frame, PixelFormat toFormat, std::vector<
                                        frame->data[0], newLineSize,
                                        width, height) == 0;
 #else
-            nv12ToBGR24(inputData0, stride0,
+            nv12ToBgr24(inputData0, stride0,
                         inputData1, stride1,
                         frame->data[0], newLineSize,
                         width, height);
@@ -385,7 +385,7 @@ bool inplaceConvertFrameYUV2BGR(Frame* frame, PixelFormat toFormat, std::vector<
                                       frame->data[0], newLineSize,
                                       width, height) == 0;
 #else
-            i420ToBGRA32(inputData0, stride0,
+            i420ToBgra32(inputData0, stride0,
                          inputData1, stride1,
                          inputData2, stride2,
                          frame->data[0], newLineSize,
@@ -402,7 +402,7 @@ bool inplaceConvertFrameYUV2BGR(Frame* frame, PixelFormat toFormat, std::vector<
                                        frame->data[0], newLineSize,
                                        width, height) == 0;
 #else
-            i420ToBGR24(inputData0, stride0,
+            i420ToBgr24(inputData0, stride0,
                         inputData1, stride1,
                         inputData2, stride2,
                         frame->data[0], newLineSize,
@@ -464,22 +464,22 @@ bool inplaceConvertFrameRGB(Frame* frame, PixelFormat toFormat, bool verticalFli
         {
             if (swapRB)
             { // Possible cases: RGBA->BGR, BGRA->RGB
-                rgba2bgr(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
+                rgbaToBgr(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
             }
             else
             { // Possible cases: RGBA->RGB, BGRA->BGR
-                rgba2rgb(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
+                rgbaToRgb(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
             }
         }
         else // 3 channels -> 4 channels
         {
             if (swapRB)
             { // Possible cases: BGR->RGBA, RGB->BGRA
-                rgb2bgra(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
+                rgbToBgra(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
             }
             else
             { // Possible cases: BGR->BGRA, RGB->RGBA
-                rgb2rgba(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
+                rgbToRgba(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
             }
         }
     }

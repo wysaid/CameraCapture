@@ -662,7 +662,7 @@ void rgbaShuffle(const uint8_t* src, int srcStride,
     }
 }
 
-void rgba2bgr(const uint8_t* src, int srcStride,
+void rgbaToBgr(const uint8_t* src, int srcStride,
               uint8_t* dst, int dstStride,
               int width, int height)
 {
@@ -690,7 +690,7 @@ void rgba2bgr(const uint8_t* src, int srcStride,
     }
 }
 
-void rgba2rgb(const uint8_t* src, int srcStride,
+void rgbaToRgb(const uint8_t* src, int srcStride,
               uint8_t* dst, int dstStride,
               int width, int height)
 {
@@ -718,7 +718,7 @@ void rgba2rgb(const uint8_t* src, int srcStride,
     }
 }
 
-void rgb2bgra(const uint8_t* src, int srcStride,
+void rgbToBgra(const uint8_t* src, int srcStride,
               uint8_t* dst, int dstStride,
               int width, int height)
 {
@@ -747,7 +747,7 @@ void rgb2bgra(const uint8_t* src, int srcStride,
     }
 }
 
-void rgb2rgba(const uint8_t* src, int srcStride,
+void rgbToRgba(const uint8_t* src, int srcStride,
               uint8_t* dst, int dstStride,
               int width, int height)
 {
@@ -776,7 +776,7 @@ void rgb2rgba(const uint8_t* src, int srcStride,
     }
 }
 
-void nv12ToBGRA32(const uint8_t* srcY, int srcYStride,
+void nv12ToBgra32(const uint8_t* srcY, int srcYStride,
                   const uint8_t* srcUV, int srcUVStride,
                   uint8_t* dst, int dstStride,
                   int width, int height)
@@ -825,7 +825,7 @@ void nv12ToBGRA32(const uint8_t* srcY, int srcYStride,
     }
 }
 
-void nv12ToBGR24(const uint8_t* srcY, int srcYStride,
+void nv12ToBgr24(const uint8_t* srcY, int srcYStride,
                  const uint8_t* srcUV, int srcUVStride,
                  uint8_t* dst, int dstStride,
                  int width, int height)
@@ -872,7 +872,7 @@ void nv12ToBGR24(const uint8_t* srcY, int srcYStride,
     }
 }
 
-void i420ToBGRA32(const uint8_t* srcY, int srcYStride,
+void i420ToBgra32(const uint8_t* srcY, int srcYStride,
                   const uint8_t* srcU, int srcUStride,
                   const uint8_t* srcV, int srcVStride,
                   uint8_t* dst, int dstStride,
@@ -923,7 +923,7 @@ void i420ToBGRA32(const uint8_t* srcY, int srcYStride,
     }
 }
 
-void i420ToBGR24(const uint8_t* srcY, int srcYStride,
+void i420ToBgr24(const uint8_t* srcY, int srcYStride,
                  const uint8_t* srcU, int srcUStride,
                  const uint8_t* srcV, int srcVStride,
                  uint8_t* dst, int dstStride,
