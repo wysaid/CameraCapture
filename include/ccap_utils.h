@@ -86,6 +86,7 @@ enum class LogLevel
 };
 
 void setLogLevel(LogLevel level);
+
 } // namespace ccap
 
 #endif // CCAP_UTILS_H

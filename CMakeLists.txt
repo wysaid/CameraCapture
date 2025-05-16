@@ -10,32 +10,10 @@ endif()
 
 option(CCAP_BUILD_DEMO "Build ccap demo" ${CCAP_IS_ROOT_PROJECT})
 
-if(WIN32)
-    option(ENABLE_LIBYUV "Enable libyuv" OFF)
-endif()
-
 project(CameraCapture LANGUAGES CXX)
 
 if(CCAP_IS_ROOT_PROJECT AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/dev.cmake)
     include(${CMAKE_CURRENT_SOURCE_DIR}/dev.cmake)
-endif()
-
-if(WIN32)
-    if(ENABLE_LIBYUV)
-        if(NOT DEFINED LIBYUV_DIR OR NOT EXISTS "${LIBYUV_DIR}/README.md")
-            message(STATUS "ccap: Fetching libyuv from GitHub...")
-            include(${CMAKE_CURRENT_SOURCE_DIR}/deps/libyuv.cmake)
-        endif()
-
-        if(ENABLE_LIBYUV)
-            set(UNIT_TEST OFF CACHE BOOL "Disable libyuv unit tests" FORCE)
-            add_subdirectory(${LIBYUV_DIR})
-            set(YUV_INCLUDE_DIRS ${LIBYUV_DIR}/include)
-            message(STATUS "ccap: Using libyuv from ${LIBYUV_DIR}")
-        endif()
-    endif()
-
-    message(STATUS "ccap: ENABLE_LIBYUV=${ENABLE_LIBYUV}")
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
@@ -87,12 +65,6 @@ if(MSVC)
     )
 else()
     target_compile_options(CameraCapture PUBLIC -std=c++17)
-endif()
-
-if(WIN32 AND ENABLE_LIBYUV)
-    target_include_directories(CameraCapture PRIVATE ${YUV_INCLUDE_DIRS})
-    target_link_libraries(CameraCapture yuv)
-    target_compile_definitions(CameraCapture PRIVATE ENABLE_LIBYUV=1)
 endif()
 
 if(CCAP_BUILD_DEMO)

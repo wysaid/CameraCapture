@@ -15,8 +15,6 @@ ccap `(C)amera(CAP)ture` is an efficient, easy-to-use, and lightweight C++ camer
 - System dependencies:
   - Windows: DirectShow (better compatibility than MSMF for camera devices; MSMF support may be added in future versions)
   - MacOS 10.13+: Foundation, AVFoundation, CoreVideo, CoreMedia, Accelerate
-- Optional third-party dependencies:
-  - Windows: libyuv (if libyuv is disabled, built-in conversion will be used for pixel format conversion)
 
 ## How to Use
 
@@ -88,9 +86,3 @@ Sample usage:
 
     - If you are building this project, pass the parameter `-DCCAP_NO_LOG=ON` to CMake.
     - If you are including the source code, add the global macro definition `CCAP_NO_LOG=1` during compilation.
-
-5. How to enable libyuv on Windows for accelerated pixel format conversion?
-
-    This project can easily use libyuv for pixel format conversion on Windows, while on macOS there are no third-party dependencies.  
-    - If you are building this project, pass the parameter `-DENABLE_LIBYUV=ON` to CMake.
-    - If you are including the source code, by default libyuv is not enabled. You can enable it by adding the global macro definition `ENABLE_LIBYUV=1` during compilation.

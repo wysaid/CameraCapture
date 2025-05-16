@@ -12,7 +12,6 @@
 
 #include <chrono>
 
-
 namespace ccap
 {
 std::string dumpFrameToDirectory(Frame* frame, std::string_view directory)
@@ -226,4 +225,5 @@ void setLogLevel(LogLevel level)
     fprintf(stderr, "ccap: Log is not enabled in this build.\n");
 #endif
 }
+
 } // namespace ccap
