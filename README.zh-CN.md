@@ -17,6 +17,13 @@ ccap `(C)amera(CAP)ture` 是一个高效的、易用的、轻量级的 C++ 相�
   - Windows: DirectShow (对于相机设备兼容性略好于 MSMF) / MSMF (后续版本提供)
   - MacOS 10.13+: Foundation, AVFoundation, CoreVideo, CoreMedia, Accelerate
 
+## 兼容性
+
+- 测试通过: Windows、macOS 两个平台的部分主流笔记本以及外接摄像头。
+- 测试通过: Windows、macOS 两个平台的 `OBS Virtual Camera`
+
+> 如果发现不支持的情况, 欢迎提供 PR 进行修复。
+
 ## 如何使用
 
 使用非常简单, 本项目提供一个头文件和一个静态库, 直接添加到你的项目中即可。
@@ -34,7 +41,7 @@ ccap `(C)amera(CAP)ture` 是一个高效的、易用的、轻量级的 C++ 相�
 1. 启动相机， 并获取一帧数据:
 
     ```cpp
-    ccap::Provider cameraProvider(0); // Open the default camera
+    ccap::Provider cameraProvider(""); // Pass empty string to open the default camera
 
     if (cameraProvider.isStarted())
     {
@@ -65,15 +72,15 @@ ccap `(C)amera(CAP)ture` 是一个高效的、易用的、轻量级的 C++ 相�
 
 1. 如何选择 PixelFormat
 
-   在 Windows 上， 不设置的情况下会默认选择 `BGR24`, 它一般来说会被支持. 如果要手动选择 YUV 格式, 那么 `NV12f`、`NV12v`
-   这两者都可以.
-   如果是虚拟相机 (比如 `Obs Virtual Camera`), 可能会跟虚拟相机所设置的输出格式有关。
+    - 在 Windows 上， 不设置的情况下会默认选择 `BGR24`, 它一般来说会被支持. 如果要手动选择 YUV 格式, 那么 `NV12`、`I420` 这两者都可以.  
+    如果是虚拟相机 (比如 `Obs Virtual Camera`), 可能会跟虚拟相机所设置的输出格式有关。  
+    如果选择的格式不被支持, 那么底层会尝试进行格式转换, 会有一定的开销. 转换会尝试使用 AVX2 等方式加速, 如果加速不可用, 会使用纯 CPU 代码直接转换.
 
-   在 Mac 上, 不设置的情况下会默认选择 `BGRA32`, 它一般来说会被支持. 如果要手动选择 YUV 格式, 那么 `NV12f`、`NV12v`
-   这两者都可以.
-   如果是虚拟相机 (比如 `Obs Virtual Camera`), 可能会跟虚拟相机所设置的输出格式有关。
+   - 在 Mac 上, 不设置的情况下会默认选择 `BGRA32`, 它一般来说会被支持. 如果要手动选择 YUV 格式, 那么 `NV12`、`NV12f`(Full-Range) 这两者都可以.  
+    如果是虚拟相机 (比如 `Obs Virtual Camera`), 可能会跟虚拟相机所设置的输出格式有关。  
+    如果选择的格式不被支持, 会使用 Accelerate Framework 进行转换.
 
-   在不同平台下, 会调用底层的加速库进行转换。
+   > 当转换不被支持时, 会输出实际的格式, 可以从 `frame->pixelFormat` 获得.
 
 2. 如何选择不同的相机设备
 

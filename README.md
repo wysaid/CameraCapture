@@ -16,6 +16,13 @@ ccap `(C)amera(CAP)ture` is an efficient, easy-to-use, and lightweight C++ camer
   - Windows: DirectShow (better compatibility than MSMF for camera devices; MSMF support may be added in future versions)
   - MacOS 10.13+: Foundation, AVFoundation, CoreVideo, CoreMedia, Accelerate
 
+## Compatibility
+
+- Tested (partial): Mainstream laptops and external cameras on both Windows and macOS platforms.
+- Tested: `OBS Virtual Camera` on both Windows and macOS platforms.
+
+If you encounter unsupported cases, you are welcome to submit a PR to help fix them.
+
 ## How to Use
 
 Usage is very simple. This project provides a header file and a static library, which can be directly added to your project.  
@@ -33,7 +40,7 @@ Sample usage:
 1. Start the camera and grab a frame:
 
     ```cpp
-    ccap::Provider cameraProvider(0); // Open the default camera
+    ccap::Provider cameraProvider(""); // Pass empty string to open the default camera
 
     if (cameraProvider.isStarted())
     {
@@ -64,15 +71,15 @@ Sample usage:
 
 1. How to select PixelFormat
 
-    On Windows, if not set, the default is `BGR24`, which is generally supported. If you want to manually select a YUV format, both `NV12f` and `NV12v` are available.  
-    For virtual cameras (such as `Obs Virtual Camera`), the supported format may depend on the output format set by the virtual camera.
+    - On Windows, if not set, the default is `BGR24`, which is generally supported. If you want to manually select a YUV format, both `NV12` and `I420` are available.  
+    For virtual cameras (such as `Obs Virtual Camera`), the supported format may depend on the output format set by the virtual camera.  
+    If the selected format is not supported, the underlying library will attempt format conversion, which may incur some overhead. Conversion will try to use AVX2 acceleration if available; otherwise, pure CPU code will be used.
 
-    On Mac, if not set, the default is `BGRA32`, which is generally supported. If you want to manually select a YUV format, both `NV12f` and `NV12v` are available.  
-    For virtual cameras (such as `Obs Virtual Camera`), the supported format may depend on the output format set by the virtual camera.
+    - On Mac, if not set, the default is `BGRA32`, which is generally supported. If you want to manually select a YUV format, both `NV12` and `NV12f` (Full-Range) are available.  
+    For virtual cameras (such as `Obs Virtual Camera`), the supported format may depend on the output format set by the virtual camera.  
+    If the selected format is not supported, the Accelerate Framework will be used for conversion.
 
-    On different platforms, the underlying accelerated libraries will be used for conversion.
-
-    When ccap encounters an unsupported PixelFormat, it will try to select the closest supported format. The actual format can be checked from `frame->PixelFormat`.
+    > When conversion is not supported, the actual format will be output, which can be checked from `frame->pixelFormat`.
 
 2. How to select different camera devices
 
