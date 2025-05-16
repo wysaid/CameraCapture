@@ -815,8 +815,8 @@ void nv12ToBGR24_AVX2(const uint8_t* srcY, int srcYStride,
             g = _mm256_max_epi16(zero, _mm256_min_epi16(g, maxv));
             b = _mm256_max_epi16(zero, _mm256_min_epi16(b, maxv));
 
-#if 0
-            // 打包 BGR24
+// 打包 BGR24
+#if 1
             alignas(32) uint16_t b_arr[16], g_arr[16], r_arr[16];
             _mm256_store_si256((__m256i*)b_arr, b);
             _mm256_store_si256((__m256i*)g_arr, g);
@@ -828,52 +828,24 @@ void nv12ToBGR24_AVX2(const uint8_t* srcY, int srcYStride,
                 dstRow[(x + i) * 3 + 1] = (uint8_t)g_arr[i];
                 dstRow[(x + i) * 3 + 2] = (uint8_t)r_arr[i];
             }
-#else // 打包 BGR24（AVX2优化，去掉循环）, 通常性能更好.
-
+#else
             // 先将 16x16bit 压缩成 16x8bit，只用低128位
             __m128i b8 = _mm_packus_epi16(_mm256_castsi256_si128(b), _mm256_extracti128_si256(b, 1));
             __m128i g8 = _mm_packus_epi16(_mm256_castsi256_si128(g), _mm256_extracti128_si256(g, 1));
             __m128i r8 = _mm_packus_epi16(_mm256_castsi256_si128(r), _mm256_extracti128_si256(r, 1));
 
-            // 交错打包成 BGRBGRBGR...（16像素，48字节）
             alignas(16) uint8_t b_arr[16], g_arr[16], r_arr[16];
             _mm_store_si128((__m128i*)b_arr, b8);
             _mm_store_si128((__m128i*)g_arr, g8);
             _mm_store_si128((__m128i*)r_arr, r8);
 
-            // 利用SSE/AVX2打包成BGR24（可用storeu_si128写3次，每次16字节，或直接memcpy 3次）
-            // 这里用SIMD风格的memcpy，避免标量for循环
             uint8_t* pDst = dstRow + x * 3;
-            __m128i bgr0, bgr1, bgr2;
-
-            // 打包前8像素（24字节）
-            bgr0 = _mm_set_epi8(
-                r_arr[7], g_arr[7], b_arr[7],
-                r_arr[6], g_arr[6], b_arr[6],
-                r_arr[5], g_arr[5], b_arr[5],
-                r_arr[4], g_arr[4], b_arr[4],
-                r_arr[3], g_arr[3], b_arr[3],
-                r_arr[2], g_arr[2], b_arr[2],
-                r_arr[1], g_arr[1], b_arr[1],
-                r_arr[0], g_arr[0], b_arr[0]);
-            _mm_storeu_si128((__m128i*)pDst, bgr0);
-
-            // 打包中间8像素（24字节）
-            bgr1 = _mm_set_epi8(
-                r_arr[15], g_arr[15], b_arr[15],
-                r_arr[14], g_arr[14], b_arr[14],
-                r_arr[13], g_arr[13], b_arr[13],
-                r_arr[12], g_arr[12], b_arr[12],
-                r_arr[11], g_arr[11], b_arr[11],
-                r_arr[10], g_arr[10], b_arr[10],
-                r_arr[9], g_arr[9], b_arr[9],
-                r_arr[8], g_arr[8], b_arr[8]);
-            _mm_storeu_si128((__m128i*)(pDst + 16), bgr1);
-
-            // 剩余8字节（最后8像素的最后8字节，需手动memcpy或store）
-            memcpy(pDst + 32, &b_arr[8], 8);
-            memcpy(pDst + 40, &g_arr[8], 8);
-            memcpy(pDst + 48, &r_arr[8], 8);
+            for (int i = 0; i < 16; ++i)
+            {
+                pDst[i * 3 + 0] = b_arr[i];
+                pDst[i * 3 + 1] = g_arr[i];
+                pDst[i * 3 + 2] = r_arr[i];
+            }
 #endif
         }
 
