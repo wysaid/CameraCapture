@@ -762,27 +762,27 @@ void nv12ToBGR24_AVX2(const uint8_t* srcY, int srcYStride,
             u_16 = _mm256_sub_epi16(u_16, _mm256_set1_epi16(128));
             v_16 = _mm256_sub_epi16(v_16, _mm256_set1_epi16(128));
 
-            // 8. YUV -> RGB (BT.601)
-            __m256i c298 = _mm256_set1_epi16(298);
-            __m256i c409 = _mm256_set1_epi16(409);
-            __m256i c100 = _mm256_set1_epi16(100);
-            __m256i c208 = _mm256_set1_epi16(208);
-            __m256i c516 = _mm256_set1_epi16(516);
+            // 8. YUV -> RGB (BT.601), 数据相比 cpu 版有压缩, 精度可能有肉眼不可见的差异
+            __m256i c74 = _mm256_set1_epi16(74);
+            __m256i c102 = _mm256_set1_epi16(102);
+            __m256i c25 = _mm256_set1_epi16(25);
+            __m256i c52 = _mm256_set1_epi16(52);
+            __m256i c129 = _mm256_set1_epi16(129);
 
-            __m256i y298 = _mm256_mullo_epi16(y_16, c298);
+            __m256i y74 = _mm256_mullo_epi16(y_16, c74);
 
-            __m256i r = _mm256_add_epi16(y298, _mm256_mullo_epi16(v_16, c409));
-            r = _mm256_add_epi16(r, _mm256_set1_epi16(128));
-            r = _mm256_srai_epi16(r, 8);
+            __m256i r = _mm256_add_epi16(y74, _mm256_mullo_epi16(v_16, c102));
+            r = _mm256_add_epi16(r, _mm256_set1_epi16(32));
+            r = _mm256_srai_epi16(r, 6);
 
-            __m256i g = _mm256_sub_epi16(y298, _mm256_mullo_epi16(u_16, c100));
-            g = _mm256_sub_epi16(g, _mm256_mullo_epi16(v_16, c208));
-            g = _mm256_add_epi16(g, _mm256_set1_epi16(128));
-            g = _mm256_srai_epi16(g, 8);
+            __m256i g = _mm256_sub_epi16(y74, _mm256_mullo_epi16(u_16, c25));
+            g = _mm256_sub_epi16(g, _mm256_mullo_epi16(v_16, c52));
+            g = _mm256_add_epi16(g, _mm256_set1_epi16(32));
+            g = _mm256_srai_epi16(g, 6);
 
-            __m256i b = _mm256_add_epi16(y298, _mm256_mullo_epi16(u_16, c516));
-            b = _mm256_add_epi16(b, _mm256_set1_epi16(128));
-            b = _mm256_srai_epi16(b, 8);
+            __m256i b = _mm256_add_epi16(y74, _mm256_mullo_epi16(u_16, c129));
+            b = _mm256_add_epi16(b, _mm256_set1_epi16(32));
+            b = _mm256_srai_epi16(b, 6);
 
             // clamp 0~255
             __m256i zero = _mm256_setzero_si256();
