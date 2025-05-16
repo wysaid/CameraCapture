@@ -136,7 +136,7 @@ typedef struct _DXVA_ExtendedFormat
 
 #define DXVA_NominalRange_Unknown 0
 #define DXVA_NominalRange_Normal 1 // 16-235
-#define DXVA_NominalRange_Wide 2   // 0-255
+#define DXVA_NominalRange_Wide 2 // 0-255
 #define DXVA_NominalRange_0_255 2
 #define DXVA_NominalRange_16_235 1
 #endif
@@ -815,8 +815,7 @@ void nv12ToBGR24_AVX2(const uint8_t* srcY, int srcYStride,
             g = _mm256_max_epi16(zero, _mm256_min_epi16(g, maxv));
             b = _mm256_max_epi16(zero, _mm256_min_epi16(b, maxv));
 
-// 打包 BGR24
-#if 1
+            // 打包 BGR24
             alignas(32) uint16_t b_arr[16], g_arr[16], r_arr[16];
             _mm256_store_si256((__m256i*)b_arr, b);
             _mm256_store_si256((__m256i*)g_arr, g);
@@ -828,25 +827,6 @@ void nv12ToBGR24_AVX2(const uint8_t* srcY, int srcYStride,
                 dstRow[(x + i) * 3 + 1] = (uint8_t)g_arr[i];
                 dstRow[(x + i) * 3 + 2] = (uint8_t)r_arr[i];
             }
-#else
-            // 先将 16x16bit 压缩成 16x8bit，只用低128位
-            __m128i b8 = _mm_packus_epi16(_mm256_castsi256_si128(b), _mm256_extracti128_si256(b, 1));
-            __m128i g8 = _mm_packus_epi16(_mm256_castsi256_si128(g), _mm256_extracti128_si256(g, 1));
-            __m128i r8 = _mm_packus_epi16(_mm256_castsi256_si128(r), _mm256_extracti128_si256(r, 1));
-
-            alignas(16) uint8_t b_arr[16], g_arr[16], r_arr[16];
-            _mm_store_si128((__m128i*)b_arr, b8);
-            _mm_store_si128((__m128i*)g_arr, g8);
-            _mm_store_si128((__m128i*)r_arr, r8);
-
-            uint8_t* pDst = dstRow + x * 3;
-            for (int i = 0; i < 16; ++i)
-            {
-                pDst[i * 3 + 0] = b_arr[i];
-                pDst[i * 3 + 1] = g_arr[i];
-                pDst[i * 3 + 2] = r_arr[i];
-            }
-#endif
         }
 
         // 处理剩余像素
@@ -920,12 +900,139 @@ void nv12ToBGR24(const uint8_t* srcY, int srcYStride,
     }
 }
 
+void i420ToBGRA32_AVX2(const uint8_t* srcY, int srcYStride,
+                       const uint8_t* srcU, int srcUStride,
+                       const uint8_t* srcV, int srcVStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height)
+{
+    // 如果 height < 0，则反向写入 dst，src 顺序读取
+    if (height < 0)
+    {
+        height = -height;
+        dst = dst + (height - 1) * dstStride;
+        dstStride = -dstStride;
+    }
+
+    for (int y = 0; y < height; ++y)
+    {
+        const uint8_t* yRow = srcY + y * srcYStride;
+        const uint8_t* uRow = srcU + (y / 2) * srcUStride;
+        const uint8_t* vRow = srcV + (y / 2) * srcVStride;
+        uint8_t* dstRow = dst + y * dstStride;
+
+        int x = 0;
+        for (; x + 16 <= width; x += 16)
+        {
+            // 1. 加载16个Y
+            __m128i y_vals = _mm_loadu_si128((const __m128i*)(yRow + x));
+
+            // 2. 加载8个U/V
+            __m128i u8 = _mm_loadl_epi64((const __m128i*)(uRow + x / 2));
+            __m128i v8 = _mm_loadl_epi64((const __m128i*)(vRow + x / 2));
+
+            // 3. 每个U/V扩展为2个像素
+            __m128i u16 = _mm_unpacklo_epi8(u8, u8); // U0,U0,U1,U1,...
+            __m128i v16 = _mm_unpacklo_epi8(v8, v8); // V0,V0,V1,V1,...
+
+            // 4. 拼成16字节
+            __m256i u_16 = _mm256_cvtepu8_epi16(u16);
+            __m256i v_16 = _mm256_cvtepu8_epi16(v16);
+            __m256i y_16 = _mm256_cvtepu8_epi16(y_vals);
+
+            // 5. 偏移
+            y_16 = _mm256_sub_epi16(y_16, _mm256_set1_epi16(16));
+            u_16 = _mm256_sub_epi16(u_16, _mm256_set1_epi16(128));
+            v_16 = _mm256_sub_epi16(v_16, _mm256_set1_epi16(128));
+
+            // 6. YUV -> RGB (BT.601)
+            __m256i c74 = _mm256_set1_epi16(74);
+            __m256i c102 = _mm256_set1_epi16(102);
+            __m256i c25 = _mm256_set1_epi16(25);
+            __m256i c52 = _mm256_set1_epi16(52);
+            __m256i c129 = _mm256_set1_epi16(129);
+
+            __m256i y74 = _mm256_mullo_epi16(y_16, c74);
+
+            __m256i r = _mm256_add_epi16(y74, _mm256_mullo_epi16(v_16, c102));
+            r = _mm256_add_epi16(r, _mm256_set1_epi16(32));
+            r = _mm256_srai_epi16(r, 6);
+
+            __m256i g = _mm256_sub_epi16(y74, _mm256_mullo_epi16(u_16, c25));
+            g = _mm256_sub_epi16(g, _mm256_mullo_epi16(v_16, c52));
+            g = _mm256_add_epi16(g, _mm256_set1_epi16(32));
+            g = _mm256_srai_epi16(g, 6);
+
+            __m256i b = _mm256_add_epi16(y74, _mm256_mullo_epi16(u_16, c129));
+            b = _mm256_add_epi16(b, _mm256_set1_epi16(32));
+            b = _mm256_srai_epi16(b, 6);
+
+            // clamp 0~255
+            __m256i zero = _mm256_setzero_si256();
+            __m256i maxv = _mm256_set1_epi16(255);
+            r = _mm256_max_epi16(zero, _mm256_min_epi16(r, maxv));
+            g = _mm256_max_epi16(zero, _mm256_min_epi16(g, maxv));
+            b = _mm256_max_epi16(zero, _mm256_min_epi16(b, maxv));
+
+            // 打包 BGRA32
+            __m128i b8 = _mm_packus_epi16(_mm256_castsi256_si128(b), _mm256_extracti128_si256(b, 1));
+            __m128i g8 = _mm_packus_epi16(_mm256_castsi256_si128(g), _mm256_extracti128_si256(g, 1));
+            __m128i r8 = _mm_packus_epi16(_mm256_castsi256_si128(r), _mm256_extracti128_si256(r, 1));
+            __m128i a8 = _mm_set1_epi8((char)255);
+
+            __m128i bg0 = _mm_unpacklo_epi8(b8, g8);
+            __m128i ra0 = _mm_unpacklo_epi8(r8, a8);
+            __m128i bgra0 = _mm_unpacklo_epi16(bg0, ra0);
+            __m128i bgra1 = _mm_unpackhi_epi16(bg0, ra0);
+
+            __m128i bg1 = _mm_unpackhi_epi8(b8, g8);
+            __m128i ra1 = _mm_unpackhi_epi8(r8, a8);
+            __m128i bgra2 = _mm_unpacklo_epi16(bg1, ra1);
+            __m128i bgra3 = _mm_unpackhi_epi16(bg1, ra1);
+
+            _mm_storeu_si128((__m128i*)(dstRow + x * 4 + 0), bgra0);
+            _mm_storeu_si128((__m128i*)(dstRow + x * 4 + 16), bgra1);
+            _mm_storeu_si128((__m128i*)(dstRow + x * 4 + 32), bgra2);
+            _mm_storeu_si128((__m128i*)(dstRow + x * 4 + 48), bgra3);
+        }
+
+        // 处理剩余像素
+        for (; x < width; x += 2)
+        {
+            int y0 = yRow[x + 0] - 16;
+            int y1 = yRow[x + 1] - 16;
+            int u = uRow[x / 2] - 128;
+            int v = vRow[x / 2] - 128;
+
+            int r0, g0, b0, r1, g1, b1;
+            yuv2rgb601(y0, u, v, r0, g0, b0);
+            yuv2rgb601(y1, u, v, r1, g1, b1);
+
+            dstRow[(x + 0) * 4 + 0] = b0;
+            dstRow[(x + 0) * 4 + 1] = g0;
+            dstRow[(x + 0) * 4 + 2] = r0;
+            dstRow[(x + 0) * 4 + 3] = 255;
+
+            dstRow[(x + 1) * 4 + 0] = b1;
+            dstRow[(x + 1) * 4 + 1] = g1;
+            dstRow[(x + 1) * 4 + 2] = r1;
+            dstRow[(x + 1) * 4 + 3] = 255;
+        }
+    }
+}
+
 void i420ToBGRA32(const uint8_t* srcY, int srcYStride,
                   const uint8_t* srcU, int srcUStride,
                   const uint8_t* srcV, int srcVStride,
                   uint8_t* dst, int dstStride,
                   int width, int height)
 {
+    if (hasAVX2())
+    {
+        i420ToBGRA32_AVX2(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height);
+        return;
+    }
+
     // 如果 height < 0，则反向写入 dst，src 顺序读取
     if (height < 0)
     {
@@ -965,12 +1072,129 @@ void i420ToBGRA32(const uint8_t* srcY, int srcYStride,
     }
 }
 
+void i420ToBGR24_AVX2(const uint8_t* srcY, int srcYStride,
+                      const uint8_t* srcU, int srcUStride,
+                      const uint8_t* srcV, int srcVStride,
+                      uint8_t* dst, int dstStride,
+                      int width, int height)
+{
+    // 如果 height < 0，则反向写入 dst，src 顺序读取
+    if (height < 0)
+    {
+        height = -height;
+        dst = dst + (height - 1) * dstStride;
+        dstStride = -dstStride;
+    }
+
+    for (int y = 0; y < height; ++y)
+    {
+        const uint8_t* yRow = srcY + y * srcYStride;
+        const uint8_t* uRow = srcU + (y / 2) * srcUStride;
+        const uint8_t* vRow = srcV + (y / 2) * srcVStride;
+        uint8_t* dstRow = dst + y * dstStride;
+
+        int x = 0;
+        for (; x + 16 <= width; x += 16)
+        {
+            // 1. 加载16个Y
+            __m128i y_vals = _mm_loadu_si128((const __m128i*)(yRow + x));
+
+            // 2. 加载8个U/V
+            __m128i u8 = _mm_loadl_epi64((const __m128i*)(uRow + x / 2));
+            __m128i v8 = _mm_loadl_epi64((const __m128i*)(vRow + x / 2));
+
+            // 3. 每个U/V扩展为2个像素
+            __m128i u16 = _mm_unpacklo_epi8(u8, u8); // U0,U0,U1,U1,...
+            __m128i v16 = _mm_unpacklo_epi8(v8, v8); // V0,V0,V1,V1,...
+
+            // 4. 拼成16字节
+            __m256i u_16 = _mm256_cvtepu8_epi16(u16);
+            __m256i v_16 = _mm256_cvtepu8_epi16(v16);
+            __m256i y_16 = _mm256_cvtepu8_epi16(y_vals);
+
+            // 5. 偏移
+            y_16 = _mm256_sub_epi16(y_16, _mm256_set1_epi16(16));
+            u_16 = _mm256_sub_epi16(u_16, _mm256_set1_epi16(128));
+            v_16 = _mm256_sub_epi16(v_16, _mm256_set1_epi16(128));
+
+            // 6. YUV -> RGB (BT.601)
+            __m256i c74 = _mm256_set1_epi16(74);
+            __m256i c102 = _mm256_set1_epi16(102);
+            __m256i c25 = _mm256_set1_epi16(25);
+            __m256i c52 = _mm256_set1_epi16(52);
+            __m256i c129 = _mm256_set1_epi16(129);
+
+            __m256i y74 = _mm256_mullo_epi16(y_16, c74);
+
+            __m256i r = _mm256_add_epi16(y74, _mm256_mullo_epi16(v_16, c102));
+            r = _mm256_add_epi16(r, _mm256_set1_epi16(32));
+            r = _mm256_srai_epi16(r, 6);
+
+            __m256i g = _mm256_sub_epi16(y74, _mm256_mullo_epi16(u_16, c25));
+            g = _mm256_sub_epi16(g, _mm256_mullo_epi16(v_16, c52));
+            g = _mm256_add_epi16(g, _mm256_set1_epi16(32));
+            g = _mm256_srai_epi16(g, 6);
+
+            __m256i b = _mm256_add_epi16(y74, _mm256_mullo_epi16(u_16, c129));
+            b = _mm256_add_epi16(b, _mm256_set1_epi16(32));
+            b = _mm256_srai_epi16(b, 6);
+
+            // clamp 0~255
+            __m256i zero = _mm256_setzero_si256();
+            __m256i maxv = _mm256_set1_epi16(255);
+            r = _mm256_max_epi16(zero, _mm256_min_epi16(r, maxv));
+            g = _mm256_max_epi16(zero, _mm256_min_epi16(g, maxv));
+            b = _mm256_max_epi16(zero, _mm256_min_epi16(b, maxv));
+
+            // 打包 BGR24
+            alignas(32) uint16_t b_arr[16], g_arr[16], r_arr[16];
+            _mm256_store_si256((__m256i*)b_arr, b);
+            _mm256_store_si256((__m256i*)g_arr, g);
+            _mm256_store_si256((__m256i*)r_arr, r);
+
+            for (int i = 0; i < 16; ++i)
+            {
+                dstRow[(x + i) * 3 + 0] = (uint8_t)b_arr[i];
+                dstRow[(x + i) * 3 + 1] = (uint8_t)g_arr[i];
+                dstRow[(x + i) * 3 + 2] = (uint8_t)r_arr[i];
+            }
+        }
+
+        // 处理剩余像素
+        for (; x < width; x += 2)
+        {
+            int y0 = yRow[x + 0] - 16;
+            int y1 = yRow[x + 1] - 16;
+            int u = uRow[x / 2] - 128;
+            int v = vRow[x / 2] - 128;
+
+            int r0, g0, b0, r1, g1, b1;
+            yuv2rgb601(y0, u, v, r0, g0, b0);
+            yuv2rgb601(y1, u, v, r1, g1, b1);
+
+            dstRow[(x + 0) * 3 + 0] = b0;
+            dstRow[(x + 0) * 3 + 1] = g0;
+            dstRow[(x + 0) * 3 + 2] = r0;
+
+            dstRow[(x + 1) * 3 + 0] = b1;
+            dstRow[(x + 1) * 3 + 1] = g1;
+            dstRow[(x + 1) * 3 + 2] = r1;
+        }
+    }
+}
+
 void i420ToBGR24(const uint8_t* srcY, int srcYStride,
                  const uint8_t* srcU, int srcUStride,
                  const uint8_t* srcV, int srcVStride,
                  uint8_t* dst, int dstStride,
                  int width, int height)
 {
+    if (hasAVX2())
+    {
+        i420ToBGR24_AVX2(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height);
+        return;
+    }
+
     // 如果 height < 0，则反向写入 dst，src 顺序读取
     if (height < 0)
     {
@@ -1080,7 +1304,7 @@ bool inplaceConvertFrameYUV2BGR(Frame* frame, PixelFormat toFormat, std::vector<
 #endif
         }
     }
-    else if (pixelFormatInclude(frame->pixelFormat, PixelFormat::I420))
+    else
     { // I420 -> BGR24
 
         if (outputHasAlpha)
@@ -1886,7 +2110,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
         }
         else
         {
-            zeroCopy = inplaceConvertFrame(newFrame.get(), m_frameProp.pixelFormat, shouldFlip, m_memCache);
+            zeroCopy = !inplaceConvertFrame(newFrame.get(), m_frameProp.pixelFormat, shouldFlip, m_memCache);
         }
     }
 
