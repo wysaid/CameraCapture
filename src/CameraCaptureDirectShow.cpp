@@ -811,18 +811,18 @@ void nv12ToBGR24_AVX2(const uint8_t* srcY, int srcYStride,
             int y0 = yRow[x + 0] - 16;
             int y1 = yRow[x + 1] - 16;
             // 修正UV索引计算
-            int u = uvRow[(x / 2) * 2] - 128;     // U在偶数位置
-            int v = uvRow[(x / 2) * 2 + 1] - 128; // V在奇数位置
+            int u = uvRow[x] - 128;     // U在偶数位置
+            int v = uvRow[x + 1] - 128; // V在奇数位置
 
             int r0, g0, b0, r1, g1, b1;
             yuv2rgb601(y0, u, v, r0, g0, b0);
             yuv2rgb601(y1, u, v, r1, g1, b1);
 
-            dstRow[(x + 0) * 3 + 0] = b0;
-            dstRow[(x + 0) * 3 + 1] = g0;
-            dstRow[(x + 0) * 3 + 2] = r0;
+            dstRow[x * 3] = b0;
+            dstRow[x * 3 + 1] = g0;
+            dstRow[x * 3 + 2] = r0;
 
-            dstRow[(x + 1) * 3 + 0] = b1;
+            dstRow[(x + 1) * 3] = b1;
             dstRow[(x + 1) * 3 + 1] = g1;
             dstRow[(x + 1) * 3 + 2] = r1;
         }
@@ -865,11 +865,11 @@ void nv12ToBGR24(const uint8_t* srcY, int srcYStride,
             yuv2rgb601(y0, u, v, r0, g0, b0);
             yuv2rgb601(y1, u, v, r1, g1, b1);
 
-            dstRow[(x + 0) * 3 + 0] = b0;
-            dstRow[(x + 0) * 3 + 1] = g0;
-            dstRow[(x + 0) * 3 + 2] = r0;
+            dstRow[x * 3] = b0;
+            dstRow[x * 3 + 1] = g0;
+            dstRow[x * 3 + 2] = r0;
 
-            dstRow[(x + 1) * 3 + 0] = b1;
+            dstRow[(x + 1) * 3] = b1;
             dstRow[(x + 1) * 3 + 1] = g1;
             dstRow[(x + 1) * 3 + 2] = r1;
         }
