@@ -1,5 +1,5 @@
 /**
- * @file capture_demo.cpp
+ * @file capture_grab.cpp
  * @author wysaid (this@wysaid.org)
  * @brief Demo for ccap.
  * @date 2025-05
