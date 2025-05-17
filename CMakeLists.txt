@@ -10,7 +10,7 @@ endif()
 
 option(CCAP_BUILD_DEMO "Build ccap demo" ${CCAP_IS_ROOT_PROJECT})
 
-project(CameraCapture LANGUAGES CXX)
+project(ccap LANGUAGES CXX)
 
 if(CCAP_IS_ROOT_PROJECT AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/dev.cmake)
     include(${CMAKE_CURRENT_SOURCE_DIR}/dev.cmake)
@@ -33,18 +33,18 @@ if(APPLE)
     list(APPEND LIB_SOURCE ${LIB_SOURCE_MAC})
 endif()
 
-add_library(CameraCapture ${LIB_SOURCE})
-target_include_directories(CameraCapture PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_compile_definitions(CameraCapture PUBLIC "$<IF:$<CONFIG:Debug>,DEBUG=1,NDEBUG=1>")
+add_library(ccap ${LIB_SOURCE})
+target_include_directories(ccap PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_compile_definitions(ccap PUBLIC "$<IF:$<CONFIG:Debug>,DEBUG=1,NDEBUG=1>")
 
 if(CCAP_NO_LOG)
-    target_compile_definitions(CameraCapture PUBLIC CCAP_NO_LOG=1)
+    target_compile_definitions(ccap PUBLIC CCAP_NO_LOG=1)
     message(STATUS "ccap: Disable logging")
 endif()
 
 if(APPLE)
-    target_compile_options(CameraCapture PUBLIC -fobjc-arc)
-    target_link_libraries(CameraCapture
+    target_compile_options(ccap PUBLIC -fobjc-arc)
+    target_link_libraries(ccap
         "-framework Foundation"
         "-framework AVFoundation"
         "-framework CoreVideo"
@@ -53,7 +53,7 @@ if(APPLE)
 endif()
 
 if(MSVC)
-    target_compile_options(CameraCapture PUBLIC
+    target_compile_options(ccap PUBLIC
         /source-charset:utf-8
         /MP
         /std:c++17
@@ -64,7 +64,7 @@ if(MSVC)
         /DNOMINMAX=1
     )
 else()
-    target_compile_options(CameraCapture PUBLIC -std=c++17)
+    target_compile_options(ccap PUBLIC -std=c++17)
 endif()
 
 if(CCAP_BUILD_DEMO)
@@ -80,6 +80,6 @@ if(CCAP_BUILD_DEMO)
         message(STATUS "ccap: Add demo: ${DEMO_NAME}")
 
         add_executable(${DEMO_NAME} ${DEMO})
-        target_link_libraries(${DEMO_NAME} CameraCapture)
+        target_link_libraries(${DEMO_NAME} ccap)
     endforeach()
 endif()
