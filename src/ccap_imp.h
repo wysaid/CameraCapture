@@ -1,5 +1,5 @@
 /**
- * @file CameraCaptureImp.h
+ * @file ccap_imp.h
  * @author wysaid (this@wysaid.org)
  * @brief Header file for common imp of ccap::Provider class.
  * @date 2025-04

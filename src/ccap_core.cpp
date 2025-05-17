@@ -1,5 +1,5 @@
 /**
- * @file CameraCapture.cpp
+ * @file ccap_core.cpp
  * @author wysaid (this@wysaid.org)
  * @brief Header file for CameraCapture class.
  * @date 2025-04

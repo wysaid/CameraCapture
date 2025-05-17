@@ -1,5 +1,5 @@
 /**
- * @file CameraCaptureDirectShow.h
+ * @file ccap_imp_windows.h
  * @author wysaid (this@wysaid.org)
  * @brief Header file for ProviderDirectShow class.
  * @date 2025-04

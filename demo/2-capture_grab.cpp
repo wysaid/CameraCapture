@@ -62,7 +62,7 @@ int main(int argc, char** argv)
     cameraProvider.set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::BGR24);
     // cameraProvider.set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::BGRA32);
 #else
-    cameraProvider.set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::NV12f);
+    cameraProvider.set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::NV12);
 #endif
     cameraProvider.set(ccap::PropertyName::FrameRate, requestedFps);
 

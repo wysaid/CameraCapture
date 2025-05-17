@@ -1,5 +1,5 @@
 /**
- * @file CameraCaptureMac.mm
+ * @file ccap_imp_macos.mm
  * @author wysaid (this@wysaid.org)
  * @brief Source file for ProviderMac class.
  * @date 2025-04

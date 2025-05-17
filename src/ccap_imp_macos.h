@@ -1,5 +1,5 @@
 /**
- * @file CameraCaptureMac.h
+ * @file ccap_imp_macos.h
  * @author wysaid (this@wysaid.org)
  * @date 2025-04
  *

@@ -1,5 +1,5 @@
 /**
- * @file CameraCaptureDirectShow.cpp
+ * @file ccap_imp_windows.cpp
  * @author wysaid (this@wysaid.org)
  * @brief Implementation for Provider class using DSHOW.
  * @date 2025-04
@@ -12,7 +12,6 @@
 
 #include "ccap_convert.h"
 
-#include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <guiddef.h>
@@ -1154,7 +1153,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     }
 
     if (!zeroCopy)
-    { /// 如果执行 convert 失败, 则回退到使用 sampleData, 需要继续走 zeroCopy 的逻辑
+    { // If convert fails, fallback to using sampleData, need to continue with zeroCopy logic
 
         if (!newFrame->allocator)
         {

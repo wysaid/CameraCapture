@@ -1,5 +1,5 @@
 /**
- * @file CameraCapture.h
+ * @file ccap_core.h
  * @author wysaid (this@wysaid.org)
  * @brief Header file for CameraCapture class.
  * @date 2025-04
@@ -30,7 +30,8 @@ enum PixelFormatConstants : uint32_t
 
     /// Color Bit Mask
     kPixelFormatYUVColorBit = 1 << 16,
-    kPixelFormatYUVColorFullRangeBit = 1 << 17 | kPixelFormatYUVColorBit,
+    kPixelFormatFullRangeBit = 1 << 17,
+    kPixelFormatYUVColorFullRangeBit = kPixelFormatFullRangeBit | kPixelFormatYUVColorBit,
 
     /// `kPixelFormatRGBColorBit` is used to indicate whether it is an RGB or RGBA format
     kPixelFormatRGBColorBit = 1 << 18,
@@ -129,7 +130,10 @@ inline bool pixelFormatInclude(PixelFormat lhs, PixelFormat rhs)
     return (static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)) == static_cast<uint32_t>(rhs);
 }
 
-/// @brief Interface for memory allocation, primarily used to allocate the `data` field in `ccap::Frame`.
+/**
+ * @brief Interface for memory allocation, primarily used to allocate the `data` field in `ccap::Frame`.
+ * @note If you want to implement your own Allocator, you need to ensure that the allocated memory is 32-byte aligned to enable SIMD instruction set acceleration.
+ */
 class Allocator
 {
 public:

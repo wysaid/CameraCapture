@@ -10,15 +10,30 @@
 #ifndef CCAP_CONVERT_H
 #define CCAP_CONVERT_H
 
+#include <algorithm>
 #include <cstdint>
 
-// pixel convert 里面的函数全都支持 height 小于0的时候, 进行上下翻转写入.
-// 由于可能使用 AVX2 加速, 所以使用者需要保证 src 和 dst 的内存对齐.
-// 这里的对齐要求是 32 字节对齐, 也就是 AVX2 的要求.
+
+/**
+ * @note All pixel conversion functions support writing with vertical flip when height is less than 0.
+ * Since SIMD acceleration may be used, the caller must ensure that both src and dst are 32-byte aligned.
+ *
+ */
 
 namespace ccap
 {
-// 检查一下 AVX2 是否可用, 可用的情况下， 使用 AVX2 加速.
+/// @brief YUV 601 video-range to RGB
+inline void yuv2rgb601v(int y, int u, int v, int& r, int& g, int& b)
+{
+    r = (298 * y + 409 * v + 128) >> 8;
+    g = (298 * y - 100 * u - 208 * v + 128) >> 8;
+    b = (298 * y + 516 * u + 128) >> 8;
+    r = std::clamp(r, 0, 255);
+    g = std::clamp(g, 0, 255);
+    b = std::clamp(b, 0, 255);
+}
+
+// Check if AVX2 is available. If available, use AVX2 acceleration.
 bool hasAVX2();
 
 void rgbShuffle(const uint8_t* src, int srcStride,

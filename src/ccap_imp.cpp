@@ -1,5 +1,5 @@
 /**
- * @file CameraCaptureImp.cpp
+ * @file ccap_imp.cpp
  * @author wysaid (this@wysaid.org)
  * @brief Common Imp of ccap::Provider class.
  * @date 2025-04
@@ -74,9 +74,14 @@ bool ProviderImp::set(PropertyName prop, double value)
     case PropertyName::FrameRate:
         m_frameProp.fps = value;
         break;
-    case PropertyName::PixelFormat:
-        m_frameProp.pixelFormat = static_cast<PixelFormat>(static_cast<int>(value));
-        break;
+    case PropertyName::PixelFormat: {
+        auto intValue = static_cast<int>(value);
+#if defined(_MSC_VER) || defined(_WIN32)
+        intValue &= ~kPixelFormatFullRangeBit; // Full range is currently not supported on Windows
+#endif
+        m_frameProp.pixelFormat = static_cast<PixelFormat>(intValue);
+    }
+    break;
     case PropertyName::DisablePixelFormatConvert:
         m_tryConvertPixelFormat = static_cast<bool>(value);
         break;
