@@ -10,6 +10,7 @@
 
 #include "ccap_convert_avx2.h"
 
+#include <cassert>
 
 //////////////  Common Version //////////////
 
