@@ -1042,7 +1042,212 @@ bool ProviderDirectShow::open(std::string_view deviceName)
 HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMediaSample* mediaSample)
 {
     std::lock_guard<std::mutex> lock(m_callbackMutex);
+    processSampleAsync(sampleTime, mediaSample);
+    return S_OK;
+}
 
+HRESULT STDMETHODCALLTYPE ProviderDirectShow::BufferCB(double SampleTime, BYTE* pBuffer, long BufferLen)
+{
+    CCAP_LOG_E("ccap: BufferCB called, SampleTime: %f, BufferLen: %ld\n", SampleTime, BufferLen);
+    // This callback is not used in this implementation
+    return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE ProviderDirectShow::QueryInterface(REFIID riid, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject)
+{
+    static constexpr const IID IID_ISampleGrabberCB = { 0x0579154A, 0x2B53, 0x4994, { 0xB0, 0xD0, 0xE7, 0x73, 0x14, 0x8E, 0xFF, 0x85 } };
+
+    if (riid == IID_IUnknown)
+    {
+        *ppvObject = static_cast<IUnknown*>(this);
+    }
+    else if (riid == IID_ISampleGrabberCB)
+    {
+        *ppvObject = static_cast<ISampleGrabberCB*>(this);
+    }
+    else
+    {
+        *ppvObject = nullptr;
+        return E_NOINTERFACE;
+    }
+    AddRef();
+    return S_OK;
+}
+
+ULONG STDMETHODCALLTYPE ProviderDirectShow::AddRef()
+{ // Using smart pointers for management, reference counting implementation is not needed
+    return S_OK;
+}
+
+ULONG STDMETHODCALLTYPE ProviderDirectShow::Release()
+{ // same as AddRef
+    return S_OK;
+}
+
+bool ProviderDirectShow::isOpened() const
+{
+    return m_isOpened;
+}
+
+std::optional<DeviceInfo> ProviderDirectShow::getDeviceInfo() const
+{
+    std::optional<DeviceInfo> info;
+    bool hasMJPG = false;
+
+    const_cast<ProviderDirectShow*>(this)->enumerateMediaInfo([&](AM_MEDIA_TYPE* mediaType, const char* name, PixelFormat pixelFormat, const DeviceInfo::Resolution& resolution) {
+        if (!info)
+        {
+            info.emplace();
+            info->deviceName = m_deviceName;
+        }
+
+        auto& pixFormats = info->supportedPixelFormats;
+        if (pixelFormat != PixelFormat::Unknown)
+        {
+            pixFormats.emplace_back(pixelFormat);
+        }
+        else if (mediaType->subtype == MEDIASUBTYPE_MJPG)
+        { // Supports MJPEG format, can be decoded to BGR24 and other formats
+            hasMJPG = true;
+        }
+        info->supportedResolutions.push_back(resolution);
+        return false; // continue enumerating
+    });
+
+    if (info)
+    {
+        auto& resolutions = info->supportedResolutions;
+        std::sort(resolutions.begin(), resolutions.end(), [](const DeviceInfo::Resolution& a, const DeviceInfo::Resolution& b) {
+            return a.width * a.height < b.width * b.height;
+        });
+        resolutions.erase(std::unique(resolutions.begin(), resolutions.end(), [](const DeviceInfo::Resolution& a, const DeviceInfo::Resolution& b) {
+                              return a.width == b.width && a.height == b.height;
+                          }),
+                          resolutions.end());
+
+        auto& pixFormats = info->supportedPixelFormats;
+
+        if (hasMJPG)
+        {
+            pixFormats.emplace_back(PixelFormat::BGR24);
+            pixFormats.emplace_back(PixelFormat::BGRA32);
+            pixFormats.emplace_back(PixelFormat::RGB24);
+            pixFormats.emplace_back(PixelFormat::RGBA32);
+        }
+        std::sort(pixFormats.begin(), pixFormats.end());
+        pixFormats.erase(std::unique(pixFormats.begin(), pixFormats.end()), pixFormats.end());
+    }
+
+    return info;
+}
+
+void ProviderDirectShow::close()
+{
+    CCAP_LOG_V("ccap: ProviderDirectShow close called\n");
+
+    if (m_isRunning)
+    {
+        stop();
+    }
+
+    m_isOpened = false;
+    m_isRunning = false;
+    endProcessThread();
+
+    if (m_sampleGrabber != nullptr)
+    {
+        std::lock_guard<std::mutex> lock(m_callbackMutex);
+        m_sampleGrabber->SetCallback(nullptr, 0); // 0 = SampleCB
+        m_sampleGrabber->SetBufferSamples(FALSE);
+    }
+
+    if (m_mediaControl)
+    {
+        m_mediaControl->Release();
+        m_mediaControl = nullptr;
+    }
+    if (m_sampleGrabber)
+    {
+        m_sampleGrabber->Release();
+        m_sampleGrabber = nullptr;
+    }
+    if (m_sampleGrabberFilter)
+    {
+        m_sampleGrabberFilter->Release();
+        m_sampleGrabberFilter = nullptr;
+    }
+    if (m_deviceFilter)
+    {
+        m_deviceFilter->Release();
+        m_deviceFilter = nullptr;
+    }
+    if (m_dstNullFilter)
+    {
+        m_dstNullFilter->Release();
+        m_dstNullFilter = nullptr;
+    }
+    if (m_captureBuilder)
+    {
+        m_captureBuilder->Release();
+        m_captureBuilder = nullptr;
+    }
+    if (m_graph)
+    {
+        m_graph->Release();
+        m_graph = nullptr;
+    }
+
+    CCAP_LOG_V("ccap: Camera closed.\n");
+}
+
+bool ProviderDirectShow::start()
+{
+    if (!m_isOpened)
+        return false;
+    if (!m_isRunning && m_mediaControl)
+    {
+        HRESULT hr = m_mediaControl->Run();
+        m_isRunning = !FAILED(hr);
+        if (!m_isRunning)
+        {
+            CCAP_LOG_E("ccap: IMediaControl->Run() failed, hr=0x%08X\n", hr);
+        }
+        else
+        {
+            CCAP_LOG_V("ccap: IMediaControl->Run() succeeded.\n");
+        }
+    }
+    return m_isRunning;
+}
+
+void ProviderDirectShow::stop()
+{
+    CCAP_LOG_V("ccap: ProviderDirectShow stop called\n");
+
+    if (m_grabFrameWaiting)
+    {
+        CCAP_LOG_V("ccap: Frame waiting stopped\n");
+
+        m_grabFrameWaiting = false;
+        m_frameCondition.notify_all();
+    }
+
+    if (m_isRunning && m_mediaControl)
+    {
+        m_mediaControl->Stop();
+        m_isRunning = false;
+
+        CCAP_LOG_V("ccap: IMediaControl->Stop() succeeded.\n");
+    }
+}
+
+bool ProviderDirectShow::isStarted() const
+{
+    return m_isRunning && m_mediaControl;
+}
+
+void ProviderDirectShow::processSampleSync(double sampleTime, IMediaSample* mediaSample)
+{
     auto newFrame = getFreeFrame();
     if (!newFrame)
     {
@@ -1050,7 +1255,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
         {
             CCAP_LOG_W("ccap: Frame pool is full, a new frame skipped...\n");
         }
-        return S_OK;
+        return;
     }
 
     // Get sample data
@@ -1058,7 +1263,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     if (auto hr = mediaSample->GetPointer(&sampleData); FAILED(hr))
     {
         CCAP_LOG_E("ccap: GetPointer failed, hr=0x%lx\n", hr);
-        return S_OK;
+        return;
     }
 
     bool fixTimestamp = m_firstFrameArrived && sampleTime == 0.0;
@@ -1230,205 +1435,71 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     }
 
     newFrameAvailable(std::move(newFrame));
-    return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE ProviderDirectShow::BufferCB(double SampleTime, BYTE* pBuffer, long BufferLen)
+void ProviderDirectShow::processSampleAsync(double sampleTime, IMediaSample* sample)
 {
-    CCAP_LOG_E("ccap: BufferCB called, SampleTime: %f, BufferLen: %ld\n", SampleTime, BufferLen);
-    // This callback is not used in this implementation
-    return S_OK;
-}
-
-HRESULT STDMETHODCALLTYPE ProviderDirectShow::QueryInterface(REFIID riid, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject)
-{
-    static constexpr const IID IID_ISampleGrabberCB = { 0x0579154A, 0x2B53, 0x4994, { 0xB0, 0xD0, 0xE7, 0x73, 0x14, 0x8E, 0xFF, 0x85 } };
-
-    if (riid == IID_IUnknown)
+    if (!m_sampleThread)
     {
-        *ppvObject = static_cast<IUnknown*>(this);
-    }
-    else if (riid == IID_ISampleGrabberCB)
-    {
-        *ppvObject = static_cast<ISampleGrabberCB*>(this);
-    }
-    else
-    {
-        *ppvObject = nullptr;
-        return E_NOINTERFACE;
-    }
-    AddRef();
-    return S_OK;
-}
-
-ULONG STDMETHODCALLTYPE ProviderDirectShow::AddRef()
-{ // Using smart pointers for management, reference counting implementation is not needed
-    return S_OK;
-}
-
-ULONG STDMETHODCALLTYPE ProviderDirectShow::Release()
-{ // same as AddRef
-    return S_OK;
-}
-
-bool ProviderDirectShow::isOpened() const
-{
-    return m_isOpened;
-}
-
-std::optional<DeviceInfo> ProviderDirectShow::getDeviceInfo() const
-{
-    std::optional<DeviceInfo> info;
-    bool hasMJPG = false;
-
-    const_cast<ProviderDirectShow*>(this)->enumerateMediaInfo([&](AM_MEDIA_TYPE* mediaType, const char* name, PixelFormat pixelFormat, const DeviceInfo::Resolution& resolution) {
-        if (!info)
-        {
-            info.emplace();
-            info->deviceName = m_deviceName;
-        }
-
-        auto& pixFormats = info->supportedPixelFormats;
-        if (pixelFormat != PixelFormat::Unknown)
-        {
-            pixFormats.emplace_back(pixelFormat);
-        }
-        else if (mediaType->subtype == MEDIASUBTYPE_MJPG)
-        { // Supports MJPEG format, can be decoded to BGR24 and other formats
-            hasMJPG = true;
-        }
-        info->supportedResolutions.push_back(resolution);
-        return false; // continue enumerating
-    });
-
-    if (info)
-    {
-        auto& resolutions = info->supportedResolutions;
-        std::sort(resolutions.begin(), resolutions.end(), [](const DeviceInfo::Resolution& a, const DeviceInfo::Resolution& b) {
-            return a.width * a.height < b.width * b.height;
+        m_sampleThread = std::make_unique<std::thread>([this]() {
+            processThread();
         });
-        resolutions.erase(std::unique(resolutions.begin(), resolutions.end(), [](const DeviceInfo::Resolution& a, const DeviceInfo::Resolution& b) {
-                              return a.width == b.width && a.height == b.height;
-                          }),
-                          resolutions.end());
-
-        auto& pixFormats = info->supportedPixelFormats;
-
-        if (hasMJPG)
-        {
-            pixFormats.emplace_back(PixelFormat::BGR24);
-            pixFormats.emplace_back(PixelFormat::BGRA32);
-            pixFormats.emplace_back(PixelFormat::RGB24);
-            pixFormats.emplace_back(PixelFormat::RGBA32);
-        }
-        std::sort(pixFormats.begin(), pixFormats.end());
-        pixFormats.erase(std::unique(pixFormats.begin(), pixFormats.end()), pixFormats.end());
     }
-
-    return info;
+    
+    {
+        std::lock_guard<std::mutex> lock(m_sampleMutex);
+        m_sampleQueue.emplace(sampleTime, sample);
+        if (m_sampleQueue.size() > 3)
+        {
+            CCAP_LOG_W("ccap: Sample queue size is too large, dropping samples...\n");
+            m_sampleQueue.pop();
+        }
+    }
+    m_sampleCondition.notify_one();
 }
 
-void ProviderDirectShow::close()
+void ProviderDirectShow::processThread()
 {
-    CCAP_LOG_V("ccap: ProviderDirectShow close called\n");
+    while (m_isOpened)
+    {
+        MediaSample sample;
 
-    if (m_isRunning)
-    {
-        stop();
-    }
+        {
+            std::unique_lock<std::mutex> lock(m_sampleMutex);
+            if (!m_sampleCondition.wait_for(lock, std::chrono::milliseconds(1000), [this]() {
+                    return !m_sampleQueue.empty() || !m_isOpened;
+                }))
+            {
+                CCAP_LOG_V("ccap: Sample queue is empty, waiting...\n");
+                continue;
+            }
 
-    if (m_sampleGrabber != nullptr)
-    {
-        std::lock_guard<std::mutex> lock(m_callbackMutex);
-        m_sampleGrabber->SetCallback(nullptr, 0); // 0 = SampleCB
-        m_sampleGrabber->SetBufferSamples(FALSE);
-    }
+            if (!m_sampleQueue.empty())
+            {
+                sample = std::move(m_sampleQueue.front());
+                m_sampleQueue.pop();
+            }
+        }
 
-    if (m_mediaControl)
-    {
-        m_mediaControl->Release();
-        m_mediaControl = nullptr;
+        if (sample.sample != nullptr)
+        {
+            processSampleSync(sample.sampleTime, sample.sample);
+        }
     }
-    if (m_sampleGrabber)
-    {
-        m_sampleGrabber->Release();
-        m_sampleGrabber = nullptr;
-    }
-    if (m_sampleGrabberFilter)
-    {
-        m_sampleGrabberFilter->Release();
-        m_sampleGrabberFilter = nullptr;
-    }
-    if (m_deviceFilter)
-    {
-        m_deviceFilter->Release();
-        m_deviceFilter = nullptr;
-    }
-    if (m_dstNullFilter)
-    {
-        m_dstNullFilter->Release();
-        m_dstNullFilter = nullptr;
-    }
-    if (m_captureBuilder)
-    {
-        m_captureBuilder->Release();
-        m_captureBuilder = nullptr;
-    }
-    if (m_graph)
-    {
-        m_graph->Release();
-        m_graph = nullptr;
-    }
+}
+
+void ProviderDirectShow::endProcessThread()
+{
+    assert(!isOpened());
     m_isOpened = false;
-    m_isRunning = false;
+    m_sampleCondition.notify_all();
 
-    CCAP_LOG_V("ccap: Camera closed.\n");
-}
-
-bool ProviderDirectShow::start()
-{
-    if (!m_isOpened)
-        return false;
-    if (!m_isRunning && m_mediaControl)
+    if (m_sampleThread && m_sampleThread->joinable())
     {
-        HRESULT hr = m_mediaControl->Run();
-        m_isRunning = !FAILED(hr);
-        if (!m_isRunning)
-        {
-            CCAP_LOG_E("ccap: IMediaControl->Run() failed, hr=0x%08X\n", hr);
-        }
-        else
-        {
-            CCAP_LOG_V("ccap: IMediaControl->Run() succeeded.\n");
-        }
+        m_sampleThread->join();
+        m_sampleThread.reset();
     }
-    return m_isRunning;
-}
-
-void ProviderDirectShow::stop()
-{
-    CCAP_LOG_V("ccap: ProviderDirectShow stop called\n");
-
-    if (m_grabFrameWaiting)
-    {
-        CCAP_LOG_V("ccap: Frame waiting stopped\n");
-
-        m_grabFrameWaiting = false;
-        m_frameCondition.notify_all();
-    }
-
-    if (m_isRunning && m_mediaControl)
-    {
-        m_mediaControl->Stop();
-        m_isRunning = false;
-
-        CCAP_LOG_V("ccap: IMediaControl->Stop() succeeded.\n");
-    }
-}
-
-bool ProviderDirectShow::isStarted() const
-{
-    return m_isRunning && m_mediaControl;
+    m_sampleQueue = {};
 }
 
 ProviderImp* createProviderDirectShow()
