@@ -15,9 +15,12 @@
 #include "ccap_imp.h"
 
 #include <atomic>
-#include <deque>
 #include <dshow.h>
+#include <memory>
 #include <mutex>
+#include <queue>
+#include <thread>
+
 #ifdef _MSC_VER
 #pragma include_alias("dxtrans.h", "qedit.h")
 #endif
@@ -91,8 +94,8 @@ public:
     void stop() override;
     bool isStarted() const override;
 
-    HRESULT STDMETHODCALLTYPE SampleCB(double SampleTime, IMediaSample* pSample) override;
-    HRESULT STDMETHODCALLTYPE BufferCB(double SampleTime, BYTE* pBuffer, long BufferLen) override;
+    HRESULT STDMETHODCALLTYPE SampleCB(double sampleTime, IMediaSample* sample) override;
+    HRESULT STDMETHODCALLTYPE BufferCB(double sampleTime, BYTE* buffer, long len) override;
 
 private:
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject) override;
@@ -121,6 +124,47 @@ private:
 
     std::unique_ptr<MediaInfo> enumerateMediaInfo(std::function<bool(AM_MEDIA_TYPE* mediaType, const char* name, PixelFormat pixelFormat, const DeviceInfo::Resolution& resolution)> callback);
 
+    struct MediaSample
+    {
+        MediaSample() = default;
+        explicit MediaSample(const MediaSample& other) = delete;
+        MediaSample(MediaSample&& other) :
+            sampleTime(other.sampleTime), sample(other.sample)
+        {
+            other.sample = nullptr;
+        }
+        explicit MediaSample(double t, IMediaSample* s) :
+            sampleTime(t), sample(s)
+        {
+            if (sample)
+                sample->AddRef();
+        }
+
+        MediaSample& operator=(MediaSample&& other)
+        {
+            if (this != &other)
+            {
+                sampleTime = other.sampleTime;
+                sample = other.sample;
+                other.sample = nullptr;
+            }
+            return *this;
+        }
+
+        ~MediaSample()
+        {
+            if (sample)
+                sample->Release();
+        }
+        double sampleTime{};
+        IMediaSample* sample{};
+    };
+
+    void processSampleSync(double sampleTime, IMediaSample* sample);
+    void processSampleAsync(double sampleTime, IMediaSample* sample);
+    void processThread();
+    void endProcessThread();
+
 private:
     IGraphBuilder* m_graph = nullptr;
     ICaptureGraphBuilder2* m_captureBuilder = nullptr;
@@ -131,7 +175,14 @@ private:
     IMediaControl* m_mediaControl = nullptr;
     std::string m_deviceName;
     std::vector<std::string> m_allDeviceNames;
-    
+
+    /// After testing, processing in the SampleCB callback directly will reduce the camera frame rate.
+    /// Therefore, we create a new thread to handle the callback.
+    std::unique_ptr<std::thread> m_sampleThread;
+    std::mutex m_sampleMutex;
+    std::condition_variable m_sampleCondition;
+    std::queue<MediaSample> m_sampleQueue;
+
     std::vector<uint8_t> m_memCache;
     PixelFormat m_cameraPixelFormat{};
 
