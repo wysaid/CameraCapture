@@ -1110,7 +1110,6 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     bool isYUV = (m_cameraPixelFormat & kPixelFormatYUVColorBit);
     auto defaultOrientation = isYUV ? FrameOrientation::TopToBottom : FrameOrientation::BottomToTop;
 
-    newFrame->sizeInBytes = bufferLen;
     newFrame->pixelFormat = m_cameraPixelFormat;
     newFrame->width = m_frameProp.width;
     newFrame->height = m_frameProp.height;
@@ -1187,6 +1186,12 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
         {
             zeroCopy = !inplaceConvertFrame(newFrame.get(), m_frameProp.pixelFormat, shouldFlip, m_memCache);
         }
+
+        newFrame->sizeInBytes = newFrame->stride[0] * newFrame->height + (newFrame->stride[1] + newFrame->stride[2]) * newFrame->height / 2;
+    }
+    else
+    {
+        newFrame->sizeInBytes = bufferLen;
     }
 
     if (zeroCopy)

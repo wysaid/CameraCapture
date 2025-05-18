@@ -227,7 +227,7 @@ std::shared_ptr<Frame> ProviderImp::getFreeFrame()
             if (m_framePool.size() > m_maxCacheFrameSize)
             {
                 CCAP_LOG_W("ccap: Frame pool is full, new frame allocated...");
-                m_framePool.erase(m_framePool.end());
+                m_framePool.pop_front();
             }
         }
     }
