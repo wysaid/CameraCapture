@@ -52,8 +52,7 @@ static void optimizeLogIfNotSet()
     if (!globalLogLevelChanged)
     {
         int mib[4];
-        struct kinfo_proc info
-        {};
+        struct kinfo_proc info{};
         size_t size = sizeof(info);
 
         mib[0] = CTL_KERN;
@@ -336,6 +335,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
 @property (nonatomic, strong) dispatch_queue_t captureQueue;
 @property (nonatomic) CGSize resolution;
 @property (nonatomic) OSType cvPixelFormat;
+@property (nonatomic) BOOL opened;
 
 - (instancetype)initWithProvider:(ProviderMac*)provider;
 - (BOOL)start;
@@ -351,6 +351,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
     if (self)
     {
         _provider = provider;
+        _opened = NO;
     }
     return self;
 }
@@ -585,7 +586,8 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
         [self setFrameRate:_provider->getFrameProperty().fps];
     }
     [self flushResolution];
-    return YES;
+    _opened = YES;
+    return _opened;
 }
 
 - (void)setFrameRate:(double)fps
@@ -728,7 +730,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
 
 - (BOOL)start
 {
-    if (_session && ![_session isRunning])
+    if (_session && _opened && ![_session isRunning])
     {
         CCAP_NSLOG_V(@"ccap: CameraCaptureObjc start");
         [_session startRunning];
@@ -752,25 +754,33 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
 
 - (void)destroy
 {
-    if (_session)
+    @autoreleasepool
     {
-        CCAP_NSLOG_V(@"ccap: CameraCaptureObjc destroy");
-
-        [_session stopRunning];
-        [_videoOutput setSampleBufferDelegate:nil queue:dispatch_get_main_queue()];
-
-        [_session beginConfiguration];
-
-        if (_videoInput)
+        if (_session)
         {
-            [_session removeInput:_videoInput];
-            [_session removeOutput:_videoOutput];
-            _videoInput = nil;
-            _videoOutput = nil;
-        }
+            CCAP_NSLOG_V(@"ccap: CameraCaptureObjc destroy");
 
-        [_session commitConfiguration];
-        _session = nil;
+            if ([_session isRunning])
+            {
+                [_session stopRunning];
+            }
+
+            [_videoOutput setSampleBufferDelegate:nil queue:dispatch_get_main_queue()];
+
+            [_session beginConfiguration];
+
+            if (_videoInput)
+            {
+                [_session removeInput:_videoInput];
+                [_session removeOutput:_videoOutput];
+                _videoInput = nil;
+                _videoOutput = nil;
+            }
+
+            [_session commitConfiguration];
+            _session = nil;
+        }
+        _opened = NO;
     }
 }
 
@@ -972,7 +982,7 @@ bool ProviderMac::open(std::string_view deviceName)
 
 bool ProviderMac::isOpened() const
 {
-    return m_imp && m_imp.session;
+    return m_imp && m_imp.session && m_imp.opened;
 }
 
 std::optional<DeviceInfo> ProviderMac::getDeviceInfo() const
