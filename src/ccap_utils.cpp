@@ -16,7 +16,10 @@
 
 #include "ccap_imp.h"
 
+#include <algorithm>
 #include <chrono>
+#include <ctime>
+
 
 namespace ccap
 {
