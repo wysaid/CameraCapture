@@ -12,13 +12,6 @@ option(CCAP_BUILD_DEMO "Build ccap demo" ${CCAP_IS_ROOT_PROJECT})
 
 project(ccap LANGUAGES CXX)
 
-if(NOT DEFINED CMAKE_BUILD_TYPE AND NOT MSVC)
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
-    message(STATUS "CMAKE_BUILD_TYPE not set, defaulting to Release")
-elseif(NOT MSVC)
-    message(STATUS "CMAKE_BUILD_TYPE is set to ${CMAKE_BUILD_TYPE}")
-endif()
-
 if(CCAP_IS_ROOT_PROJECT AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/dev.cmake)
     include(${CMAKE_CURRENT_SOURCE_DIR}/dev.cmake)
 endif()
