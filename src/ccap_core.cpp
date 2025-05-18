@@ -44,7 +44,7 @@ Provider::Provider() :
 Provider::~Provider()
 {
     delete m_imp;
-}
+}  
 
 Provider::Provider(std::string_view deviceName, std::string_view extraInfo) :
     m_imp(createProvider(extraInfo))

@@ -12,6 +12,13 @@ option(CCAP_BUILD_DEMO "Build ccap demo" ${CCAP_IS_ROOT_PROJECT})
 
 project(ccap LANGUAGES CXX)
 
+if(NOT DEFINED CMAKE_BUILD_TYPE AND NOT MSVC)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
+    message(STATUS "CMAKE_BUILD_TYPE not set, defaulting to Release")
+elseif(NOT MSVC)
+    message(STATUS "CMAKE_BUILD_TYPE is set to ${CMAKE_BUILD_TYPE}")
+endif()
+
 if(CCAP_IS_ROOT_PROJECT AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/dev.cmake)
     include(${CMAKE_CURRENT_SOURCE_DIR}/dev.cmake)
 endif()
@@ -33,9 +40,30 @@ if(APPLE)
     list(APPEND LIB_SOURCE ${LIB_SOURCE_MAC})
 endif()
 
+include(CheckCXXCompilerFlag)
+
+# 检查是否支持AVX2
+if(MSVC)
+    check_cxx_compiler_flag("/arch:AVX2" CCAP_SUPPORTS_AVX2)
+else()
+    check_cxx_compiler_flag("-mavx2" CCAP_SUPPORTS_AVX2)
+endif()
+
+if(CCAP_SUPPORTS_AVX2)
+    set(CCAP_CONVERT_AVX2_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/ccap_convert_avx2.cpp)
+    set_source_files_properties(${CCAP_CONVERT_AVX2_SRC} PROPERTIES COMPILE_OPTIONS "$<$<CXX_COMPILER_ID:MSVC>:/arch:AVX2>$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-mavx2>")
+    list(APPEND LIB_SOURCE ${CCAP_CONVERT_AVX2_SRC})
+endif()
+
 add_library(ccap ${LIB_SOURCE})
 target_include_directories(ccap PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_compile_definitions(ccap PUBLIC "$<IF:$<CONFIG:Debug>,DEBUG=1,NDEBUG=1>")
+target_compile_definitions(ccap PUBLIC
+    $<$<NOT:$<CONFIG:Debug>>:NDEBUG=1>
+    $<$<CONFIG:Debug>:DEBUG=1>
+    $<$<CONFIG:Release>:NDEBUG=1>
+    $<$<CONFIG:RelWithDebInfo>:NDEBUG=1>
+    $<$<CONFIG:MinSizeRel>:NDEBUG=1>
+)
 
 if(CCAP_NO_LOG)
     target_compile_definitions(ccap PUBLIC CCAP_NO_LOG=1)
@@ -59,10 +87,8 @@ if(MSVC)
         /std:c++17
         /Zc:__cplusplus
         /Zc:preprocessor
-        /D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR=1
-        /D_CRT_SECURE_NO_WARNINGS=1
-        /DNOMINMAX=1
     )
+
 else()
     target_compile_options(ccap PUBLIC -std=c++17)
 endif()

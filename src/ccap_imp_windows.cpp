@@ -8,6 +8,13 @@
 
 #if defined(_WIN32) || defined(_MSC_VER)
 
+#if defined(__GNUC__) || defined(__clang__)
+/// On Windows, keep MSVC format warnings, but ignore GCC/Clang format warnings, 
+/// because some practices recommended on MSVC will trigger warnings on GCC/Clang, 
+/// and it's not really necessary to change them.
+#pragma GCC diagnostic ignored "-Wformat"
+#endif
+
 #include "ccap_imp_windows.h"
 
 #include "ccap_convert.h"

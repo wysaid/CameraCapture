@@ -11,14 +11,6 @@
 #ifndef CAMERA_CAPTURE_IMP_H
 #define CAMERA_CAPTURE_IMP_H
 
-#ifndef _CRT_SECURE_NO_WARNINGS
-#define _CRT_SECURE_NO_WARNINGS 1
-#endif
-
-#ifndef NOMINMAX
-#define NOMINMAX 1
-#endif
-
 #include "ccap_core.h"
 #include "ccap_utils.h"
 
@@ -28,6 +20,16 @@
 #include <mutex>
 #include <optional>
 #include <queue>
+
+#if defined(_WIN32) || defined(_MSC_VER)
+#ifndef _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR
+#define _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR 1
+#endif
+
+#ifndef NOMINMAX
+#define NOMINMAX 1
+#endif
+#endif
 
 namespace ccap
 {

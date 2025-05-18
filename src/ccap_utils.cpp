@@ -6,6 +6,12 @@
  *
  */
 
+#if defined(_WIN32) || defined(_MSC_VER)
+#ifndef _CRT_SECURE_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS 1
+#endif
+#endif
+
 #include "ccap_utils.h"
 
 #include "ccap_imp.h"
