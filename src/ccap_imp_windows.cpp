@@ -9,8 +9,8 @@
 #if defined(_WIN32) || defined(_MSC_VER)
 
 #if defined(__GNUC__) || defined(__clang__)
-/// On Windows, keep MSVC format warnings, but ignore GCC/Clang format warnings, 
-/// because some practices recommended on MSVC will trigger warnings on GCC/Clang, 
+/// On Windows, keep MSVC format warnings, but ignore GCC/Clang format warnings,
+/// because some practices recommended on MSVC will trigger warnings on GCC/Clang,
 /// and it's not really necessary to change them.
 #pragma GCC diagnostic ignored "-Wformat"
 #endif
@@ -82,7 +82,7 @@ typedef struct _DXVA_ExtendedFormat
 
 #define DXVA_NominalRange_Unknown 0
 #define DXVA_NominalRange_Normal 1 // 16-235
-#define DXVA_NominalRange_Wide 2 // 0-255
+#define DXVA_NominalRange_Wide 2   // 0-255
 #define DXVA_NominalRange_0_255 2
 #define DXVA_NominalRange_16_235 1
 #endif
@@ -494,7 +494,32 @@ bool inplaceConvertFrameRGB(Frame* frame, PixelFormat toFormat, bool verticalFli
 
 bool inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
 {
-    assert(frame->pixelFormat != toFormat);
+    if (frame->pixelFormat == toFormat)
+    {
+        if (verticalFlip && (toFormat & kPixelFormatRGBColorBit))
+        { // flip upside down
+            int srcStride = (int)frame->stride[0];
+            int dstStride = srcStride;
+            auto height = frame->height;
+            auto* src = frame->data[0];
+            frame->allocator->resize(srcStride * height);
+            auto* dst = frame->allocator->data();
+            frame->data[0] = dst;
+            /// 反向读取
+            src = src + srcStride * (height - 1);
+            srcStride = -srcStride;
+            for (int i = 0; i < height; ++i)
+            {
+                memcpy(dst, src, dstStride);
+                dst += dstStride;
+                src += srcStride;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
 
     bool isInputYUV = (frame->pixelFormat & kPixelFormatYUVColorBit) != 0;
     bool isOutputYUV = (toFormat & kPixelFormatYUVColorBit) != 0;
