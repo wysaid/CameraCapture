@@ -4,13 +4,13 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Load Project (Debug)",
+            "label": "Load Project",
             "type": "shell",
             "command": "bash",
             "args": [
                 "-l",
                 "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then cmd.exe /c \" ( if not exist build (mkdir build ) ) & cd build & cmake .. \"; else mkdir -p build/Debug && cd build/Debug && cmake ../.. -DCMAKE_BUILD_TYPE=Debug; fi )"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then cmd.exe /c \" ( if not exist build (mkdir build ) ) & cd build & cmake .. \"; else mkdir -p build/Debug && pushd build/Debug && cmake ../.. -DCMAKE_BUILD_TYPE=Debug && popd && mkdir -p build/Release && pushd build/Release && cmake ../.. -DCMAKE_BUILD_TYPE=Release; fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -22,32 +22,6 @@
                 "args": [
                     "/c",
                     "( if not exist build (mkdir build ) ) & cd build & cmake .. "
-                ],
-                "options": {
-                    "cwd": "${workspaceFolder}"
-                },
-                "problemMatcher": "$msCompile",
-            }
-        },
-        {
-            "label": "Load Project (Release)",
-            "type": "shell",
-            "command": "bash",
-            "args": [
-                "-l",
-                "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then cmd.exe /c \" ( if not exist build (mkdir build ) ) & cd build & cmake .. \"; else mkdir -p build/Release && cd build/Release && cmake ../.. -DCMAKE_BUILD_TYPE=Release; fi )"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "group": "build",
-            "problemMatcher": "$gcc",
-            "windows": {
-                "command": "cmd",
-                "args": [
-                    "/c",
-                    "( if not exist build (mkdir build ) ) & cd build & cmake .."
                 ],
                 "options": {
                     "cwd": "${workspaceFolder}"
@@ -82,7 +56,7 @@
             }
         },
         {
-            "label": "Reload Project (Debug)",
+            "label": "Reload Project",
             "type": "shell",
             "command": "echo",
             "args": [
@@ -91,12 +65,12 @@
             "group": "build",
             "dependsOn": [
                 "Clean Project",
-                "Load Project (Debug)"
+                "Load Project"
             ],
             "dependsOrder": "sequence"
         },
         {
-            "label": "Reload Project (Release)",
+            "label": "Reload Project",
             "type": "shell",
             "command": "echo",
             "args": [
@@ -105,7 +79,7 @@
             "group": "build",
             "dependsOn": [
                 "Clean Project",
-                "Load Project (Release)"
+                "Load Project"
             ],
             "dependsOrder": "sequence"
         },
@@ -170,7 +144,7 @@
             ],
             "group": "build",
             "dependsOn": [
-                "Load Project (Debug)",
+                "Load Project",
                 "Build Project (Debug)"
             ],
             "dependsOrder": "sequence",
@@ -184,7 +158,7 @@
             ],
             "group": "build",
             "dependsOn": [
-                "Load Project (Release)",
+                "Load Project",
                 "Build Project (Release)"
             ],
             "dependsOrder": "sequence",
