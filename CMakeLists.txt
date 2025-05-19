@@ -82,12 +82,12 @@ endif()
 
 if(MSVC)
     target_compile_options(ccap PUBLIC
-        /source-charset:utf-8
         /MP
         /std:c++17
         /Zc:__cplusplus
         /Zc:preprocessor
     )
+    target_compile_options(ccap PRIVATE /source-charset:utf-8)
 
 else()
     target_compile_options(ccap PUBLIC -std=c++17)
