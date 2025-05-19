@@ -1217,10 +1217,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     else
     {
         newFrame->sizeInBytes = bufferLen;
-    }
 
-    if (zeroCopy)
-    {
         mediaSample->AddRef(); // Ensure data lifecycle
         auto manager = std::make_shared<FakeFrame>([newFrame, mediaSample]() mutable {
             newFrame = nullptr;

@@ -146,17 +146,18 @@ std::shared_ptr<Frame> ProviderImp::grab(uint32_t timeoutInMs)
         }
 
         m_grabFrameWaiting = true;
+        auto waitSuccess = m_frameCondition.wait_for(lock, std::chrono::milliseconds(timeoutInMs), [this]() {
+            auto ret = m_grabFrameWaiting && !m_availableFrames.empty();
+            if (!ret)
+            {
+                CCAP_LOG_V("ccap: Grab called with no frame available, waiting for new frame...\n");
+            }
+            return ret;
+        });
 
-        if (!m_frameCondition.wait_for(lock, std::chrono::milliseconds(timeoutInMs), [this]() {
-                auto ret = m_grabFrameWaiting && !m_availableFrames.empty();
-                if (!ret)
-                {
-                    CCAP_LOG_V("ccap: Grab called with no frame available, waiting for new frame...\n");
-                }
-                return ret;
-            }))
+        m_grabFrameWaiting = false;
+        if (!waitSuccess)
         {
-            m_grabFrameWaiting = false;
             CCAP_LOG_V("ccap: Grab timed out after %u ms\n", timeoutInMs);
             return nullptr;
         }
@@ -219,8 +220,7 @@ std::shared_ptr<Frame> ProviderImp::getFreeFrame()
 
         if (ret != m_framePool.end())
         {
-            frame = std::move(*ret);
-            m_framePool.erase(ret);
+            frame = *ret;
         }
         else
         {

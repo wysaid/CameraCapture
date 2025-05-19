@@ -901,6 +901,8 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
 
             inplaceConvertFrame(newFrame.get(), _convertPixelFormat, (int)(newFrame->orientation != kDefaultFrameOrientation), _memoryCache);
 
+            CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+
             if (verboseLogEnabled())
             {
 #ifdef DEBUG
