@@ -19,7 +19,7 @@
 #include <algorithm>
 #include <chrono>
 #include <ctime>
-
+#include <vector>
 
 namespace ccap
 {
@@ -36,6 +36,8 @@ std::string dumpFrameToDirectory(Frame* frame, std::string_view directory)
 
 bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t w, uint32_t stride, uint32_t h, bool isBGR, bool hasAlpha, bool isTopToBottom)
 {
+    auto startTime = std::chrono::steady_clock::now();
+
     FILE* fp = fopen(filename, "wb");
     if (fp == nullptr)
         return false;
@@ -43,6 +45,12 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
     unsigned char file[14] = {
         'B', 'M', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     };
+
+    auto lineSize = hasAlpha ? w * 4 : ((w * 3 + 3) / 4) * 4; // 4 bytes aligned when no alpha.
+
+    /// 先在 dataCopy 里面处理一遍, 之后一次性写入到文件, 减少耗时
+    std::vector<uint8_t> tmpData(lineSize * h);
+    auto* dataCopy = tmpData.data();
 
     int srcLineOffset = static_cast<int>(stride);
 
@@ -54,15 +62,19 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
             0x13, 0x0B, 0, 0, 0x13, 0x0B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0x00, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF
         };
-        auto lineSize = w * 4;
         auto sizeData = lineSize * h;
         (uint32_t&)file[2] = sizeof(file) + sizeof(info) + sizeData;
         (uint32_t&)file[10] = sizeof(file) + sizeof(info);
         (uint32_t&)info[4] = w;
         (uint32_t&)info[8] = h;
         (uint32_t&)info[20] = sizeData;
+
         fwrite(file, sizeof(file), 1, fp);
         fwrite(info, sizeof(info), 1, fp);
+        // memcpy(dataCopy, file, sizeof(file));
+        // dataCopy += sizeof(file);
+        // memcpy(dataCopy, info, sizeof(info));
+        // dataCopy += sizeof(info);
 
         if (isTopToBottom)
         {
@@ -74,25 +86,28 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
         {
             for (uint32_t i = 0; i < h; ++i)
             {
-                fwrite(data, lineSize, 1, fp);
+                memcpy(dataCopy, data, lineSize);
+                dataCopy += lineSize;
                 data += srcLineOffset;
             }
         }
         else
         {
             // Swap R and B channels, write as BGRA
-            std::vector<unsigned char> line(lineSize);
+            // std::vector<unsigned char> line(lineSize);
             for (uint32_t i = 0; i < h; ++i)
             {
                 for (uint32_t x = 0; x < w; ++x)
                 {
                     const auto offset = x * 4;
-                    line[offset + 0] = data[offset + 2]; // B
-                    line[offset + 1] = data[offset + 1]; // G
-                    line[offset + 2] = data[offset + 0]; // R
-                    line[offset + 3] = data[offset + 3]; // A
+                    dataCopy[offset + 0] = data[offset + 2]; // B
+                    dataCopy[offset + 1] = data[offset + 1]; // G
+                    dataCopy[offset + 2] = data[offset + 0]; // R
+                    dataCopy[offset + 3] = data[offset + 3]; // A
                 }
-                fwrite(line.data(), lineSize, 1, fp);
+                // fwrite(line.data(), lineSize, 1, fp);
+                memcpy(dataCopy, data, lineSize);
+                dataCopy += lineSize;
                 data += srcLineOffset;
             }
         }
@@ -104,7 +119,7 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
             40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0x13, 0x0B, 0, 0, 0x13, 0x0B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
         };
-        auto lineSize = ((w * 3 + 3) / 4) * 4; // 4 bytes aligned
+
         auto sizeData = lineSize * h;
         (uint32_t&)file[2] = sizeof(file) + sizeof(info) + sizeData;
         (uint32_t&)file[10] = sizeof(file) + sizeof(info);
@@ -112,7 +127,11 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
         (uint32_t&)info[8] = h;
         (uint32_t&)info[20] = sizeData;
         fwrite(file, sizeof(file), 1, fp);
+        // memcpy(dataCopy, file, sizeof(file));
+        // dataCopy += sizeof(file);
         fwrite(info, sizeof(info), 1, fp);
+        // memcpy(dataCopy, info, sizeof(info));
+        // dataCopy += sizeof(info);
 
         if (isTopToBottom)
         {
@@ -126,32 +145,46 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
             auto remainBytes = lineSize - w * 3;
             for (uint32_t i = 0; i < h; ++i)
             {
-                fwrite(data, w * 3, 1, fp);
+                // fwrite(data, w * 3, 1, fp);
+                memcpy(dataCopy, data, w * 3);
+                dataCopy += w * 3;
                 if (remainBytes > 0)
-                    fwrite(padding, 1, remainBytes, fp);
+                {
+                    // fwrite(padding, 1, remainBytes, fp);
+                    memcpy(dataCopy, padding, remainBytes);
+                    dataCopy += remainBytes;
+                }
                 data += srcLineOffset;
             }
         }
         else
         {
-            std::vector<unsigned char> line(lineSize);
+            // std::vector<unsigned char> line(lineSize);
             for (uint32_t i = 0; i < h; ++i)
             {
-                auto* d = line.data();
                 // RGB to BGR
                 for (uint32_t x = 0; x < w; ++x)
                 {
                     const int index = x * 3;
-                    d[index] = data[index + 2];     // B
-                    d[index + 1] = data[index + 1]; // G
-                    d[index + 2] = data[index + 0]; // R
+                    dataCopy[index] = data[index + 2];     // B
+                    dataCopy[index + 1] = data[index + 1]; // G
+                    dataCopy[index + 2] = data[index + 0]; // R
                 }
-                fwrite(line.data(), lineSize, 1, fp);
+                // fwrite(line.data(), lineSize, 1, fp);
+                memcpy(dataCopy, data, lineSize);
+                dataCopy += lineSize;
                 data += srcLineOffset;
             }
         }
     }
+
+    fwrite(tmpData.data(), tmpData.size(), 1, fp);
     fclose(fp);
+
+    auto endTime = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+    printf("Saved %s, resolution %dx%d, size: %g MB, time: %g ms\n", filename, w, h, tmpData.size() / 1024.0 / 1024.0, duration / 1000.0);
+
     return true;
 }
 
