@@ -237,11 +237,21 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
     bool isInputRGB = inputFormat & kPixelFormatRGBBit; ///< Not RGB means BGR
     bool isOutputRGB = toFormat & kPixelFormatRGBBit;   ///< Not RGB means BGR
     bool swapRB = isInputRGB != isOutputRGB;            ///< Whether R and B channels need to be swapped
+    bool flipOnly = verticalFlip && (inputChannelCount == outputChannelCount && !swapRB);
 
     frame->stride[0] = newLineSize;
     frame->allocator->resize(newLineSize * frame->height);
     frame->data[0] = frame->allocator->data();
     frame->pixelFormat = toFormat;
+
+    if (flipOnly)
+    { /// 只是上下翻转, 别的都不需要.
+
+        vImage_Buffer fakeSrc = { inputBytes, frame->height, inputLineSize, inputLineSize };
+            vImage_Buffer fakeDst = { frame->data[0], frame->height, newLineSize, newLineSize };
+            vImageVerticalReflect_Planar8(&fakeSrc, &fakeDst, kvImageNoFlags);
+        return;
+    }
 
     vImage_Buffer src = { inputBytes, frame->height, frame->width, inputLineSize };
     vImage_Buffer dst;
