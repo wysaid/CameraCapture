@@ -7,6 +7,7 @@
  */
 
 #include "ccap_core.h"
+
 #include "ccap_imp.h"
 
 #include <chrono>
@@ -44,7 +45,7 @@ Provider::Provider() :
 Provider::~Provider()
 {
     delete m_imp;
-}  
+}
 
 Provider::Provider(std::string_view deviceName, std::string_view extraInfo) :
     m_imp(createProvider(extraInfo))
@@ -69,12 +70,12 @@ std::vector<std::string> Provider::findDeviceNames()
     return m_imp ? m_imp->findDeviceNames() : std::vector<std::string>();
 }
 
-bool Provider::open(std::string_view deviceName)
+bool Provider::open(std::string_view deviceName, bool autoStart)
 {
-    return m_imp && m_imp->open(deviceName);
+    return m_imp && m_imp->open(deviceName) && (!autoStart || m_imp->start());
 }
 
-bool Provider::open(int deviceIndex)
+bool Provider::open(int deviceIndex, bool autoStart)
 {
     if (!m_imp)
         return false;
@@ -92,7 +93,7 @@ bool Provider::open(int deviceIndex)
         }
     }
 
-    return open(deviceName);
+    return open(deviceName) && (!autoStart || m_imp->start());
 }
 
 bool Provider::isOpened() const
@@ -160,7 +161,5 @@ void Provider::setMaxCacheFrameSize(uint32_t size)
 {
     m_imp->setMaxCacheFrameSize(size);
 }
-
-
 
 } // namespace ccap

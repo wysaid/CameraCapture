@@ -67,7 +67,7 @@ int main(int argc, char** argv)
 #endif
     cameraProvider.set(ccap::PropertyName::FrameRate, requestedFps);
 
-    cameraProvider.open(deviceIndex) && cameraProvider.start();
+    cameraProvider.open(deviceIndex, true);
 
     if (!cameraProvider.isStarted())
     {

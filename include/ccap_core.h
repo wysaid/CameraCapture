@@ -73,18 +73,20 @@ public:
      * @brief Opens a capture device.
      *
      * @param deviceName The name of the device to open. The format is platform-dependent. Pass an empty string to use the default device.
+     * @param autoStart Whether to start capturing frames automatically after opening the device. Default is true.
      * @return true if the device was successfully opened, false otherwise.
      * @note The device name can be obtained using the `findDeviceNames` method.
      */
-    bool open(std::string_view deviceName = "");
+    bool open(std::string_view deviceName = "", bool autoStart = true);
 
     /**
      * @brief Opens a camera by index.
      * @param deviceIndex Camera index from findDeviceNames(). A negative value indicates using the default device,
      *              and a value exceeding the number of devices indicates using the last device.
+     * @param autoStart Whether to start capturing frames automatically after opening the device. Default is true.
      * @return true if successful, false otherwise.
      */
-    bool open(int deviceIndex);
+    bool open(int deviceIndex, bool autoStart = true);
 
     /**
      * @return true if the capture device is currently open, false otherwise.

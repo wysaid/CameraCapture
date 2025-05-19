@@ -68,7 +68,7 @@ int main(int argc, char** argv)
 
     // cameraProvider.set(ccap::PropertyName::FrameOrientation, ccap::FrameOrientation::BottomToTop);
 
-    cameraProvider.open(deviceIndex) && cameraProvider.start();
+    cameraProvider.open(deviceIndex, true);
 
     if (!cameraProvider.isStarted())
     {
