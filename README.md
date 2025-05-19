@@ -67,6 +67,10 @@ Sample usage:
     }
     ```
 
+## Using ccap::Frame with Other Popular Libraries
+
+1. [OpenCV](include/ccap_opencv.h)
+
 ## FAQ
 
 1. How to select PixelFormat

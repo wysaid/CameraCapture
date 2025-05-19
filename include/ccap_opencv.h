@@ -16,10 +16,10 @@
 namespace ccap
 {
 /**
- * @brief 把一个 RGB/BGR/RGBA/BGRA 图像格式的 Frame 转换为 cv::Mat, 不会改变通道顺序, 也不支持 YUV 格式.
+ * @brief Converts a Frame in RGB/BGR/RGBA/BGRA image format to cv::Mat. Does not change channel order and does not support YUV format.
  * @param frame
  * @param mat
- * @note 注意, 此函数不会拷贝数据, 需要保持 Frame 的生命周期.
+ * @note Note: This function does not copy data. The lifetime of the Frame must be maintained.
  */
 inline cv::Mat convertRgbFrameToMat(const Frame& frame)
 {

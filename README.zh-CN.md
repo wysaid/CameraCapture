@@ -68,6 +68,10 @@ ccap `(C)amera(CAP)ture` 是一个高效的、易用的、轻量级的 C++ 相�
     }
     ```
 
+## ccap::Frame 和其他知名库一起使用
+
+1. [OpenCV](include/ccap_opencv.h)
+
 ## 常见问题 (FAQ)
 
 1. 如何选择 PixelFormat
