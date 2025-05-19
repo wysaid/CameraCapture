@@ -248,8 +248,8 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
     { /// 只是上下翻转, 别的都不需要.
 
         vImage_Buffer fakeSrc = { inputBytes, frame->height, inputLineSize, inputLineSize };
-            vImage_Buffer fakeDst = { frame->data[0], frame->height, newLineSize, newLineSize };
-            vImageVerticalReflect_Planar8(&fakeSrc, &fakeDst, kvImageNoFlags);
+        vImage_Buffer fakeDst = { frame->data[0], frame->height, newLineSize, newLineSize };
+        vImageVerticalReflect_Planar8(&fakeSrc, &fakeDst, kvImageNoFlags);
         return;
     }
 
@@ -806,6 +806,19 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
     {
         CCAP_NSLOG_E(@"ccap: CameraCaptureObjc captureOutput - provider is nil");
         return;
+    }
+
+    if (_provider->tooManyNewFrames())
+    {
+        if (!_provider->hasNewFrameCallback())
+        {
+            CCAP_NSLOG_I(@"ccap: Frame dropped to avoid memory leak: grab() called less frequently than camera frame rate.");
+            return;
+        }
+        else
+        {
+            CCAP_NSLOG_I(@"ccap: new frame callback returned false, but grab() was not called or is called less frequently than the camera frame rate");
+        }
     }
 
     // Get the image buffer

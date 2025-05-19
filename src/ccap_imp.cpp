@@ -27,6 +27,7 @@ DefaultAllocator::~DefaultAllocator()
 {
     if (m_data)
         ALIGNED_FREE(m_data);
+    CCAP_LOG_V("ccap: DefaultAllocator destroyed, deallocated %zu bytes of memory at %p\n", m_size, m_data);
 }
 
 void DefaultAllocator::resize(size_t size)
@@ -42,6 +43,7 @@ void DefaultAllocator::resize(size_t size)
     size_t alignedSize = (size + 63) & ~size_t(63);
     m_data = static_cast<uint8_t*>(ALIGNED_ALLOC(64, alignedSize));
     m_size = alignedSize;
+    CCAP_LOG_V("ccap: Allocated %zu bytes of memory at %p\n", m_size, m_data);
 }
 
 uint8_t* DefaultAllocator::data()
@@ -206,6 +208,11 @@ void ProviderImp::newFrameAvailable(std::shared_ptr<Frame> frame)
         // Notify waiting threads
         m_frameCondition.notify_all();
     }
+}
+
+bool ProviderImp::tooManyNewFrames()
+{
+    return m_availableFrames.size() > m_maxAvailableFrameSize;
 }
 
 std::shared_ptr<Frame> ProviderImp::getFreeFrame()
