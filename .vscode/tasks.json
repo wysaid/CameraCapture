@@ -164,6 +164,20 @@
             "dependsOrder": "sequence",
         },
         {
+            "label": "Clear Output Images",
+            "type": "shell",
+            "command": "git",
+            "args": [
+                "clean",
+                "-fdx",
+                "**/*.bmp"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build"
+            },
+            "group": "build"
+        },
+        {
             "label": "Run 0-print_camera (Debug)",
             "type": "shell",
             "command": "bash",
