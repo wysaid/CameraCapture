@@ -876,15 +876,33 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
         }
         else
         {
-            CCAP_NSLOG_V(@"ccap: captureOutput - perform convert, width: %d, height: %d, flip: %d", (int)newFrame->width, (int)newFrame->height, (int)(newFrame->orientation != kDefaultFrameOrientation));
-
             if (!newFrame->allocator)
             {
                 auto&& f = _provider->getAllocatorFactory();
                 newFrame->allocator = f ? f() : std::make_shared<DefaultAllocator>();
             }
 
+            std::chrono::steady_clock::time_point startConvertTime;
+
+            if (verboseLogEnabled())
+            {
+                startConvertTime = std::chrono::steady_clock::now();
+            }
+
             inplaceConvertFrame(newFrame.get(), _convertPixelFormat, (int)(newFrame->orientation != kDefaultFrameOrientation), _memoryCache);
+
+            if (verboseLogEnabled())
+            {
+#ifdef DEBUG
+                constexpr const char* mode = "(using Debug mode)";
+#else
+                constexpr const char* mode = "(using Release mode)";
+#endif
+
+                auto endConvertTime = std::chrono::steady_clock::now();
+                auto durationInUs = std::chrono::duration_cast<std::chrono::microseconds>(endConvertTime - startConvertTime);
+                CCAP_NSLOG_V(@"ccap: captureOutput - perform convert, width: %d, height: %d, flip: %d, cost time(%s): %g ms", (int)newFrame->width, (int)newFrame->height, (int)(newFrame->orientation != kDefaultFrameOrientation), mode, durationInUs.count() / 1000.0);
+            }
         }
     }
 
