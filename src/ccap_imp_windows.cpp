@@ -328,7 +328,7 @@ bool inplaceConvertFrameYUV2RGBColor(Frame* frame, PixelFormat toFormat, bool ve
     int stride1 = frame->stride[1];
     int stride2 = frame->stride[2];
     int width = frame->width;
-    int height = verticalFlip ? -frame->height : frame->height;
+    int height = verticalFlip ? -(int)frame->height : frame->height;
 
     auto newLineSize = outputHasAlpha ? frame->width * 4 : (frame->width * 3 + 31) & ~31;
 
@@ -479,7 +479,7 @@ bool inplaceConvertFrameRGB(Frame* frame, PixelFormat toFormat, bool verticalFli
     frame->allocator->resize(newLineSize * frame->height);
 
     uint8_t* outputBytes = frame->allocator->data();
-    int height = verticalFlip ? -frame->height : frame->height;
+    int height = verticalFlip ? -(int)frame->height : frame->height;
 
     frame->stride[0] = newLineSize;
     frame->data[0] = outputBytes;

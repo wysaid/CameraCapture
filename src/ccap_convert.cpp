@@ -22,6 +22,14 @@ void colorShuffle(const uint8_t* src, int srcStride,
                   int width, int height,
                   const uint8_t shuffle[])
 {
+#if ENABLE_AVX2_IMP
+    if (hasAVX2())
+    {
+        colorShuffle_avx2<inputChannels, outputChannels>(src, srcStride, dst, dstStride, width, height, shuffle);
+        return;
+    }
+#endif
+
     // 如果 height < 0，则反向写入 dst，src 顺序读取
     if (height < 0)
     {
@@ -50,6 +58,26 @@ void colorShuffle(const uint8_t* src, int srcStride,
         }
     }
 }
+
+template void colorShuffle<4, 4>(const uint8_t* src, int srcStride,
+                                 uint8_t* dst, int dstStride,
+                                 int width, int height,
+                                 const uint8_t shuffle[]);
+
+template void colorShuffle<4, 3>(const uint8_t* src, int srcStride,
+                                 uint8_t* dst, int dstStride,
+                                 int width, int height,
+                                 const uint8_t shuffle[]);
+
+template void colorShuffle<3, 4>(const uint8_t* src, int srcStride,
+                                 uint8_t* dst, int dstStride,
+                                 int width, int height,
+                                 const uint8_t shuffle[]);
+
+template void colorShuffle<3, 3>(const uint8_t* src, int srcStride,
+                                 uint8_t* dst, int dstStride,
+                                 int width, int height,
+                                 const uint8_t shuffle[]);
 
 template <bool isBgrColor, bool hasAlpha>
 void nv12ToRgb_common(const uint8_t* srcY, int srcYStride,
@@ -173,55 +201,6 @@ void i420ToRgb_common(const uint8_t* srcY, int srcYStride,
             }
         }
     }
-}
-
-// 交换 R 和 B，G 不变，支持 height < 0 上下翻转
-void rgbShuffle(const uint8_t* src, int srcStride,
-                uint8_t* dst, int dstStride,
-                int width, int height,
-                const uint8_t shuffle[3])
-{
-    colorShuffle<3, 3>(src, srcStride, dst, dstStride, width, height, shuffle);
-}
-
-void rgbaShuffle(const uint8_t* src, int srcStride,
-                 uint8_t* dst, int dstStride,
-                 int width, int height,
-                 const uint8_t shuffle[4])
-{
-    colorShuffle<4, 4>(src, srcStride, dst, dstStride, width, height, shuffle);
-}
-
-void rgbaToBgr(const uint8_t* src, int srcStride,
-               uint8_t* dst, int dstStride,
-               int width, int height)
-{
-    constexpr uint8_t kShuffleMap[4] = { 2, 1, 0, 3 }; // RGBA -> BGR
-    colorShuffle<4, 3>(src, srcStride, dst, dstStride, width, height, kShuffleMap);
-}
-
-void rgbaToRgb(const uint8_t* src, int srcStride,
-               uint8_t* dst, int dstStride,
-               int width, int height)
-{
-    constexpr uint8_t kShuffleMap[4] = { 0, 1, 2, 3 }; // RGBA -> RGB
-    colorShuffle<4, 3>(src, srcStride, dst, dstStride, width, height, kShuffleMap);
-}
-
-void rgbToBgra(const uint8_t* src, int srcStride,
-               uint8_t* dst, int dstStride,
-               int width, int height)
-{
-    constexpr uint8_t kShuffleMap[4] = { 2, 1, 0, 3 }; // RGB -> BGRA
-    colorShuffle<3, 4>(src, srcStride, dst, dstStride, width, height, kShuffleMap);
-}
-
-void rgbToRgba(const uint8_t* src, int srcStride,
-               uint8_t* dst, int dstStride,
-               int width, int height)
-{
-    constexpr uint8_t kShuffleMap[4] = { 0, 1, 2, 3 }; // RGB -> RGBA
-    colorShuffle<3, 4>(src, srcStride, dst, dstStride, width, height, kShuffleMap);
 }
 
 void nv12ToBgr24(const uint8_t* srcY, int srcYStride,

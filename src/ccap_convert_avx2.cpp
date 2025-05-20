@@ -24,9 +24,9 @@ bool hasAVX2()
 
 template <int isBGRA>
 void nv12ToRgbaColor_avx2_imp(const uint8_t* srcY, int srcYStride,
-                          const uint8_t* srcUV, int srcUVStride,
-                          uint8_t* dst, int dstStride,
-                          int width, int height)
+                              const uint8_t* srcUV, int srcUVStride,
+                              uint8_t* dst, int dstStride,
+                              int width, int height)
 {
     if (height < 0)
     {
@@ -191,9 +191,9 @@ void nv12ToRgbaColor_avx2_imp(const uint8_t* srcY, int srcYStride,
 
 template <bool isBGR>
 void _nv12ToRgbColor_avx2_imp(const uint8_t* srcY, int srcYStride,
-                         const uint8_t* srcUV, int srcUVStride,
-                         uint8_t* dst, int dstStride,
-                         int width, int height)
+                              const uint8_t* srcUV, int srcUVStride,
+                              uint8_t* dst, int dstStride,
+                              int width, int height)
 {
     if (height < 0)
     {

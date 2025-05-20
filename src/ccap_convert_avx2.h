@@ -80,6 +80,103 @@ namespace ccap
 bool hasAVX2();
 
 #if ENABLE_AVX2_IMP
+
+template <int inputChannels, int outputChannels>
+void colorShuffle_avx2(const uint8_t* src, int srcStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height, const uint8_t inputShuffle[])
+{ // 实现一个 通用的 colorShuffle, 通过 AVX2 加速
+
+    static_assert((inputChannels == 3 || inputChannels == 4) &&
+                      (outputChannels == 3 || outputChannels == 4),
+                  "inputChannels and outputChannels must be 3 or 4");
+
+    if (height < 0)
+    {
+        height = -height;
+        dst = dst + (height - 1) * dstStride;
+        dstStride = -dstStride;
+    }
+
+    alignas(32) uint8_t shuffleData[32];
+    constexpr uint32_t inputPatchSize = inputChannels == 4 ? 8 : 10;
+    constexpr uint32_t outputPatchSize = outputChannels == 4 ? 8 : 10;
+
+    if constexpr (outputChannels == 4)
+    { // 输出是 4 通道, 一次处理 8 个像素
+
+        if (inputChannels == 4)
+        { /// 可以按 input 的顺序直接处理
+            for (int i = 0; i < 32; ++i)
+            {
+                shuffleData[i] = inputShuffle[i % 4] + (i / 4) * 4;
+            }
+        }
+        else // input 是 3 通道, shuffle 要跳过每个 input 的 alpha
+        {
+            for (int i = 0; i < 8; ++i)
+            {
+                int idx = i * 4;
+                int inputIdx = i * 3;
+                shuffleData[idx] = inputShuffle[0] + inputIdx;
+                shuffleData[idx + 1] = inputShuffle[1] + inputIdx;
+                shuffleData[idx + 2] = inputShuffle[2] + inputIdx;
+                shuffleData[idx + 3] = 0xFF; // no alpha
+            }
+        }
+    }
+    else // 输出是 3 通道, 一次处理 10 个像素
+    {
+        for (int i = 0; i < 30; ++i)
+        {
+            shuffleData[i] = inputShuffle[i % 3] + (i / 3) * 3;
+        }
+        shuffleData[30] = 0xFF; // extra bit
+        shuffleData[31] = 0xFF; // extra bit
+    }
+
+    __m256i shuffle = _mm256_load_si256((const __m256i*)shuffleData);
+
+    for (int y = 0; y < height; ++y)
+    {
+        const uint8_t* srcRow = src + y * srcStride;
+        uint8_t* dstRow = dst + y * dstStride;
+        uint32_t xOutput = 0, xInput = 0;
+        while (xOutput + outputPatchSize <= (uint32_t)width)
+        {
+            __m256i pixels = _mm256_loadu_si256((const __m256i*)(srcRow + xInput * inputChannels));
+            __m256i result = _mm256_shuffle_epi8(pixels, shuffle);
+
+            // 这里确保写入不会越过当前行的边界
+            if (outputChannels == 3 && xOutput + outputPatchSize == width)
+            {
+                // 最后10个像素，但不想写入额外2字节，手动复制前30字节
+                alignas(32) uint8_t buffer[32];
+                _mm256_store_si256((__m256i*)buffer, result);
+                memcpy(dstRow + xOutput * outputChannels, buffer, 30);
+            }
+            else
+            {
+                _mm256_storeu_si256((__m256i*)(dstRow + xOutput * outputChannels), result);
+            }
+
+            xOutput += outputPatchSize;
+            xInput += inputPatchSize;
+        }
+        // 处理剩余像素
+        for (; xOutput < (uint32_t)width; ++xOutput, ++xInput)
+        {
+            for (int c = 0; c < outputChannels; ++c)
+            {
+                if (inputChannels == 3 && c == 3)
+                    dstRow[xOutput * outputChannels + c] = 0xFF; // alpha填充
+                else
+                    dstRow[xOutput * outputChannels + c] = srcRow[xInput * inputChannels + inputShuffle[c]];
+            }
+        }
+    }
+}
+
 // NV12 转 BGRA32，AVX2加速
 void nv12ToBgra32_avx2(const uint8_t* srcY, int srcYStride,
                        const uint8_t* srcUV, int srcUVStride,
