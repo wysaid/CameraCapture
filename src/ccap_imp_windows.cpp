@@ -324,6 +324,7 @@ bool inplaceConvertFrameYUV2BGR(Frame* frame, PixelFormat toFormat, std::vector<
     bool isInputNV12 = pixelFormatInclude(inputFormat, PixelFormat::NV12);
     bool isInputI420 = pixelFormatInclude(inputFormat, PixelFormat::I420);
     bool outputHasAlpha = toFormat & kPixelFormatAlphaColorBit;
+    bool isOutputBGR = toFormat & kPixelFormatBGRBit; // 不是 BGR 就是 RGB
 
     uint8_t* inputData0 = frame->data[0];
     uint8_t* inputData1 = frame->data[1];
@@ -356,10 +357,20 @@ bool inplaceConvertFrameYUV2BGR(Frame* frame, PixelFormat toFormat, std::vector<
                                       frame->data[0], newLineSize,
                                       width, height) == 0;
 #else
-            nv12ToBgra32(inputData0, stride0,
-                         inputData1, stride1,
-                         frame->data[0], newLineSize,
-                         width, height);
+            if (isOutputBGR)
+            {
+                nv12ToBgra32(inputData0, stride0,
+                             inputData1, stride1,
+                             frame->data[0], newLineSize,
+                             width, height);
+            }
+            else
+            {
+                nv12ToRgba32(inputData0, stride0,
+                             inputData1, stride1,
+                             frame->data[0], newLineSize,
+                             width, height);
+            }
             return true;
 #endif
         }
@@ -371,10 +382,20 @@ bool inplaceConvertFrameYUV2BGR(Frame* frame, PixelFormat toFormat, std::vector<
                                        frame->data[0], newLineSize,
                                        width, height) == 0;
 #else
-            nv12ToBgr24(inputData0, stride0,
-                        inputData1, stride1,
-                        frame->data[0], newLineSize,
-                        width, height);
+            if (isOutputBGR)
+            {
+                nv12ToBgr24(inputData0, stride0,
+                            inputData1, stride1,
+                            frame->data[0], newLineSize,
+                            width, height);
+            }
+            else
+            {
+                nv12ToRgb24(inputData0, stride0,
+                            inputData1, stride1,
+                            frame->data[0], newLineSize,
+                            width, height);
+            }
             return true;
 #endif
         }
@@ -391,11 +412,22 @@ bool inplaceConvertFrameYUV2BGR(Frame* frame, PixelFormat toFormat, std::vector<
                                       frame->data[0], newLineSize,
                                       width, height) == 0;
 #else
-            i420ToBgra32(inputData0, stride0,
-                         inputData1, stride1,
-                         inputData2, stride2,
-                         frame->data[0], newLineSize,
-                         width, height);
+            if (isOutputBGR)
+            {
+                i420ToBgra32(inputData0, stride0,
+                             inputData1, stride1,
+                             inputData2, stride2,
+                             frame->data[0], newLineSize,
+                             width, height);
+            }
+            else
+            {
+                i420ToRgba32(inputData0, stride0,
+                             inputData1, stride1,
+                             inputData2, stride2,
+                             frame->data[0], newLineSize,
+                             width, height);
+            }
             return true;
 #endif
         }
@@ -408,11 +440,22 @@ bool inplaceConvertFrameYUV2BGR(Frame* frame, PixelFormat toFormat, std::vector<
                                        frame->data[0], newLineSize,
                                        width, height) == 0;
 #else
-            i420ToBgr24(inputData0, stride0,
-                        inputData1, stride1,
-                        inputData2, stride2,
-                        frame->data[0], newLineSize,
-                        width, height);
+            if (isOutputBGR)
+            {
+                i420ToBgr24(inputData0, stride0,
+                            inputData1, stride1,
+                            inputData2, stride2,
+                            frame->data[0], newLineSize,
+                            width, height);
+            }
+            else
+            {
+                i420ToRgb24(inputData0, stride0,
+                            inputData1, stride1,
+                            inputData2, stride2,
+                            frame->data[0], newLineSize,
+                            width, height);
+            }
             return true;
 #endif
         }

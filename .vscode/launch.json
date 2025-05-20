@@ -37,6 +37,14 @@
             "preLaunchTask": "Build Project (Debug)"
         },
         {
+            "name": "(Windows) Debug 4-demo_with_glfw",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/4-demo_with_glfw.exe",
+            "cwd": "${fileDirname}",
+            "preLaunchTask": "Build Project (Debug)"
+        },
+        {
             "name": "(gdb) Debug 0-print_camera",
             "type": "cppdbg",
             "request": "launch",
@@ -79,6 +87,14 @@
             "osx": {
                 "MIMode": "lldb"
             }
-        }
+        },
+        {
+            "name": "(gdb) Debug 4-demo_with_glfw",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/4-demo_with_glfw",
+            "cwd": "${fileDirname}",
+            "preLaunchTask": "Build Project (Debug)"
+        },
     ]
 }

@@ -13,7 +13,6 @@
 #include <algorithm>
 #include <cstdint>
 
-
 /**
  * @note All pixel conversion functions support writing with vertical flip when height is less than 0.
  * Since SIMD acceleration may be used, the caller must ensure that both src and dst are 32-byte aligned.
@@ -76,7 +75,17 @@ void nv12ToBgr24(const uint8_t* srcY, int srcYStride,
                  uint8_t* dst, int dstStride,
                  int width, int height);
 
+void nv12ToRgb24(const uint8_t* srcY, int srcYStride,
+                 const uint8_t* srcUV, int srcUVStride,
+                 uint8_t* dst, int dstStride,
+                 int width, int height);
+
 void nv12ToBgra32(const uint8_t* srcY, int srcYStride,
+                  const uint8_t* srcUV, int srcUVStride,
+                  uint8_t* dst, int dstStride,
+                  int width, int height);
+
+void nv12ToRgba32(const uint8_t* srcY, int srcYStride,
                   const uint8_t* srcUV, int srcUVStride,
                   uint8_t* dst, int dstStride,
                   int width, int height);
@@ -87,7 +96,19 @@ void i420ToBgr24(const uint8_t* srcY, int srcYStride,
                  uint8_t* dst, int dstStride,
                  int width, int height);
 
+void i420ToRgb24(const uint8_t* srcY, int srcYStride,
+                 const uint8_t* srcU, int srcUStride,
+                 const uint8_t* srcV, int srcVStride,
+                 uint8_t* dst, int dstStride,
+                 int width, int height);
+
 void i420ToBgra32(const uint8_t* srcY, int srcYStride,
+                  const uint8_t* srcU, int srcUStride,
+                  const uint8_t* srcV, int srcVStride,
+                  uint8_t* dst, int dstStride,
+                  int width, int height);
+
+void i420ToRgba32(const uint8_t* srcY, int srcYStride,
                   const uint8_t* srcU, int srcUStride,
                   const uint8_t* srcV, int srcVStride,
                   uint8_t* dst, int dstStride,

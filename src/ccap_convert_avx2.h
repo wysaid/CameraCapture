@@ -81,37 +81,62 @@ bool hasAVX2();
 
 #if ENABLE_AVX2_IMP
 // NV12 转 BGRA32，AVX2加速
-void nv12ToBGRA32_AVX2(const uint8_t* srcY, int srcYStride,
+void nv12ToBgra32_avx2(const uint8_t* srcY, int srcYStride,
+                       const uint8_t* srcUV, int srcUVStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height);
+
+// NV12 转 RGBA32，AVX2加速
+void nv12ToRgba32_avx2(const uint8_t* srcY, int srcYStride,
                        const uint8_t* srcUV, int srcUVStride,
                        uint8_t* dst, int dstStride,
                        int width, int height);
 
 // NV12 转 BGR24，AVX2加速
-void nv12ToBGR24_AVX2(const uint8_t* srcY, int srcYStride,
+void nv12ToBgr24_avx2(const uint8_t* srcY, int srcYStride,
+                      const uint8_t* srcUV, int srcUVStride,
+                      uint8_t* dst, int dstStride,
+                      int width, int height);
+
+// NV12 转 RGB24，AVX2加速
+void nv12ToRgb24_avx2(const uint8_t* srcY, int srcYStride,
                       const uint8_t* srcUV, int srcUVStride,
                       uint8_t* dst, int dstStride,
                       int width, int height);
 
 // I420 转 BGRA32，AVX2加速
-void i420ToBGRA32_AVX2(const uint8_t* srcY, int srcYStride,
+void i420ToBgra32_avx2(const uint8_t* srcY, int srcYStride,
+                       const uint8_t* srcU, int srcUStride,
+                       const uint8_t* srcV, int srcVStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height);
+
+// I420 转 RGBA32，AVX2加速
+void i420ToRgba32_avx2(const uint8_t* srcY, int srcYStride,
                        const uint8_t* srcU, int srcUStride,
                        const uint8_t* srcV, int srcVStride,
                        uint8_t* dst, int dstStride,
                        int width, int height);
 
 // I420 转 BGR24，AVX2加速
-void i420ToBGR24_AVX2(const uint8_t* srcY, int srcYStride,
+void i420ToBgr24_avx2(const uint8_t* srcY, int srcYStride,
                       const uint8_t* srcU, int srcUStride,
                       const uint8_t* srcV, int srcVStride,
                       uint8_t* dst, int dstStride,
                       int width, int height);
 
+// I420 转 RGB24，AVX2加速
+void i420ToRgb24_avx2(const uint8_t* srcY, int srcYStride,
+                      const uint8_t* srcU, int srcUStride,
+                      const uint8_t* srcV, int srcVStride,
+                      uint8_t* dst, int dstStride,
+                      int width, int height);
 #else
 
-#define nv12ToBGR24_AVX2(...) assert(0 && "AVX2 not supported")
-#define nv12ToBGRA32_AVX2(...) assert(0 && "AVX2 not supported")
-#define i420ToBGRA32_AVX2(...) assert(0 && "AVX2 not supported")
-#define i420ToBGR24_AVX2(...) assert(0 && "AVX2 not supported")
+#define nv12ToBgr24_avx2(...) assert(0 && "AVX2 not supported")
+#define nv12ToBgra32_avx2(...) assert(0 && "AVX2 not supported")
+#define i420ToBgra32_avx2(...) assert(0 && "AVX2 not supported")
+#define i420ToBgr24_avx2(...) assert(0 && "AVX2 not supported")
 
 #endif
 
