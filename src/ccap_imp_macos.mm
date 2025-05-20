@@ -465,7 +465,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
     _videoOutput = [[AVCaptureVideoDataOutput alloc] init];
     [_videoOutput setAlwaysDiscardsLateVideoFrames:YES]; // better performance
 
-    auto requiredPixelFormat = _provider->getFrameProperty().pixelFormat;
+    auto requiredPixelFormat = _provider->getFrameProperty().outputPixelFormat;
 
     { /// Handle pixel format
         _cameraPixelFormat = requiredPixelFormat;
