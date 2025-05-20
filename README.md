@@ -11,7 +11,7 @@ ccap `(C)amera(CAP)ture` is an efficient, easy-to-use, and lightweight C++ camer
 ## Build
 
 - C++17 or higher
-- CMake 3.10 or higher
+- CMake 3.14 or higher
 - System dependencies:
   - Windows: DirectShow (better compatibility than MSMF for camera devices; MSMF support may be added in future versions)
   - MacOS 10.13+: Foundation, AVFoundation, CoreVideo, CoreMedia, Accelerate
@@ -34,6 +34,7 @@ Several demos are included in this project for your reference:
 2. [Simple Demo for Grabbing a Frame](./demo/1-minimal_demo.cpp)
 3. [Demo for Continuously Grabbing Frames](./demo/2-capture_grab.cpp)
 4. [Demo for Getting Frames via Callback](./demo/3-capture_callback.cpp)
+5. [GUI Demo Based on GLFW](./demo/4-demo_with_glfw.cpp) - When building with CMake, add `-DCCAP_ENABLE_GUI_DEMO=ON`
 
 Sample usage:
 

@@ -508,7 +508,7 @@ bool inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
             /// 反向读取
             src = src + srcStride * (height - 1);
             srcStride = -srcStride;
-            for (int i = 0; i < height; ++i)
+            for (uint32_t i = 0; i < height; ++i)
             {
                 memcpy(dst, src, dstStride);
                 dst += dstStride;

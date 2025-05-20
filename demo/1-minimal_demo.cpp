@@ -6,8 +6,7 @@
  *
  */
 
-#include "ccap.h"
-
+#include <ccap.h>
 #include <iostream>
 
 int main()

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.14)
 
 option(CCAP_NO_LOG "Disable logging" OFF)
 
@@ -10,7 +10,16 @@ endif()
 
 option(CCAP_BUILD_DEMO "Build ccap demo" ${CCAP_IS_ROOT_PROJECT})
 
+if(CCAP_IS_ROOT_PROJECT)
+    set(CMAKE_FETCHCONTENT_BASE_DIR "${CMAKE_SOURCE_DIR}/build" CACHE PATH "FetchContent base dir" FORCE)
+endif()
+
 project(ccap LANGUAGES CXX)
+
+# Currently only Windows and macOS are supported; other platforms are not supported yet
+if(NOT WIN32 AND NOT APPLE)
+    message(FATAL_ERROR "ccap: Unsupported platform, only Windows and macOS are supported by now.")
+endif()
 
 if(NOT DEFINED CMAKE_BUILD_TYPE AND NOT MSVC)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
@@ -87,25 +96,21 @@ if(MSVC)
         /Zc:__cplusplus
         /Zc:preprocessor
     )
-    target_compile_options(ccap PRIVATE /source-charset:utf-8)
+
+    if(CCAP_IS_ROOT_PROJECT)
+        target_compile_options(ccap PUBLIC /source-charset:utf-8)
+    else()
+        target_compile_options(ccap PRIVATE /source-charset:utf-8)
+    endif()
 
 else()
     target_compile_options(ccap PUBLIC -std=c++17)
 endif()
 
+# ############### Demo ################
+message(STATUS "ccap: CCAP_BUILD_DEMO=${CCAP_BUILD_DEMO}")
+
 if(CCAP_BUILD_DEMO)
-    message(STATUS "ccap: CCAP_BUILD_DEMO=${CCAP_BUILD_DEMO}")
-    file(GLOB DEMO_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/demo/*.cpp)
-
-    foreach(DEMO ${DEMO_SOURCE})
-        get_filename_component(DEMO_NAME ${DEMO} NAME)
-
-        # 去掉文件名中的后缀
-        string(REPLACE ".cpp" "" DEMO_NAME ${DEMO_NAME})
-
-        message(STATUS "ccap: Add demo: ${DEMO_NAME}")
-
-        add_executable(${DEMO_NAME} ${DEMO})
-        target_link_libraries(${DEMO_NAME} ccap)
-    endforeach()
+    add_subdirectory(demo/glfw)
+    include(demo/demo.cmake)
 endif()

@@ -352,6 +352,50 @@
                 "command": ".\\3-capture_callback.exe",
                 "problemMatcher": "$msCompile",
             }
+        },
+        {
+            "label": "Run 4-demo_with_glfw (Debug)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./4-demo_with_glfw.exe; else ./4-demo_with_glfw; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Debug"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Debug)"
+            ],
+            "windows": {
+                "command": ".\\4-demo_with_glfw.exe",
+                "problemMatcher": "$msCompile",
+            }
+        },
+        {
+            "label": "Run 4-demo_with_glfw (Release)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./4-demo_with_glfw.exe; else ./4-demo_with_glfw; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Release"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Release)"
+            ],
+            "windows": {
+                "command": ".\\4-demo_with_glfw.exe",
+                "problemMatcher": "$msCompile",
+            }
         }
     ]
 }

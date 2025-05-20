@@ -6,8 +6,7 @@
  *
  */
 
-#include "ccap.h"
-
+#include <ccap.h>
 #include <cstdio>
 #include <string>
 #include <vector>

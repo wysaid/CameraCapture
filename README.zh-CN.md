@@ -12,7 +12,7 @@ ccap `(C)amera(CAP)ture` 是一个高效的、易用的、轻量级的 C++ 相�
 ## 编译
 
 - C++17 或更高版本
-- CMake 3.10 或更高版本
+- CMake 3.14 或更高版本
 - 系统依赖:
   - Windows: DirectShow (对于相机设备兼容性略好于 MSMF) / MSMF (后续版本提供)
   - MacOS 10.13+: Foundation, AVFoundation, CoreVideo, CoreMedia, Accelerate
@@ -35,6 +35,7 @@ ccap `(C)amera(CAP)ture` 是一个高效的、易用的、轻量级的 C++ 相�
 2. [抓取一帧的简单Demo](./demo/1-minimal_demo.cpp)
 3. [持续主动抓取帧的Demo](./demo/2-capture_grab.cpp)
 4. [通过回调获取帧的Demo](./demo/3-capture_callback.cpp)
+5. [基于 glfw 的 Gui Demo](./demo/4-demo_with_glfw.cpp) - 使用 CMake 编译的时候添加 `-DCCAP_ENABLE_GUI_DEMO=ON`
 
 下面是使用代码参考:
 

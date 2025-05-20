@@ -148,14 +148,17 @@ std::shared_ptr<Frame> ProviderImp::grab(uint32_t timeoutInMs)
         }
 
         m_grabFrameWaiting = true;
-        auto waitSuccess = m_frameCondition.wait_for(lock, std::chrono::milliseconds(timeoutInMs), [this]() {
-            auto ret = m_grabFrameWaiting && !m_availableFrames.empty();
-            if (!ret)
-            {
-                CCAP_LOG_V("ccap: Grab called with no frame available, waiting for new frame...\n");
-            }
-            return ret;
-        });
+        bool waitSuccess;
+
+        for (uint32_t waitedTime = 0; waitedTime < timeoutInMs; waitedTime += 1000)
+        {
+            waitSuccess = m_frameCondition.wait_for(lock, std::chrono::milliseconds(1000), [this]() {
+                return m_grabFrameWaiting && !m_availableFrames.empty();
+            });
+            if (waitSuccess)
+                break;
+            CCAP_LOG_V("ccap: Waiting for new frame... %u ms\n", waitedTime);
+        }
 
         m_grabFrameWaiting = false;
         if (!waitSuccess)
