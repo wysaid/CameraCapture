@@ -22,7 +22,7 @@ void colorShuffle(const uint8_t* src, int srcStride,
                   int width, int height,
                   const uint8_t shuffle[])
 {
-#if 0
+#if ENABLE_AVX2_IMP
     if (hasAVX2())
     {
         colorShuffle_avx2<inputChannels, outputChannels>(src, srcStride, dst, dstStride, width, height, shuffle);

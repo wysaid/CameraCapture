@@ -22,6 +22,20 @@
 // ccap is short for (C)amera(CAP)ture
 namespace ccap
 {
+/// A default allocator
+class DefaultAllocator : public Allocator
+{
+public:
+    ~DefaultAllocator() override;
+    void resize(size_t size) override;
+    uint8_t* data() override;
+    size_t size() override;
+
+private:
+    uint8_t* m_data = nullptr;
+    size_t m_size = 0;
+};
+
 enum
 {
     /// @brief The default maximum number of frames that can be cached.

@@ -61,20 +61,6 @@ struct FrameProperty
     }
 };
 
-/// A default allocator
-class DefaultAllocator : public Allocator
-{
-public:
-    ~DefaultAllocator() override;
-    void resize(size_t size) override;
-    uint8_t* data() override;
-    size_t size() override;
-
-private:
-    uint8_t* m_data = nullptr;
-    size_t m_size = 0;
-};
-
 class ProviderImp
 {
 public:

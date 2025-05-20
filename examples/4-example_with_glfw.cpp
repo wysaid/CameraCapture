@@ -1,7 +1,7 @@
 /**
- * @file example_opencv.cpp
+ * @file example_with_glfw.cpp
  * @author wysaid (this@wysaid.org)
- * @brief OpenCV Example for ccap.
+ * @brief GLFW Example with ccap.
  * @date 2025-05
  *
  */
@@ -59,7 +59,7 @@ int main(int argc, char** argv)
     ccap::setLogLevel(ccap::LogLevel::Verbose);
 
     std::string cwd = argv[0];
-    int deviceIndex = 0; // Indicates using the system's default camera
+    int deviceIndex = -1; // Indicates using the system's default camera
     if (argc > 1 && std::isdigit(argv[1][0]))
     {
         deviceIndex = std::stoi(argv[1]);
@@ -94,10 +94,13 @@ int main(int argc, char** argv)
     int requestedWidth = 1920;
     int requestedHeight = 1080;
     double requestedFps = 60;
-
+    ccap::PixelFormat cameraOutputPixelFormat = ccap::PixelFormat::RGBA32;
+    GLenum pixelFormat = GL_RGBA;
+    
     cameraProvider.set(ccap::PropertyName::Width, requestedWidth);
     cameraProvider.set(ccap::PropertyName::Height, requestedHeight);
-    cameraProvider.set(ccap::PropertyName::PixelFormatOutput, ccap::PixelFormat::RGBA32);
+    cameraProvider.set(ccap::PropertyName::PixelFormatOutput, cameraOutputPixelFormat);
+    // cameraProvider.set(ccap::PropertyName::PixelFormatInternal, ccap::PixelFormat::NV12);
     cameraProvider.set(ccap::PropertyName::FrameRate, requestedFps);
     cameraProvider.set(ccap::PropertyName::FrameOrientation, ccap::FrameOrientation::BottomToTop);
 
@@ -109,14 +112,19 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    auto frame = cameraProvider.grab(3000);
-    if (!frame)
+    int frameWidth{}, frameHeight{};
+
+    if (auto frame = cameraProvider.grab(5000))
     {
-        std::cerr << "Failed to grab frame!" << std::endl;
+        frameWidth = frame->width;
+        frameHeight = frame->height;
+        std::cout << "## Frame resolution: " << frameWidth << "x" << frameHeight << std::endl;
+    }
+    else
+    {
+        std::cerr << "Failed to grab a frame!" << std::endl;
         return -1;
     }
-    auto frameWidth = frame->width;
-    auto frameHeight = frame->height;
 
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -166,37 +174,33 @@ int main(int argc, char** argv)
     glGenTextures(1, &tex);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, tex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, frameWidth, frameHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0, pixelFormat, frameWidth, frameHeight, 0, pixelFormat, GL_UNSIGNED_BYTE, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     /// 3000 ms timeout when grabbing frames
-    for (; !glfwWindowShouldClose(window); frame = cameraProvider.grab(30))
+    for (; !glfwWindowShouldClose(window);)
     {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, tex);
 
-        if (frame)
-        {
-            { // buffer orphaning: <https://www.khronos.org/opengl/wiki/Buffer_Object_Streaming>, pass nullptr first.
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, frameWidth, frameHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, frameWidth, frameHeight, GL_RGBA, GL_UNSIGNED_BYTE, frame->data[0]);
-                frame = nullptr;
-            }
-
-            int winWidth, winHeight;
-            glfwGetFramebufferSize(window, &winWidth, &winHeight);
-            glViewport(0, 0, winWidth, winHeight);
-
-            glClear(GL_COLOR_BUFFER_BIT);
-            glUseProgram(prog);
-            glBindVertexArray(VAO);
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-            glfwSwapBuffers(window);
-            glfwPollEvents();
+        if (auto frame = cameraProvider.grab(30))
+        { // buffer orphaning: <https://www.khronos.org/opengl/wiki/Buffer_Object_Streaming>, pass nullptr first.
+            glTexImage2D(GL_TEXTURE_2D, 0, pixelFormat, frameWidth, frameHeight, 0, pixelFormat, GL_UNSIGNED_BYTE, nullptr);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, frameWidth, frameHeight, pixelFormat, GL_UNSIGNED_BYTE, frame->data[0]);
         }
+        int winWidth, winHeight;
+        glfwGetFramebufferSize(window, &winWidth, &winHeight);
+        glViewport(0, 0, winWidth, winHeight);
+
+        glClear(GL_COLOR_BUFFER_BIT);
+        glUseProgram(prog);
+        glBindVertexArray(VAO);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glfwSwapBuffers(window);
+        glfwPollEvents();
     }
 
     // Cleanup, this can be omitted if the program is exiting

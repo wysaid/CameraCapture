@@ -11,41 +11,8 @@
 #include <cassert>
 #include <cmath>
 
-#ifdef _MSC_VER
-#include <malloc.h>
-#define ALIGNED_ALLOC(alignment, size) _aligned_malloc(size, alignment)
-#define ALIGNED_FREE(ptr) _aligned_free(ptr)
-#else
-#include <cstdlib>
-#define ALIGNED_ALLOC(alignment, size) std::aligned_alloc(alignment, size)
-#define ALIGNED_FREE(ptr) std::free(ptr)
-#endif
-
 namespace ccap
 {
-DefaultAllocator::~DefaultAllocator()
-{
-    if (m_data)
-        ALIGNED_FREE(m_data);
-    CCAP_LOG_V("ccap: DefaultAllocator destroyed, deallocated %zu bytes of memory at %p\n", m_size, m_data);
-}
-
-void DefaultAllocator::resize(size_t size)
-{
-    assert(size != 0);
-    if (size <= m_size && size >= m_size / 2 && m_data != nullptr)
-        return;
-
-    if (m_data)
-        ALIGNED_FREE(m_data);
-
-    // 64字节对齐，size必须是对齐的倍数
-    size_t alignedSize = (size + 63) & ~size_t(63);
-    m_data = static_cast<uint8_t*>(ALIGNED_ALLOC(64, alignedSize));
-    m_size = alignedSize;
-    CCAP_LOG_V("ccap: Allocated %zu bytes of memory at %p\n", m_size, m_data);
-}
-
 uint8_t* DefaultAllocator::data()
 {
     return m_data;
