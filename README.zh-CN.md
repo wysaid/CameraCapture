@@ -29,13 +29,13 @@ ccap `(C)amera(CAP)ture` 是一个高效的、易用的、轻量级的 C++ 相�
 使用非常简单, 本项目提供一个头文件和一个静态库, 直接添加到你的项目中即可。
 也可以直接将本项目源码添加至你的项目
 
-本项目内置数个 Demo, 可以直接参考:
+本项目内置数个 Example, 可以直接参考:
 
-1. [打印相机设备](./demo/0-print_camera.cpp)
-2. [抓取一帧的简单Demo](./demo/1-minimal_demo.cpp)
-3. [持续主动抓取帧的Demo](./demo/2-capture_grab.cpp)
-4. [通过回调获取帧的Demo](./demo/3-capture_callback.cpp)
-5. [基于 glfw 的 Gui Demo](./demo/4-demo_with_glfw.cpp) - 使用 CMake 编译的时候添加 `-DCCAP_ENABLE_GUI_DEMO=ON`
+1. [打印相机设备](./examples/0-print_camera.cpp)
+2. [抓取一帧的简单Example](./examples/1-minimal_example.cpp)
+3. [持续主动抓取帧的Example](./examples/2-capture_grab.cpp)
+4. [通过回调获取帧的Example](./examples/3-capture_callback.cpp)
+5. [基于 glfw 的 Gui Example](./examples/4-example_with_glfw.cpp)
 
 下面是使用代码参考:
 

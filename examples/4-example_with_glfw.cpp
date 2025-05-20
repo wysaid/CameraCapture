@@ -1,7 +1,7 @@
 /**
- * @file demo_opencv.cpp
+ * @file example_opencv.cpp
  * @author wysaid (this@wysaid.org)
- * @brief OpenCV Demo for ccap.
+ * @brief OpenCV Example for ccap.
  * @date 2025-05
  *
  */
@@ -59,7 +59,7 @@ int main(int argc, char** argv)
     ccap::setLogLevel(ccap::LogLevel::Verbose);
 
     std::string cwd = argv[0];
-    int deviceIndex = -1; // Indicates using the system's default camera
+    int deviceIndex = 0; // Indicates using the system's default camera
     if (argc > 1 && std::isdigit(argv[1][0]))
     {
         deviceIndex = std::stoi(argv[1]);
@@ -124,7 +124,7 @@ int main(int argc, char** argv)
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
-    GLFWwindow* window = glfwCreateWindow(frameWidth, frameHeight, "ccap gui demo", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(frameWidth, frameHeight, "ccap gui example", nullptr, nullptr);
     if (!window)
     {
         glfwTerminate();

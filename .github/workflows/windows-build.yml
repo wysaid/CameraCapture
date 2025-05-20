@@ -42,7 +42,7 @@ jobs:
         path: |
           build/${{ matrix.config }}/CameraCapture.lib
           build/${{ matrix.config }}/0-print_camera.exe
-          build/${{ matrix.config }}/1-minimal_demo.exe
+          build/${{ matrix.config }}/1-minimal_example.exe
           build/${{ matrix.config }}/2-capture_grab.exe
           build/${{ matrix.config }}/3-capture_callback.exe
         if-no-files-found: error

@@ -1,7 +1,7 @@
 /**
  * @file capture_grab.cpp
  * @author wysaid (this@wysaid.org)
- * @brief Demo for ccap.
+ * @brief Example for ccap.
  * @date 2025-05
  *
  */

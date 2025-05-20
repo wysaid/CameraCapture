@@ -8,7 +8,7 @@ else()
     set(CCAP_IS_ROOT_PROJECT OFF)
 endif()
 
-option(CCAP_BUILD_DEMO "Build ccap demo" ${CCAP_IS_ROOT_PROJECT})
+option(CCAP_BUILD_EXAMPLES "Build ccap examples" ${CCAP_IS_ROOT_PROJECT})
 
 if(CCAP_IS_ROOT_PROJECT)
     set(CMAKE_FETCHCONTENT_BASE_DIR "${CMAKE_SOURCE_DIR}/build" CACHE PATH "FetchContent base dir" FORCE)
@@ -107,10 +107,9 @@ else()
     target_compile_options(ccap PUBLIC -std=c++17)
 endif()
 
-# ############### Demo ################
-message(STATUS "ccap: CCAP_BUILD_DEMO=${CCAP_BUILD_DEMO}")
-
-if(CCAP_BUILD_DEMO)
-    add_subdirectory(demo/glfw)
-    include(demo/demo.cmake)
+# ############### Examples ################
+message(STATUS "ccap: CCAP_BUILD_EXAMPLES=${CCAP_BUILD_EXAMPLES}")
+if(CCAP_BUILD_EXAMPLES)
+    add_subdirectory(examples/glfw)
+    include(examples/examples.cmake)
 endif()

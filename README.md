@@ -28,13 +28,13 @@ If you encounter unsupported cases, you are welcome to submit a PR to help fix t
 Usage is very simple. This project provides a header file and a static library, which can be directly added to your project.  
 Alternatively, you can add the source code of this project directly to your own project.
 
-Several demos are included in this project for your reference:
+Several examples are included in this project for your reference:
 
-1. [Print Camera Devices](./demo/0-print_camera.cpp)
-2. [Simple Demo for Grabbing a Frame](./demo/1-minimal_demo.cpp)
-3. [Demo for Continuously Grabbing Frames](./demo/2-capture_grab.cpp)
-4. [Demo for Getting Frames via Callback](./demo/3-capture_callback.cpp)
-5. [GUI Demo Based on GLFW](./demo/4-demo_with_glfw.cpp) - When building with CMake, add `-DCCAP_ENABLE_GUI_DEMO=ON`
+1. [Print Camera Devices](./examples/0-print_camera.cpp)
+2. [Simple Example for Grabbing a Frame](./examples/1-minimal_example.cpp)
+3. [Example for Continuously Grabbing Frames](./examples/2-capture_grab.cpp)
+4. [Example for Callback Grabbing](./examples/3-capture_callback.cpp)
+5. [GLFW GUI Example](./examples/4-example_with_glfw.cpp)
 
 Sample usage:
 

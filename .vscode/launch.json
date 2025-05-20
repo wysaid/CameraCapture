@@ -13,10 +13,10 @@
             "preLaunchTask": "Build Project (Debug)"
         },
         {
-            "name": "(Windows) Debug 1-minimal_demo",
+            "name": "(Windows) Debug 1-minimal_example",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/Debug/1-minimal_demo.exe",
+            "program": "${workspaceFolder}/build/Debug/1-minimal_example.exe",
             "cwd": "${fileDirname}",
             "preLaunchTask": "Build Project (Debug)"
         },
@@ -37,10 +37,10 @@
             "preLaunchTask": "Build Project (Debug)"
         },
         {
-            "name": "(Windows) Debug 4-demo_with_glfw",
+            "name": "(Windows) Debug 4-example_with_glfw",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/Debug/4-demo_with_glfw.exe",
+            "program": "${workspaceFolder}/build/Debug/4-example_with_glfw.exe",
             "cwd": "${fileDirname}",
             "preLaunchTask": "Build Project (Debug)"
         },
@@ -56,10 +56,10 @@
             }
         },
         {
-            "name": "(gdb) Debug 1-minimal_demo",
+            "name": "(gdb) Debug 1-minimal_example",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/Debug/1-minimal_demo",
+            "program": "${workspaceFolder}/build/Debug/1-minimal_example",
             "cwd": "${fileDirname}",
             "preLaunchTask": "Build Project (Debug)",
             "osx": {
@@ -89,10 +89,10 @@
             }
         },
         {
-            "name": "(gdb) Debug 4-demo_with_glfw",
+            "name": "(gdb) Debug 4-example_with_glfw",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/Debug/4-demo_with_glfw",
+            "program": "${workspaceFolder}/build/Debug/4-example_with_glfw",
             "cwd": "${fileDirname}",
             "preLaunchTask": "Build Project (Debug)"
         },

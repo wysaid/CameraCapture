@@ -222,13 +222,13 @@
             }
         },
         {
-            "label": "Run 1-minimal_demo (Debug)",
+            "label": "Run 1-minimal_example (Debug)",
             "type": "shell",
             "command": "bash",
             "args": [
                 "-l",
                 "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then ./1-minimal_demo.exe; else ./1-minimal_demo; fi )"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./1-minimal_example.exe; else ./1-minimal_example; fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/build/Debug"
@@ -239,18 +239,18 @@
                 "Build Project (Debug)"
             ],
             "windows": {
-                "command": ".\\1-minimal_demo.exe",
+                "command": ".\\1-minimal_example.exe",
                 "problemMatcher": "$msCompile",
             }
         },
         {
-            "label": "Run 1-minimal_demo (Release)",
+            "label": "Run 1-minimal_example (Release)",
             "type": "shell",
             "command": "bash",
             "args": [
                 "-l",
                 "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then ./1-minimal_demo.exe; else ./1-minimal_demo; fi )"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./1-minimal_example.exe; else ./1-minimal_example; fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/build/Release"
@@ -261,7 +261,7 @@
                 "Build Project (Release)"
             ],
             "windows": {
-                "command": ".\\1-minimal_demo.exe",
+                "command": ".\\1-minimal_example.exe",
                 "problemMatcher": "$msCompile",
             }
         },
@@ -354,13 +354,13 @@
             }
         },
         {
-            "label": "Run 4-demo_with_glfw (Debug)",
+            "label": "Run 4-example_with_glfw (Debug)",
             "type": "shell",
             "command": "bash",
             "args": [
                 "-l",
                 "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then ./4-demo_with_glfw.exe; else ./4-demo_with_glfw; fi )"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./4-example_with_glfw.exe; else ./4-example_with_glfw; fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/build/Debug"
@@ -371,18 +371,18 @@
                 "Build Project (Debug)"
             ],
             "windows": {
-                "command": ".\\4-demo_with_glfw.exe",
+                "command": ".\\4-example_with_glfw.exe",
                 "problemMatcher": "$msCompile",
             }
         },
         {
-            "label": "Run 4-demo_with_glfw (Release)",
+            "label": "Run 4-example_with_glfw (Release)",
             "type": "shell",
             "command": "bash",
             "args": [
                 "-l",
                 "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then ./4-demo_with_glfw.exe; else ./4-demo_with_glfw; fi )"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./4-example_with_glfw.exe; else ./4-example_with_glfw; fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/build/Release"
@@ -393,7 +393,7 @@
                 "Build Project (Release)"
             ],
             "windows": {
-                "command": ".\\4-demo_with_glfw.exe",
+                "command": ".\\4-example_with_glfw.exe",
                 "problemMatcher": "$msCompile",
             }
         }

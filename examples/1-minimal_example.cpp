@@ -1,7 +1,7 @@
 /**
- * @file minimal_demo.cpp
+ * @file minimal_example.cpp
  * @author wysaid (this@wysaid.org)
- * @brief Demo for ccap.
+ * @brief Example for ccap.
  * @date 2025-05
  *
  */
