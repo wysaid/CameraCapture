@@ -76,12 +76,20 @@ bool ProviderImp::set(PropertyName prop, double value)
     case PropertyName::FrameRate:
         m_frameProp.fps = value;
         break;
-    case PropertyName::PixelFormat: {
+    case PropertyName::PixelFormatInternal: {
         auto intValue = static_cast<int>(value);
 #if defined(_MSC_VER) || defined(_WIN32)
-        intValue &= ~kPixelFormatFullRangeBit; // Full range is currently not supported on Windows
+        intValue &= ~kPixelFormatFullRangeBit;
 #endif
-        m_frameProp.pixelFormat = static_cast<PixelFormat>(intValue);
+        m_frameProp.cameraPixelFormat = static_cast<PixelFormat>(intValue);
+        break;
+    }
+    case PropertyName::PixelFormatOutput: {
+        auto intValue = static_cast<int>(value);
+#if defined(_MSC_VER) || defined(_WIN32)
+        intValue &= ~kPixelFormatFullRangeBit;
+#endif
+        m_frameProp.outputPixelFormat = static_cast<PixelFormat>(intValue);
     }
     break;
     case PropertyName::DisablePixelFormatConvert:
@@ -108,8 +116,10 @@ double ProviderImp::get(PropertyName prop)
         return static_cast<double>(m_frameProp.height);
     case PropertyName::FrameRate:
         return m_frameProp.fps;
-    case PropertyName::PixelFormat:
-        return static_cast<double>(m_frameProp.pixelFormat);
+    case PropertyName::PixelFormatInternal:
+        return static_cast<double>(m_frameProp.cameraPixelFormat);
+    case PropertyName::PixelFormatOutput:
+        return static_cast<double>(m_frameProp.outputPixelFormat);
     default:
         break;
     }

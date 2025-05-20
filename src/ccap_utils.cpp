@@ -106,7 +106,7 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
                     dataCopy[offset + 3] = data[offset + 3]; // A
                 }
                 // fwrite(line.data(), lineSize, 1, fp);
-                memcpy(dataCopy, data, lineSize);
+                // memcpy(dataCopy, data, lineSize);
                 dataCopy += lineSize;
                 data += srcLineOffset;
             }
@@ -171,7 +171,7 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
                     dataCopy[index + 2] = data[index + 0]; // R
                 }
                 // fwrite(line.data(), lineSize, 1, fp);
-                memcpy(dataCopy, data, lineSize);
+                // memcpy(dataCopy, data, lineSize);
                 dataCopy += lineSize;
                 data += srcLineOffset;
             }

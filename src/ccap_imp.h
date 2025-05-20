@@ -36,19 +36,23 @@ namespace ccap
 struct FrameProperty
 {
     double fps{ 30.0 };
-    PixelFormat pixelFormat{
+
+    PixelFormat cameraPixelFormat = PixelFormat::Unknown;
+
+    PixelFormat outputPixelFormat{
 #ifdef __APPLE__
         PixelFormat::BGRA32 ///< MacOS default
 #else
         PixelFormat::BGR24 ///< Windows default
 #endif
     };
+
     int width{ 640 };
     int height{ 480 };
 
     inline bool operator==(const FrameProperty& prop) const
     {
-        return fps == prop.fps && pixelFormat == prop.pixelFormat &&
+        return fps == prop.fps && cameraPixelFormat == prop.cameraPixelFormat && outputPixelFormat == prop.outputPixelFormat &&
             width == prop.width && height == prop.height;
     }
     inline bool operator!=(const FrameProperty& prop) const
@@ -101,6 +105,7 @@ public:
     inline const std::function<std::shared_ptr<Allocator>()>& getAllocatorFactory() const { return m_allocatorFactory; }
 
     bool tooManyNewFrames();
+
 protected:
     void newFrameAvailable(std::shared_ptr<Frame> frame);
     std::shared_ptr<Frame> getFreeFrame();

@@ -97,7 +97,7 @@ int main(int argc, char** argv)
 
     cameraProvider.set(ccap::PropertyName::Width, requestedWidth);
     cameraProvider.set(ccap::PropertyName::Height, requestedHeight);
-    cameraProvider.set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::RGBA32);
+    cameraProvider.set(ccap::PropertyName::PixelFormatOutput, ccap::PixelFormat::RGBA32);
     cameraProvider.set(ccap::PropertyName::FrameRate, requestedFps);
     cameraProvider.set(ccap::PropertyName::FrameOrientation, ccap::FrameOrientation::BottomToTop);
 
@@ -173,26 +173,29 @@ int main(int argc, char** argv)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     /// 3000 ms timeout when grabbing frames
-    for (; frame && !glfwWindowShouldClose(window); frame = cameraProvider.grab(3000))
+    for (; !glfwWindowShouldClose(window); frame = cameraProvider.grab(30))
     {
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, tex);
 
-        { // buffer orphaning: <https://www.khronos.org/opengl/wiki/Buffer_Object_Streaming>, pass nullptr first.
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, frameWidth, frameHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, frameWidth, frameHeight, GL_RGBA, GL_UNSIGNED_BYTE, frame->data[0]);
+        if (frame)
+        {
+            { // buffer orphaning: <https://www.khronos.org/opengl/wiki/Buffer_Object_Streaming>, pass nullptr first.
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, frameWidth, frameHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, frameWidth, frameHeight, GL_RGBA, GL_UNSIGNED_BYTE, frame->data[0]);
+            }
+
+            int winWidth, winHeight;
+            glfwGetFramebufferSize(window, &winWidth, &winHeight);
+            glViewport(0, 0, winWidth, winHeight);
+
+            glClear(GL_COLOR_BUFFER_BIT);
+            glUseProgram(prog);
+            glBindVertexArray(VAO);
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+            glfwSwapBuffers(window);
+            glfwPollEvents();
         }
-
-        int winWidth, winHeight;
-        glfwGetFramebufferSize(window, &winWidth, &winHeight);
-        glViewport(0, 0, winWidth, winHeight);
-
-        glClear(GL_COLOR_BUFFER_BIT);
-        glUseProgram(prog);
-        glBindVertexArray(VAO);
-        glBindTexture(GL_TEXTURE_2D, tex);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        glfwSwapBuffers(window);
-        glfwPollEvents();
     }
 
     // Cleanup, this can be omitted if the program is exiting

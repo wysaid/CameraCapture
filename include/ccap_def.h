@@ -139,6 +139,7 @@ enum class PropertyName
      * @note When used to set the capture resolution, the closest available resolution will be chosen.
      *       If possible, a resolution with both width and height greater than or equal to the specified values will be selected.
      *       Example: For supported resolutions 1024x1024, 800x800, 800x600, and 640x480, setting 600x600 results in 800x600.
+     *       When used with the get method, the value may not be accurate. Please refer to the actual Frame obtained.
      */
     Width = 0x10001,
 
@@ -147,26 +148,37 @@ enum class PropertyName
      * @note When used to set the capture resolution, the closest available resolution will be chosen.
      *       If possible, a resolution with both width and height greater than or equal to the specified values will be selected.
      *       Example: For supported resolutions 1024x1024, 800x800, 800x600, and 640x480, setting 600x600 results in 800x600.
+     *       When used with the get method, the value may not be accurate. Please refer to the actual Frame obtained.
      */
     Height = 0x10002,
 
-    /// @brief The frame rate of the camera, aka FPS (frames per second).
+    /**
+     * @brief The frame rate of the camera, also known as FPS (frames per second).
+     * @note When used with get, the value may not be accurate and depends on the underlying camera driver implementation.
+     */
     FrameRate = 0x20000,
 
     /**
-     * @brief The pixel format of the frame. This is the format that will be used for the frame.
-     *        If not directly supported, data conversion will be attempted.
-     *        If conversion is not supported, it will still fall back (after fallback).
-     * @note When used for setting, the parameter type is ccap::PixelFormat.
+     * @brief The actual pixel format used by the camera. If not set, it will be selected automatically.
+     * @note Example: On Windows, if the camera only supports MJPG and PixelFormatInternal is not set,
+     *       BGR24 will be chosen by default unless you explicitly specify another format like BGRA32.
      */
-    PixelFormat = 0x30000,
+    PixelFormatInternal = 0x30001,
+
+    /**
+     * @brief The output pixel format of ccap. Can be different from PixelFormatInternal.
+     * @note If PixelFormatInternal is RGB(A), PixelFormatOutput cannot be set to a YUV format.
+     *       If PixelFormatInternal is YUV and PixelFormatOutput is RGB(A), BT.601 will be used for conversion.
+     *       For other cases, there are no issues.
+     */
+    PixelFormatOutput = 0x30002,
 
     /**
      * @brief Disable PixelFormat conversion; prefer fallback to other hardware-supported formats.
      *        When set to a nonzero value, pixel format conversion is not allowed.
      *        Note: The frame's pixelFormat may differ from the requested pixelFormat.
      */
-    DisablePixelFormatConvert = 0x30001,
+    DisablePixelFormatConvert = 0x30003,
 
     /**
      * @brief The frame orientation. Will correct the orientation in RGB* PixelFormat, which may incur additional performance overhead.

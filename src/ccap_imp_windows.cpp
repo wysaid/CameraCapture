@@ -910,7 +910,7 @@ bool ProviderDirectShow::createStream()
         if (!bestMatchedTypes.empty())
         { // Resolution is closest, now try to select a suitable format.
 
-            auto preferredPixelFormat = m_frameProp.pixelFormat;
+            auto preferredPixelFormat = m_frameProp.cameraPixelFormat != PixelFormat::Unknown ? m_frameProp.cameraPixelFormat : m_frameProp.outputPixelFormat;
             AM_MEDIA_TYPE* mediaType = nullptr;
 
             // When format is YUV, only one suitable format can be found
@@ -938,12 +938,16 @@ bool ProviderDirectShow::createStream()
 
             if (subtype == MEDIASUBTYPE_MJPG)
             {
-                m_cameraPixelFormat = (m_frameProp.pixelFormat & kPixelFormatAlphaColorBit) ? PixelFormat::RGBA32 : PixelFormat::BGR24;
-                subtype = (m_frameProp.pixelFormat & kPixelFormatAlphaColorBit) ? MEDIASUBTYPE_RGB32 : MEDIASUBTYPE_RGB24;
+                if(m_frameProp.cameraPixelFormat != PixelFormat::BGRA32)
+                {
+                    CCAP_LOG_V("ccap: MJPG format, internal format is not set to BGRA32, select BGR24\n");
+                    m_frameProp.cameraPixelFormat = PixelFormat::BGR24;
+                }
+                subtype = (m_frameProp.cameraPixelFormat == PixelFormat::BGRA32) ? MEDIASUBTYPE_RGB32 : MEDIASUBTYPE_RGB24;
             }
             else
             {
-                m_cameraPixelFormat = pixFormatInfo.pixelFormat;
+                m_frameProp.cameraPixelFormat = pixFormatInfo.pixelFormat;
             }
 
             setGrabberOutputSubtype(subtype);
@@ -1149,7 +1153,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
             auto info = findPixelFormatInfo(mt.subtype);
             if (info.pixelFormat != PixelFormat::Unknown)
             {
-                m_cameraPixelFormat = info.pixelFormat;
+                m_frameProp.cameraPixelFormat = info.pixelFormat;
             }
 
             if (verboseLogEnabled())
@@ -1171,17 +1175,17 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     }
 
     uint32_t bufferLen = mediaSample->GetActualDataLength();
-    bool isInputYUV = (m_cameraPixelFormat & kPixelFormatYUVColorBit);
-    bool isOutputYUV = (m_frameProp.pixelFormat & kPixelFormatYUVColorBit);
+    bool isInputYUV = (m_frameProp.cameraPixelFormat & kPixelFormatYUVColorBit);
+    bool isOutputYUV = (m_frameProp.outputPixelFormat & kPixelFormatYUVColorBit);
     auto inputOrientation = isInputYUV ? FrameOrientation::TopToBottom : FrameOrientation::BottomToTop;
 
-    newFrame->pixelFormat = m_cameraPixelFormat;
+    newFrame->pixelFormat = m_frameProp.cameraPixelFormat;
     newFrame->width = m_frameProp.width;
     newFrame->height = m_frameProp.height;
     newFrame->orientation = isOutputYUV ? FrameOrientation::TopToBottom : m_frameOrientation;
 
     bool shouldFlip = newFrame->orientation != inputOrientation && !isOutputYUV;
-    bool shouldConvert = m_cameraPixelFormat != m_frameProp.pixelFormat;
+    bool shouldConvert = m_frameProp.cameraPixelFormat != m_frameProp.outputPixelFormat;
     bool zeroCopy = !shouldConvert && !shouldFlip;
 
     if (isInputYUV)
@@ -1192,7 +1196,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
 
         newFrame->stride[0] = m_frameProp.width;
 
-        if (pixelFormatInclude(m_cameraPixelFormat, PixelFormat::I420))
+        if (pixelFormatInclude(m_frameProp.cameraPixelFormat, PixelFormat::I420))
         {
             newFrame->stride[1] = m_frameProp.width / 2;
             newFrame->stride[2] = m_frameProp.width / 2;
@@ -1210,7 +1214,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     }
     else
     {
-        auto stride = m_frameProp.width * (m_cameraPixelFormat & kPixelFormatAlphaColorBit ? 4 : 3);
+        auto stride = m_frameProp.width * (m_frameProp.cameraPixelFormat & kPixelFormatAlphaColorBit ? 4 : 3);
         newFrame->stride[0] = ((stride + 3) / 4) * 4; // 4-byte aligned
         newFrame->stride[1] = 0;
         newFrame->stride[2] = 0;
@@ -1236,20 +1240,25 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
             uint64_t duration = 0;
 
-            zeroCopy = !inplaceConvertFrame(newFrame.get(), m_frameProp.pixelFormat, shouldFlip);
+            zeroCopy = !inplaceConvertFrame(newFrame.get(), m_frameProp.outputPixelFormat, shouldFlip);
 
             double durInMs = (std::chrono::steady_clock::now() - startTime).count() / 1.e6;
+            static double s_allCostTime = 0;
+            static double s_frames = 0;
+            s_allCostTime += durInMs;
+            ++s_frames;
+
 #ifdef DEBUG
-            constexpr const char* mode = "(using Debug mode)";
+            constexpr const char* mode = "(Debug)";
 #else
-            constexpr const char* mode = "(using Release mode)";
+            constexpr const char* mode = "(Release)";
 #endif
 
-            CCAP_LOG_V("ccap: inplaceConvertFrame %s, requested pixel format: %s, actual pixel format: %s, cost time %s: %g(ms)\n", zeroCopy ? "failed" : "succeeded", pixelFormatToString(m_frameProp.pixelFormat).data(), pixelFormatToString(m_cameraPixelFormat).data(), mode, durInMs);
+            CCAP_LOG_V("ccap: inplaceConvertFrame requested pixel format: %s, actual pixel format: %s, cost time %s: (cur %g ms, avg %g ms)\n", pixelFormatToString(m_frameProp.outputPixelFormat).data(), pixelFormatToString(m_frameProp.cameraPixelFormat).data(), mode, durInMs, s_allCostTime / s_frames);
         }
         else
         {
-            zeroCopy = !inplaceConvertFrame(newFrame.get(), m_frameProp.pixelFormat, shouldFlip);
+            zeroCopy = !inplaceConvertFrame(newFrame.get(), m_frameProp.outputPixelFormat, shouldFlip);
         }
 
         newFrame->sizeInBytes = newFrame->stride[0] * newFrame->height + (newFrame->stride[1] + newFrame->stride[2]) * newFrame->height / 2;

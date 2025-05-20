@@ -132,8 +132,6 @@ private:
     std::string m_deviceName;
     std::vector<std::string> m_allDeviceNames;
 
-    PixelFormat m_cameraPixelFormat{};
-
     std::chrono::steady_clock::time_point m_startTime{};
     bool m_firstFrameArrived = false;
 

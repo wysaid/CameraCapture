@@ -7,7 +7,6 @@
  */
 
 #include <ccap.h>
-
 #include <chrono>
 #include <cstdio>
 #include <filesystem>
@@ -59,10 +58,10 @@ int main(int argc, char** argv)
     cameraProvider.set(ccap::PropertyName::Width, requestedWidth);
     cameraProvider.set(ccap::PropertyName::Height, requestedHeight);
 #if 1 /// switch to test.
-    cameraProvider.set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::BGR24);
-    // cameraProvider.set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::BGRA32);
+    cameraProvider.set(ccap::PropertyName::PixelFormatOutput, ccap::PixelFormat::RGB24);
+    // cameraProvider.set(ccap::PropertyName::PixelFormatOutput, ccap::PixelFormat::RGBA32);
 #else
-    cameraProvider.set(ccap::PropertyName::PixelFormat, ccap::PixelFormat::NV12);
+    cameraProvider.set(ccap::PropertyName::PixelFormatOutput, ccap::PixelFormat::NV12);
 #endif
     cameraProvider.set(ccap::PropertyName::FrameRate, requestedFps);
 
