@@ -85,7 +85,7 @@ template <int inputChannels, int outputChannels>
 void colorShuffle_avx2(const uint8_t* src, int srcStride,
                        uint8_t* dst, int dstStride,
                        int width, int height, const uint8_t inputShuffle[])
-{ // 实现一个 通用的 colorShuffle, 通过 AVX2 加速
+{ // Implement a general colorShuffle, accelerated by AVX2
 
     static_assert((inputChannels == 3 || inputChannels == 4) &&
                       (outputChannels == 3 || outputChannels == 4),
@@ -103,16 +103,16 @@ void colorShuffle_avx2(const uint8_t* src, int srcStride,
     constexpr uint32_t outputPatchSize = outputChannels == 4 ? 8 : 10;
 
     if constexpr (outputChannels == 4)
-    { // 输出是 4 通道, 一次处理 8 个像素
+    { // Output is 4 channels, process 8 pixels at a time
 
         if (inputChannels == 4)
-        { /// 可以按 input 的顺序直接处理
+        { /// Can process directly in input order
             for (int i = 0; i < 32; ++i)
             {
                 shuffleData[i] = inputShuffle[i % 4] + (i / 4) * 4;
             }
         }
-        else // input 是 3 通道, shuffle 要跳过每个 input 的 alpha
+        else // Input is 3 channels, shuffle skips alpha for each input
         {
             for (int i = 0; i < 8; ++i)
             {
@@ -125,7 +125,7 @@ void colorShuffle_avx2(const uint8_t* src, int srcStride,
             }
         }
     }
-    else // 输出是 3 通道, 一次处理 10 个像素
+    else // Output is 3 channels, process 10 pixels at a time
     {
         for (int i = 0; i < 30; ++i)
         {
@@ -147,10 +147,10 @@ void colorShuffle_avx2(const uint8_t* src, int srcStride,
             __m256i pixels = _mm256_loadu_si256((const __m256i*)(srcRow + xInput * inputChannels));
             __m256i result = _mm256_shuffle_epi8(pixels, shuffle);
 
-            // 这里确保写入不会越过当前行的边界
+            // Ensure no out-of-bounds write for the current row
             if (outputChannels == 3 && xOutput + outputPatchSize == width)
             {
-                // 最后10个像素，但不想写入额外2字节，手动复制前30字节
+                // Last 10 pixels, avoid writing extra 2 bytes, manually copy first 30 bytes
                 alignas(32) uint8_t buffer[32];
                 _mm256_store_si256((__m256i*)buffer, result);
                 memcpy(dstRow + xOutput * outputChannels, buffer, 30);
@@ -163,13 +163,13 @@ void colorShuffle_avx2(const uint8_t* src, int srcStride,
             xOutput += outputPatchSize;
             xInput += inputPatchSize;
         }
-        // 处理剩余像素
+        // Handle remaining pixels
         for (; xOutput < (uint32_t)width; ++xOutput, ++xInput)
         {
             for (int c = 0; c < outputChannels; ++c)
             {
                 if (inputChannels == 3 && c == 3)
-                    dstRow[xOutput * outputChannels + c] = 0xFF; // alpha填充
+                    dstRow[xOutput * outputChannels + c] = 0xFF; // fill alpha
                 else
                     dstRow[xOutput * outputChannels + c] = srcRow[xInput * inputChannels + inputShuffle[c]];
             }
@@ -177,52 +177,52 @@ void colorShuffle_avx2(const uint8_t* src, int srcStride,
     }
 }
 
-// NV12 转 BGRA32，AVX2加速
+// NV12 to BGRA32, AVX2 accelerated
 void nv12ToBgra32_avx2(const uint8_t* srcY, int srcYStride,
                        const uint8_t* srcUV, int srcUVStride,
                        uint8_t* dst, int dstStride,
                        int width, int height);
 
-// NV12 转 RGBA32，AVX2加速
+// NV12 to RGBA32, AVX2 accelerated
 void nv12ToRgba32_avx2(const uint8_t* srcY, int srcYStride,
                        const uint8_t* srcUV, int srcUVStride,
                        uint8_t* dst, int dstStride,
                        int width, int height);
 
-// NV12 转 BGR24，AVX2加速
+// NV12 to BGR24, AVX2 accelerated
 void nv12ToBgr24_avx2(const uint8_t* srcY, int srcYStride,
                       const uint8_t* srcUV, int srcUVStride,
                       uint8_t* dst, int dstStride,
                       int width, int height);
 
-// NV12 转 RGB24，AVX2加速
+// NV12 to RGB24, AVX2 accelerated
 void nv12ToRgb24_avx2(const uint8_t* srcY, int srcYStride,
                       const uint8_t* srcUV, int srcUVStride,
                       uint8_t* dst, int dstStride,
                       int width, int height);
 
-// I420 转 BGRA32，AVX2加速
+// I420 to BGRA32, AVX2 accelerated
 void i420ToBgra32_avx2(const uint8_t* srcY, int srcYStride,
                        const uint8_t* srcU, int srcUStride,
                        const uint8_t* srcV, int srcVStride,
                        uint8_t* dst, int dstStride,
                        int width, int height);
 
-// I420 转 RGBA32，AVX2加速
+// I420 to RGBA32, AVX2 accelerated
 void i420ToRgba32_avx2(const uint8_t* srcY, int srcYStride,
                        const uint8_t* srcU, int srcUStride,
                        const uint8_t* srcV, int srcVStride,
                        uint8_t* dst, int dstStride,
                        int width, int height);
 
-// I420 转 BGR24，AVX2加速
+// I420 to BGR24, AVX2 accelerated
 void i420ToBgr24_avx2(const uint8_t* srcY, int srcYStride,
                       const uint8_t* srcU, int srcUStride,
                       const uint8_t* srcV, int srcVStride,
                       uint8_t* dst, int dstStride,
                       int width, int height);
 
-// I420 转 RGB24，AVX2加速
+// I420 to RGB24, AVX2 accelerated
 void i420ToRgb24_avx2(const uint8_t* srcY, int srcYStride,
                       const uint8_t* srcU, int srcUStride,
                       const uint8_t* srcV, int srcVStride,

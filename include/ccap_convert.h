@@ -43,7 +43,7 @@ void colorShuffle(const uint8_t* src, int srcStride,
                   int width, int height,
                   const uint8_t shuffle[]);
 
-/// @brief 一个通用的4通道重排
+/// @brief A general 4-channel shuffle
 inline void colorShuffle4To4(const uint8_t* src, int srcStride,
                              uint8_t* dst, int dstStride,
                              int width, int height,
@@ -52,7 +52,7 @@ inline void colorShuffle4To4(const uint8_t* src, int srcStride,
     colorShuffle<4, 4>(src, srcStride, dst, dstStride, width, height, shuffle);
 }
 
-/// @brief 一个通用的通道重排, 输入是3通道, 输出是4通道
+/// @brief A general channel shuffle, input is 3 channels, output is 4 channels
 inline void colorShuffle3To4(const uint8_t* src, int srcStride,
                              uint8_t* dst, int dstStride,
                              int width, int height,
@@ -61,7 +61,7 @@ inline void colorShuffle3To4(const uint8_t* src, int srcStride,
     colorShuffle<3, 4>(src, srcStride, dst, dstStride, width, height, shuffle);
 }
 
-/// @brief 一个通用的通道重排, 输入是4通道, 输出是3通道
+/// @brief A general channel shuffle, input is 4 channels, output is 3 channels
 inline void colorShuffle4To3(const uint8_t* src, int srcStride,
                       uint8_t* dst, int dstStride,
                       int width, int height,
@@ -70,7 +70,7 @@ inline void colorShuffle4To3(const uint8_t* src, int srcStride,
     colorShuffle<4, 3>(src, srcStride, dst, dstStride, width, height, shuffle);
 }
 
-/// @brief 一个通用的通道重排, 输入是3通道, 输出是3通道
+/// @brief A general channel shuffle, input is 3 channels, output is 3 channels
 inline void colorShuffle3To3(const uint8_t* src, int srcStride,
                              uint8_t* dst, int dstStride,
                              int width, int height,
