@@ -119,12 +119,6 @@ void i420ToRgb_common(const uint8_t* srcY, int srcYStride,
                       uint8_t* dst, int dstStride,
                       int width, int height)
 {
-    if (hasAVX2())
-    {
-        i420ToBgra32_avx2(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height);
-        return;
-    }
-
     // 如果 height < 0，则反向写入 dst，src 顺序读取
     if (height < 0)
     {

@@ -134,9 +134,13 @@ void i420ToRgb24_avx2(const uint8_t* srcY, int srcYStride,
 #else
 
 #define nv12ToBgr24_avx2(...) assert(0 && "AVX2 not supported")
+#define nv12ToRgb24_avx2(...) assert(0 && "AVX2 not supported")
 #define nv12ToBgra32_avx2(...) assert(0 && "AVX2 not supported")
+#define nv12ToRgba32_avx2(...) assert(0 && "AVX2 not supported")
 #define i420ToBgra32_avx2(...) assert(0 && "AVX2 not supported")
+#define i420ToRgba32_avx2(...) assert(0 && "AVX2 not supported")
 #define i420ToBgr24_avx2(...) assert(0 && "AVX2 not supported")
+#define i420ToRgb24_avx2(...) assert(0 && "AVX2 not supported")
 
 #endif
 

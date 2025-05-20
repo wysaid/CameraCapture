@@ -249,7 +249,7 @@ bool setupCom()
 
 #if ENABLE_LIBYUV
 
-bool inplaceConvertFrameYUV2YUV(Frame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
+bool inplaceConvertFrameYUV2YUV(Frame* frame, PixelFormat toFormat, bool verticalFlip)
 {
     /// (NV12/I420) <-> (NV12/I420)
     assert((frame->pixelFormat & kPixelFormatYUVColorBit) != 0 && (toFormat & kPixelFormatYUVColorBit) != 0);
@@ -267,20 +267,20 @@ bool inplaceConvertFrameYUV2YUV(Frame* frame, PixelFormat toFormat, bool vertica
     int stride1 = frame->stride[1];
     int stride2 = frame->stride[2];
     int width = frame->width;
-    int height = frame->height;
+    int height = verticalFlip ? -frame->height : frame->height;
 
     // NV12/I420 都是 YUV420P 格式
-    frame->allocator->resize(stride0 * width + (stride1 + stride2) * height / 2);
+    frame->allocator->resize(stride0 * width + (stride1 + stride2) * frame->height / 2);
     frame->data[0] = frame->allocator->data();
 
     uint8_t* outputData0 = frame->data[0];
-    frame->data[1] = outputData0 + stride0 * height;
+    frame->data[1] = outputData0 + stride0 * frame->height;
 
     if (isInputNV12)
     { /// NV12 -> I420
         frame->stride[1] = stride1 / 2;
         frame->stride[2] = frame->stride[1];
-        frame->data[2] = isOutputI420 ? frame->data[1] + stride1 * height / 2 : nullptr;
+        frame->data[2] = isOutputI420 ? frame->data[1] + stride1 * frame->height / 2 : nullptr;
         frame->pixelFormat = toFormat;
 
         return libyuv::NV12ToI420(inputData0, stride0,
@@ -309,15 +309,10 @@ bool inplaceConvertFrameYUV2YUV(Frame* frame, PixelFormat toFormat, bool vertica
 
 #endif
 
-bool inplaceConvertFrameYUV2BGR(Frame* frame, PixelFormat toFormat, std::vector<uint8_t>& memCache)
+bool inplaceConvertFrameYUV2RGBColor(Frame* frame, PixelFormat toFormat, bool verticalFlip)
 { /// (NV12/I420) -> (BGR24/BGRA32)
 
     /// TODO: 这里修正一下 toFormat, 只支持 YUV -> (BGR24/BGRA24). 简化一下 SDK 的设计. 后续再完善.
-
-    if (toFormat & kPixelFormatRGBBit)
-    { /// 只转换成 BGR, 把 RGB 改成 BGR.
-        toFormat = (PixelFormat)(((uint32_t)toFormat & ~(uint32_t)kPixelFormatRGBBit) | (uint32_t)kPixelFormatBGRBit);
-    }
 
     auto inputFormat = frame->pixelFormat;
     assert((inputFormat & kPixelFormatYUVColorBit) != 0 && (toFormat & kPixelFormatYUVColorBit) == 0);
@@ -333,7 +328,7 @@ bool inplaceConvertFrameYUV2BGR(Frame* frame, PixelFormat toFormat, std::vector<
     int stride1 = frame->stride[1];
     int stride2 = frame->stride[2];
     int width = frame->width;
-    int height = frame->height;
+    int height = verticalFlip ? -frame->height : frame->height;
 
     auto newLineSize = outputHasAlpha ? frame->width * 4 : (frame->width * 3 + 31) & ~31;
 
@@ -464,7 +459,7 @@ bool inplaceConvertFrameYUV2BGR(Frame* frame, PixelFormat toFormat, std::vector<
     return false;
 }
 
-bool inplaceConvertFrameRGB(Frame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
+bool inplaceConvertFrameRGB(Frame* frame, PixelFormat toFormat, bool verticalFlip)
 {
     // rgb(a) 互转
 
@@ -484,6 +479,7 @@ bool inplaceConvertFrameRGB(Frame* frame, PixelFormat toFormat, bool verticalFli
     frame->allocator->resize(newLineSize * frame->height);
 
     uint8_t* outputBytes = frame->allocator->data();
+    int height = verticalFlip ? -frame->height : frame->height;
 
     frame->stride[0] = newLineSize;
     frame->data[0] = outputBytes;
@@ -496,15 +492,15 @@ bool inplaceConvertFrameRGB(Frame* frame, PixelFormat toFormat, bool verticalFli
         {
             const uint8_t kShuffleMap[4] = { 2, 1, 0, 3 }; // RGBA->BGRA 或 BGRA->RGBA
 #if ENABLE_LIBYUV
-            libyuv::ARGBShuffle(inputBytes, inputLineSize, outputBytes, newLineSize, kShuffleMap, frame->width, frame->height * (verticalFlip ? 1 : -1));
+            libyuv::ARGBShuffle(inputBytes, inputLineSize, outputBytes, newLineSize, kShuffleMap, frame->width, height);
 #else
-            rgbaShuffle(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1), kShuffleMap);
+            rgbaShuffle(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, height, kShuffleMap);
 #endif
         }
         else // RGB <-> BGR
         {
             const uint8_t kShuffleMap[3] = { 2, 1, 0 }; // RGB->BGR 或 BGR->RGB
-            rgbShuffle(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1), kShuffleMap);
+            rgbShuffle(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, height, kShuffleMap);
         }
     }
     else /// Different number of channels, only 4 channels <-> 3 channels
@@ -513,29 +509,29 @@ bool inplaceConvertFrameRGB(Frame* frame, PixelFormat toFormat, bool verticalFli
         {
             if (swapRB)
             { // Possible cases: RGBA->BGR, BGRA->RGB
-                rgbaToBgr(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
+                rgbaToBgr(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, height);
             }
             else
             { // Possible cases: RGBA->RGB, BGRA->BGR
-                rgbaToRgb(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
+                rgbaToRgb(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, height);
             }
         }
         else // 3 channels -> 4 channels
         {
             if (swapRB)
             { // Possible cases: BGR->RGBA, RGB->BGRA
-                rgbToBgra(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
+                rgbToBgra(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, height);
             }
             else
             { // Possible cases: BGR->BGRA, RGB->RGBA
-                rgbToRgba(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, frame->height * (verticalFlip ? 1 : -1));
+                rgbToRgba(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, height);
             }
         }
     }
     return true;
 }
 
-bool inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
+bool inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip)
 {
     if (frame->pixelFormat == toFormat)
     {
@@ -570,15 +566,15 @@ bool inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
     {
 #if ENABLE_LIBYUV
         if (isInputYUV && isOutputYUV) // yuv <-> yuv
-            return inplaceConvertFrameYUV2YUV(frame, toFormat, verticalFlip, memCache);
+            return inplaceConvertFrameYUV2YUV(frame, toFormat, verticalFlip);
 #endif
 
         if (isInputYUV) // yuv -> BGR
-            return inplaceConvertFrameYUV2BGR(frame, toFormat, memCache);
+            return inplaceConvertFrameYUV2RGBColor(frame, toFormat, verticalFlip);
         return false; // no rgb -> yuv
     }
 
-    return inplaceConvertFrameRGB(frame, toFormat, verticalFlip, memCache);
+    return inplaceConvertFrameRGB(frame, toFormat, verticalFlip);
 }
 
 } // namespace
@@ -1175,19 +1171,20 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     }
 
     uint32_t bufferLen = mediaSample->GetActualDataLength();
-    bool isYUV = (m_cameraPixelFormat & kPixelFormatYUVColorBit);
-    auto defaultOrientation = isYUV ? FrameOrientation::TopToBottom : FrameOrientation::BottomToTop;
+    bool isInputYUV = (m_cameraPixelFormat & kPixelFormatYUVColorBit);
+    bool isOutputYUV = (m_frameProp.pixelFormat & kPixelFormatYUVColorBit);
+    auto inputOrientation = isInputYUV ? FrameOrientation::TopToBottom : FrameOrientation::BottomToTop;
 
     newFrame->pixelFormat = m_cameraPixelFormat;
     newFrame->width = m_frameProp.width;
     newFrame->height = m_frameProp.height;
-    newFrame->orientation = isYUV ? FrameOrientation::TopToBottom : m_frameOrientation;
+    newFrame->orientation = isOutputYUV ? FrameOrientation::TopToBottom : m_frameOrientation;
 
-    bool shouldFlip = newFrame->orientation != defaultOrientation;
+    bool shouldFlip = newFrame->orientation != inputOrientation && !isOutputYUV;
     bool shouldConvert = m_cameraPixelFormat != m_frameProp.pixelFormat;
     bool zeroCopy = !shouldConvert && !shouldFlip;
 
-    if (isYUV)
+    if (isInputYUV)
     {
         // Zero-copy, directly reference sample data
         newFrame->data[0] = sampleData;
@@ -1239,7 +1236,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
             uint64_t duration = 0;
 
-            zeroCopy = !inplaceConvertFrame(newFrame.get(), m_frameProp.pixelFormat, shouldFlip, m_memCache);
+            zeroCopy = !inplaceConvertFrame(newFrame.get(), m_frameProp.pixelFormat, shouldFlip);
 
             double durInMs = (std::chrono::steady_clock::now() - startTime).count() / 1.e6;
 #ifdef DEBUG
@@ -1252,7 +1249,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
         }
         else
         {
-            zeroCopy = !inplaceConvertFrame(newFrame.get(), m_frameProp.pixelFormat, shouldFlip, m_memCache);
+            zeroCopy = !inplaceConvertFrame(newFrame.get(), m_frameProp.pixelFormat, shouldFlip);
         }
 
         newFrame->sizeInBytes = newFrame->stride[0] * newFrame->height + (newFrame->stride[1] + newFrame->stride[2]) * newFrame->height / 2;

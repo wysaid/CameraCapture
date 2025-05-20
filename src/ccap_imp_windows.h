@@ -131,8 +131,7 @@ private:
     IMediaControl* m_mediaControl = nullptr;
     std::string m_deviceName;
     std::vector<std::string> m_allDeviceNames;
-    
-    std::vector<uint8_t> m_memCache;
+
     PixelFormat m_cameraPixelFormat{};
 
     std::chrono::steady_clock::time_point m_startTime{};
