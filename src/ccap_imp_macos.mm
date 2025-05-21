@@ -332,8 +332,6 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
 {
     ProviderMac* _provider;
 
-    PixelFormat _cameraPixelFormat;
-    PixelFormat _convertPixelFormat;
     std::vector<uint8_t> _memoryCache; ///< Memory cache used for storing temporary computation results
 }
 
@@ -465,20 +463,23 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
     _videoOutput = [[AVCaptureVideoDataOutput alloc] init];
     [_videoOutput setAlwaysDiscardsLateVideoFrames:YES]; // better performance
 
-    auto requiredPixelFormat = _provider->getFrameProperty().outputPixelFormat;
+    auto& requiredPixelFormat = _provider->getFrameProperty().outputPixelFormat;
+
+    if (requiredPixelFormat == PixelFormat::Unknown)
+    { /// Default to BGRA32 if not set
+        requiredPixelFormat = PixelFormat::BGRA32;
+    }
+
+    auto& cameraPixelFormat = _provider->getFrameProperty().cameraPixelFormat;
+    if (cameraPixelFormat == PixelFormat::Unknown)
+    {
+        cameraPixelFormat = requiredPixelFormat;
+    }
 
     { /// Handle pixel format
-        _cameraPixelFormat = requiredPixelFormat;
-
-        static_assert(sizeof(_cameraPixelFormat) == sizeof(uint32_t), "size must match");
-
-        if (_cameraPixelFormat == PixelFormat::Unknown)
-        { /// Default to BGRA32 if not set
-            _cameraPixelFormat = PixelFormat::BGRA32;
-        }
+        static_assert(sizeof(cameraPixelFormat) == sizeof(uint32_t), "size must match");
 
         [self fixPixelFormat];
-        _convertPixelFormat = _cameraPixelFormat;
 
         NSArray* supportedFormats = [_videoOutput availableVideoCVPixelFormatTypes];
         if (infoLogEnabled())
@@ -496,9 +497,9 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
         if (![supportedFormats containsObject:@(preferredFormat)])
         {
             _cvPixelFormat = 0;
-            if (bool hasYUV = _cameraPixelFormat & kPixelFormatYUVColorBit)
+            if (bool hasYUV = cameraPixelFormat & kPixelFormatYUVColorBit)
             { /// Handle YUV formats, fallback to NV12f
-                auto hasFullRange = _cameraPixelFormat & kPixelFormatYUVColorFullRangeBit;
+                auto hasFullRange = cameraPixelFormat & kPixelFormatYUVColorFullRangeBit;
                 auto supportFullRange = [supportedFormats containsObject:@(kCVPixelFormatType_420YpCbCr8BiPlanarFullRange)];
                 auto supportVideoRange = [supportedFormats containsObject:@(kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange)];
 
@@ -506,12 +507,12 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
                 {
                     if (!hasFullRange && supportVideoRange)
                     {
-                        _cameraPixelFormat = PixelFormat::NV12;
+                        cameraPixelFormat = PixelFormat::NV12;
                         _cvPixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
                     }
                     else
                     {
-                        _cameraPixelFormat = PixelFormat::NV12f;
+                        cameraPixelFormat = PixelFormat::NV12f;
                         _cvPixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarFullRange;
                     }
                 }
@@ -519,7 +520,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
 
             if (_cvPixelFormat == 0)
             {
-                auto hasOnlyRGB = pixelFormatInclude(_cameraPixelFormat, kPixelFormatRGBColorBit);
+                auto hasOnlyRGB = pixelFormatInclude(cameraPixelFormat, kPixelFormatRGBColorBit);
                 auto supportRGB = [supportedFormats containsObject:@(kCVPixelFormatType_24RGB)];
                 auto supportBGR = [supportedFormats containsObject:@(kCVPixelFormatType_24BGR)];
                 auto supportBGRA = [supportedFormats containsObject:@(kCVPixelFormatType_32BGRA)];
@@ -528,12 +529,12 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
                 {
                     if (supportBGR)
                     {
-                        _cameraPixelFormat = PixelFormat::BGR24;
+                        cameraPixelFormat = PixelFormat::BGR24;
                         _cvPixelFormat = kCVPixelFormatType_24BGR;
                     }
                     else
                     {
-                        _cameraPixelFormat = PixelFormat::RGB24;
+                        cameraPixelFormat = PixelFormat::RGB24;
                         _cvPixelFormat = kCVPixelFormatType_24RGB;
                     }
                 }
@@ -541,12 +542,12 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
                 {
                     if (supportBGRA)
                     {
-                        _cameraPixelFormat = PixelFormat::BGRA32;
+                        cameraPixelFormat = PixelFormat::BGRA32;
                         _cvPixelFormat = kCVPixelFormatType_32BGRA;
                     }
                     else
                     {
-                        _cameraPixelFormat = PixelFormat::RGBA32;
+                        cameraPixelFormat = PixelFormat::RGBA32;
                         _cvPixelFormat = kCVPixelFormatType_32RGBA;
                     }
                 }
@@ -555,24 +556,22 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
             if (_cvPixelFormat == 0)
             { /// last fall back.
                 _cvPixelFormat = kCVPixelFormatType_32BGRA;
-                _cameraPixelFormat = PixelFormat::BGRA32;
+                cameraPixelFormat = PixelFormat::BGRA32;
             }
 
-            if (_cameraPixelFormat != _convertPixelFormat)
+            if (ccap::errorLogEnabled())
             {
-                if (!(_provider->tryConvertPixelFormat() && (_cameraPixelFormat & kPixelFormatRGBColorBit)))
-                { /// Currently only RGB format conversion is supported.
-
-                    CCAP_NSLOG_E(@"ccap: CameraCaptureObjc init - convert pixel format not supported!!!");
-                    _convertPixelFormat = _cameraPixelFormat;
+                if (cameraPixelFormat != requiredPixelFormat)
+                {
+                    if (!(cameraPixelFormat & kPixelFormatRGBColorBit))
+                    { /// Currently only RGB format conversion is supported.
+                        CCAP_NSLOG_E(@"ccap: CameraCaptureObjc init - convert pixel format not supported!!!");
+                    }
                 }
-            }
 
-            if (errorLogEnabled())
-            {
                 auto preferredInfo = getPixelFormatInfo(preferredFormat);
                 auto fallbackInfo = getPixelFormatInfo(_cvPixelFormat);
-                NSLog(@"ccap: Preferred pixel format (%@-%s) not supported, fallback to: (%@-%s)", preferredInfo.name, preferredInfo.description.c_str(), fallbackInfo.name, fallbackInfo.description.c_str());
+                CCAP_NSLOG_E(@"ccap: Preferred pixel format (%@-%s) not supported, fallback to: (%@-%s)", preferredInfo.name, preferredInfo.description.c_str(), fallbackInfo.name, fallbackInfo.description.c_str());
             }
         }
 
@@ -675,19 +674,20 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
 
 - (void)fixPixelFormat
 {
-    switch (_cameraPixelFormat)
+    auto& internalFormat = _provider->getFrameProperty().cameraPixelFormat;
+    switch (internalFormat)
     {
     case PixelFormat::I420:
         CCAP_NSLOG_E(@"ccap: I420 is not supported on macOS, fallback to NV12");
     case PixelFormat::NV12:
         _cvPixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
-        _cameraPixelFormat = PixelFormat::NV12;
+        internalFormat = PixelFormat::NV12;
         break;
     case PixelFormat::I420f:
         CCAP_NSLOG_E(@"ccap: I420f is not supported on macOS, fallback to NV12f");
     case PixelFormat::NV12f:
         _cvPixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarFullRange;
-        _cameraPixelFormat = PixelFormat::NV12f;
+        internalFormat = PixelFormat::NV12f;
         break;
     case PixelFormat::BGRA32:
         _cvPixelFormat = kCVPixelFormatType_32BGRA;
@@ -701,7 +701,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
     default: /// I420 is not supported on macOS
     case PixelFormat::RGB24:
         _cvPixelFormat = kCVPixelFormatType_24RGB;
-        _cameraPixelFormat = PixelFormat::RGB24;
+        internalFormat = PixelFormat::RGB24;
         break;
     }
 }
@@ -835,14 +835,16 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
     size_t bytes{};
 
     CMTime timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer);
+    auto internalFormat = _provider->getFrameProperty().cameraPixelFormat;
+    auto outputFormat = _provider->getFrameProperty().outputPixelFormat;
 
     newFrame->timestamp = (uint64_t)(CMTimeGetSeconds(timestamp) * 1e9);
     newFrame->width = width;
     newFrame->height = height;
-    newFrame->pixelFormat = _cameraPixelFormat;
+    newFrame->pixelFormat = internalFormat;
 
-    if (_cameraPixelFormat & kPixelFormatYUVColorBit)
-    {
+    if (internalFormat & kPixelFormatYUVColorBit)
+    { /// 在 macOS 上， 只能是 NV12 或 NV12f 格式, 不予转换.
         newFrame->orientation = kDefaultFrameOrientation;
         auto yBytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 0);
         auto uvBytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 1);
@@ -883,7 +885,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
         newFrame->stride[1] = 0;
         newFrame->stride[2] = 0;
 
-        if (_cameraPixelFormat == _convertPixelFormat && newFrame->orientation == kDefaultFrameOrientation)
+        if (internalFormat == outputFormat && newFrame->orientation == kDefaultFrameOrientation)
         {
             CFRetain(imageBuffer);
             auto manager = std::make_shared<FakeFrame>([imageBuffer, newFrame]() mutable {
@@ -912,7 +914,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
                 startConvertTime = std::chrono::steady_clock::now();
             }
 
-            inplaceConvertFrame(newFrame.get(), _convertPixelFormat, (int)(newFrame->orientation != kDefaultFrameOrientation), _memoryCache);
+            inplaceConvertFrame(newFrame.get(), outputFormat, (int)(newFrame->orientation != kDefaultFrameOrientation), _memoryCache);
 
             CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
 

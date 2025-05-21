@@ -40,10 +40,10 @@ public:
     using ProviderImp::getFreeFrame;
     using ProviderImp::newFrameAvailable;
 
-    inline bool tryConvertPixelFormat() const { return m_tryConvertPixelFormat; }
     inline FrameOrientation frameOrientation() const { return m_frameOrientation; }
 
     inline bool hasNewFrameCallback() const { return m_callback && *m_callback; }
+
 private:
     CameraCaptureObjc* m_imp{};
 };

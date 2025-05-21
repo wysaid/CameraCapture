@@ -59,9 +59,6 @@ bool ProviderImp::set(PropertyName prop, double value)
         m_frameProp.outputPixelFormat = static_cast<PixelFormat>(intValue);
     }
     break;
-    case PropertyName::DisablePixelFormatConvert:
-        m_tryConvertPixelFormat = static_cast<bool>(value);
-        break;
     case PropertyName::FrameOrientation:
         m_frameOrientation = static_cast<FrameOrientation>(static_cast<int>(value));
         break;

@@ -57,7 +57,7 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
 
 //////////////////// Log ////////////////////
 
-#ifndef CCAP_NO_LOG ///< Define this macro to remove log code during compilation.
+#ifndef CCAP_NO_LOG          ///< Define this macro to remove log code during compilation.
 #define _CCAP_LOG_ENABLED_ 1 // NOLINT(*-reserved-identifier)
 #else
 #define _CCAP_LOG_ENABLED_ 0
@@ -86,6 +86,56 @@ enum class LogLevel
 };
 
 void setLogLevel(LogLevel level);
+
+#if _CCAP_LOG_ENABLED_
+/// For internal use.
+extern LogLevel globalLogLevel;
+
+inline bool operator&(LogLevel lhs, LogLevelConstants rhs)
+{
+    return (static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs));
+}
+
+inline bool errorLogEnabled() { return globalLogLevel & kLogLevelErrorBit; }
+inline bool warningLogEnabled() { return globalLogLevel & kLogLevelWarningBit; }
+inline bool infoLogEnabled() { return globalLogLevel & kLogLevelInfoBit; }
+inline bool verboseLogEnabled() { return globalLogLevel & kLogLevelVerboseBit; }
+
+#define CCAP_CALL_LOG(logLevel, ...)                   \
+    do                                                 \
+    {                                                  \
+        if ((static_cast<uint32_t>(logLevel) &         \
+             static_cast<uint32_t>(globalLogLevel)) == \
+            static_cast<uint32_t>(logLevel))           \
+        {                                              \
+            __VA_ARGS__;                               \
+        }                                              \
+    } while (0)
+
+#define CCAP_LOG(logLevel, ...) CCAP_CALL_LOG(logLevel, fprintf(stderr, __VA_ARGS__))
+
+#define CCAP_LOG_E(...) CCAP_LOG(LogLevel::Error, __VA_ARGS__)
+#define CCAP_LOG_W(...) CCAP_LOG(LogLevel::Warning, __VA_ARGS__)
+#define CCAP_LOG_I(...) CCAP_LOG(LogLevel::Info, __VA_ARGS__)
+#define CCAP_LOG_V(...) CCAP_LOG(LogLevel::Verbose, __VA_ARGS__)
+#else
+
+#if __cplusplus >= 201703L
+#define CCAP_CONSTEXPR constexpr
+#else
+#define CCAP_CONSTEXPR
+#endif
+
+inline CCAP_CONSTEXPR bool errorLogEnabled() { return false; }
+inline CCAP_CONSTEXPR bool warningLogEnabled() { return false; }
+inline CCAP_CONSTEXPR bool infoLogEnabled() { return false; }
+inline CCAP_CONSTEXPR bool verboseLogEnabled() { return false; }
+
+#define CCAP_LOG_E(...) ((void)0)
+#define CCAP_LOG_W(...) ((void)0)
+#define CCAP_LOG_I(...) ((void)0)
+#define CCAP_LOG_V(...) ((void)0)
+#endif
 
 } // namespace ccap
 

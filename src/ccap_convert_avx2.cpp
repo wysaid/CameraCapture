@@ -617,7 +617,7 @@ void _i420ToRgba_avx2_imp(const uint8_t* srcY, int srcYStride,
             yuv2rgb601v(y0, u, v, r0, g0, b0);
             yuv2rgb601v(y1, u, v, r1, g1, b1);
 
-            if (isBGRA)
+            if constexpr (isBGRA)
             {
                 dstRow[(x + 0) * 4 + 0] = b0;
                 dstRow[(x + 0) * 4 + 1] = g0;
@@ -728,7 +728,7 @@ void _i420ToRgb_avx2_imp(const uint8_t* srcY, int srcYStride,
 
             for (int i = 0; i < 16; ++i)
             {
-                if (isBGR)
+                if constexpr (isBGR)
                 {
                     dstRow[(x + i) * 3 + 0] = (uint8_t)b_arr[i];
                     dstRow[(x + i) * 3 + 1] = (uint8_t)g_arr[i];
@@ -755,7 +755,7 @@ void _i420ToRgb_avx2_imp(const uint8_t* srcY, int srcYStride,
             yuv2rgb601v(y0, u, v, r0, g0, b0);
             yuv2rgb601v(y1, u, v, r1, g1, b1);
 
-            if (isBGR)
+            if constexpr (isBGR)
             {
                 dstRow[(x + 0) * 3 + 0] = b0;
                 dstRow[(x + 0) * 3 + 1] = g0;

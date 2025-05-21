@@ -174,13 +174,6 @@ enum class PropertyName
     PixelFormatOutput = 0x30002,
 
     /**
-     * @brief Disable PixelFormat conversion; prefer fallback to other hardware-supported formats.
-     *        When set to a nonzero value, pixel format conversion is not allowed.
-     *        Note: The frame's pixelFormat may differ from the requested pixelFormat.
-     */
-    DisablePixelFormatConvert = 0x30003,
-
-    /**
      * @brief The frame orientation. Will correct the orientation in RGB* PixelFormat, which may incur additional performance overhead.
      * @attention When the camera output pixel format is YUV, this property has no effect.
      *      It is recommended that users do not set this option, but instead adapt to the orientation information obtained from the Frame.
