@@ -11,7 +11,7 @@ ccap `(C)amera(CAP)ture` 是一个高效的、易用的、轻量级的 C++ 相�
 
 ## 编译
 
-- C++17 或更高版本
+- 支持 C++17 或更高版本的编译器 (MSVC 2019+/GCC 7.1+/Clang 5.0+)
 - CMake 3.14 或更高版本
 - 系统依赖:
   - Windows: DirectShow (对于相机设备兼容性略好于 MSMF) / MSMF (后续版本提供)
