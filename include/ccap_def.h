@@ -10,11 +10,26 @@
 #ifndef CCAP_DEF_H
 #define CCAP_DEF_H
 
-// #if defined(_WIN32) || defined(_MSC_VER)
-// #ifndef _CRT_SECURE_NO_WARNINGS
-// #define _CRT_SECURE_NO_WARNINGS 1
-// #endif
-// #endif
+#if __APPLE__
+#include <TargetConditionals.h>
+#if (defined(TARGET_OS_IOS) && TARGET_OS_IOS) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
+#define CCAP_IOS 1
+#else
+#define CCAP_MACOS 1
+#endif
+
+#elif defined(__ANDROID__)
+#define CCAP_ANDROID 1
+#elif defined(WIN32) || defined(_WIN32)
+#define CCAP_WINDOWS 1
+#if defined(_MSC_VER)
+#define CCAP_WINDOWS_MSVC 1
+#endif
+#endif
+
+#if !defined(CCAP_DESKTOP) && (CCAP_WINDOWS || CCAP_MACOS)
+#define CCAP_DESKTOP 1
+#endif
 
 #include <cstdint>
 #include <memory>

@@ -8,14 +8,6 @@
 
 #if __APPLE__
 
-#include <TargetConditionals.h>
-
-#if (defined(TARGET_OS_IOS) && TARGET_OS_IOS) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
-#define CCAP_MOBILE 1
-#elif TARGET_OS_MAC
-#define CCAP_MOBILE 0
-#endif
-
 #include "ccap_imp_apple.h"
 
 #import <AVFoundation/AVFoundation.h>
@@ -138,12 +130,12 @@ struct ResolutionInfo
 std::vector<ResolutionInfo> allSupportedResolutions(AVCaptureSession* session)
 {
     std::vector<ResolutionInfo> info = {
-#if !CCAP_MOBILE
+#if CCAP_MACOS
         { AVCaptureSessionPreset320x240, { 320, 240 } },
 #endif
         { AVCaptureSessionPreset352x288, { 352, 288 } },
         { AVCaptureSessionPreset640x480, { 640, 480 } },
-#if !CCAP_MOBILE
+#if CCAP_MACOS
         { AVCaptureSessionPreset960x540, { 960, 540 } },
 #endif
         { AVCaptureSessionPreset1280x720, { 1280, 720 } },
@@ -167,15 +159,15 @@ NSArray<AVCaptureDevice*>* findAllDeviceName()
 {
     NSMutableArray* allTypes = [NSMutableArray new];
     [allTypes addObject:AVCaptureDeviceTypeBuiltInWideAngleCamera];
-#if CCAP_MOBILE
+#if CCAP_IOS
     [allTypes addObject:AVCaptureDeviceTypeBuiltInTelephotoCamera];
     [allTypes addObject:AVCaptureDeviceTypeBuiltInDualCamera];
-    if(@available(iOS 13.0, *))
+    if (@available(iOS 13.0, *))
     {
         [allTypes addObject:AVCaptureDeviceTypeBuiltInUltraWideCamera];
         [allTypes addObject:AVCaptureDeviceTypeBuiltInDualWideCamera];
         [allTypes addObject:AVCaptureDeviceTypeBuiltInTripleCamera];
-    }    
+    }
 #else
     if (@available(macOS 14.0, *))
     {

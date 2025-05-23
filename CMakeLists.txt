@@ -110,5 +110,5 @@ endif()
 # ############### Examples ################
 message(STATUS "ccap: CCAP_BUILD_EXAMPLES=${CCAP_BUILD_EXAMPLES}")
 if(CCAP_BUILD_EXAMPLES)
-    include(examples/examples.cmake)
+    include(examples/desktop.cmake)
 endif()
