@@ -109,6 +109,7 @@
         "xutility": "cpp",
         "ranges": "cpp",
         "__node_handle": "cpp",
-        "cinttypes": "cpp"
+        "cinttypes": "cpp",
+        "complex": "cpp"
     }
 }
