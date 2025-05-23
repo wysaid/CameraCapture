@@ -14,17 +14,39 @@
 #include <string>
 #include <thread>
 
+int selectCamera(ccap::Provider& provider)
+{
+    if (auto names = provider.findDeviceNames(); names.size() > 1)
+    {
+        std::cout << "Multiple devices found, please select one:" << std::endl;
+        for (size_t i = 0; i < names.size(); ++i)
+        {
+            std::cout << "  " << i << ": " << names[i] << std::endl;
+        }
+        int selectedIndex;
+        std::cout << "Enter the index of the device you want to use: ";
+        std::cin >> selectedIndex;
+        if (selectedIndex < 0 || selectedIndex >= static_cast<int>(names.size()))
+        {
+            selectedIndex = 0;
+            std::cerr << "Invalid index, using the first device:" << names[0] << std::endl;
+        }
+        else
+        {
+            std::cout << "Using device: " << names[selectedIndex] << std::endl;
+        }
+        return selectedIndex;
+    }
+
+    return -1; // One or no device, use default.
+}
+
 int main(int argc, char** argv)
 {
     /// Enable verbose log to see debug information
     ccap::setLogLevel(ccap::LogLevel::Verbose);
 
     std::string cwd = argv[0];
-    int deviceIndex = -1; // Indicates using the system's default camera
-    if (argc > 1 && std::isdigit(argv[1][0]))
-    {
-        deviceIndex = std::stoi(argv[1]);
-    }
 
     if (auto lastSlashPos = cwd.find_last_of("/\\"); lastSlashPos != std::string::npos && cwd[0] != '.')
     {
@@ -66,6 +88,15 @@ int main(int argc, char** argv)
 #endif
     cameraProvider.set(ccap::PropertyName::FrameRate, requestedFps);
 
+    int deviceIndex;
+    if (argc > 1 && std::isdigit(argv[1][0]))
+    {
+        deviceIndex = std::stoi(argv[1]);
+    }
+    else
+    {
+        deviceIndex = selectCamera(cameraProvider);
+    }
     cameraProvider.open(deviceIndex, true);
 
     if (!cameraProvider.isStarted())
