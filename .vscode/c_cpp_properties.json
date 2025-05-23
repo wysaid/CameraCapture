@@ -16,7 +16,7 @@
                 "${workspaceFolder}/include",
                 "${workspaceFolder}/src",
                 "${workspaceFolder}/examples",
-                "${workspaceFolder}/examples/glfw/include"
+                "${workspaceFolder}/examples/desktop/glfw/include"
             ]
         }
     ]

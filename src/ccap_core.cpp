@@ -28,13 +28,16 @@ namespace ccap
 ProviderImp* createProviderMac();
 ProviderImp* createProviderDirectShow();
 
-Allocator::~Allocator() = default;
+Allocator::~Allocator()
+{
+    CCAP_LOG_V("ccap: Allocator::~Allocator() called, this=%p\n", this);
+}
 
 DefaultAllocator::~DefaultAllocator()
 {
     if (m_data)
         ALIGNED_FREE(m_data);
-    CCAP_LOG_V("ccap: DefaultAllocator destroyed, deallocated %zu bytes of memory at %p\n", m_size, m_data);
+    CCAP_LOG_V("ccap: DefaultAllocator destroyed, deallocated %zu bytes of memory at %p, this=%p\n", m_size, m_data, this);
 }
 
 void DefaultAllocator::resize(size_t size)
@@ -54,7 +57,10 @@ void DefaultAllocator::resize(size_t size)
 }
 
 Frame::Frame() = default;
-Frame::~Frame() = default;
+Frame::~Frame()
+{
+    CCAP_LOG_V("ccap: Frame::~Frame() called, this=%p\n", this);
+}
 
 ProviderImp* createProvider(std::string_view extraInfo)
 {
@@ -77,6 +83,7 @@ Provider::Provider() :
 
 Provider::~Provider()
 {
+    CCAP_LOG_V("ccap: Provider::~Provider() called, this=%p, imp=%p\n", this, m_imp);
     delete m_imp;
 }
 
@@ -175,7 +182,7 @@ std::shared_ptr<Frame> Provider::grab(uint32_t timeoutInMs)
     return m_imp->grab(timeoutInMs);
 }
 
-void Provider::setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)> callback)
+void Provider::setNewFrameCallback(std::function<bool(const std::shared_ptr<Frame>&)> callback)
 {
     m_imp->setNewFrameCallback(std::move(callback));
 }

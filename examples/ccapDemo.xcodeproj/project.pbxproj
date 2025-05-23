@@ -1,0 +1,470 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		3D2758A52C2A722D00BB76CC /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 3D2758A42C2A722D00BB76CC /* AppDelegate.m */; };
+		3D2758B12C2A722D00BB76CC /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3D2758AF2C2A722D00BB76CC /* Main.storyboard */; };
+		3D2758B32C2A723300BB76CC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3D2758B22C2A723300BB76CC /* Assets.xcassets */; };
+		3D2758B62C2A723300BB76CC /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3D2758B42C2A723300BB76CC /* LaunchScreen.storyboard */; };
+		3D2758B82C2A723300BB76CC /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 3D2758B72C2A723300BB76CC /* main.m */; };
+		3D3AED5E2C2A9D1D00A45D63 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3D3AED5D2C2A9D1D00A45D63 /* OpenGLES.framework */; };
+		3D3AED602C2A9D2800A45D63 /* GLKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3D3AED5F2C2A9D2800A45D63 /* GLKit.framework */; };
+		DB315D3D2DE06D680098E937 /* MainVC.mm in Sources */ = {isa = PBXBuildFile; fileRef = DB315D3B2DE06D680098E937 /* MainVC.mm */; };
+		DB315D3E2DE06D680098E937 /* ExampleVC_gles.mm in Sources */ = {isa = PBXBuildFile; fileRef = DB315D372DE06D680098E937 /* ExampleVC_gles.mm */; };
+		DB315D3F2DE06D680098E937 /* ExampleVC_metal.mm in Sources */ = {isa = PBXBuildFile; fileRef = DB315D392DE06D680098E937 /* ExampleVC_metal.mm */; };
+		E9B13389C39D14048C172522 /* libPods-ccapDemo.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CD712AC3DF5689788FF22787 /* libPods-ccapDemo.a */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		3D1A1C4B2CDC606300C431D3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		3D2758A02C2A722D00BB76CC /* ccapDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ccapDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3D2758A32C2A722D00BB76CC /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
+		3D2758A42C2A722D00BB76CC /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
+		3D2758B02C2A722D00BB76CC /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		3D2758B22C2A723300BB76CC /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		3D2758B52C2A723300BB76CC /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		3D2758B72C2A723300BB76CC /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		3D3AED5D2C2A9D1D00A45D63 /* OpenGLES.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGLES.framework; path = System/Library/Frameworks/OpenGLES.framework; sourceTree = SDKROOT; };
+		3D3AED5F2C2A9D2800A45D63 /* GLKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GLKit.framework; path = System/Library/Frameworks/GLKit.framework; sourceTree = SDKROOT; };
+		452CD8915B0BAB6332DA531E /* Pods-ccapDemo.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ccapDemo.debug.xcconfig"; path = "Target Support Files/Pods-ccapDemo/Pods-ccapDemo.debug.xcconfig"; sourceTree = "<group>"; };
+		5A21757B05DE64E769F03A36 /* Pods-ccapDemo.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ccapDemo.release.xcconfig"; path = "Target Support Files/Pods-ccapDemo/Pods-ccapDemo.release.xcconfig"; sourceTree = "<group>"; };
+		CD712AC3DF5689788FF22787 /* libPods-ccapDemo.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ccapDemo.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		DB315D362DE06D680098E937 /* ExampleVC_gles.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ExampleVC_gles.h; sourceTree = "<group>"; };
+		DB315D372DE06D680098E937 /* ExampleVC_gles.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = ExampleVC_gles.mm; sourceTree = "<group>"; };
+		DB315D382DE06D680098E937 /* ExampleVC_metal.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ExampleVC_metal.h; sourceTree = "<group>"; };
+		DB315D392DE06D680098E937 /* ExampleVC_metal.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = ExampleVC_metal.mm; sourceTree = "<group>"; };
+		DB315D3A2DE06D680098E937 /* MainVC.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MainVC.h; sourceTree = "<group>"; };
+		DB315D3B2DE06D680098E937 /* MainVC.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MainVC.mm; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		3D27589D2C2A722D00BB76CC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3D3AED602C2A9D2800A45D63 /* GLKit.framework in Frameworks */,
+				3D3AED5E2C2A9D1D00A45D63 /* OpenGLES.framework in Frameworks */,
+				E9B13389C39D14048C172522 /* libPods-ccapDemo.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		3D2758972C2A722D00BB76CC = {
+			isa = PBXGroup;
+			children = (
+				DB315D3C2DE06D680098E937 /* ios */,
+				3D2758A12C2A722D00BB76CC /* Products */,
+				DB2E512699E48AE95940B87E /* Pods */,
+				E0748571FFD5773D40EABB3C /* Frameworks */,
+				DBEAE0C82C37E5CC00D6F2B4 /* Recovered References */,
+			);
+			sourceTree = "<group>";
+		};
+		3D2758A12C2A722D00BB76CC /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				3D2758A02C2A722D00BB76CC /* ccapDemo.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		DB2E512699E48AE95940B87E /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				452CD8915B0BAB6332DA531E /* Pods-ccapDemo.debug.xcconfig */,
+				5A21757B05DE64E769F03A36 /* Pods-ccapDemo.release.xcconfig */,
+			);
+			path = Pods;
+			sourceTree = "<group>";
+		};
+		DB315D3C2DE06D680098E937 /* ios */ = {
+			isa = PBXGroup;
+			children = (
+				DB315D362DE06D680098E937 /* ExampleVC_gles.h */,
+				DB315D372DE06D680098E937 /* ExampleVC_gles.mm */,
+				DB315D382DE06D680098E937 /* ExampleVC_metal.h */,
+				DB315D392DE06D680098E937 /* ExampleVC_metal.mm */,
+				DB315D3A2DE06D680098E937 /* MainVC.h */,
+				DB315D3B2DE06D680098E937 /* MainVC.mm */,
+				3D2758A32C2A722D00BB76CC /* AppDelegate.h */,
+				3D2758A42C2A722D00BB76CC /* AppDelegate.m */,
+				3D1A1C4B2CDC606300C431D3 /* Info.plist */,
+				3D2758AF2C2A722D00BB76CC /* Main.storyboard */,
+				3D2758B22C2A723300BB76CC /* Assets.xcassets */,
+				3D2758B42C2A723300BB76CC /* LaunchScreen.storyboard */,
+				3D2758B72C2A723300BB76CC /* main.m */,
+			);
+			path = ios;
+			sourceTree = "<group>";
+		};
+		DBEAE0C82C37E5CC00D6F2B4 /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = "Recovered References";
+			sourceTree = "<group>";
+		};
+		E0748571FFD5773D40EABB3C /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				3D3AED5F2C2A9D2800A45D63 /* GLKit.framework */,
+				3D3AED5D2C2A9D1D00A45D63 /* OpenGLES.framework */,
+				CD712AC3DF5689788FF22787 /* libPods-ccapDemo.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		3D27589F2C2A722D00BB76CC /* ccapDemo */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3D2758BB2C2A723300BB76CC /* Build configuration list for PBXNativeTarget "ccapDemo" */;
+			buildPhases = (
+				DC54288D67FAFD09B3D4B5FB /* [CP] Check Pods Manifest.lock */,
+				3D27589C2C2A722D00BB76CC /* Sources */,
+				3D27589D2C2A722D00BB76CC /* Frameworks */,
+				3D27589E2C2A722D00BB76CC /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ccapDemo;
+			productName = ccapDemo;
+			productReference = 3D2758A02C2A722D00BB76CC /* ccapDemo.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		3D2758982C2A722D00BB76CC /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1520;
+				TargetAttributes = {
+					3D27589F2C2A722D00BB76CC = {
+						CreatedOnToolsVersion = 15.2;
+					};
+				};
+			};
+			buildConfigurationList = 3D27589B2C2A722D00BB76CC /* Build configuration list for PBXProject "ccapDemo" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 3D2758972C2A722D00BB76CC;
+			productRefGroup = 3D2758A12C2A722D00BB76CC /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				3D27589F2C2A722D00BB76CC /* ccapDemo */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		3D27589E2C2A722D00BB76CC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3D2758B62C2A723300BB76CC /* LaunchScreen.storyboard in Resources */,
+				3D2758B32C2A723300BB76CC /* Assets.xcassets in Resources */,
+				3D2758B12C2A722D00BB76CC /* Main.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		DC54288D67FAFD09B3D4B5FB /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-ccapDemo-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		3D27589C2C2A722D00BB76CC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DB315D3D2DE06D680098E937 /* MainVC.mm in Sources */,
+				DB315D3E2DE06D680098E937 /* ExampleVC_gles.mm in Sources */,
+				DB315D3F2DE06D680098E937 /* ExampleVC_metal.mm in Sources */,
+				3D2758B82C2A723300BB76CC /* main.m in Sources */,
+				3D2758A52C2A722D00BB76CC /* AppDelegate.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		3D2758AF2C2A722D00BB76CC /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				3D2758B02C2A722D00BB76CC /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+		3D2758B42C2A723300BB76CC /* LaunchScreen.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				3D2758B52C2A723300BB76CC /* Base */,
+			);
+			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		3D2758B92C2A723300BB76CC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+			};
+			name = Debug;
+		};
+		3D2758BA2C2A723300BB76CC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		3D2758BC2C2A723300BB76CC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 452CD8915B0BAB6332DA531E /* Pods-ccapDemo.debug.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 6782ZC2H8Z;
+				GCC_C_LANGUAGE_STANDARD = "compiler-default";
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ios/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.graphics-design";
+				INFOPLIST_KEY_NSCameraUsageDescription = "just use camera";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "just use mic";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "just use album";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = armv7;
+				INFOPLIST_KEY_UIStatusBarHidden = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = ccap.examples;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TVOS_DEPLOYMENT_TARGET = 12.0;
+			};
+			name = Debug;
+		};
+		3D2758BD2C2A723300BB76CC /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5A21757B05DE64E769F03A36 /* Pods-ccapDemo.release.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 6782ZC2H8Z;
+				GCC_C_LANGUAGE_STANDARD = "compiler-default";
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ios/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.graphics-design";
+				INFOPLIST_KEY_NSCameraUsageDescription = "just use camera";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "just use mic";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "just use album";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = armv7;
+				INFOPLIST_KEY_UIStatusBarHidden = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = ccap.examples;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TVOS_DEPLOYMENT_TARGET = 12.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		3D27589B2C2A722D00BB76CC /* Build configuration list for PBXProject "ccapDemo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3D2758B92C2A723300BB76CC /* Debug */,
+				3D2758BA2C2A723300BB76CC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3D2758BB2C2A723300BB76CC /* Build configuration list for PBXNativeTarget "ccapDemo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3D2758BC2C2A723300BB76CC /* Debug */,
+				3D2758BD2C2A723300BB76CC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 3D2758982C2A722D00BB76CC /* Project object */;
+}

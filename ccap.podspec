@@ -12,7 +12,7 @@ DESC
   s.license      = "MIT"
   
   s.author             = { "wysaid" => "this@wysaid.org" }
-  s.platform     = :ios, "12.0"
+  s.platform     = :ios, "13.0"
   s.osx.deployment_target = "10.13"
   s.source       = { :git => "https://github.com/wysaid/CameraCapture", :tag => "#{s.version}" }
 

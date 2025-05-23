@@ -68,7 +68,7 @@ public:
     virtual ~ProviderImp();
     bool set(PropertyName prop, double value);
     double get(PropertyName prop);
-    void setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)> callback);
+    void setNewFrameCallback(std::function<bool(const std::shared_ptr<Frame>&)> callback);
     void setFrameAllocator(std::function<std::shared_ptr<Allocator>()> allocatorFactory);
     std::shared_ptr<Frame> grab(uint32_t timeoutInMs);
     void setMaxAvailableFrameSize(uint32_t size);
@@ -98,7 +98,7 @@ protected:
 
 protected:
     // Callback function for new data frames
-    std::shared_ptr<std::function<bool(std::shared_ptr<Frame>)>> m_callback;
+    std::shared_ptr<std::function<bool(const std::shared_ptr<Frame>&)>> m_callback;
     std::function<std::shared_ptr<Allocator>()> m_allocatorFactory;
 
     /// Frames from camera. If not taken or no callback is set, they will accumulate here. Max length is MAX_AVAILABLE_FRAME_SIZE.

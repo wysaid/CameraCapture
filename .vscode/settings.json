@@ -110,6 +110,9 @@
         "ranges": "cpp",
         "__node_handle": "cpp",
         "cinttypes": "cpp",
-        "complex": "cpp"
+        "complex": "cpp",
+        "ExampleVC*": "objective-cpp",
+        "MainVC.*": "objective-cpp",
+        "AppDelegate.*": "objective-cpp",
     }
 }

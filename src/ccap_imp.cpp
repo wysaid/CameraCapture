@@ -90,11 +90,11 @@ double ProviderImp::get(PropertyName prop)
     return NAN;
 }
 
-void ProviderImp::setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)> callback)
+void ProviderImp::setNewFrameCallback(std::function<bool(const std::shared_ptr<Frame>&)> callback)
 {
     if (callback)
     {
-        m_callback = std::make_shared<std::function<bool(std::shared_ptr<Frame>)>>(std::move(callback));
+        m_callback = std::make_shared<std::function<bool(const std::shared_ptr<Frame>&)>>(std::move(callback));
     }
     else
     {
@@ -122,7 +122,7 @@ std::shared_ptr<Frame> ProviderImp::grab(uint32_t timeoutInMs)
         }
 
         m_grabFrameWaiting = true;
-        bool waitSuccess;
+        bool waitSuccess{};
 
         for (uint32_t waitedTime = 0; waitedTime < timeoutInMs; waitedTime += 1000)
         {
@@ -163,13 +163,13 @@ void ProviderImp::setMaxCacheFrameSize(uint32_t size)
 
 void ProviderImp::newFrameAvailable(std::shared_ptr<Frame> frame)
 {
-    bool retainNewFrame = true;
+    bool dropFrame = false;
     if (auto c = m_callback; c && *c)
     { // Prevent callback from being deleted during invocation, increase callback ref count
-        retainNewFrame = (*c)(std::move(frame));
+        dropFrame = (*c)(frame);
     }
 
-    if (retainNewFrame)
+    if (!dropFrame)
     {
         std::lock_guard<std::mutex> lock(m_availableFrameMutex);
 

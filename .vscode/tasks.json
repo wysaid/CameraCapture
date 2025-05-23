@@ -178,6 +178,60 @@
             "group": "build"
         },
         {
+            "label": "Load iOS Project (macOS only)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "pod install || pod install --repo-update"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/examples"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Build iOS Project (macOS only)",
+            "type": "shell",
+            "command": "xcodebuild",
+            "args": [
+                "build",
+                "CODE_SIGN_IDENTITY=\"\"",
+                "CODE_SIGNING_REQUIRED=NO",
+                "-workspace",
+                "ccapDemo.xcworkspace",
+                "-scheme",
+                "ccapDemo",
+                "-configuration",
+                "Debug"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/examples"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Load And Build iOS Project (macOS only)",
+            "type": "shell",
+            "command": "echo",
+            "args": [
+                "Done!",
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/examples"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Load iOS Project (macOS only)",
+                "Build iOS Project (macOS only)"
+            ],
+            "dependsOrder": "sequence"
+        },
+        {
             "label": "Run 0-print_camera (Debug)",
             "type": "shell",
             "command": "bash",

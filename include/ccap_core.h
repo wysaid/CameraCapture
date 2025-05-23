@@ -166,7 +166,7 @@ public:
     /**
      * @brief Grab a new frame. Can be called from any thread, but avoid concurrent calls.
      *      This method will block the current thread until a new frame is available.
-     * @param timeout The maximum wait time (milliseconds). 0 means return immediately. The default is 0xffffffff (wait indefinitely).
+     * @param timeoutInMs The maximum wait time (milliseconds). 0 means return immediately. The default is 0xffffffff (wait indefinitely).
      * @return a valid `shared_ptr<Frame>` if a new frame is available, nullptr otherwise.
      * @note The returned frame is a shared pointer, and the caller can hold and use it later in any thread.
      *       You don't need to deep copy this `std::shared_ptr<Frame>` object, even if you want to use it in
@@ -188,7 +188,7 @@ public:
      *       different threads or at different times. Just save the smart pointer.
      *       The frame will be automatically reused when the last reference is released.
      */
-    void setNewFrameCallback(std::function<bool(std::shared_ptr<Frame>)> callback);
+    void setNewFrameCallback(std::function<bool(const std::shared_ptr<Frame>&)> callback);
 
     /**
      * @brief Sets the frame allocator factory. After calling this method, the default Allocator implementation will be overridden.
