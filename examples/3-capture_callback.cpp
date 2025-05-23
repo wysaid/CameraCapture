@@ -94,7 +94,7 @@ int main(int argc, char** argv)
         return true; /// no need to retain the frame.
     });
 
-    /// Wait for 10 seconds to capture frames.
+    /// Wait for 5 seconds to capture frames.
     std::this_thread::sleep_for(std::chrono::seconds(5));
     std::cout << "Captured 5 seconds, stopping..." << std::endl;
     return 0;

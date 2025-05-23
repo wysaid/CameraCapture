@@ -13,7 +13,7 @@
 
 std::vector<std::string> findCameraNames()
 {
-    ccap::Provider cameraProvider; /// 不需要 Open Camera.
+    ccap::Provider cameraProvider; /// Default ctor, no need to open camera.
     std::vector<std::string> deviceNames = cameraProvider.findDeviceNames();
 
     if (!deviceNames.empty())
@@ -37,7 +37,7 @@ void printCameraInfo(const std::string& deviceName)
 {
     ccap::setLogLevel(ccap::LogLevel::Verbose);
 
-    ccap::Provider cameraProvider(deviceName); /// 需要 Open Camera
+    ccap::Provider cameraProvider(deviceName); /// Pass a device name to open camera.
     if (!cameraProvider.isOpened())
     {
         fprintf(stderr, "### Failed to open video capture device: %s\n", deviceName.c_str());

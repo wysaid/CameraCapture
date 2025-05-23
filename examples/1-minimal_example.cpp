@@ -11,7 +11,7 @@
 
 int main()
 {
-    ccap::Provider cameraProvider(-1); // Open the default camera
+    ccap::Provider cameraProvider(-1); // Pass -1, to open the default camera
     cameraProvider.start();
 
     if (!cameraProvider.isStarted())

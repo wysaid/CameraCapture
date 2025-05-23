@@ -9,7 +9,6 @@
 #include <ccap.h>
 #include <chrono>
 #include <cstdio>
-#include <filesystem>
 #include <iostream>
 #include <string>
 
@@ -58,27 +57,10 @@ int main(int argc, char** argv)
     /// Enable verbose log to see debug information
     ccap::setLogLevel(ccap::LogLevel::Verbose);
 
-    std::string cwd = argv[0];
     int deviceIndex = -1; // Indicates using the system's default camera
     if (argc > 1 && std::isdigit(argv[1][0]))
     {
         deviceIndex = std::stoi(argv[1]);
-    }
-
-    if (auto lastSlashPos = cwd.find_last_of("/\\"); lastSlashPos != std::string::npos && cwd[0] != '.')
-    {
-        cwd = cwd.substr(0, lastSlashPos);
-    }
-    else
-    {
-        cwd = std::filesystem::current_path().string();
-    }
-
-    /// 在 cwd 目录下创建一个 capture 目录
-    std::string captureDir = cwd + "/image_capture";
-    if (!std::filesystem::exists(captureDir))
-    {
-        std::filesystem::create_directory(captureDir);
     }
 
     ccap::Provider cameraProvider;
@@ -96,7 +78,7 @@ int main(int argc, char** argv)
     double requestedFps = 60;
     ccap::PixelFormat cameraOutputPixelFormat = ccap::PixelFormat::RGBA32;
     GLenum pixelFormat = GL_RGBA;
-    
+
     cameraProvider.set(ccap::PropertyName::Width, requestedWidth);
     cameraProvider.set(ccap::PropertyName::Height, requestedHeight);
     cameraProvider.set(ccap::PropertyName::PixelFormatOutput, cameraOutputPixelFormat);
@@ -114,6 +96,7 @@ int main(int argc, char** argv)
 
     int frameWidth{}, frameHeight{};
 
+    /// 5s timeout for grab
     if (auto frame = cameraProvider.grab(5000))
     {
         frameWidth = frame->width;
@@ -180,7 +163,6 @@ int main(int argc, char** argv)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    /// 3000 ms timeout when grabbing frames
     for (; !glfwWindowShouldClose(window);)
     {
         glActiveTexture(GL_TEXTURE0);
