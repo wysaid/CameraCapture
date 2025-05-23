@@ -53,7 +53,7 @@ class ProviderImp;
  * @note This class is not thread-safe. It is recommended to use it in a single thread.
  *       If you need to use it in multiple threads, consider using a mutex or other synchronization methods.
  */
-class Provider
+class Provider final
 {
 public:
     /// @brief Default constructor. The camera device is not opened yet.
@@ -219,14 +219,6 @@ public:
     Provider(Provider&&) = default;
     Provider& operator=(Provider&&) = default;
     ~Provider();
-
-    // // Safety check: Prevent passing bool type to the grab function
-    // template <typename T>
-    // std::shared_ptr<Frame> grab(T t)
-    // {
-    //     static_assert(!std::is_same<std::decay_t<T>, bool>::value, "Do not pass bool to grab(), use uint32_t milliseconds instead.");
-    //     return grab(static_cast<uint32_t>(t));
-    // }
 
 private:
     ProviderImp* m_imp;
