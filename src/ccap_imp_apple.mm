@@ -8,11 +8,18 @@
 
 #if __APPLE__
 
-#include "ccap_imp_macos.h"
+#include <TargetConditionals.h>
+
+#if (defined(TARGET_OS_IOS) && TARGET_OS_IOS) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
+#define CCAP_MOBILE 1
+#elif TARGET_OS_MAC
+#define CCAP_MOBILE 0
+#endif
+
+#include "ccap_imp_apple.h"
 
 #import <AVFoundation/AVFoundation.h>
 #import <Accelerate/Accelerate.h>
-#import <Cocoa/Cocoa.h>
 #import <Foundation/Foundation.h>
 #include <cassert>
 #include <cmath>
@@ -131,10 +138,14 @@ struct ResolutionInfo
 std::vector<ResolutionInfo> allSupportedResolutions(AVCaptureSession* session)
 {
     std::vector<ResolutionInfo> info = {
+#if !CCAP_MOBILE
         { AVCaptureSessionPreset320x240, { 320, 240 } },
+#endif
         { AVCaptureSessionPreset352x288, { 352, 288 } },
         { AVCaptureSessionPreset640x480, { 640, 480 } },
+#if !CCAP_MOBILE
         { AVCaptureSessionPreset960x540, { 960, 540 } },
+#endif
         { AVCaptureSessionPreset1280x720, { 1280, 720 } },
         { AVCaptureSessionPreset1920x1080, { 1920, 1080 } },
         { AVCaptureSessionPreset3840x2160, { 3840, 2160 } },
@@ -156,6 +167,16 @@ NSArray<AVCaptureDevice*>* findAllDeviceName()
 {
     NSMutableArray* allTypes = [NSMutableArray new];
     [allTypes addObject:AVCaptureDeviceTypeBuiltInWideAngleCamera];
+#if CCAP_MOBILE
+    [allTypes addObject:AVCaptureDeviceTypeBuiltInTelephotoCamera];
+    [allTypes addObject:AVCaptureDeviceTypeBuiltInDualCamera];
+    if(@available(iOS 13.0, *))
+    {
+        [allTypes addObject:AVCaptureDeviceTypeBuiltInUltraWideCamera];
+        [allTypes addObject:AVCaptureDeviceTypeBuiltInDualWideCamera];
+        [allTypes addObject:AVCaptureDeviceTypeBuiltInTripleCamera];
+    }    
+#else
     if (@available(macOS 14.0, *))
     {
         [allTypes addObject:AVCaptureDeviceTypeExternal];
@@ -167,6 +188,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName()
         [allTypes addObject:AVCaptureDeviceTypeExternalUnknown];
 #pragma clang diagnostic pop
     }
+#endif
 
     AVCaptureDeviceDiscoverySession* discoverySession =
         [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:allTypes

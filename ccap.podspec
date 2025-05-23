@@ -3,17 +3,18 @@ Pod::Spec.new do |s|
   s.version      = "1.0.0"
   s.summary      = "CameraCapture And Player"
   s.description  = <<-DESC
-https://github.com/wysaid/CameraCapture
+Pod of https://github.com/wysaid/CameraCapture
 DESC
 
 
-  s.homepage     = "git@github.com:wysaid/CameraCapture.git"
+  s.homepage     = "https://github.com/wysaid/CameraCapture"
 
   s.license      = "MIT"
   
   s.author             = { "wysaid" => "this@wysaid.org" }
   s.platform     = :ios, "12.0"
-  s.source       = { :git => "git@github.com:wysaid/CameraCapture.git", :tag => "#{s.version}" }
+  s.osx.deployment_target = "10.13"
+  s.source       = { :git => "https://github.com/wysaid/CameraCapture", :tag => "#{s.version}" }
 
   s.pod_target_xcconfig = {
     'CLANG_CXX_LANGUAGE_STANDARD' => 'c++17',
@@ -26,5 +27,7 @@ DESC
 
   s.source_files = 'src/**/*.{h,hpp,c,cpp,mm,m}', 'include/**/*.{h,hpp,c,cpp,mm,m}'
 
-  s.frameworks = 'Foundation', 'AVFoundation', 'CoreVideo', 'CoreMedia', 'Accelerate'
+  s.ios.frameworks = 'Foundation', 'AVFoundation', 'CoreVideo', 'CoreMedia', 'Accelerate'
+  s.osx.frameworks = 'Foundation', 'AVFoundation', 'CoreVideo', 'CoreMedia', 'Accelerate'
+
 end
