@@ -18,6 +18,12 @@ foreach(EXAMPLE ${EXAMPLE_SOURCE})
     add_executable(${EXAMPLE_NAME} ${EXAMPLE})
     target_link_libraries(${EXAMPLE_NAME} PRIVATE ccap)
 
+    if (APPLE)
+        target_link_options(${EXAMPLE_NAME} PRIVATE
+                "-sectcreate" "__TEXT" "__info_plist" "${CMAKE_CURRENT_LIST_DIR}/Info.plist"
+            )
+    endif()
+
     # If NAME contains glfw, link glfw3 and OpenGL, etc.
     if(${EXAMPLE_NAME} MATCHES "glfw")
         target_link_libraries(${EXAMPLE_NAME} PRIVATE
