@@ -59,7 +59,7 @@ int main()
         else
         {
             std::cerr << "Failed to grab frame!" << std::endl;
-            break;
+            exit(-1);
         }
     }
 

@@ -3,6 +3,12 @@ cmake_minimum_required(VERSION 3.14)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "Build GLFW example programs" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "Build GLFW test programs" FORCE)
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "Build GLFW documentation" FORCE)
+set(GLFW_INSTALL OFF CACHE BOOL "Generate installation target" FORCE)
+
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/glfw)
 file(GLOB EXAMPLE_SOURCE ${CMAKE_CURRENT_LIST_DIR}/*.cpp)
 
 foreach(EXAMPLE ${EXAMPLE_SOURCE})

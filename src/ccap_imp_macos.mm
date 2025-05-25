@@ -366,6 +366,40 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
 
 - (BOOL)open
 {
+    AVAuthorizationStatus authStatus = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
+    if (authStatus == AVAuthorizationStatusNotDetermined)
+    {
+        dispatch_semaphore_t sema = dispatch_semaphore_create(0);
+        void (^requestAccess)(void) = ^(void) {
+            [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo completionHandler:^(BOOL granted) {
+                CCAP_NSLOG_I(@"ccap: Camera access %@", granted ? @"granted" : @"denied");
+                dispatch_semaphore_signal(sema);
+            }];
+        };
+
+        // Permission must be requested on the main thread
+        if (![NSThread isMainThread])
+        {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                requestAccess();
+            });
+        }
+        else
+        {
+            requestAccess();
+        }
+
+        CCAP_NSLOG_I(@"ccap: Waiting for camera access permission...");
+        dispatch_semaphore_wait(sema, DISPATCH_TIME_FOREVER);
+        authStatus = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
+    }
+
+    if (authStatus != AVAuthorizationStatusAuthorized)
+    {
+        CCAP_NSLOG_E(@"ccap: Camera access not authorized. Current status: %ld", (long)authStatus);
+        return NO;
+    }
+
     _session = [[AVCaptureSession alloc] init];
     [_session beginConfiguration];
 
@@ -457,6 +491,11 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
         [_session addInput:_videoInput];
 
         CCAP_NSLOG_V(@"ccap: Add input to session");
+    }
+    else
+    {
+        CCAP_NSLOG_E(@"ccap: session can not add input");
+        return NO;
     }
 
     // Create output device
@@ -588,12 +627,19 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
         [_session addOutput:_videoOutput];
         CCAP_NSLOG_V(@"ccap: Add output to session");
     }
+    else
+    {
+        CCAP_NSLOG_E(@"ccap: session can not add output");
+        return NO;
+    }
 
     [_session commitConfiguration];
     if (auto fps = _provider->getFrameProperty().fps; fps > 0.0)
     {
         [self setFrameRate:_provider->getFrameProperty().fps];
     }
+
+    CCAP_NSLOG_V(@"ccap: videoOutput.connections,count = %lu", (unsigned long)_videoOutput.connections.count);
     [self flushResolution];
     _opened = YES;
     return _opened;

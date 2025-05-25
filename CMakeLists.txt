@@ -110,6 +110,5 @@ endif()
 # ############### Examples ################
 message(STATUS "ccap: CCAP_BUILD_EXAMPLES=${CCAP_BUILD_EXAMPLES}")
 if(CCAP_BUILD_EXAMPLES)
-    add_subdirectory(examples/glfw)
     include(examples/examples.cmake)
 endif()
