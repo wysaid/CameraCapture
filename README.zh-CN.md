@@ -6,21 +6,30 @@
 
 ## 概要
 
-ccap `(C)amera(CAP)ture` 是一个高效的、易用的、轻量级的 C++ 相机捕获库，旨在简化相机图像捕获和处理的过程。支持 Windows、MacOS 平台,
+ccap `(C)amera(CAP)ture` 是一个高效的、易用的、轻量级的 C++ 相机捕获库，旨在简化相机图像捕获和处理的过程。支持 Windows、MacOS、iOS 平台,
 除了系统自带的底层库之外, 不依赖 OpenCV 或者 FFmpeg 等任何其他大小第三方库。它提供了简单易用的 API，适合需要快速实现相机捕获功能的开发者。
 
 ## 编译
 
-- 支持 C++17 或更高版本的编译器 (MSVC 2019+/GCC 7.1+/Clang 5.0+)
-- CMake 3.14 或更高版本
-- 系统依赖:
-  - Windows: DirectShow (对于相机设备兼容性略好于 MSMF) / MSMF (后续版本提供)
-  - MacOS 10.13+: Foundation, AVFoundation, CoreVideo, CoreMedia, Accelerate
+- Windows/MacOS:
+  - 支持 C++17 或更高版本的编译器 (MSVC 2019+/GCC 7.1+/Clang 5.0+)
+  - CMake 3.14 或更高版本
+  - 系统依赖:
+    - Windows: DirectShow (对于相机设备兼容性略好于 MSMF) / MSMF (后续版本提供)
+    - MacOS 10.13+: Foundation, AVFoundation, CoreVideo, CoreMedia, Accelerate
+- iOS:
+  - 最新版本的 XCode.
+  - 系统支持: iOS 13.0+
+- Android:
+  - 开发中...
 
 ## 兼容性
 
 - 测试通过: Windows、macOS 两个平台的部分主流笔记本以及外接摄像头。
 - 测试通过: Windows、macOS 两个平台的 `OBS Virtual Camera`
+- 测试通过: 主流 iPhone 上的前后置主摄.
+
+> TODO: 支持 Android.
 
 > 如果发现不支持的情况, 欢迎提供 PR 进行修复。
 
@@ -31,11 +40,11 @@ ccap `(C)amera(CAP)ture` 是一个高效的、易用的、轻量级的 C++ 相�
 
 本项目内置数个 Example, 可以直接参考:
 
-1. [打印相机设备](./examples/0-print_camera.cpp)
-2. [抓取一帧的简单Example](./examples/1-minimal_example.cpp)
-3. [持续主动抓取帧的Example](./examples/2-capture_grab.cpp)
-4. [通过回调获取帧的Example](./examples/3-capture_callback.cpp)
-5. [基于 glfw 的 Gui Example](./examples/4-example_with_glfw.cpp)
+1. [打印相机设备](./examples/desktop/0-print_camera.cpp)
+2. [抓取一帧的简单Example](./examples/desktop/1-minimal_example.cpp)
+3. [持续主动抓取帧的Example](./examples/desktop/2-capture_grab.cpp)
+4. [通过回调获取帧的Example](./examples/desktop/3-capture_callback.cpp)
+5. [基于 glfw 的 Gui Example](./examples/desktop/4-example_with_glfw.cpp)
 
 下面是使用代码参考:
 

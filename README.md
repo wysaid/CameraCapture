@@ -6,20 +6,27 @@
 
 ## Overview
 
-ccap `(C)amera(CAP)ture` is an efficient, easy-to-use, and lightweight C++ camera capture library designed to simplify the process of capturing and processing camera images. It supports Windows and MacOS platforms, and except for the system's built-in low-level libraries, it does not depend on OpenCV, FFmpeg, or any other large third-party libraries. It provides a simple and user-friendly API, making it ideal for developers who need to quickly implement camera capture functionality.
+ccap `(C)amera(CAP)ture` is an efficient, easy-to-use, and lightweight C++ camera capture library designed to simplify the process of capturing and processing camera images. It supports `Windows`、 `MacOS`、`iOS`, and except for the system's built-in low-level libraries, it does not depend on OpenCV, FFmpeg, or any other large third-party libraries. It provides a simple and user-friendly API, making it ideal for developers who need to quickly implement camera capture functionality.
 
 ## Build
 
-- C++17 or higher
-- CMake 3.14 or higher
-- System dependencies:
-  - Windows: DirectShow (better compatibility than MSMF for camera devices; MSMF support may be added in future versions)
-  - MacOS 10.13+: Foundation, AVFoundation, CoreVideo, CoreMedia, Accelerate
+- Windows/MacOS:
+  - Requires a C++17 or newer compiler (MSVC 2019+, GCC 7.1+, Clang 5.0+)
+  - CMake 3.14 or newer
+  - System dependencies:
+    - Windows: DirectShow (better compatibility for camera devices) / MSMF (to be supported in future versions)
+    - MacOS 10.13+: Foundation, AVFoundation, CoreVideo, CoreMedia, Accelerate
+- iOS:
+  - Latest version of XCode
+  - System support: iOS 13.0+
+- Android:
+  - WIP...
 
 ## Compatibility
 
 - Tested (partial): Mainstream laptops and external cameras on both Windows and macOS platforms.
 - Tested: `OBS Virtual Camera` on both Windows and macOS platforms.
+- Tested: Front and rear main cameras on mainstream iPhones.
 
 If you encounter unsupported cases, you are welcome to submit a PR to help fix them.
 
@@ -30,11 +37,11 @@ Alternatively, you can add the source code of this project directly to your own 
 
 Several examples are included in this project for your reference:
 
-1. [Print Camera Devices](./examples/0-print_camera.cpp)
-2. [Simple Example for Grabbing a Frame](./examples/1-minimal_example.cpp)
-3. [Example for Continuously Grabbing Frames](./examples/2-capture_grab.cpp)
-4. [Example for Callback Grabbing](./examples/3-capture_callback.cpp)
-5. [GLFW GUI Example](./examples/4-example_with_glfw.cpp)
+1. [Print Camera Devices](./examples/desktop/0-print_camera.cpp)
+2. [Simple Example for Grabbing a Frame](./examples/desktop/1-minimal_example.cpp)
+3. [Example for Continuously Grabbing Frames](./examples/desktop/2-capture_grab.cpp)
+4. [Example for Callback Grabbing](./examples/desktop/3-capture_callback.cpp)
+5. [GLFW GUI Example](./examples/desktop/4-example_with_glfw.cpp)
 
 Sample usage:
 
