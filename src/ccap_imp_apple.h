@@ -22,11 +22,11 @@ typedef void* CameraCaptureObjc;
 
 namespace ccap
 {
-class ProviderMac : public ProviderImp
+class ProviderApple : public ProviderImp
 {
 public:
-    ProviderMac();
-    ~ProviderMac() override;
+    ProviderApple();
+    ~ProviderApple() override;
 
     std::vector<std::string> findDeviceNames() override;
     bool open(std::string_view deviceName) override;
@@ -48,7 +48,7 @@ private:
     CameraCaptureObjc* m_imp{};
 };
 
-ProviderImp* createProviderMac();
+ProviderImp* createProviderApple();
 
 } // namespace ccap
 

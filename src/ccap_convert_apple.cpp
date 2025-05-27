@@ -135,11 +135,6 @@ void nv12ToBgra32_apple(const uint8_t* srcY, int srcYStride,
                         uint8_t* dst, int dstStride,
                         int width, int height)
 {
-    // 构造 vImage_Buffer
-    vImage_Buffer yBuffer = { (void*)srcY, (vImagePixelCount)height, (vImagePixelCount)width, (size_t)srcYStride };
-    vImage_Buffer uvBuffer = { (void*)srcUV, (vImagePixelCount)(height / 2), (vImagePixelCount)(width / 2), (size_t)srcUVStride };
-    vImage_Buffer dstBuffer = { dst, (vImagePixelCount)height, (vImagePixelCount)width, (size_t)dstStride };
-
     // @refitem <https://developer.apple.com/documentation/accelerate/vimage_ypcbcrpixelrange?language=objc>
 
     // Video Range

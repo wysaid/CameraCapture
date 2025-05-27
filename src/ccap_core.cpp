@@ -25,7 +25,7 @@
 
 namespace ccap
 {
-ProviderImp* createProviderMac();
+ProviderImp* createProviderApple();
 ProviderImp* createProviderDirectShow();
 
 Allocator::~Allocator()
@@ -65,14 +65,15 @@ Frame::~Frame()
 ProviderImp* createProvider(std::string_view extraInfo)
 {
 #if __APPLE__
-    return createProviderMac();
+    return createProviderApple();
 #elif defined(_MSC_VER) || defined(_WIN32)
     return createProviderDirectShow();
-#endif
+#else
     if (warningLogEnabled())
     {
         CCAP_LOG_W("ccap: Unsupported platform!\n");
     }
+#endif
     return nullptr;
 }
 

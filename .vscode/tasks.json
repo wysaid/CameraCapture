@@ -36,7 +36,7 @@
             "args": [
                 "-l",
                 "-c",
-                "git clean -fdx build || rm -rf build"
+                "git clean -fdx build; git clean -fdx examples"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"

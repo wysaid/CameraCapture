@@ -27,7 +27,7 @@ void verticalFlip_apple(const uint8_t* src, uint32_t srcStride,
                         uint32_t width, uint32_t height);
 
 /**
- * @brief @brief NV12 to BGRA8888.
+ * @brief NV12 to BGRA8888.
  *
  * @tparam isFullRange true 表示 Full Range, false 表示 Video Range
  * @tparam isBT601 true 表示 BT.601, false 表示 BT.709
@@ -39,7 +39,7 @@ void nv12ToBgra32_apple(const uint8_t* srcY, int srcYStride,
                         int width, int height);
 
 /**
- * @brief @brief I420 to BGRA8888.
+ * @brief I420 to BGRA8888.
  *
  * @tparam isFullRange true 表示 Full Range, false 表示 Video Range
  * @tparam isBT601 true 表示 BT.601, false 表示 BT.709

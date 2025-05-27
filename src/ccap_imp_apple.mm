@@ -1,7 +1,7 @@
 /**
  * @file ccap_imp_macos.mm
  * @author wysaid (this@wysaid.org)
- * @brief Source file for ProviderMac class.
+ * @brief Source file for ProviderApple class.
  * @date 2025-04
  *
  */
@@ -344,7 +344,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
 
 @interface CameraCaptureObjc : NSObject<AVCaptureVideoDataOutputSampleBufferDelegate>
 {
-    ProviderMac* _provider;
+    ProviderApple* _provider;
 
     std::vector<uint8_t> _memoryCache; ///< Memory cache used for storing temporary computation results
 }
@@ -359,7 +359,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
 @property (nonatomic) OSType cvPixelFormat;
 @property (nonatomic) BOOL opened;
 
-- (instancetype)initWithProvider:(ProviderMac*)provider;
+- (instancetype)initWithProvider:(ProviderApple*)provider;
 - (BOOL)start;
 - (void)stop;
 
@@ -367,7 +367,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
 
 @implementation CameraCaptureObjc
 
-- (instancetype)initWithProvider:(ProviderMac*)provider
+- (instancetype)initWithProvider:(ProviderApple*)provider
 {
     self = [super init];
     if (self)
@@ -721,8 +721,11 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
                     if ([port.mediaType isEqualToString:AVMediaTypeVideo])
                     {
                         auto tm = CMTimeMake(1, fps);
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
                         connection.videoMinFrameDuration = tm;
                         connection.videoMaxFrameDuration = tm;
+#pragma clang diagnostic pop
                     }
                 }
             }
@@ -768,12 +771,25 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
 
 - (void)flushResolution
 {
+    if (@available(iOS 7.0, *))
+    {
+        if ([_device.activeFormat respondsToSelector:@selector(formatDescription)])
+        {
+            _resolution = CGSizeMake(CMVideoFormatDescriptionGetDimensions(_device.activeFormat.formatDescription).width,
+                                     CMVideoFormatDescriptionGetDimensions(_device.activeFormat.formatDescription).height);
+            return;
+        }
+    }
+
     if (_videoOutput && _videoOutput.connections.count > 0)
     {
         AVCaptureConnection* connection = [_videoOutput connections][0];
         if (connection)
         {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
             CMFormatDescriptionRef formatDescription = connection.supportsVideoMinFrameDuration ? connection.inputPorts[0].formatDescription : nil;
+#pragma clang diagnostic pop
             if (formatDescription)
             {
                 CMVideoDimensions dimensions = CMVideoFormatDescriptionGetDimensions(formatDescription);
@@ -890,9 +906,9 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
     auto newFrame = _provider->getFreeFrame();
 
     // Get resolution
-    size_t width = CVPixelBufferGetWidth(imageBuffer);
-    size_t height = CVPixelBufferGetHeight(imageBuffer);
-    size_t bytes{};
+    uint32_t width = (uint32_t)CVPixelBufferGetWidth(imageBuffer);
+    uint32_t height = (uint32_t)CVPixelBufferGetHeight(imageBuffer);
+    uint32_t bytes{};
 
     CMTime timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer);
     auto internalFormat = _provider->getFrameProperty().cameraPixelFormat;
@@ -906,10 +922,10 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
     if (internalFormat & kPixelFormatYUVColorBit)
     { /// 在 macOS 上， 只能是 NV12 或 NV12f 格式, 不予转换.
         newFrame->orientation = kDefaultFrameOrientation;
-        auto yBytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 0);
-        auto uvBytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 1);
-        size_t yBytes = CVPixelBufferGetHeightOfPlane(imageBuffer, 0) * yBytesPerRow;
-        size_t uvBytes = CVPixelBufferGetHeightOfPlane(imageBuffer, 1) * uvBytesPerRow;
+        uint32_t yBytesPerRow = (uint32_t)CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 0);
+        uint32_t uvBytesPerRow = (uint32_t)CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 1);
+        uint32_t yBytes = (uint32_t)CVPixelBufferGetHeightOfPlane(imageBuffer, 0) * yBytesPerRow;
+        uint32_t uvBytes = (uint32_t)CVPixelBufferGetHeightOfPlane(imageBuffer, 1) * uvBytesPerRow;
         bytes = yBytes + uvBytes;
 
         newFrame->data[2] = nullptr;
@@ -935,13 +951,13 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
     else
     {
         newFrame->orientation = _provider->frameOrientation();
-        bytes = CVPixelBufferGetDataSize(imageBuffer);
+        bytes = (uint32_t)CVPixelBufferGetDataSize(imageBuffer);
         newFrame->sizeInBytes = bytes;
 
         newFrame->data[0] = (uint8_t*)CVPixelBufferGetBaseAddress(imageBuffer);
         newFrame->data[1] = nullptr;
         newFrame->data[2] = nullptr;
-        newFrame->stride[0] = CVPixelBufferGetBytesPerRow(imageBuffer);
+        newFrame->stride[0] = (uint32_t)CVPixelBufferGetBytesPerRow(imageBuffer);
         newFrame->stride[1] = 0;
         newFrame->stride[2] = 0;
 
@@ -1026,7 +1042,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
             fps = std::round(s_durations.size() / sum * 10) / 10.0;
         }
 
-        NSLog(@"ccap: New frame available: %lux%lu, bytes %lu, Data address: %p, fps: %g", width, height, bytes, newFrame->data[0], fps);
+        NSLog(@"ccap: New frame available: %ux%u, bytes %u, Data address: %p, fps: %g", width, height, bytes, newFrame->data[0], fps);
     }
 
     _provider->newFrameAvailable(std::move(newFrame));
@@ -1036,18 +1052,18 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
 
 namespace ccap
 {
-ProviderMac::ProviderMac()
+ProviderApple::ProviderApple()
 {
     optimizeLogIfNotSet();
     m_frameOrientation = kDefaultFrameOrientation;
 }
 
-ProviderMac::~ProviderMac()
+ProviderApple::~ProviderApple()
 {
-    ProviderMac::close();
+    ProviderApple::close();
 }
 
-std::vector<std::string> ProviderMac::findDeviceNames()
+std::vector<std::string> ProviderApple::findDeviceNames()
 {
     @autoreleasepool
     {
@@ -1065,7 +1081,7 @@ std::vector<std::string> ProviderMac::findDeviceNames()
     }
 }
 
-bool ProviderMac::open(std::string_view deviceName)
+bool ProviderApple::open(std::string_view deviceName)
 {
     if (m_imp != nil)
     {
@@ -1085,12 +1101,12 @@ bool ProviderMac::open(std::string_view deviceName)
     }
 }
 
-bool ProviderMac::isOpened() const
+bool ProviderApple::isOpened() const
 {
     return m_imp && m_imp.session && m_imp.opened;
 }
 
-std::optional<DeviceInfo> ProviderMac::getDeviceInfo() const
+std::optional<DeviceInfo> ProviderApple::getDeviceInfo() const
 {
     std::optional<DeviceInfo> deviceInfo;
     if (m_imp && m_imp.videoOutput)
@@ -1134,7 +1150,7 @@ std::optional<DeviceInfo> ProviderMac::getDeviceInfo() const
     return deviceInfo;
 }
 
-void ProviderMac::close()
+void ProviderApple::close()
 {
     if (m_imp)
     {
@@ -1143,7 +1159,7 @@ void ProviderMac::close()
     }
 }
 
-bool ProviderMac::start()
+bool ProviderApple::start()
 {
     if (!isOpened())
     {
@@ -1157,7 +1173,7 @@ bool ProviderMac::start()
     }
 }
 
-void ProviderMac::stop()
+void ProviderApple::stop()
 {
     if (m_imp)
     {
@@ -1168,14 +1184,14 @@ void ProviderMac::stop()
     }
 }
 
-bool ProviderMac::isStarted() const
+bool ProviderApple::isStarted() const
 {
     return m_imp && [m_imp isRunning];
 }
 
-ProviderImp* createProviderMac()
+ProviderImp* createProviderApple()
 {
-    return new ProviderMac();
+    return new ProviderApple();
 }
 
 } // namespace ccap

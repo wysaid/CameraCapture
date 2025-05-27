@@ -13,7 +13,7 @@ Pod::Spec.new do |s|
 
   s.source       = { :git => "git@github.com:wysaid/CameraCapture.git", :tag => "#{s.version}" }
   s.platform     = :ios, "13.0"
-
+  s.osx.deployment_target = "10.13"
   s.source_files = [
       '*-*/**/*{h,hpp,c,cpp,mm,m}',
       'common/**/*{h,hpp,c,cpp,mm,m}',
