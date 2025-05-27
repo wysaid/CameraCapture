@@ -17,6 +17,8 @@
 		DB315D3D2DE06D680098E937 /* MainVC.mm in Sources */ = {isa = PBXBuildFile; fileRef = DB315D3B2DE06D680098E937 /* MainVC.mm */; };
 		DB315D3E2DE06D680098E937 /* ExampleVC_gles.mm in Sources */ = {isa = PBXBuildFile; fileRef = DB315D372DE06D680098E937 /* ExampleVC_gles.mm */; };
 		DB315D3F2DE06D680098E937 /* ExampleVC_metal.mm in Sources */ = {isa = PBXBuildFile; fileRef = DB315D392DE06D680098E937 /* ExampleVC_metal.mm */; };
+		DBACEA5A2DE6000900ED688A /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DBACEA592DE6000900ED688A /* MetalKit.framework */; };
+		DBACEA5C2DE6001000ED688A /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DBACEA5B2DE6001000ED688A /* Metal.framework */; };
 		E9B13389C39D14048C172522 /* libPods-ccapDemo.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CD712AC3DF5689788FF22787 /* libPods-ccapDemo.a */; };
 /* End PBXBuildFile section */
 
@@ -40,6 +42,8 @@
 		DB315D392DE06D680098E937 /* ExampleVC_metal.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = ExampleVC_metal.mm; sourceTree = "<group>"; };
 		DB315D3A2DE06D680098E937 /* MainVC.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MainVC.h; sourceTree = "<group>"; };
 		DB315D3B2DE06D680098E937 /* MainVC.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MainVC.mm; sourceTree = "<group>"; };
+		DBACEA592DE6000900ED688A /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
+		DBACEA5B2DE6001000ED688A /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -47,6 +51,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DBACEA5C2DE6001000ED688A /* Metal.framework in Frameworks */,
+				DBACEA5A2DE6000900ED688A /* MetalKit.framework in Frameworks */,
 				3D3AED602C2A9D2800A45D63 /* GLKit.framework in Frameworks */,
 				3D3AED5E2C2A9D1D00A45D63 /* OpenGLES.framework in Frameworks */,
 				E9B13389C39D14048C172522 /* libPods-ccapDemo.a in Frameworks */,
@@ -114,6 +120,8 @@
 		E0748571FFD5773D40EABB3C /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				DBACEA5B2DE6001000ED688A /* Metal.framework */,
+				DBACEA592DE6000900ED688A /* MetalKit.framework */,
 				3D3AED5F2C2A9D2800A45D63 /* GLKit.framework */,
 				3D3AED5D2C2A9D1D00A45D63 /* OpenGLES.framework */,
 				CD712AC3DF5689788FF22787 /* libPods-ccapDemo.a */,

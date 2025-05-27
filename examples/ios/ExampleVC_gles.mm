@@ -45,11 +45,29 @@ out vec4 fragColor;
 uniform sampler2D yTexture;
 uniform sampler2D uvTexture;
 
+uniform float progress;
+
+const float angle = 10.0;
+
 void main()
 {
+    /// Apply a wavy distortion to the texture coordinates based on the progress
+    vec2 newCoord;
+    newCoord.x = texCoord.x + 0.01 * sin(progress +  texCoord.x * angle);
+    newCoord.y = texCoord.y + 0.01 * sin(progress +  texCoord.y * angle);
+    /// Avoid sampling too close to the edges
+    float edge1 = min(texCoord.x, texCoord.y);
+    float edge2 = max(texCoord.x, texCoord.y);
+    if (edge1 < 0.05 || edge2 > 0.95)
+    {
+        float lenthToEdge = min(edge1, 1.0 - edge2) / 0.05;
+        newCoord = mix(texCoord, newCoord, vec2(lenthToEdge));
+    }
+
+    /// Normal YUV to RGB conversion
     vec3 yuv;
-    yuv.x = texture(yTexture, texCoord).r;
-    yuv.yz = texture(uvTexture, texCoord).ra - vec2(0.5, 0.5);
+    yuv.x = texture(yTexture, newCoord).r;
+    yuv.yz = texture(uvTexture, newCoord).ra - vec2(0.5, 0.5);
     // BT.601 Full Range
     vec3 rgb = mat3(
                 // 1.0, 1.0, 1.0,
@@ -76,26 +94,27 @@ void main()
     GLuint _yTexture, _uvTexture;
     GLuint _vertexBuffer;
     GLuint _program;
+    GLint _progressUniformLocation;
 
     int _textureWidth;
     int _textureHeight;
 
     std::vector<std::string> _allCameraNames;
     int _cameraIndex;
+
+    float _progress;
 }
 
 - (void)viewDidLoad
 {
     [super viewDidLoad];
 
-    //    ccap::setLogLevel(ccap::LogLevel::Info);
-
     _allCameraNames = _provider.findDeviceNames();
     for (auto& name : _allCameraNames)
     {
         NSLog(@"Find Camera Device: %s", name.c_str());
     }
-    
+
     _cameraIndex = 0;
 
     // render
@@ -125,7 +144,7 @@ void main()
         return false;
     });
 
-    if(!_provider.open(_cameraIndex, true))
+    if (!_provider.open(_cameraIndex, true))
     {
         _provider.close();
         _provider.set(ccap::PropertyName::Width, 1280);
@@ -205,6 +224,11 @@ void main()
     glUseProgram(_program);
     glUniform1i(glGetUniformLocation(_program, "yTexture"), 0);
     glUniform1i(glGetUniformLocation(_program, "uvTexture"), 1);
+    _progressUniformLocation = glGetUniformLocation(_program, "progress");
+    if (_progressUniformLocation == -1)
+    {
+        NSLog(@"Uniform 'progress' not found in shader program");
+    }
 
     [self setFlipScale:-1.0f y:1.0f];
     [self setRotation:M_PI_2];
@@ -296,8 +320,7 @@ void main()
 
     [view bindDrawable];
 
-    /// Clear to red for debug.
-    glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     if (_yTexture == 0 || _program == 0)
@@ -306,8 +329,25 @@ void main()
         return;
     }
 
-    glViewport(0, 0, (GLint)_glkView.drawableWidth, (GLint)_glkView.drawableHeight);
+    auto canvasWidth = (GLint)_glkView.drawableWidth;
+    auto canvasHeight = (GLint)_glkView.drawableHeight;
+#ifdef CCAP_IOS
+    auto srcWidth = _textureHeight;
+    auto srcHeight = _textureWidth;
+#else
+    auto srcWidth = _textureWidth;
+    auto srcHeight = _textureHeight;
+#endif
+
+    float scaling = std::min(canvasWidth / (float)srcWidth, canvasHeight / (float)srcHeight);
+    GLint viewportWidth = scaling * srcWidth;
+    GLint viewportHeight = scaling * srcHeight;
+
+    glViewport(0, 0, viewportWidth, viewportHeight);
     glUseProgram(_program);
+
+    glUniform1f(_progressUniformLocation, _progress);
+    _progress = fmod(CFAbsoluteTimeGetCurrent(), M_PI * 2.0) * 3.0;
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, _yTexture);
@@ -331,21 +371,21 @@ void main()
 
 - (IBAction)switchCamera:(id)sender
 {
-    if(_allCameraNames.empty())
-        return ;
-    
+    if (_allCameraNames.size() <= 1)
+        return;
+
     _cameraIndex = (_cameraIndex + 1) % _allCameraNames.size();
     _provider.close();
-    
+
     auto name = _allCameraNames[_cameraIndex];
-    if(!_provider.open(name, true))
+    if (!_provider.open(name, true))
     {
         _provider.close();
         _provider.set(ccap::PropertyName::Width, 1280);
         _provider.set(ccap::PropertyName::Height, 720);
         _provider.open(name, true);
     }
-    
+
     // name 里面包含 back 或者 fron 代表前后摄像头 (忽略大小写比较)
     std::transform(name.begin(), name.end(), name.begin(), ::tolower);
     if (name.find("back") != std::string::npos || name.find("rear") != std::string::npos)
@@ -358,12 +398,27 @@ void main()
         [self setFlipScale:-1.0f y:-1.0f];
         [self setRotation:M_PI_2];
     }
-    NSLog(@"Switched to camera: %s", name.c_str());    
+    NSLog(@"Switched to camera: %s", name.c_str());
 }
 
 - (void)dealloc
 {
     [self clear];
+    NSLog(@"ExampleVC_gles dealloc");
+}
+
+- (void)fixViewSize
+{
+    if (!CGSizeEqualToSize(_glkView.bounds.size, self.view.bounds.size))
+    {
+        [_glkView setFrame:CGRectMake(0, 0, self.view.bounds.size.width, self.view.bounds.size.height)];
+    }
+}
+
+- (void)viewDidLayoutSubviews
+{
+    [super viewDidLayoutSubviews];
+    [self fixViewSize];
 }
 
 - (void)clear
@@ -387,6 +442,7 @@ void main()
     _glContext = nil;
     [_glkView setDelegate:nil];
     _glkView = nil;
+    NSLog(@"ExampleVC_gles cleared");
 }
 
 @end

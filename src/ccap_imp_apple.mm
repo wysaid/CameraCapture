@@ -46,7 +46,7 @@ namespace ccap
 extern bool globalLogLevelChanged;
 }
 
-static void optimizeLogIfNotSet()
+[[maybe_unused]] static void optimizeLogIfNotSet()
 {
     if (!globalLogLevelChanged)
     {

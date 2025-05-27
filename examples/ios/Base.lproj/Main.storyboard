@@ -74,6 +74,15 @@
                                     <action selector="backClicked:" destination="xfm-Z9-Pmh" eventType="touchUpInside" id="wvn-4n-Hix"/>
                                 </connections>
                             </button>
+                            <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="fwC-Pr-6J7">
+                                <rect key="frame" x="103" y="50" width="90" height="35"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                                <state key="normal" title="Button"/>
+                                <buttonConfiguration key="configuration" style="plain" title="Switch"/>
+                                <connections>
+                                    <action selector="switchCamera:" destination="xfm-Z9-Pmh" eventType="touchUpInside" id="slz-Pb-TAH"/>
+                                </connections>
+                            </button>
                         </subviews>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                     </view>
