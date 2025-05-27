@@ -1,14 +1,29 @@
-# ccap examples 构建方式
+# ccap Examples Build Instructions
 
-## 桌面端
+## Desktop (Windows/macOS, etc.)
 
-直接按照标准 CMake 项目来初始化编译即可获得桌面端的 Demo
+Initialize and build as a standard CMake project to get the desktop demo:
+
+```sh
+cd /path/to/ccap_repo
+mkdir -p build && cd build
+cmake ..
+cmake --build .
+```
 
 ## iOS
 
-examples 目录下是一个标准的支持 CocoaPods 的 iOS 项目。 
+The `examples` directory contains a standard iOS project with CocoaPods support.
 
-直接在 examples 目录下执行 `pod install`, 之后打开 workspace 文件即可。
+Simply run `pod install` in the `examples` directory, then open the workspace file:
+
+```sh
+brew install cocoapods # Install cocoapods for iOS demo
+cd /path/to/ccap_repo
+cd examples
+pod install
+open *.xcworkspace # Then use Xcode to build and run
+```
 
 ## Android
 

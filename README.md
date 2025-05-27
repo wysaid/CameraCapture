@@ -22,6 +22,8 @@ ccap `(C)amera(CAP)ture` is an efficient, easy-to-use, and lightweight C++ camer
 - Android:
   - WIP...
 
+> [More build steps](./examples/README.md)
+
 ## Compatibility
 
 - Tested (partial): Mainstream laptops and external cameras on both Windows and macOS platforms.

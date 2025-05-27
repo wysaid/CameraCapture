@@ -23,6 +23,8 @@ ccap `(C)amera(CAP)ture` 是一个高效的、易用的、轻量级的 C++ 相�
 - Android:
   - 开发中...
 
+> [更多编译步骤](./examples/README.md)
+
 ## 兼容性
 
 - 测试通过: Windows、macOS 两个平台的部分主流笔记本以及外接摄像头。
