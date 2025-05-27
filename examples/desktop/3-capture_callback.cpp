@@ -112,11 +112,11 @@ int main(int argc, char** argv)
 
     printf("Camera started successfully, requested resolution: %dx%d, real resolution: %dx%d, requested fps %g, real fps: %g\n", requestedWidth, requestedHeight, realWidth, realHeight, requestedFps, realFps);
 
-    cameraProvider.setNewFrameCallback([=](const std::shared_ptr<ccap::Frame>& frame) -> bool {
-        printf("Frame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes);
+    cameraProvider.setNewFrameCallback([=](const std::shared_ptr<ccap::VideoFrame>& frame) -> bool {
+        printf("VideoFrame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes);
         if (auto dumpFile = ccap::dumpFrameToDirectory(frame.get(), captureDir); !dumpFile.empty())
         {
-            std::cout << "Frame saved to: " << dumpFile << std::endl;
+            std::cout << "VideoFrame saved to: " << dumpFile << std::endl;
         }
         else
         {

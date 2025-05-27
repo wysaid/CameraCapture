@@ -249,7 +249,7 @@ bool setupCom()
 
 #if ENABLE_LIBYUV
 
-bool inplaceConvertFrameYUV2YUV(Frame* frame, PixelFormat toFormat, bool verticalFlip)
+bool inplaceConvertFrameYUV2YUV(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip)
 {
     /// (NV12/I420) <-> (NV12/I420)
     assert((frame->pixelFormat & kPixelFormatYUVColorBit) != 0 && (toFormat & kPixelFormatYUVColorBit) != 0);
@@ -309,7 +309,7 @@ bool inplaceConvertFrameYUV2YUV(Frame* frame, PixelFormat toFormat, bool vertica
 
 #endif
 
-bool inplaceConvertFrameYUV2RGBColor(Frame* frame, PixelFormat toFormat, bool verticalFlip)
+bool inplaceConvertFrameYUV2RGBColor(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip)
 { /// (NV12/I420) -> (BGR24/BGRA32)
 
     /// TODO: 这里修正一下 toFormat, 只支持 YUV -> (BGR24/BGRA24). 简化一下 SDK 的设计. 后续再完善.
@@ -459,7 +459,7 @@ bool inplaceConvertFrameYUV2RGBColor(Frame* frame, PixelFormat toFormat, bool ve
     return false;
 }
 
-bool inplaceConvertFrameRGB(Frame* frame, PixelFormat toFormat, bool verticalFlip)
+bool inplaceConvertFrameRGB(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip)
 {
     // rgb(a) 互转
 
@@ -531,7 +531,7 @@ bool inplaceConvertFrameRGB(Frame* frame, PixelFormat toFormat, bool verticalFli
     return true;
 }
 
-bool inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip)
+bool inplaceConvertFrame(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip)
 {
     if (frame->pixelFormat == toFormat)
     {
@@ -1123,7 +1123,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     {
         if (!newFrame)
         {
-            CCAP_LOG_W("ccap: Frame pool is full, a new frame skipped...\n");
+            CCAP_LOG_W("ccap: VideoFrame pool is full, a new frame skipped...\n");
         }
         return S_OK;
     }
@@ -1273,7 +1273,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
             mediaSample->Release();
         });
 
-        newFrame = std::shared_ptr<Frame>(manager, newFrame.get());
+        newFrame = std::shared_ptr<VideoFrame>(manager, newFrame.get());
     }
 
     newFrame->frameIndex = m_frameIndex++;
@@ -1494,7 +1494,7 @@ void ProviderDirectShow::stop()
 
     if (m_grabFrameWaiting)
     {
-        CCAP_LOG_V("ccap: Frame waiting stopped\n");
+        CCAP_LOG_V("ccap: VideoFrame waiting stopped\n");
 
         m_grabFrameWaiting = false;
         m_frameCondition.notify_all();

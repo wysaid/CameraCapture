@@ -58,7 +58,7 @@ ccap `(C)amera(CAP)ture` 是一个高效的、易用的、轻量级的 C++ 相�
         auto frame = cameraProvider.grab(true);
         if (frame)
         {
-            printf("Frame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes);
+            printf("VideoFrame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes);
         }
     }
     ```
@@ -78,7 +78,7 @@ ccap `(C)amera(CAP)ture` 是一个高效的、易用的、轻量级的 C++ 相�
     }
     ```
 
-## ccap::Frame 和其他知名库一起使用
+## ccap::VideoFrame 和其他知名库一起使用
 
 1. [OpenCV](include/ccap_opencv.h)
 

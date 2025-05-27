@@ -115,7 +115,7 @@ void main()
     _provider.set(ccap::PropertyName::Height, 1080);
 
     __weak __typeof(self) weakSelf = self;
-    _provider.setNewFrameCallback([=](const std::shared_ptr<ccap::Frame>& newFrame) {
+    _provider.setNewFrameCallback([=](const std::shared_ptr<ccap::VideoFrame>& newFrame) {
         __strong __typeof(weakSelf) strongSelf = weakSelf;
         //        NSLog(@"New frame received, resolution: %dx%d, format: %s",
         //              newFrame->width, newFrame->height, ccap::pixelFormatToString(newFrame->pixelFormat).data());

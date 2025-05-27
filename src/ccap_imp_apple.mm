@@ -236,7 +236,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName()
     }];
 }
 
-void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
+void inplaceConvertFrame(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
 {
     auto* inputBytes = frame->data[0];
     auto inputLineSize = frame->stride[0];
@@ -888,7 +888,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
     {
         if (!_provider->hasNewFrameCallback())
         {
-            CCAP_NSLOG_I(@"ccap: Frame dropped to avoid memory leak: grab() called less frequently than camera frame rate.");
+            CCAP_NSLOG_I(@"ccap: VideoFrame dropped to avoid memory leak: grab() called less frequently than camera frame rate.");
             return;
         }
         else
@@ -945,7 +945,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
 
         newFrame->data[0] = (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);
         newFrame->data[1] = (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 1);
-        auto fakeFrame = std::shared_ptr<Frame>(manager, newFrame.get());
+        auto fakeFrame = std::shared_ptr<VideoFrame>(manager, newFrame.get());
         newFrame = fakeFrame;
     }
     else
@@ -972,7 +972,7 @@ void inplaceConvertFrame(Frame* frame, PixelFormat toFormat, bool verticalFlip, 
                 newFrame = nullptr;
             });
 
-            auto fakeFrame = std::shared_ptr<Frame>(manager, newFrame.get());
+            auto fakeFrame = std::shared_ptr<VideoFrame>(manager, newFrame.get());
             newFrame = fakeFrame;
         }
         else

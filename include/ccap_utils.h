@@ -32,7 +32,7 @@ std::string_view pixelFormatToString(PixelFormat format);
  * @return The full path of the saved file if successful, or an empty string if the operation failed.
  * @note Note: This method uses a simple way to save data for debugging purposes. Not performance optimized. Do not use in performance-sensitive code.
  */
-std::string dumpFrameToFile(Frame* frame, std::string_view fileNameWithNoSuffix);
+std::string dumpFrameToFile(VideoFrame* frame, std::string_view fileNameWithNoSuffix);
 
 /**
  * @brief Saves a Frame as a BMP or YUV file.
@@ -44,7 +44,7 @@ std::string dumpFrameToFile(Frame* frame, std::string_view fileNameWithNoSuffix)
  * @return The full path of the saved file if successful, or an empty string if the operation failed.
  * @note Note: This method uses a simple way to save data for debugging purposes. Not performance optimized. Do not use in performance-sensitive code.
  */
-std::string dumpFrameToDirectory(Frame* frame, std::string_view directory);
+std::string dumpFrameToDirectory(VideoFrame* frame, std::string_view directory);
 
 /**
  * @brief Save RGB data as BMP file.

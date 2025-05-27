@@ -23,7 +23,7 @@
 
 namespace ccap
 {
-std::string dumpFrameToDirectory(Frame* frame, std::string_view directory)
+std::string dumpFrameToDirectory(VideoFrame* frame, std::string_view directory)
 {
     // Create a filename based on current time
     auto now = std::chrono::system_clock::now();
@@ -188,7 +188,7 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
     return true;
 }
 
-std::string dumpFrameToFile(Frame* frame, std::string_view fileNameWithNoSuffix)
+std::string dumpFrameToFile(VideoFrame* frame, std::string_view fileNameWithNoSuffix)
 {
     if (frame->pixelFormat & ccap::kPixelFormatRGBColorBit)
     { /// RGB or RGBA

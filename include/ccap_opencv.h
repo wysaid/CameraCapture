@@ -21,7 +21,7 @@ namespace ccap
  * @param mat
  * @note Note: This function does not copy data. The lifetime of the Frame must be maintained.
  */
-inline cv::Mat convertRgbFrameToMat(const Frame& frame)
+inline cv::Mat convertRgbFrameToMat(const VideoFrame& frame)
 {
     if (!((uint32_t)frame.pixelFormat & (uint32_t)kPixelFormatRGBColorBit))
     {

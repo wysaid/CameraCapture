@@ -107,10 +107,10 @@ int main(int argc, char** argv)
     /// 3000 ms timeout when grabbing frames
     while (auto frame = cameraProvider.grab(3000))
     {
-        printf("Frame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes);
+        printf("VideoFrame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes);
         if (auto dumpFile = ccap::dumpFrameToDirectory(frame.get(), captureDir); !dumpFile.empty())
         {
-            std::cout << "Frame saved to: " << dumpFile << std::endl;
+            std::cout << "VideoFrame saved to: " << dumpFile << std::endl;
         }
         else
         {

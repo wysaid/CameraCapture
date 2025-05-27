@@ -131,7 +131,7 @@ int main(int argc, char** argv)
     {
         frameWidth = frame->width;
         frameHeight = frame->height;
-        std::cout << "## Frame resolution: " << frameWidth << "x" << frameHeight << std::endl;
+        std::cout << "## VideoFrame resolution: " << frameWidth << "x" << frameHeight << std::endl;
     }
     else
     {

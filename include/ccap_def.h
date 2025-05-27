@@ -217,12 +217,12 @@ public:
     virtual size_t size() = 0;
 };
 
-struct Frame
+struct VideoFrame
 {
-    Frame();
-    ~Frame();
-    Frame(const Frame&) = delete;
-    Frame& operator=(const Frame&) = delete;
+    VideoFrame();
+    ~VideoFrame();
+    VideoFrame(const VideoFrame&) = delete;
+    VideoFrame& operator=(const VideoFrame&) = delete;
 
     /**
      * @brief Frame data, stored the raw bytes of a frame.
@@ -266,6 +266,15 @@ struct Frame
      * @attention Normally, users do not need to care about this field.
      */
     std::shared_ptr<Allocator> allocator;
+
+    /**
+     * @brief Native handle for the frame, used for platform-specific operations.
+     *        This field is optional and may be nullptr if not needed.
+     * @note Currently defined as follows:
+     *     - Windows: When the backend is DirectShow, the actual type of nativeHandle is `IMediaSample*`
+     *     - macOS/iOS: The actual type of nativeHandle is `CMSampleBufferRef`
+     */
+    void* nativeHandle = nullptr; ///< Native handle for the frame, used for platform-specific operations
 };
 
 /**

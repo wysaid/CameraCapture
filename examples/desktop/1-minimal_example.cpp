@@ -54,7 +54,7 @@ int main()
         auto frame = cameraProvider.grab(3000);
         if (frame)
         {
-            printf("Frame %lld grabbed: width = %d, height = %d, bytes: %d, format: %s\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes, ccap::pixelFormatToString(frame->pixelFormat).data());
+            printf("VideoFrame %lld grabbed: width = %d, height = %d, bytes: %d, format: %s\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes, ccap::pixelFormatToString(frame->pixelFormat).data());
         }
         else
         {

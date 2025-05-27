@@ -56,10 +56,10 @@ void DefaultAllocator::resize(size_t size)
     CCAP_LOG_V("ccap: Allocated %zu bytes of memory at %p\n", m_size, m_data);
 }
 
-Frame::Frame() = default;
-Frame::~Frame()
+VideoFrame::VideoFrame() = default;
+VideoFrame::~VideoFrame()
 {
-    CCAP_LOG_V("ccap: Frame::~Frame() called, this=%p\n", this);
+    CCAP_LOG_V("ccap: VideoFrame::VideoFrameFrame() called, this=%p\n", this);
 }
 
 ProviderImp* createProvider(std::string_view extraInfo)
@@ -178,12 +178,12 @@ double Provider::get(PropertyName prop)
     return m_imp ? m_imp->get(prop) : NAN;
 }
 
-std::shared_ptr<Frame> Provider::grab(uint32_t timeoutInMs)
+std::shared_ptr<VideoFrame> Provider::grab(uint32_t timeoutInMs)
 {
     return m_imp->grab(timeoutInMs);
 }
 
-void Provider::setNewFrameCallback(std::function<bool(const std::shared_ptr<Frame>&)> callback)
+void Provider::setNewFrameCallback(std::function<bool(const std::shared_ptr<VideoFrame>&)> callback)
 {
     m_imp->setNewFrameCallback(std::move(callback));
 }

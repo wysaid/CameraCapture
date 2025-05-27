@@ -39,7 +39,7 @@
     _provider.set(ccap::PropertyName::Width, 1920);
     _provider.set(ccap::PropertyName::Height, 1080);
 
-    _provider.setNewFrameCallback([=](std::shared_ptr<ccap::Frame> newFrame) {
+    _provider.setNewFrameCallback([=](std::shared_ptr<ccap::VideoFrame> newFrame) {
         NSLog(@"New frame received, resolution: %dx%d, format: %s",
               newFrame->width, newFrame->height, ccap::pixelFormatToString(newFrame->pixelFormat).data());
         return false;

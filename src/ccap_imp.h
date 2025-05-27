@@ -68,9 +68,9 @@ public:
     virtual ~ProviderImp();
     bool set(PropertyName prop, double value);
     double get(PropertyName prop);
-    void setNewFrameCallback(std::function<bool(const std::shared_ptr<Frame>&)> callback);
+    void setNewFrameCallback(std::function<bool(const std::shared_ptr<VideoFrame>&)> callback);
     void setFrameAllocator(std::function<std::shared_ptr<Allocator>()> allocatorFactory);
-    std::shared_ptr<Frame> grab(uint32_t timeoutInMs);
+    std::shared_ptr<VideoFrame> grab(uint32_t timeoutInMs);
     void setMaxAvailableFrameSize(uint32_t size);
     void setMaxCacheFrameSize(uint32_t size);
 
@@ -93,19 +93,19 @@ public:
     bool tooManyNewFrames();
 
 protected:
-    void newFrameAvailable(std::shared_ptr<Frame> frame);
-    std::shared_ptr<Frame> getFreeFrame();
+    void newFrameAvailable(std::shared_ptr<VideoFrame> frame);
+    std::shared_ptr<VideoFrame> getFreeFrame();
 
 protected:
     // Callback function for new data frames
-    std::shared_ptr<std::function<bool(const std::shared_ptr<Frame>&)>> m_callback;
+    std::shared_ptr<std::function<bool(const std::shared_ptr<VideoFrame>&)>> m_callback;
     std::function<std::shared_ptr<Allocator>()> m_allocatorFactory;
 
     /// Frames from camera. If not taken or no callback is set, they will accumulate here. Max length is MAX_AVAILABLE_FRAME_SIZE.
-    std::queue<std::shared_ptr<Frame>> m_availableFrames;
+    std::queue<std::shared_ptr<VideoFrame>> m_availableFrames;
 
     /// All frames for reuse. Max length is MAX_CACHE_FRAME_SIZE.
-    std::deque<std::shared_ptr<Frame>> m_framePool;
+    std::deque<std::shared_ptr<VideoFrame>> m_framePool;
     std::mutex m_poolMutex, m_availableFrameMutex;
     std::condition_variable m_frameCondition;
 

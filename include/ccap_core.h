@@ -173,7 +173,7 @@ public:
      *       different threads or at different times. Just save the smart pointer.
      *       The frame will be automatically reused when the last reference is released.
      */
-    std::shared_ptr<Frame> grab(uint32_t timeoutInMs = 0xffffffff);
+    std::shared_ptr<VideoFrame> grab(uint32_t timeoutInMs = 0xffffffff);
 
     /**
      * @brief Registers a callback to receive new frames.
@@ -188,7 +188,7 @@ public:
      *       different threads or at different times. Just save the smart pointer.
      *       The frame will be automatically reused when the last reference is released.
      */
-    void setNewFrameCallback(std::function<bool(const std::shared_ptr<Frame>&)> callback);
+    void setNewFrameCallback(std::function<bool(const std::shared_ptr<VideoFrame>&)> callback);
 
     /**
      * @brief Sets the frame allocator factory. After calling this method, the default Allocator implementation will be overridden.

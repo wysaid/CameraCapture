@@ -90,11 +90,11 @@ double ProviderImp::get(PropertyName prop)
     return NAN;
 }
 
-void ProviderImp::setNewFrameCallback(std::function<bool(const std::shared_ptr<Frame>&)> callback)
+void ProviderImp::setNewFrameCallback(std::function<bool(const std::shared_ptr<VideoFrame>&)> callback)
 {
     if (callback)
     {
-        m_callback = std::make_shared<std::function<bool(const std::shared_ptr<Frame>&)>>(std::move(callback));
+        m_callback = std::make_shared<std::function<bool(const std::shared_ptr<VideoFrame>&)>>(std::move(callback));
     }
     else
     {
@@ -109,7 +109,7 @@ void ProviderImp::setFrameAllocator(std::function<std::shared_ptr<Allocator>()> 
     m_framePool.clear();
 }
 
-std::shared_ptr<Frame> ProviderImp::grab(uint32_t timeoutInMs)
+std::shared_ptr<VideoFrame> ProviderImp::grab(uint32_t timeoutInMs)
 {
     std::unique_lock<std::mutex> lock(m_availableFrameMutex);
 
@@ -161,7 +161,7 @@ void ProviderImp::setMaxCacheFrameSize(uint32_t size)
     m_maxCacheFrameSize = size;
 }
 
-void ProviderImp::newFrameAvailable(std::shared_ptr<Frame> frame)
+void ProviderImp::newFrameAvailable(std::shared_ptr<VideoFrame> frame)
 {
     bool dropFrame = false;
     if (auto c = m_callback; c && *c)
@@ -192,13 +192,13 @@ bool ProviderImp::tooManyNewFrames()
     return m_availableFrames.size() > m_maxAvailableFrameSize;
 }
 
-std::shared_ptr<Frame> ProviderImp::getFreeFrame()
+std::shared_ptr<VideoFrame> ProviderImp::getFreeFrame()
 {
     std::lock_guard<std::mutex> lock(m_poolMutex);
-    std::shared_ptr<Frame> frame;
+    std::shared_ptr<VideoFrame> frame;
     if (!m_framePool.empty())
     {
-        auto ret = std::find_if(m_framePool.begin(), m_framePool.end(), [](const std::shared_ptr<Frame>& frame) {
+        auto ret = std::find_if(m_framePool.begin(), m_framePool.end(), [](const std::shared_ptr<VideoFrame>& frame) {
             return frame.use_count() == 1;
         });
 
@@ -210,7 +210,7 @@ std::shared_ptr<Frame> ProviderImp::getFreeFrame()
         {
             if (m_framePool.size() > m_maxCacheFrameSize)
             {
-                CCAP_LOG_W("ccap: Frame pool is full, new frame allocated...");
+                CCAP_LOG_W("ccap: VideoFrame pool is full, new frame allocated...");
                 m_framePool.pop_front();
             }
         }
@@ -218,7 +218,7 @@ std::shared_ptr<Frame> ProviderImp::getFreeFrame()
 
     if (!frame)
     {
-        frame = std::make_shared<Frame>();
+        frame = std::make_shared<VideoFrame>();
         m_framePool.push_back(frame);
     }
     return frame;

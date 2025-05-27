@@ -38,7 +38,7 @@ Alternatively, you can add the source code of this project directly to your own 
 Several examples are included in this project for your reference:
 
 1. [Print Camera Devices](./examples/desktop/0-print_camera.cpp)
-2. [Simple Example for Grabbing a Frame](./examples/desktop/1-minimal_example.cpp)
+2. [Simple Example for Grabbing a VideoFrame](./examples/desktop/1-minimal_example.cpp)
 3. [Example for Continuously Grabbing Frames](./examples/desktop/2-capture_grab.cpp)
 4. [Example for Callback Grabbing](./examples/desktop/3-capture_callback.cpp)
 5. [GLFW GUI Example](./examples/desktop/4-example_with_glfw.cpp)
@@ -55,7 +55,7 @@ Sample usage:
         auto frame = cameraProvider.grab(true);
         if (frame)
         {
-            printf("Frame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes);
+            printf("VideoFrame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes);
         }
     }
     ```
@@ -75,7 +75,7 @@ Sample usage:
     }
     ```
 
-## Using ccap::Frame with Other Popular Libraries
+## Using ccap::VideoFrame with Other Popular Libraries
 
 1. [OpenCV](include/ccap_opencv.h)
 
