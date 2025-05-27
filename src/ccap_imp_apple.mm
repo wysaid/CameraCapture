@@ -918,6 +918,7 @@ void inplaceConvertFrame(VideoFrame* frame, PixelFormat toFormat, bool verticalF
     newFrame->width = width;
     newFrame->height = height;
     newFrame->pixelFormat = internalFormat;
+    newFrame->nativeHandle = imageBuffer;
 
     if (internalFormat & kPixelFormatYUVColorBit)
     { /// 在 macOS 上， 只能是 NV12 或 NV12f 格式, 不予转换.
@@ -939,7 +940,8 @@ void inplaceConvertFrame(VideoFrame* frame, PixelFormat toFormat, bool verticalF
             CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
             CFRelease(imageBuffer);
             CCAP_NSLOG_V(@"ccap: recycled YUV frame, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
-            /// Make ref count + 1
+            
+            newFrame->nativeHandle = nullptr;
             newFrame = nullptr;
         });
 
@@ -968,7 +970,8 @@ void inplaceConvertFrame(VideoFrame* frame, PixelFormat toFormat, bool verticalF
                 CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
                 CFRelease(imageBuffer);
                 CCAP_NSLOG_V(@"ccap: recycled RGBA frame, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
-                /// Make ref count + 1
+                
+                newFrame->nativeHandle = nullptr;
                 newFrame = nullptr;
             });
 
@@ -1054,7 +1057,9 @@ namespace ccap
 {
 ProviderApple::ProviderApple()
 {
+#ifdef CCAP_MACOS
     optimizeLogIfNotSet();
+#endif
     m_frameOrientation = kDefaultFrameOrientation;
 }
 

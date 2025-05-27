@@ -184,7 +184,7 @@
             "args": [
                 "-l",
                 "-c",
-                "pod install || pod install --repo-update"
+                "(pod install || pod install --repo-update) && echo Xcode workspace: $(find $(pwd) -iname \"*.xcworkspace\")"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/examples"

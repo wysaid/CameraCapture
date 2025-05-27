@@ -389,16 +389,4 @@ void main()
     _glkView = nil;
 }
 
-- (void)didReceiveWillResignActive:(NSNotification*)notification
-{
-}
-
-- (void)didReceiveDidBecomeActive:(NSNotification*)notification
-{
-}
-
-- (void)exampleClicked:(UIButton*)sender
-{
-}
-
 @end

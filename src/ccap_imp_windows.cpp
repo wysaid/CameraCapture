@@ -1183,6 +1183,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     newFrame->width = m_frameProp.width;
     newFrame->height = m_frameProp.height;
     newFrame->orientation = isOutputYUV ? FrameOrientation::TopToBottom : m_frameOrientation;
+    newFrame->nativeHandle = mediaSample;
 
     bool shouldFlip = newFrame->orientation != inputOrientation && !isOutputYUV;
     bool shouldConvert = m_frameProp.cameraPixelFormat != m_frameProp.outputPixelFormat;

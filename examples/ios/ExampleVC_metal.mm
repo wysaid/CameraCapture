@@ -46,7 +46,7 @@
     });
 
     _provider.open();
-    
+
     [_backBtn setTitle:@"Will imp next version" forState:UIControlStateNormal];
     auto frame = _backBtn.frame;
     frame.size.width = 250;
@@ -57,15 +57,6 @@
 {
     [self clear];
     [self dismissViewControllerAnimated:YES completion:nil];
-}
-
-- (void)didReceiveWillResignActive:(NSNotification*)notification
-{
-    
-}
-
-- (void)didReceiveDidBecomeActive:(NSNotification*)notification
-{
 }
 
 - (void)clear
