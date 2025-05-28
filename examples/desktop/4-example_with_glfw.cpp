@@ -30,32 +30,40 @@
 constexpr const char* vertexShaderSource = R"(
 #version 330 core
 layout(location = 0) in vec2 pos;
-layout(location = 1) in vec2 texCoord;
-out vec2 TexCoord;
+out vec2 texCoord;
 void main() {
     gl_Position = vec4(pos, 0.0, 1.0);
-    TexCoord = texCoord;
+    texCoord = (pos / 2.0) + 0.5;
 }
 )";
 
 constexpr const char* fragmentShaderSource = R"(
 #version 330 core
-in vec2 TexCoord;
-out vec4 FragColor;
+in vec2 texCoord;
+out vec4 fragColor;
 uniform sampler2D tex;
+uniform float progress;
+
+const float angle = 10.0;
+
 void main() {
-    FragColor = texture(tex, TexCoord);
+    /// Apply a wavy distortion to the texture coordinates based on the progress
+    vec2 newCoord;
+    newCoord.x = texCoord.x + 0.01 * sin(progress + texCoord.x * angle);
+    newCoord.y = texCoord.y + 0.01 * sin(progress + texCoord.y * angle);
+    
+    /// Avoid sampling too close to the edges
+    float edge1 = min(texCoord.x, texCoord.y);
+    float edge2 = max(texCoord.x, texCoord.y);
+    if (edge1 < 0.05 || edge2 > 0.95)
+    {
+        float lengthToEdge = min(edge1, 1.0 - edge2) / 0.05;
+        newCoord = mix(texCoord, newCoord, vec2(lengthToEdge));
+    }
+    
+    fragColor = texture(tex, newCoord);
 }
 )";
-
-constexpr float vertices[] = {
-    // positions   // texCoords
-    -1.0f, 1.0f, 0.0f, 1.0f,  // 左上
-    -1.0f, -1.0f, 0.0f, 0.0f, // 左下
-    1.0f, -1.0f, 1.0f, 0.0f,  // 右下
-    1.0f, 1.0f, 1.0f, 1.0f    // 右上
-};
-constexpr unsigned int indices[] = { 0, 1, 2, 0, 2, 3 };
 
 int selectCamera(ccap::Provider& provider)
 {
@@ -102,8 +110,9 @@ int main(int argc, char** argv)
     int requestedWidth = 1920;
     int requestedHeight = 1080;
     double requestedFps = 60;
-    ccap::PixelFormat cameraOutputPixelFormat = ccap::PixelFormat::RGBA32;
-    GLenum pixelFormat = GL_RGBA;
+
+    constexpr ccap::PixelFormat cameraOutputPixelFormat = ccap::PixelFormat::RGBA32;
+    constexpr GLenum pixelFormatGl = GL_RGBA;
 
     cameraProvider.set(ccap::PropertyName::Width, requestedWidth);
     cameraProvider.set(ccap::PropertyName::Height, requestedHeight);
@@ -159,7 +168,6 @@ int main(int argc, char** argv)
     glfwMakeContextCurrent(window);
     gladLoadGL(glfwGetProcAddress);
 
-    // 编译着色器
     GLuint vs = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vs, 1, &vertexShaderSource, nullptr);
     glCompileShader(vs);
@@ -167,32 +175,35 @@ int main(int argc, char** argv)
     glShaderSource(fs, 1, &fragmentShaderSource, nullptr);
     glCompileShader(fs);
     GLuint prog = glCreateProgram();
+    glBindAttribLocation(prog, 0, "pos");
     glAttachShader(prog, vs);
     glAttachShader(prog, fs);
     glLinkProgram(prog);
     glDeleteShader(vs);
     glDeleteShader(fs);
 
-    // 顶点数据
-    GLuint VAO, VBO, EBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-    glEnableVertexAttribArray(1);
+    GLint progressUniformLocation = glGetUniformLocation(prog, "progress");
+    GLint texUniformLocation = glGetUniformLocation(prog, "tex");
 
-    GLuint tex;
-    glGenTextures(1, &tex);
+    glUseProgram(prog);
+    glUniform1i(texUniformLocation, 0);
+
+    GLuint vao, vbo;
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &vbo);
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+    const float vertData[8] = { -1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f };
+
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertData), vertData, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
+    glEnableVertexAttribArray(0);
+
+    GLuint texture;
+    glGenTextures(1, &texture);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, tex);
-    glTexImage2D(GL_TEXTURE_2D, 0, pixelFormat, frameWidth, frameHeight, 0, pixelFormat, GL_UNSIGNED_BYTE, nullptr);
+    glBindTexture(GL_TEXTURE_2D, texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -201,21 +212,25 @@ int main(int argc, char** argv)
     for (; !glfwWindowShouldClose(window);)
     {
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, tex);
+        glBindTexture(GL_TEXTURE_2D, texture);
 
         if (auto frame = cameraProvider.grab(30))
         { // buffer orphaning: <https://www.khronos.org/opengl/wiki/Buffer_Object_Streaming>, pass nullptr first.
-            glTexImage2D(GL_TEXTURE_2D, 0, pixelFormat, frameWidth, frameHeight, 0, pixelFormat, GL_UNSIGNED_BYTE, nullptr);
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, frameWidth, frameHeight, pixelFormat, GL_UNSIGNED_BYTE, frame->data[0]);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, frameWidth, frameHeight, 0, pixelFormatGl, GL_UNSIGNED_BYTE, nullptr);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, frameWidth, frameHeight, pixelFormatGl, GL_UNSIGNED_BYTE, frame->data[0]);
         }
-        int winWidth, winHeight;
-        glfwGetFramebufferSize(window, &winWidth, &winHeight);
-        glViewport(0, 0, winWidth, winHeight);
+        int windowWidth, windowHeight;
+        glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
+        glViewport(0, 0, windowWidth, windowHeight);
 
         glClear(GL_COLOR_BUFFER_BIT);
         glUseProgram(prog);
-        glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+        float progress = fmod(glfwGetTime(), M_PI * 2.0) * 3.0;
+        glUniform1f(progressUniformLocation, progress);
+
+        glBindVertexArray(vao);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -223,11 +238,10 @@ int main(int argc, char** argv)
     // Cleanup, this can be omitted if the program is exiting
 
     glfwDestroyWindow(window);
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &EBO);
+    glDeleteVertexArrays(1, &vao);
+    glDeleteBuffers(1, &vbo);
     glDeleteProgram(prog);
-    glDeleteTextures(1, &tex);
+    glDeleteTextures(1, &texture);
 
     cameraProvider.close();
     glfwTerminate();

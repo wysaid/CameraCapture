@@ -10,6 +10,9 @@
 
 #include "ccap_imp_apple.h"
 
+#include "ccap_convert.h"
+#include "ccap_convert_frame.h"
+
 #import <AVFoundation/AVFoundation.h>
 #import <Accelerate/Accelerate.h>
 #import <Foundation/Foundation.h>
@@ -235,112 +238,6 @@ NSArray<AVCaptureDevice*>* findAllDeviceName()
         return NSOrderedSame;
     }];
 }
-
-void inplaceConvertFrame(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip, std::vector<uint8_t>& memCache)
-{
-    auto* inputBytes = frame->data[0];
-    auto inputLineSize = frame->stride[0];
-    auto outputChannelCount = (toFormat & kPixelFormatAlphaColorBit) ? 4 : 3;
-
-    // Ensure 16/32 byte alignment for best performance
-    auto newLineSize = outputChannelCount == 3 ? ((frame->width * 3 + 31) & ~31) : (frame->width * 4);
-    auto inputFormat = frame->pixelFormat;
-
-    auto inputChannelCount = (inputFormat & kPixelFormatAlphaColorBit) ? 4 : 3;
-
-    bool isInputRGB = inputFormat & kPixelFormatRGBBit; ///< Not RGB means BGR
-    bool isOutputRGB = toFormat & kPixelFormatRGBBit;   ///< Not RGB means BGR
-    bool swapRB = isInputRGB != isOutputRGB;            ///< Whether R and B channels need to be swapped
-    bool flipOnly = verticalFlip && (inputChannelCount == outputChannelCount && !swapRB);
-
-    frame->stride[0] = newLineSize;
-    frame->allocator->resize(newLineSize * frame->height);
-    frame->data[0] = frame->allocator->data();
-    frame->pixelFormat = toFormat;
-
-    if (flipOnly)
-    { /// 只是上下翻转, 别的都不需要.
-
-        vImage_Buffer fakeSrc = { inputBytes, frame->height, inputLineSize, inputLineSize };
-        vImage_Buffer fakeDst = { frame->data[0], frame->height, newLineSize, newLineSize };
-        vImageVerticalReflect_Planar8(&fakeSrc, &fakeDst, kvImageNoFlags);
-        return;
-    }
-
-    vImage_Buffer src = { inputBytes, frame->height, frame->width, inputLineSize };
-    vImage_Buffer dst;
-    if (!verticalFlip) // 大概率是这个, 放前面
-    {
-        dst = { frame->data[0], frame->height, frame->width, newLineSize };
-    }
-    else
-    { /// 当需要 flip 的时候, 先把结果写入到 memCache
-        memCache.resize(newLineSize * frame->height);
-        dst = { memCache.data(), frame->height, frame->width, newLineSize };
-    }
-
-    //// The cross-conversion between input and output would require many switch cases, simplifying here.
-
-    if (inputChannelCount == outputChannelCount)
-    { /// Conversion with the same number of channels, only RGB <-> BGR, RGBA <-> BGRA, swapRB must be true.
-        assert(swapRB);
-        if (inputChannelCount == 4)
-        {
-            // RGBA8888 <-> BGRA8888: Channel reordering required
-            // vImagePermuteChannels_ARGB8888 needs 4 indices to implement arbitrary channel arrangement
-            // RGBA8888: [R, G, B, A], BGRA8888: [B, G, R, A]
-            uint8_t permuteMap[4] = { 2, 1, 0, 3 };
-            vImagePermuteChannels_ARGB8888(&src, &dst, permuteMap, kvImageNoFlags);
-        }
-        else
-        {
-            // same as above
-            uint8_t permuteMap[3] = { 2, 1, 0 }; // R,G,B -> B,G,R
-            vImagePermuteChannels_RGB888(&src, &dst, permuteMap, kvImageNoFlags);
-        }
-    }
-    else
-    { // Different number of channels, only 4 channels <-> 3 channels
-
-        if (inputChannelCount == 4)
-        { // 4 channels -> 3 channels
-            if (swapRB)
-            { // Possible cases: RGBA->BGR, BGRA->RGB
-                vImageConvert_RGBA8888toBGR888(&src, &dst, kvImageNoFlags);
-            }
-            else
-            { // Possible cases: RGBA->RGB, BGRA->BGR
-                vImageConvert_RGBA8888toRGB888(&src, &dst, kvImageNoFlags);
-            }
-        }
-        else
-        { /// 3 channels -> 4 channels
-            if (swapRB)
-            { // Possible cases: BGR->RGBA, RGB->BGRA
-                vImageConvert_RGB888toBGRA8888(&src, nullptr, 0xff, &dst, false, kvImageNoFlags);
-            }
-            else
-            { // Possible cases: BGR->BGRA, RGB->RGBA
-                vImageConvert_RGB888toRGBA8888(&src, nullptr, 0xff, &dst, false, kvImageNoFlags);
-            }
-        }
-    }
-
-    if (verticalFlip)
-    { /// vImageVerticalReflect 不支持 inplace 操作, 所以只要 flip, 就需要用到这个 memCache
-        if (outputChannelCount == 4)
-        { /// 4 通道直接交换
-            vImage_Buffer realDst = { frame->data[0], frame->height, frame->width, newLineSize };
-            vImageVerticalReflect_ARGB8888(&dst, &realDst, kvImageNoFlags);
-        }
-        else /// 3 通道需要交换, 因为不存在 `vImageVerticalReflect_RGB888`, 所以转成单通道来实现.
-        {
-            vImage_Buffer fakeSrc = { memCache.data(), frame->height, newLineSize, newLineSize };
-            vImage_Buffer fakeDst = { frame->data[0], frame->height, newLineSize, newLineSize };
-            vImageVerticalReflect_Planar8(&fakeSrc, &fakeDst, kvImageNoFlags);
-        }
-    }
-} // namespace
 
 @interface CameraCaptureObjc : NSObject<AVCaptureVideoDataOutputSampleBufferDelegate>
 {
@@ -610,6 +507,11 @@ void inplaceConvertFrame(VideoFrame* frame, PixelFormat toFormat, bool verticalF
             { /// last fall back.
                 _cvPixelFormat = kCVPixelFormatType_32BGRA;
                 cameraPixelFormat = PixelFormat::BGRA32;
+            }
+
+            if ((cameraPixelFormat & kPixelFormatRGBColorBit) && (requiredPixelFormat & kPixelFormatYUVColorBit))
+            { /// If the camera output is not YUV, but the required format is YUV, fallback to cameraPixelFormat.
+                requiredPixelFormat = cameraPixelFormat;
             }
 
             if (ccap::errorLogEnabled())
@@ -905,110 +807,103 @@ void inplaceConvertFrame(VideoFrame* frame, PixelFormat toFormat, bool verticalF
 
     auto newFrame = _provider->getFreeFrame();
 
-    // Get resolution
-    uint32_t width = (uint32_t)CVPixelBufferGetWidth(imageBuffer);
-    uint32_t height = (uint32_t)CVPixelBufferGetHeight(imageBuffer);
-    uint32_t bytes{};
-
     CMTime timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer);
     auto internalFormat = _provider->getFrameProperty().cameraPixelFormat;
     auto outputFormat = _provider->getFrameProperty().outputPixelFormat;
 
     newFrame->timestamp = (uint64_t)(CMTimeGetSeconds(timestamp) * 1e9);
-    newFrame->width = width;
-    newFrame->height = height;
+    newFrame->width = (uint32_t)CVPixelBufferGetWidth(imageBuffer);
+    newFrame->height = (uint32_t)CVPixelBufferGetHeight(imageBuffer);
     newFrame->pixelFormat = internalFormat;
     newFrame->nativeHandle = imageBuffer;
+    newFrame->sizeInBytes = (uint32_t)CVPixelBufferGetDataSize(imageBuffer);
 
-    if (internalFormat & kPixelFormatYUVColorBit)
-    { /// 在 macOS 上， 只能是 NV12 或 NV12f 格式, 不予转换.
-        newFrame->orientation = kDefaultFrameOrientation;
+    /// When internalFormat is an RGB color, outputFormat cannot be a YUV color format.
+    assert(!((internalFormat & kPixelFormatRGBColorBit) && (outputFormat & kPixelFormatYUVColorBit)));
+
+    if ((internalFormat & kPixelFormatYUVColorBit))
+    {
         uint32_t yBytesPerRow = (uint32_t)CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 0);
         uint32_t uvBytesPerRow = (uint32_t)CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 1);
-        uint32_t yBytes = (uint32_t)CVPixelBufferGetHeightOfPlane(imageBuffer, 0) * yBytesPerRow;
-        uint32_t uvBytes = (uint32_t)CVPixelBufferGetHeightOfPlane(imageBuffer, 1) * uvBytesPerRow;
-        bytes = yBytes + uvBytes;
-
-        newFrame->data[2] = nullptr;
-        newFrame->stride[0] = yBytesPerRow;
-        newFrame->stride[1] = uvBytesPerRow;
-        newFrame->stride[2] = 0;
-        newFrame->sizeInBytes = bytes;
-
-        CFRetain(imageBuffer);
-        auto manager = std::make_shared<FakeFrame>([imageBuffer, newFrame]() mutable {
-            CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
-            CFRelease(imageBuffer);
-            CCAP_NSLOG_V(@"ccap: recycled YUV frame, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
-            
-            newFrame->nativeHandle = nullptr;
-            newFrame = nullptr;
-        });
 
         newFrame->data[0] = (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);
         newFrame->data[1] = (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 1);
-        auto fakeFrame = std::shared_ptr<VideoFrame>(manager, newFrame.get());
-        newFrame = fakeFrame;
+        newFrame->data[2] = nullptr;
+
+        newFrame->stride[0] = yBytesPerRow;
+        newFrame->stride[1] = uvBytesPerRow;
+        newFrame->stride[2] = 0;
     }
     else
     {
-        newFrame->orientation = _provider->frameOrientation();
-        bytes = (uint32_t)CVPixelBufferGetDataSize(imageBuffer);
-        newFrame->sizeInBytes = bytes;
-
         newFrame->data[0] = (uint8_t*)CVPixelBufferGetBaseAddress(imageBuffer);
         newFrame->data[1] = nullptr;
         newFrame->data[2] = nullptr;
         newFrame->stride[0] = (uint32_t)CVPixelBufferGetBytesPerRow(imageBuffer);
         newFrame->stride[1] = 0;
         newFrame->stride[2] = 0;
+    }
 
-        if (internalFormat == outputFormat && newFrame->orientation == kDefaultFrameOrientation)
-        {
-            CFRetain(imageBuffer);
-            auto manager = std::make_shared<FakeFrame>([imageBuffer, newFrame]() mutable {
-                CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
-                CFRelease(imageBuffer);
-                CCAP_NSLOG_V(@"ccap: recycled RGBA frame, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
-                
-                newFrame->nativeHandle = nullptr;
-                newFrame = nullptr;
-            });
+    /// iOS/macOS does not support i420, and we do not intend to support nv12 to i420 conversion here.
+    bool zeroCopy = ((internalFormat & kPixelFormatYUVColorBit) && (outputFormat & kPixelFormatYUVColorBit)) ||
+        (internalFormat == outputFormat && _provider->frameOrientation() == kDefaultFrameOrientation);
 
-            auto fakeFrame = std::shared_ptr<VideoFrame>(manager, newFrame.get());
-            newFrame = fakeFrame;
-        }
-        else
-        {
-            if (!newFrame->allocator)
-            {
-                auto&& f = _provider->getAllocatorFactory();
-                newFrame->allocator = f ? f() : std::make_shared<DefaultAllocator>();
-            }
-
-            std::chrono::steady_clock::time_point startConvertTime;
-
-            if (verboseLogEnabled())
-            {
-                startConvertTime = std::chrono::steady_clock::now();
-            }
-
-            inplaceConvertFrame(newFrame.get(), outputFormat, (int)(newFrame->orientation != kDefaultFrameOrientation), _memoryCache);
-
+    if (zeroCopy)
+    {
+        newFrame->orientation = kDefaultFrameOrientation;
+        CFRetain(imageBuffer);
+        auto manager = std::make_shared<FakeFrame>([imageBuffer, newFrame]() mutable {
             CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+            CFRelease(imageBuffer);
+            CCAP_NSLOG_V(@"ccap: recycled frame, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
 
-            if (verboseLogEnabled())
-            {
+            newFrame->nativeHandle = nullptr;
+            newFrame = nullptr;
+        });
+
+        auto fakeFrame = std::shared_ptr<VideoFrame>(manager, newFrame.get());
+        newFrame = fakeFrame;
+    }
+    else /// yuv/rgb color -> rgb color
+    {
+        newFrame->orientation = _provider->frameOrientation();
+
+        if (!newFrame->allocator)
+        {
+            auto&& f = _provider->getAllocatorFactory();
+            newFrame->allocator = f ? f() : std::make_shared<DefaultAllocator>();
+        }
+
+        std::chrono::steady_clock::time_point startConvertTime;
+
+        if (verboseLogEnabled())
+        {
+            startConvertTime = std::chrono::steady_clock::now();
+        }
+
+        inplaceConvertFrame(newFrame.get(), outputFormat, (int)(newFrame->orientation != kDefaultFrameOrientation));
+
+        CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+
+        if (verboseLogEnabled())
+        {
 #ifdef DEBUG
-                constexpr const char* mode = "(using Debug mode)";
+            constexpr const char* mode = "(Debug)";
 #else
-                constexpr const char* mode = "(using Release mode)";
+            constexpr const char* mode = "(Release)";
 #endif
 
-                auto endConvertTime = std::chrono::steady_clock::now();
-                auto durationInUs = std::chrono::duration_cast<std::chrono::microseconds>(endConvertTime - startConvertTime);
-                CCAP_NSLOG_V(@"ccap: captureOutput - perform convert, width: %d, height: %d, flip: %d, cost time(%s): %g ms", (int)newFrame->width, (int)newFrame->height, (int)(newFrame->orientation != kDefaultFrameOrientation), mode, durationInUs.count() / 1000.0);
-            }
+            double durInMs = (std::chrono::steady_clock::now() - startConvertTime).count() / 1.e6;
+            static double s_allCostTime = 0;
+            static double s_frames = 0;
+            s_allCostTime += durInMs;
+            ++s_frames;
+
+            CCAP_NSLOG_V(@"ccap: inplaceConvertFrame requested pixel format: %s, actual pixel format: %s, flip: %d, cost time %s: (cur %g ms, avg %g ms)",
+                         pixelFormatToString(_provider->getFrameProperty().outputPixelFormat).data(),
+                         pixelFormatToString(_provider->getFrameProperty().cameraPixelFormat).data(),
+                         (int)(newFrame->orientation != kDefaultFrameOrientation),
+                         mode, durInMs, s_allCostTime / s_frames);
         }
     }
 
@@ -1045,7 +940,7 @@ void inplaceConvertFrame(VideoFrame* frame, PixelFormat toFormat, bool verticalF
             fps = std::round(s_durations.size() / sum * 10) / 10.0;
         }
 
-        NSLog(@"ccap: New frame available: %ux%u, bytes %u, Data address: %p, fps: %g", width, height, bytes, newFrame->data[0], fps);
+        NSLog(@"ccap: New frame available: %ux%u, bytes %u, Data address: %p, fps: %g", newFrame->width, newFrame->height, newFrame->sizeInBytes, newFrame->data[0], fps);
     }
 
     _provider->newFrameAvailable(std::move(newFrame));

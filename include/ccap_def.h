@@ -185,6 +185,8 @@ enum class PropertyName
      * @note If PixelFormatInternal is RGB(A), PixelFormatOutput cannot be set to a YUV format.
      *       If PixelFormatInternal is YUV and PixelFormatOutput is RGB(A), BT.601 will be used for conversion.
      *       For other cases, there are no issues.
+     *       If PixelFormatInternal and PixelFormatOutput are the same format, data conversion will be skipped and the original data will be used directly.
+     *       In general, setting both PixelFormatInternal and PixelFormatOutput to YUV formats can achieve better performance.
      */
     PixelFormatOutput = 0x30002,
 

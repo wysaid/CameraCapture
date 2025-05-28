@@ -52,11 +52,19 @@ bool ProviderImp::set(PropertyName prop, double value)
         break;
     }
     case PropertyName::PixelFormatOutput: {
-        auto intValue = static_cast<int>(value);
+        PixelFormat format = (PixelFormat) static_cast<uint32_t>(value);
 #if defined(_MSC_VER) || defined(_WIN32)
-        intValue &= ~kPixelFormatFullRangeBit;
+        (uint32_t&)format &= ~kPixelFormatFullRangeBit;
 #endif
-        m_frameProp.outputPixelFormat = static_cast<PixelFormat>(intValue);
+        if ((format & kPixelFormatYUVColorBit) && m_frameProp.cameraPixelFormat == PixelFormat::Unknown)
+        { /// If the output is in YUV format and InternalFormat is not set, then Internal is automatically set to the appropriate YUV format
+#ifdef __APPLE__
+            m_frameProp.cameraPixelFormat = PixelFormat::NV12f;
+#else
+            m_frameProp.cameraPixelFormat = PixelFormat::NV12;
+#endif
+        }
+        m_frameProp.outputPixelFormat = static_cast<PixelFormat>(format);
     }
     break;
     case PropertyName::FrameOrientation:

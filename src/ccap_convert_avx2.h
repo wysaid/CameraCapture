@@ -11,7 +11,8 @@
 
 #include <cstdint>
 
-#if (defined(_MSC_VER) || defined(_WIN32)) && !defined(__arm__) && !defined(__aarch64__) && !defined(_M_ARM) && !defined(_M_ARM64)
+#if ((defined(_MSC_VER) || defined(_WIN32)) && !defined(__arm__) && !defined(__aarch64__) && !defined(_M_ARM) && !defined(_M_ARM64)) || \
+    (defined(__APPLE__) && defined(__x86_64__))
 #define ENABLE_AVX2_IMP 1
 #else
 #define ENABLE_AVX2_IMP 0
@@ -39,7 +40,7 @@ inline bool hasAVX2_()
     __cpuid(cpuInfo, 7);
     return (cpuInfo[1] & (1 << 5)) != 0;
 }
-#elif defined(__GNUC__) && defined(_WIN32)
+#elif defined(__GNUC__) && (defined(_WIN32) || defined(__APPLE__))
 #include <cpuid.h>
 inline bool hasAVX2_()
 {

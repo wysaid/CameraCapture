@@ -12,8 +12,8 @@
 
 #include <cstdint>
 
-/// apple 的 vImage 不支持传入负的 stride 或者 height 进行上下翻转,
-/// 所以参数定义为 uint32_t
+/// Apple's vImage does not support passing negative stride or height for vertical flipping,
+/// so the parameters are defined as uint32_t.
 
 namespace ccap
 {
