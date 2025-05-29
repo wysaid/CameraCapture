@@ -8,12 +8,17 @@
 
 #include <ccap.h>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <iostream>
 #include <string>
 
 #ifdef __GNUC__
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
 #endif
 
 #define GLAD_GL_IMPLEMENTATION
