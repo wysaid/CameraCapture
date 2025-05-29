@@ -102,7 +102,7 @@ void colorShuffle_neon(const uint8_t* src, int srcStride,
                     uint8_t r = srcRow[(x + i) * 3 + inputShuffle[0]];
                     uint8_t g = srcRow[(x + i) * 3 + inputShuffle[1]];
                     uint8_t b = srcRow[(x + i) * 3 + inputShuffle[2]];
-                    
+
                     dstRow[(x + i) * 4 + 0] = r;
                     dstRow[(x + i) * 4 + 1] = g;
                     dstRow[(x + i) * 4 + 2] = b;
@@ -118,7 +118,7 @@ void colorShuffle_neon(const uint8_t* src, int srcStride,
                     uint8_t r = srcRow[(x + i) * 4 + inputShuffle[0]];
                     uint8_t g = srcRow[(x + i) * 4 + inputShuffle[1]];
                     uint8_t b = srcRow[(x + i) * 4 + inputShuffle[2]];
-                    
+
                     dstRow[(x + i) * 3 + 0] = r;
                     dstRow[(x + i) * 3 + 1] = g;
                     dstRow[(x + i) * 3 + 2] = b;
@@ -136,7 +136,7 @@ void colorShuffle_neon(const uint8_t* src, int srcStride,
                 uint8_t g = srcRow[x * inputChannels + inputShuffle[1]];
                 uint8_t b = srcRow[x * inputChannels + inputShuffle[2]];
                 uint8_t a = (inputChannels == 4) ? srcRow[x * inputChannels + inputShuffle[3]] : 255;
-                
+
                 dstRow[x * 4 + 0] = r;
                 dstRow[x * 4 + 1] = g;
                 dstRow[x * 4 + 2] = b;
@@ -147,7 +147,7 @@ void colorShuffle_neon(const uint8_t* src, int srcStride,
                 uint8_t r = srcRow[x * inputChannels + inputShuffle[0]];
                 uint8_t g = srcRow[x * inputChannels + inputShuffle[1]];
                 uint8_t b = srcRow[x * inputChannels + inputShuffle[2]];
-                
+
                 dstRow[x * 3 + 0] = r;
                 dstRow[x * 3 + 1] = g;
                 dstRow[x * 3 + 2] = b;
@@ -175,19 +175,6 @@ template void colorShuffle_neon<3, 3>(const uint8_t* src, int srcStride,
 
 ///////////// YUV to RGB conversion functions /////////////
 
-// Helper function for YUV to RGB conversion using BT.601 formula (matches AVX2 version)
-inline void yuv2rgb601v(int y, int u, int v, int& r, int& g, int& b)
-{
-    // BT.601 conversion formula - coefficients match AVX2 implementation
-    int r_tmp = (74 * y + 102 * v + 32) >> 6;
-    int g_tmp = (74 * y - 25 * u - 52 * v + 32) >> 6;
-    int b_tmp = (74 * y + 129 * u + 32) >> 6;
-
-    r = r_tmp < 0 ? 0 : (r_tmp > 255 ? 255 : r_tmp);
-    g = g_tmp < 0 ? 0 : (g_tmp > 255 ? 255 : g_tmp);
-    b = b_tmp < 0 ? 0 : (b_tmp > 255 ? 255 : b_tmp);
-}
-
 template <bool isBGRA>
 void nv12ToRgbaColor_neon_imp(const uint8_t* srcY, int srcYStride,
                               const uint8_t* srcUV, int srcUVStride,
@@ -208,27 +195,27 @@ void nv12ToRgbaColor_neon_imp(const uint8_t* srcY, int srcYStride,
         uint8_t* dstRow = dst + y * dstStride;
 
         int x = 0;
-        
+
         // Process 16 pixels at a time using NEON
         for (; x + 16 <= width; x += 16)
         {
             // 1. Load 16 Y values
             uint8x16_t y_vals = vld1q_u8(yRow + x);
-            
+
             // 2. Load 16 bytes UV (8 UV pairs for 16 pixels)
             uint8x16_t uv_vals = vld1q_u8(uvRow + x);
-            
+
             // 3. Deinterleave U and V (NV12 format: UVUVUV...)
             uint8x8x2_t uv_deint = vuzp_u8(vget_low_u8(uv_vals), vget_high_u8(uv_vals));
             uint8x8_t u_vals = uv_deint.val[0]; // U: 0,2,4,6...
             uint8x8_t v_vals = uv_deint.val[1]; // V: 1,3,5,7...
-            
+
             // 4. Duplicate each U and V value for 2 pixels (since UV is subsampled)
             uint8x8x2_t u_dup = vzip_u8(u_vals, u_vals);
             uint8x8x2_t v_dup = vzip_u8(v_vals, v_vals);
             uint8x16_t u_expanded = vcombine_u8(u_dup.val[0], u_dup.val[1]);
             uint8x16_t v_expanded = vcombine_u8(v_dup.val[0], v_dup.val[1]);
-            
+
             // 5. Convert to 16-bit and apply offsets
             int16x8_t y_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(y_vals), vdup_n_u8(16)));
             int16x8_t y_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(y_vals), vdup_n_u8(16)));
@@ -236,7 +223,7 @@ void nv12ToRgbaColor_neon_imp(const uint8_t* srcY, int srcYStride,
             int16x8_t u_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(u_expanded), vdup_n_u8(128)));
             int16x8_t v_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(v_expanded), vdup_n_u8(128)));
             int16x8_t v_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(v_expanded), vdup_n_u8(128)));
-            
+
             // 6. BT.601 conversion constants (same as AVX2)
             int16x8_t c74 = vdupq_n_s16(74);
             int16x8_t c102 = vdupq_n_s16(102);
@@ -244,31 +231,31 @@ void nv12ToRgbaColor_neon_imp(const uint8_t* srcY, int srcYStride,
             int16x8_t c52 = vdupq_n_s16(52);
             int16x8_t c129 = vdupq_n_s16(129);
             int16x8_t c32 = vdupq_n_s16(32);
-            
+
             // 7. Calculate R, G, B for low 8 pixels
             int16x8_t y74_lo = vmulq_s16(y_lo, c74);
             int16x8_t r_lo = vaddq_s16(y74_lo, vmulq_s16(v_lo, c102));
             r_lo = vshrq_n_s16(vaddq_s16(r_lo, c32), 6);
-            
+
             int16x8_t g_lo = vsubq_s16(y74_lo, vmulq_s16(u_lo, c25));
             g_lo = vsubq_s16(g_lo, vmulq_s16(v_lo, c52));
             g_lo = vshrq_n_s16(vaddq_s16(g_lo, c32), 6);
-            
+
             int16x8_t b_lo = vaddq_s16(y74_lo, vmulq_s16(u_lo, c129));
             b_lo = vshrq_n_s16(vaddq_s16(b_lo, c32), 6);
-            
+
             // 8. Calculate R, G, B for high 8 pixels
             int16x8_t y74_hi = vmulq_s16(y_hi, c74);
             int16x8_t r_hi = vaddq_s16(y74_hi, vmulq_s16(v_hi, c102));
             r_hi = vshrq_n_s16(vaddq_s16(r_hi, c32), 6);
-            
+
             int16x8_t g_hi = vsubq_s16(y74_hi, vmulq_s16(u_hi, c25));
             g_hi = vsubq_s16(g_hi, vmulq_s16(v_hi, c52));
             g_hi = vshrq_n_s16(vaddq_s16(g_hi, c32), 6);
-            
+
             int16x8_t b_hi = vaddq_s16(y74_hi, vmulq_s16(u_hi, c129));
             b_hi = vshrq_n_s16(vaddq_s16(b_hi, c32), 6);
-            
+
             // 9. Clamp and convert back to 8-bit
             uint8x8_t r8_lo = vqmovun_s16(r_lo);
             uint8x8_t g8_lo = vqmovun_s16(g_lo);
@@ -276,12 +263,12 @@ void nv12ToRgbaColor_neon_imp(const uint8_t* srcY, int srcYStride,
             uint8x8_t r8_hi = vqmovun_s16(r_hi);
             uint8x8_t g8_hi = vqmovun_s16(g_hi);
             uint8x8_t b8_hi = vqmovun_s16(b_hi);
-            
+
             uint8x16_t r8 = vcombine_u8(r8_lo, r8_hi);
             uint8x16_t g8 = vcombine_u8(g8_lo, g8_hi);
             uint8x16_t b8 = vcombine_u8(b8_lo, b8_hi);
             uint8x16_t a8 = vdupq_n_u8(255);
-            
+
             // 10. Interleave and store RGBA/BGRA
             if constexpr (isBGRA)
             {
@@ -302,7 +289,7 @@ void nv12ToRgbaColor_neon_imp(const uint8_t* srcY, int srcYStride,
                 vst4q_u8(dstRow + x * 4, rgba);
             }
         }
-        
+
         // Process remaining pixels
         for (; x < width; x += 2)
         {
@@ -369,27 +356,27 @@ void _nv12ToRgbColor_neon_imp(const uint8_t* srcY, int srcYStride,
         uint8_t* dstRow = dst + y * dstStride;
 
         int x = 0;
-        
+
         // Process 16 pixels at a time using NEON
         for (; x + 16 <= width; x += 16)
         {
             // 1. Load 16 Y values
             uint8x16_t y_vals = vld1q_u8(yRow + x);
-            
+
             // 2. Load 16 bytes UV (8 UV pairs for 16 pixels)
             uint8x16_t uv_vals = vld1q_u8(uvRow + x);
-            
+
             // 3. Deinterleave U and V (NV12 format: UVUVUV...)
             uint8x8x2_t uv_deint = vuzp_u8(vget_low_u8(uv_vals), vget_high_u8(uv_vals));
             uint8x8_t u_vals = uv_deint.val[0]; // U: 0,2,4,6...
             uint8x8_t v_vals = uv_deint.val[1]; // V: 1,3,5,7...
-            
+
             // 4. Duplicate each U and V value for 2 pixels
             uint8x8x2_t u_dup = vzip_u8(u_vals, u_vals);
             uint8x8x2_t v_dup = vzip_u8(v_vals, v_vals);
             uint8x16_t u_expanded = vcombine_u8(u_dup.val[0], u_dup.val[1]);
             uint8x16_t v_expanded = vcombine_u8(v_dup.val[0], v_dup.val[1]);
-            
+
             // 5. Convert to 16-bit and apply offsets
             int16x8_t y_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(y_vals), vdup_n_u8(16)));
             int16x8_t y_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(y_vals), vdup_n_u8(16)));
@@ -397,7 +384,7 @@ void _nv12ToRgbColor_neon_imp(const uint8_t* srcY, int srcYStride,
             int16x8_t u_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(u_expanded), vdup_n_u8(128)));
             int16x8_t v_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(v_expanded), vdup_n_u8(128)));
             int16x8_t v_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(v_expanded), vdup_n_u8(128)));
-            
+
             // 6. BT.601 conversion constants (same as AVX2)
             int16x8_t c74 = vdupq_n_s16(74);
             int16x8_t c102 = vdupq_n_s16(102);
@@ -405,31 +392,31 @@ void _nv12ToRgbColor_neon_imp(const uint8_t* srcY, int srcYStride,
             int16x8_t c52 = vdupq_n_s16(52);
             int16x8_t c129 = vdupq_n_s16(129);
             int16x8_t c32 = vdupq_n_s16(32);
-            
+
             // 7. Calculate R, G, B for low 8 pixels
             int16x8_t y74_lo = vmulq_s16(y_lo, c74);
             int16x8_t r_lo = vaddq_s16(y74_lo, vmulq_s16(v_lo, c102));
             r_lo = vshrq_n_s16(vaddq_s16(r_lo, c32), 6);
-            
+
             int16x8_t g_lo = vsubq_s16(y74_lo, vmulq_s16(u_lo, c25));
             g_lo = vsubq_s16(g_lo, vmulq_s16(v_lo, c52));
             g_lo = vshrq_n_s16(vaddq_s16(g_lo, c32), 6);
-            
+
             int16x8_t b_lo = vaddq_s16(y74_lo, vmulq_s16(u_lo, c129));
             b_lo = vshrq_n_s16(vaddq_s16(b_lo, c32), 6);
-            
+
             // 8. Calculate R, G, B for high 8 pixels
             int16x8_t y74_hi = vmulq_s16(y_hi, c74);
             int16x8_t r_hi = vaddq_s16(y74_hi, vmulq_s16(v_hi, c102));
             r_hi = vshrq_n_s16(vaddq_s16(r_hi, c32), 6);
-            
+
             int16x8_t g_hi = vsubq_s16(y74_hi, vmulq_s16(u_hi, c25));
             g_hi = vsubq_s16(g_hi, vmulq_s16(v_hi, c52));
             g_hi = vshrq_n_s16(vaddq_s16(g_hi, c32), 6);
-            
+
             int16x8_t b_hi = vaddq_s16(y74_hi, vmulq_s16(u_hi, c129));
             b_hi = vshrq_n_s16(vaddq_s16(b_hi, c32), 6);
-            
+
             // 9. Clamp and convert back to 8-bit
             uint8x8_t r8_lo = vqmovun_s16(r_lo);
             uint8x8_t g8_lo = vqmovun_s16(g_lo);
@@ -437,17 +424,17 @@ void _nv12ToRgbColor_neon_imp(const uint8_t* srcY, int srcYStride,
             uint8x8_t r8_hi = vqmovun_s16(r_hi);
             uint8x8_t g8_hi = vqmovun_s16(g_hi);
             uint8x8_t b8_hi = vqmovun_s16(b_hi);
-            
+
             uint8x16_t r8 = vcombine_u8(r8_lo, r8_hi);
             uint8x16_t g8 = vcombine_u8(g8_lo, g8_hi);
             uint8x16_t b8 = vcombine_u8(b8_lo, b8_hi);
-            
+
             // 10. Store RGB24 data using arrays (similar to AVX2 approach)
             alignas(16) uint8_t r_arr[16], g_arr[16], b_arr[16];
             vst1q_u8(r_arr, r8);
             vst1q_u8(g_arr, g8);
             vst1q_u8(b_arr, b8);
-            
+
             // Store interleaved RGB24 data
             for (int i = 0; i < 16; ++i)
             {
@@ -465,7 +452,7 @@ void _nv12ToRgbColor_neon_imp(const uint8_t* srcY, int srcYStride,
                 }
             }
         }
-        
+
         // Process remaining pixels
         for (; x < width; x += 2)
         {
@@ -530,23 +517,23 @@ void _i420ToRgba_neon_imp(const uint8_t* srcY, int srcYStride,
         uint8_t* dstRow = dst + y * dstStride;
 
         int x = 0;
-        
+
         // Process 16 pixels at a time using NEON
         for (; x + 16 <= width; x += 16)
         {
             // 1. Load 16 Y values
             uint8x16_t y_vals = vld1q_u8(yRow + x);
-            
+
             // 2. Load 8 U and 8 V values
             uint8x8_t u_vals = vld1_u8(uRow + x / 2);
             uint8x8_t v_vals = vld1_u8(vRow + x / 2);
-            
+
             // 3. Duplicate each U and V value for 2 pixels
             uint8x8x2_t u_dup = vzip_u8(u_vals, u_vals);
             uint8x8x2_t v_dup = vzip_u8(v_vals, v_vals);
             uint8x16_t u_expanded = vcombine_u8(u_dup.val[0], u_dup.val[1]);
             uint8x16_t v_expanded = vcombine_u8(v_dup.val[0], v_dup.val[1]);
-            
+
             // 4. Convert to 16-bit and apply offsets
             int16x8_t y_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(y_vals), vdup_n_u8(16)));
             int16x8_t y_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(y_vals), vdup_n_u8(16)));
@@ -554,7 +541,7 @@ void _i420ToRgba_neon_imp(const uint8_t* srcY, int srcYStride,
             int16x8_t u_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(u_expanded), vdup_n_u8(128)));
             int16x8_t v_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(v_expanded), vdup_n_u8(128)));
             int16x8_t v_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(v_expanded), vdup_n_u8(128)));
-            
+
             // 5. BT.601 conversion constants (same as AVX2)
             int16x8_t c74 = vdupq_n_s16(74);
             int16x8_t c102 = vdupq_n_s16(102);
@@ -562,31 +549,31 @@ void _i420ToRgba_neon_imp(const uint8_t* srcY, int srcYStride,
             int16x8_t c52 = vdupq_n_s16(52);
             int16x8_t c129 = vdupq_n_s16(129);
             int16x8_t c32 = vdupq_n_s16(32);
-            
+
             // 6. Calculate R, G, B for low 8 pixels
             int16x8_t y74_lo = vmulq_s16(y_lo, c74);
             int16x8_t r_lo = vaddq_s16(y74_lo, vmulq_s16(v_lo, c102));
             r_lo = vshrq_n_s16(vaddq_s16(r_lo, c32), 6);
-            
+
             int16x8_t g_lo = vsubq_s16(y74_lo, vmulq_s16(u_lo, c25));
             g_lo = vsubq_s16(g_lo, vmulq_s16(v_lo, c52));
             g_lo = vshrq_n_s16(vaddq_s16(g_lo, c32), 6);
-            
+
             int16x8_t b_lo = vaddq_s16(y74_lo, vmulq_s16(u_lo, c129));
             b_lo = vshrq_n_s16(vaddq_s16(b_lo, c32), 6);
-            
+
             // 7. Calculate R, G, B for high 8 pixels
             int16x8_t y74_hi = vmulq_s16(y_hi, c74);
             int16x8_t r_hi = vaddq_s16(y74_hi, vmulq_s16(v_hi, c102));
             r_hi = vshrq_n_s16(vaddq_s16(r_hi, c32), 6);
-            
+
             int16x8_t g_hi = vsubq_s16(y74_hi, vmulq_s16(u_hi, c25));
             g_hi = vsubq_s16(g_hi, vmulq_s16(v_hi, c52));
             g_hi = vshrq_n_s16(vaddq_s16(g_hi, c32), 6);
-            
+
             int16x8_t b_hi = vaddq_s16(y74_hi, vmulq_s16(u_hi, c129));
             b_hi = vshrq_n_s16(vaddq_s16(b_hi, c32), 6);
-            
+
             // 8. Clamp and convert back to 8-bit
             uint8x8_t r8_lo = vqmovun_s16(r_lo);
             uint8x8_t g8_lo = vqmovun_s16(g_lo);
@@ -594,12 +581,12 @@ void _i420ToRgba_neon_imp(const uint8_t* srcY, int srcYStride,
             uint8x8_t r8_hi = vqmovun_s16(r_hi);
             uint8x8_t g8_hi = vqmovun_s16(g_hi);
             uint8x8_t b8_hi = vqmovun_s16(b_hi);
-            
+
             uint8x16_t r8 = vcombine_u8(r8_lo, r8_hi);
             uint8x16_t g8 = vcombine_u8(g8_lo, g8_hi);
             uint8x16_t b8 = vcombine_u8(b8_lo, b8_hi);
             uint8x16_t a8 = vdupq_n_u8(255);
-            
+
             // 9. Interleave and store RGBA/BGRA
             if constexpr (isBGRA)
             {
@@ -620,7 +607,7 @@ void _i420ToRgba_neon_imp(const uint8_t* srcY, int srcYStride,
                 vst4q_u8(dstRow + x * 4, rgba);
             }
         }
-        
+
         // Process remaining pixels
         for (; x < width; x += 2)
         {
@@ -689,23 +676,23 @@ void _i420ToRgb_neon_imp(const uint8_t* srcY, int srcYStride,
         uint8_t* dstRow = dst + y * dstStride;
 
         int x = 0;
-        
+
         // Process 16 pixels at a time using NEON
         for (; x + 16 <= width; x += 16)
         {
             // 1. Load 16 Y values
             uint8x16_t y_vals = vld1q_u8(yRow + x);
-            
+
             // 2. Load 8 U and 8 V values
             uint8x8_t u_vals = vld1_u8(uRow + x / 2);
             uint8x8_t v_vals = vld1_u8(vRow + x / 2);
-            
+
             // 3. Duplicate each U and V value for 2 pixels
             uint8x8x2_t u_dup = vzip_u8(u_vals, u_vals);
             uint8x8x2_t v_dup = vzip_u8(v_vals, v_vals);
             uint8x16_t u_expanded = vcombine_u8(u_dup.val[0], u_dup.val[1]);
             uint8x16_t v_expanded = vcombine_u8(v_dup.val[0], v_dup.val[1]);
-            
+
             // 4. Convert to 16-bit and apply offsets
             int16x8_t y_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(y_vals), vdup_n_u8(16)));
             int16x8_t y_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(y_vals), vdup_n_u8(16)));
@@ -713,7 +700,7 @@ void _i420ToRgb_neon_imp(const uint8_t* srcY, int srcYStride,
             int16x8_t u_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(u_expanded), vdup_n_u8(128)));
             int16x8_t v_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(v_expanded), vdup_n_u8(128)));
             int16x8_t v_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(v_expanded), vdup_n_u8(128)));
-            
+
             // 5. BT.601 conversion constants (same as AVX2)
             int16x8_t c74 = vdupq_n_s16(74);
             int16x8_t c102 = vdupq_n_s16(102);
@@ -721,31 +708,31 @@ void _i420ToRgb_neon_imp(const uint8_t* srcY, int srcYStride,
             int16x8_t c52 = vdupq_n_s16(52);
             int16x8_t c129 = vdupq_n_s16(129);
             int16x8_t c32 = vdupq_n_s16(32);
-            
+
             // 6. Calculate R, G, B for low 8 pixels
             int16x8_t y74_lo = vmulq_s16(y_lo, c74);
             int16x8_t r_lo = vaddq_s16(y74_lo, vmulq_s16(v_lo, c102));
             r_lo = vshrq_n_s16(vaddq_s16(r_lo, c32), 6);
-            
+
             int16x8_t g_lo = vsubq_s16(y74_lo, vmulq_s16(u_lo, c25));
             g_lo = vsubq_s16(g_lo, vmulq_s16(v_lo, c52));
             g_lo = vshrq_n_s16(vaddq_s16(g_lo, c32), 6);
-            
+
             int16x8_t b_lo = vaddq_s16(y74_lo, vmulq_s16(u_lo, c129));
             b_lo = vshrq_n_s16(vaddq_s16(b_lo, c32), 6);
-            
+
             // 7. Calculate R, G, B for high 8 pixels
             int16x8_t y74_hi = vmulq_s16(y_hi, c74);
             int16x8_t r_hi = vaddq_s16(y74_hi, vmulq_s16(v_hi, c102));
             r_hi = vshrq_n_s16(vaddq_s16(r_hi, c32), 6);
-            
+
             int16x8_t g_hi = vsubq_s16(y74_hi, vmulq_s16(u_hi, c25));
             g_hi = vsubq_s16(g_hi, vmulq_s16(v_hi, c52));
             g_hi = vshrq_n_s16(vaddq_s16(g_hi, c32), 6);
-            
+
             int16x8_t b_hi = vaddq_s16(y74_hi, vmulq_s16(u_hi, c129));
             b_hi = vshrq_n_s16(vaddq_s16(b_hi, c32), 6);
-            
+
             // 8. Clamp and convert back to 8-bit
             uint8x8_t r8_lo = vqmovun_s16(r_lo);
             uint8x8_t g8_lo = vqmovun_s16(g_lo);
@@ -753,17 +740,17 @@ void _i420ToRgb_neon_imp(const uint8_t* srcY, int srcYStride,
             uint8x8_t r8_hi = vqmovun_s16(r_hi);
             uint8x8_t g8_hi = vqmovun_s16(g_hi);
             uint8x8_t b8_hi = vqmovun_s16(b_hi);
-            
+
             uint8x16_t r8 = vcombine_u8(r8_lo, r8_hi);
             uint8x16_t g8 = vcombine_u8(g8_lo, g8_hi);
             uint8x16_t b8 = vcombine_u8(b8_lo, b8_hi);
-            
+
             // 9. Store RGB24 data using arrays (similar to AVX2 approach)
             alignas(16) uint8_t r_arr[16], g_arr[16], b_arr[16];
             vst1q_u8(r_arr, r8);
             vst1q_u8(g_arr, g8);
             vst1q_u8(b_arr, b8);
-            
+
             // Store interleaved RGB24 data
             for (int i = 0; i < 16; ++i)
             {
@@ -781,7 +768,7 @@ void _i420ToRgb_neon_imp(const uint8_t* srcY, int srcYStride,
                 }
             }
         }
-        
+
         // Process remaining pixels
         for (; x < width; x += 2)
         {
