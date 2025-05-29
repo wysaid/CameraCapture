@@ -63,7 +63,7 @@ int main(int argc, char** argv)
         std::filesystem::create_directory(captureDir);
     }
 
-    ccap::Provider cameraProvider;
+    ccap::Provider cameraProvider(ccap::ProviderCreateFlag::Backend_MSMF);
 
     int requestedWidth = 1920;
     int requestedHeight = 1080;

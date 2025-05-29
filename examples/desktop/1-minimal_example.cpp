@@ -38,7 +38,7 @@ int selectCamera(ccap::Provider& provider)
 
 int main()
 {
-    ccap::Provider cameraProvider;
+    ccap::Provider cameraProvider(ccap::ProviderCreateFlag::Backend_MSMF);
     cameraProvider.open(selectCamera(cameraProvider), true);
 
     cameraProvider.start();

@@ -37,7 +37,7 @@ void printCameraInfo(const std::string& deviceName)
 {
     ccap::setLogLevel(ccap::LogLevel::Verbose);
 
-    ccap::Provider cameraProvider(deviceName); /// Pass a device name to open camera.
+    ccap::Provider cameraProvider(deviceName, ccap::ProviderCreateFlag::Backend_MSMF); /// Pass a device name to open camera.
     if (!cameraProvider.isOpened())
     {
         fprintf(stderr, "### Failed to open video capture device: %s\n", deviceName.c_str());
