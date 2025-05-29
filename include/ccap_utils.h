@@ -105,7 +105,7 @@ inline bool verboseLogEnabled() { return globalLogLevel & kLogLevelVerboseBit; }
     do                                                 \
     {                                                  \
         if ((static_cast<uint32_t>(logLevel) &         \
-             static_cast<uint32_t>(globalLogLevel)) == \
+             static_cast<uint32_t>(ccap::globalLogLevel)) == \
             static_cast<uint32_t>(logLevel))           \
         {                                              \
             __VA_ARGS__;                               \
@@ -114,10 +114,10 @@ inline bool verboseLogEnabled() { return globalLogLevel & kLogLevelVerboseBit; }
 
 #define CCAP_LOG(logLevel, ...) CCAP_CALL_LOG(logLevel, fprintf(stderr, __VA_ARGS__))
 
-#define CCAP_LOG_E(...) CCAP_LOG(LogLevel::Error, __VA_ARGS__)
-#define CCAP_LOG_W(...) CCAP_LOG(LogLevel::Warning, __VA_ARGS__)
-#define CCAP_LOG_I(...) CCAP_LOG(LogLevel::Info, __VA_ARGS__)
-#define CCAP_LOG_V(...) CCAP_LOG(LogLevel::Verbose, __VA_ARGS__)
+#define CCAP_LOG_E(...) CCAP_LOG(ccap::LogLevel::Error, __VA_ARGS__)
+#define CCAP_LOG_W(...) CCAP_LOG(ccap::LogLevel::Warning, __VA_ARGS__)
+#define CCAP_LOG_I(...) CCAP_LOG(ccap::LogLevel::Info, __VA_ARGS__)
+#define CCAP_LOG_V(...) CCAP_LOG(ccap::LogLevel::Verbose, __VA_ARGS__)
 #else
 
 #if __cplusplus >= 201703L

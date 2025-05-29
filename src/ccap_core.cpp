@@ -27,6 +27,7 @@ namespace ccap
 {
 ProviderImp* createProviderApple();
 ProviderImp* createProviderDirectShow();
+ProviderImp* createProviderMSMF();
 
 Allocator::~Allocator()
 {
@@ -67,7 +68,15 @@ ProviderImp* createProvider(std::string_view extraInfo)
 #if __APPLE__
     return createProviderApple();
 #elif defined(_MSC_VER) || defined(_WIN32)
-    return createProviderDirectShow();
+    // Check if MSMF backend is requested
+    if (extraInfo == "MSMF" || extraInfo == "msmf")
+    {
+        return createProviderMSMF();
+    }
+    else
+    {
+        return createProviderDirectShow(); // Default to DirectShow
+    }
 #else
     if (warningLogEnabled())
     {
