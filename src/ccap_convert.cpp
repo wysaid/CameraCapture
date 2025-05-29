@@ -10,6 +10,7 @@
 
 #include "ccap_convert_apple.h"
 #include "ccap_convert_avx2.h"
+#include "ccap_convert_neon.h"
 #include "ccap_core.h"
 
 #include <cassert>
@@ -86,6 +87,13 @@ void colorShuffle(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride
 #if ENABLE_AVX2_IMP
     if (canUseAVX2()) {
         colorShuffle_avx2<inputChannels, outputChannels, swapRB>(src, srcStride, dst, dstStride, width, height);
+        return;
+    }
+#endif
+
+#if ENABLE_NEON_IMP
+    if (hasNEON()) {
+        colorShuffle_neon<inputChannels, outputChannels>(src, srcStride, dst, dstStride, width, height, shuffle);
         return;
     }
 #endif
