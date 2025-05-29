@@ -45,6 +45,17 @@ enum
     DEFAULT_MAX_AVAILABLE_FRAME_SIZE = 3
 };
 
+/**
+ * @brief 一些初始化参数, 当设置错误 (比如在 macOS 上设置了 DSHOW/MSMF) 时，会被自动忽略.
+ */
+enum class ProviderCreateFlag
+{
+    Default = 0,
+    Backend_DSHOW = 1 << 1,       ///< Use DirectShow backend. (Default on Windows)
+    Backend_MSMF = 1 << 2,        ///< Use Media Foundation backend.
+    Backend_AVFoundation = 1 << 3 ///< Use AVFoundation backend. (Default on macOS/iOS)
+};
+
 class ProviderImp;
 
 /**
@@ -60,19 +71,21 @@ public:
     ///        You can use the `open` method to open a camera device later.
     Provider();
 
+    Provider(ProviderCreateFlag flag);
+
     /**
      * @brief Construct a new Provider object, and open the camera device.
      * @param deviceName The name of the device to open. @see #open
      * @param extraInfo Currently unused.
      */
-    explicit Provider(std::string_view deviceName, std::string_view extraInfo = "");
+    explicit Provider(std::string_view deviceName, ProviderCreateFlag flag = {});
 
     /**
      * @brief Construct a new Provider object, and open the camera device.
      * @param deviceIndex The index of the device to open. @see #open
      * @param extraInfo Currently unused.
      */
-    explicit Provider(int deviceIndex, std::string_view extraInfo = "");
+    explicit Provider(int deviceIndex, ProviderCreateFlag flag = {});
 
     /**
      * @brief Retrieves the names of all available capture devices. Will perform a scan.

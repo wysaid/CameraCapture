@@ -63,13 +63,13 @@ VideoFrame::~VideoFrame()
     CCAP_LOG_V("ccap: VideoFrame::VideoFrameFrame() called, this=%p\n", this);
 }
 
-ProviderImp* createProvider(std::string_view extraInfo)
+ProviderImp* createProvider(ProviderCreateFlag flag)
 {
 #if __APPLE__
     return createProviderApple();
 #elif defined(_MSC_VER) || defined(_WIN32)
     // Check if MSMF backend is requested
-    if (extraInfo == "MSMF" || extraInfo == "msmf")
+    if (flag == ProviderCreateFlag::Backend_MSMF)
     {
         return createProviderMSMF();
     }
@@ -87,7 +87,12 @@ ProviderImp* createProvider(std::string_view extraInfo)
 }
 
 Provider::Provider() :
-    m_imp(createProvider(""))
+    m_imp(createProvider(ProviderCreateFlag::Default))
+{
+}
+
+Provider::Provider(ProviderCreateFlag flag) :
+    m_imp(createProvider(flag))
 {
 }
 
@@ -97,8 +102,8 @@ Provider::~Provider()
     delete m_imp;
 }
 
-Provider::Provider(std::string_view deviceName, std::string_view extraInfo) :
-    m_imp(createProvider(extraInfo))
+Provider::Provider(std::string_view deviceName, ProviderCreateFlag flag) :
+    m_imp(createProvider(flag))
 {
     if (m_imp)
     {
@@ -106,8 +111,8 @@ Provider::Provider(std::string_view deviceName, std::string_view extraInfo) :
     }
 }
 
-Provider::Provider(int deviceIndex, std::string_view extraInfo) :
-    m_imp(createProvider(extraInfo))
+Provider::Provider(int deviceIndex, ProviderCreateFlag flag) :
+    m_imp(createProvider(flag))
 {
     if (m_imp)
     {
