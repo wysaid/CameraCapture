@@ -36,6 +36,15 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version")
 
+if(APPLE)
+    # 强制编译ARM64架构（可选择性启用）
+    option(CCAP_FORCE_ARM64 "Force ARM64 architecture compilation" OFF)
+    if(CCAP_FORCE_ARM64)
+        set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Build architectures for Mac OS X" FORCE)
+        message(STATUS "ccap: Forcing ARM64 architecture compilation")
+    endif()
+endif()
+
 if(NOT MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 endif()
