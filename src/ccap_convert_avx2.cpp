@@ -100,7 +100,6 @@ void colorShuffle_avx2(const uint8_t* src, int srcStride,
             // @see issue <https://stackoverflow.com/questions/77149094/how-to-use-mm256-shuffle-epi8-to-order-elements>
             if constexpr (outputChannels == 4 && inputChannels == 3) // 3 -> 4, 需要拆分通道
             {
-                auto input = (const __m256i*)(srcRow + x * inputChannels);
                 /// 拆分成 12 + 12, 每次读取 24 字节
                 __m128i pixels_lo = _mm_loadu_si128((__m128i*)(srcRow + x * inputChannels));
                 __m128i pixels_hi = _mm_loadu_si128((__m128i*)(srcRow + x * inputChannels + 12));
@@ -114,7 +113,6 @@ void colorShuffle_avx2(const uint8_t* src, int srcStride,
             }
             else if constexpr (outputChannels == 3 && inputChannels == 4) // 4 -> 3
             {
-                auto input = (const __m256i*)(srcRow + x * inputChannels);
                 /// 拆分成 16 + 16, 每次读取 32 字节
                 __m128i pixels_lo = _mm_load_si128((__m128i*)(srcRow + x * inputChannels));
                 __m128i pixels_hi = _mm_load_si128((__m128i*)(srcRow + x * inputChannels + 16));
@@ -130,7 +128,6 @@ void colorShuffle_avx2(const uint8_t* src, int srcStride,
             else if constexpr (inputChannels == 3 && outputChannels == 3)
             { // 3 -> 3
 
-                auto input = (const __m256i*)(srcRow + x * inputChannels);
                 /// 拆分成 15 + 15, 每次读取 30 字节
                 __m128i pixels_lo = _mm_load_si128((__m128i*)(srcRow + x * inputChannels));
                 __m128i pixels_hi = _mm_loadu_si128((__m128i*)(srcRow + x * inputChannels + 15));

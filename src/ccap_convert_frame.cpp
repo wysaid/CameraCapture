@@ -23,7 +23,6 @@ bool inplaceConvertFrameYUV2RGBColor(VideoFrame* frame, PixelFormat toFormat, bo
     auto inputFormat = frame->pixelFormat;
     assert((inputFormat & kPixelFormatYUVColorBit) != 0 && (toFormat & kPixelFormatYUVColorBit) == 0);
     bool isInputNV12 = pixelFormatInclude(inputFormat, PixelFormat::NV12);
-    bool isInputI420 = pixelFormatInclude(inputFormat, PixelFormat::I420);
     bool outputHasAlpha = toFormat & kPixelFormatAlphaColorBit;
     bool isOutputBGR = toFormat & kPixelFormatBGRBit; // 不是 BGR 就是 RGB
 
