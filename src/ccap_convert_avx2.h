@@ -11,8 +11,12 @@
 
 #include <cstdint>
 
+#if __APPLE__
+#include <TargetConditionals.h>
+#endif
+
 #if ((defined(_MSC_VER) || defined(_WIN32)) && !defined(__arm__) && !defined(__aarch64__) && !defined(_M_ARM) && !defined(_M_ARM64)) || \
-    (defined(__APPLE__) && defined(__x86_64__))
+    (defined(__APPLE__) && defined(__x86_64__) && !((defined(TARGET_OS_IOS) && TARGET_OS_IOS) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)))
 #define ENABLE_AVX2_IMP 1
 #else
 #define ENABLE_AVX2_IMP 0
