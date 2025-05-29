@@ -35,7 +35,7 @@ namespace ccap
 {
 struct FrameProperty
 {
-    double fps{ 30.0 };
+    double fps{ 0.0 }; ///< 0 means device default.
 
     PixelFormat cameraPixelFormat = PixelFormat::Unknown;
 

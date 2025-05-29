@@ -219,15 +219,15 @@ struct alignas(16) VertexShaderUniforms
     _mtkView = [[MTKView alloc] initWithFrame:self.view.bounds device:_device];
     [_mtkView setBackgroundColor:[UIColor clearColor]];
     [_mtkView setDelegate:self];
-    [_mtkView setEnableSetNeedsDisplay:NO];
+    [_mtkView setEnableSetNeedsDisplay:YES];  // 启用手动渲染模式
     [_mtkView setAutoResizeDrawable:YES];
 
     _uniforms.flipScale = simd_make_float2(-1.0f, 1.0f); // Y轴翻转
     _uniforms.rotation = M_PI_2;
     _progress = 0.0f;
 
-    /// 手动刷新.
-    [_mtkView setPaused:NO];
+    /// 手动刷新模式，暂停自动渲染
+    [_mtkView setPaused:YES];
     [self.view insertSubview:_mtkView atIndex:0];
 }
 

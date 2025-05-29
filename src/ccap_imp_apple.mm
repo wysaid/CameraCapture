@@ -575,25 +575,60 @@ NSArray<AVCaptureDevice*>* findAllDeviceName()
             {
                 double desiredFps = fps;
                 double distance = 1e9;
+                double bestFps = desiredFps;
                 CMTime maxFrameDuration = kCMTimeInvalid;
                 CMTime minFrameDuration = kCMTimeInvalid;
                 for (AVFrameRateRange* r in _device.activeFormat.videoSupportedFrameRateRanges)
                 {
-                    auto newDis = std::abs(r.minFrameRate - desiredFps) + std::abs(r.maxFrameRate - desiredFps);
+                    // Check if desired fps is within this range
+                    double actualFps;
+                    if (desiredFps >= r.minFrameRate && desiredFps <= r.maxFrameRate)
+                    {
+                        // Desired fps is within range, use it directly
+                        actualFps = desiredFps;
+                    }
+                    else
+                    {
+                        // Choose the closest boundary value
+                        if (desiredFps < r.minFrameRate)
+                        {
+                            actualFps = r.minFrameRate;
+                        }
+                        else
+                        {
+                            actualFps = r.maxFrameRate;
+                        }
+                    }
+
+                    // Calculate distance to the actual fps we would use
+                    auto newDis = std::abs(actualFps - desiredFps);
                     if (newDis < distance)
                     {
                         maxFrameDuration = r.maxFrameDuration;
                         minFrameDuration = r.minFrameDuration;
                         distance = newDis;
-                        fps = r.minFrameRate;
-                        break;
+                        bestFps = actualFps;
                     }
                 }
+                fps = bestFps;
 
                 if (CMTIME_IS_VALID(maxFrameDuration) && CMTIME_IS_VALID(minFrameDuration))
                 {
-                    [_device setActiveVideoMinFrameDuration:maxFrameDuration];
-                    [_device setActiveVideoMaxFrameDuration:minFrameDuration];
+                    // Create precise frame duration for the selected fps
+                    CMTime frameDuration = CMTimeMake(1000000.0, fps * 1000000.0);
+                    
+                    // Clamp frameDuration to the supported range to prevent exceptions
+                    if (CMTimeCompare(frameDuration, minFrameDuration) < 0)
+                    {
+                        frameDuration = minFrameDuration;
+                    }
+                    else if (CMTimeCompare(frameDuration, maxFrameDuration) > 0)
+                    {
+                        frameDuration = maxFrameDuration;
+                    }
+                    
+                    [_device setActiveVideoMinFrameDuration:frameDuration];
+                    [_device setActiveVideoMaxFrameDuration:frameDuration];
                     _provider->getFrameProperty().fps = fps;
 
                     if (infoLogEnabled())
