@@ -36,12 +36,37 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version")
 
-if(APPLE)
-    # 强制编译ARM64架构（可选择性启用）
-    option(CCAP_FORCE_ARM64 "Force ARM64 architecture compilation" OFF)
-    if(CCAP_FORCE_ARM64)
+# 统一的 ARM64 强制编译选项，支持 macOS 和 Windows
+option(CCAP_FORCE_ARM64 "Force ARM64 architecture compilation" OFF)
+
+if(CCAP_FORCE_ARM64)
+    if(APPLE)
         set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Build architectures for Mac OS X" FORCE)
-        message(STATUS "ccap: Forcing ARM64 architecture compilation")
+        message(STATUS "ccap: Forcing ARM64 architecture compilation for macOS")
+    elseif(WIN32)
+        set(CMAKE_GENERATOR_PLATFORM "ARM64" CACHE STRING "Generator platform for Windows" FORCE)
+        message(STATUS "ccap: Forcing ARM64 architecture compilation for Windows")
+    endif()
+endif()
+
+# 检测 ARM64 架构并设置相应的编译标志
+if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64" OR 
+   CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64" OR
+   CMAKE_OSX_ARCHITECTURES MATCHES "arm64" OR
+   CCAP_FORCE_ARM64)
+    
+    message(STATUS "ccap: Building for ARM64 architecture")
+    
+    # Windows ARM64 特定设置
+    if(WIN32 AND MSVC)
+        # MSVC 在 ARM64 上自动启用 NEON，添加预处理器定义
+        add_compile_definitions(_M_ARM64=1)
+        message(STATUS "ccap: NEON support enabled for Windows ARM64")
+    endif()
+    
+    # macOS ARM64 特定设置
+    if(APPLE)
+        message(STATUS "ccap: NEON support enabled for macOS ARM64")
     endif()
 endif()
 
