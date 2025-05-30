@@ -9,6 +9,7 @@ else()
 endif()
 
 option(CCAP_BUILD_EXAMPLES "Build ccap examples" ${CCAP_IS_ROOT_PROJECT})
+option(CCAP_BUILD_TESTS "Build ccap unit tests" OFF)
 
 if(CCAP_IS_ROOT_PROJECT)
     set(CMAKE_FETCHCONTENT_BASE_DIR "${CMAKE_SOURCE_DIR}/build" CACHE PATH "FetchContent base dir" FORCE)
@@ -111,4 +112,11 @@ endif()
 message(STATUS "ccap: CCAP_BUILD_EXAMPLES=${CCAP_BUILD_EXAMPLES}")
 if(CCAP_BUILD_EXAMPLES)
     include(examples/desktop.cmake)
+endif()
+
+# ############### Tests ################
+message(STATUS "ccap: CCAP_BUILD_TESTS=${CCAP_BUILD_TESTS}")
+if(CCAP_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
 endif()
