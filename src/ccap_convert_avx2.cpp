@@ -107,9 +107,15 @@ void colorShuffle_avx2(const uint8_t* src, int srcStride,
                 __m128i result_lo = _mm_shuffle_epi8(pixels_lo, shuffle128);
                 __m128i result_hi = _mm_shuffle_epi8(pixels_hi, shuffle128);
 
+                // 创建alpha通道mask，将每个像素的第4个字节（alpha通道）设为0xFF
+                // 对于RGBA格式，在小端字节序中，需要在正确的位置设置alpha
+                __m128i alpha_mask = _mm_set1_epi32(0xFF000000);
+                result_lo = _mm_or_si128(result_lo, alpha_mask);
+                result_hi = _mm_or_si128(result_hi, alpha_mask);
+
                 // outputChannels 是 4, patchSize 是 8,  对齐到 4 x 8 字节
-                _mm_store_si128((__m128i*)(dstRow + x * outputChannels), result_lo);
-                _mm_store_si128((__m128i*)(dstRow + x * outputChannels + 16), result_hi);
+                _mm_storeu_si128((__m128i*)(dstRow + x * outputChannels), result_lo);
+                _mm_storeu_si128((__m128i*)(dstRow + x * outputChannels + 16), result_hi);
             }
             else if constexpr (outputChannels == 3 && inputChannels == 4) // 4 -> 3
             {
@@ -120,7 +126,7 @@ void colorShuffle_avx2(const uint8_t* src, int srcStride,
                 __m128i result_lo = _mm_shuffle_epi8(pixels_lo, shuffle128); // 只有前 12 字节有用
                 __m128i result_hi = _mm_shuffle_epi8(pixels_hi, shuffle128); // 只有前 12 字节有用
 
-                _mm_store_si128((__m128i*)(dstRow + x * outputChannels), result_lo); // 写入了 16 字节，但实际上只有前 12 字节有用
+                _mm_storeu_si128((__m128i*)(dstRow + x * outputChannels), result_lo); // 写入了 16 字节，但实际上只有前 12 字节有用
                 alignas(16) uint8_t remainBuffer[16];
                 _mm_store_si128((__m128i*)remainBuffer, result_hi);         // 暂存一下, 16 字节
                 memcpy(dstRow + x * outputChannels + 12, remainBuffer, 12); // 手动补齐, 覆盖多余的 4 字节， 补齐剩下 12 字节, 刚好 24 字节
@@ -129,13 +135,13 @@ void colorShuffle_avx2(const uint8_t* src, int srcStride,
             { // 3 -> 3
 
                 /// 拆分成 15 + 15, 每次读取 30 字节
-                __m128i pixels_lo = _mm_load_si128((__m128i*)(srcRow + x * inputChannels));
+                __m128i pixels_lo = _mm_loadu_si128((__m128i*)(srcRow + x * inputChannels));
                 __m128i pixels_hi = _mm_loadu_si128((__m128i*)(srcRow + x * inputChannels + 15));
 
                 __m128i result_lo = _mm_shuffle_epi8(pixels_lo, shuffle128); // 只有前 15 字节有用
                 __m128i result_hi = _mm_shuffle_epi8(pixels_hi, shuffle128); // 只有前 15 字节有用
 
-                _mm_store_si128((__m128i*)(dstRow + x * outputChannels), result_lo); // 写入了 16 字节，但实际上只有前 15 字节有用
+                _mm_storeu_si128((__m128i*)(dstRow + x * outputChannels), result_lo); // 写入了 16 字节，但实际上只有前 15 字节有用
                 alignas(16) uint8_t remainBuffer[16];
                 _mm_store_si128((__m128i*)remainBuffer, result_hi);         // 暂存一下, 15 字节
                 memcpy(dstRow + x * outputChannels + 15, remainBuffer, 15); // 手动补齐, 覆盖多余的 1 字节， 补齐剩下 15 字节, 刚好 30 字节
