@@ -971,6 +971,12 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
 
         if (verboseLogEnabled())
         {
+#ifdef DEBUG
+            constexpr const char* mode = "(Debug)";
+#else
+            constexpr const char* mode = "(Release)";
+#endif
+
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 
             zeroCopy = !inplaceConvertFrame(newFrame.get(), m_frameProp.outputPixelFormat, shouldFlip);
@@ -978,14 +984,15 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
             double durInMs = (std::chrono::steady_clock::now() - startTime).count() / 1.e6;
             static double s_allCostTime = 0;
             static double s_frames = 0;
+
+            if (s_frames > 60)
+            {
+                s_allCostTime = 0;
+                s_frames = 0;
+            }
+
             s_allCostTime += durInMs;
             ++s_frames;
-
-#ifdef DEBUG
-            constexpr const char* mode = "(Debug)";
-#else
-            constexpr const char* mode = "(Release)";
-#endif
 
             CCAP_LOG_V("ccap: inplaceConvertFrame requested pixel format: %s, actual pixel format: %s, flip: %s, cost time %s: (cur %g ms, avg %g ms)\n",
                        pixelFormatToString(m_frameProp.outputPixelFormat).data(),

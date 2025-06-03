@@ -616,7 +616,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName()
                 {
                     // Create precise frame duration for the selected fps
                     CMTime frameDuration = CMTimeMake(1000000.0, fps * 1000000.0);
-                    
+
                     // Clamp frameDuration to the supported range to prevent exceptions
                     if (CMTimeCompare(frameDuration, minFrameDuration) < 0)
                     {
@@ -626,7 +626,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName()
                     {
                         frameDuration = maxFrameDuration;
                     }
-                    
+
                     [_device setActiveVideoMinFrameDuration:frameDuration];
                     [_device setActiveVideoMaxFrameDuration:frameDuration];
                     _provider->getFrameProperty().fps = fps;
@@ -931,6 +931,13 @@ NSArray<AVCaptureDevice*>* findAllDeviceName()
             double durInMs = (std::chrono::steady_clock::now() - startConvertTime).count() / 1.e6;
             static double s_allCostTime = 0;
             static double s_frames = 0;
+
+            if (s_frames > 60)
+            {
+                s_allCostTime = 0;
+                s_frames = 0;
+            }
+
             s_allCostTime += durInMs;
             ++s_frames;
 
