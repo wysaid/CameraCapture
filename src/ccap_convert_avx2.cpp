@@ -633,10 +633,6 @@ void _nv12ToRgbColor_avx2_imp(const uint8_t* srcY, int srcYStride,
             int u = uvRow[x];     // U在偶数位置
             int v = uvRow[x + 1]; // V在奇数位置
 
-            // Y偏移处理已通过convertFunc内置
-            u -= 128;
-            v -= 128;
-
             int r0, g0, b0, r1, g1, b1;
             convertFunc(y0, u, v, r0, g0, b0);
             convertFunc(y1, u, v, r1, g1, b1);
@@ -808,10 +804,6 @@ void _i420ToRgba_avx2_imp(const uint8_t* srcY, int srcYStride,
             int y1 = yRow[x + 1];
             int u = uRow[x / 2];
             int v = vRow[x / 2];
-
-            // Y偏移处理已通过convertFunc内置
-            u -= 128;
-            v -= 128;
 
             int r0, g0, b0, r1, g1, b1;
             convertFunc(y0, u, v, r0, g0, b0);
