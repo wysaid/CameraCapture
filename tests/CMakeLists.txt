@@ -4,13 +4,25 @@ cmake_minimum_required(VERSION 3.14)
 include(FetchContent)
 FetchContent_Declare(
     googletest
-    URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+    URL https://github.com/google/googletest/archive/refs/tags/release-1.11.0.zip
     DOWNLOAD_EXTRACT_TIMESTAMP ON
 )
 
 # For Windows: Prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
+
+# LibYUV for performance comparison
+FetchContent_Declare(
+    libyuv
+    GIT_REPOSITORY https://chromium.googlesource.com/libyuv/libyuv
+    GIT_TAG main
+)
+
+# Set libyuv options to minimize dependencies
+set(UNIT_TEST OFF CACHE BOOL "" FORCE)
+set(JPEG_FOUND OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(libyuv)
 
 # Common test utilities
 add_library(ccap_test_utils
@@ -29,6 +41,18 @@ target_link_libraries(ccap_test_utils
 )
 
 target_include_directories(ccap_test_utils PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+# Add MSVC specific compile options for test utils
+if(MSVC)
+    target_compile_options(ccap_test_utils PRIVATE
+        /MP
+        /std:c++17
+        /Zc:__cplusplus
+        /bigobj
+        /wd4996
+        /D_CRT_SECURE_NO_WARNINGS
+    )
+endif()
 
 # Test executables
 add_executable(
@@ -71,6 +95,12 @@ target_link_libraries(
     ccap_performance_test
     ccap_test_utils
     gtest_main
+    yuv  # Add libyuv for performance comparison
+)
+
+# Add libyuv include directory for performance test
+target_include_directories(ccap_performance_test PRIVATE 
+    ${libyuv_SOURCE_DIR}/include
 )
 
 target_link_libraries(
@@ -102,14 +132,21 @@ set_target_properties(ccap_performance_test PROPERTIES
 )
 
 # Add compile definitions for tests
-target_compile_definitions(ccap_convert_test PRIVATE
-    GTEST_HAS_PTHREAD=1
-)
-
-target_compile_definitions(ccap_performance_test PRIVATE
-    GTEST_HAS_PTHREAD=1
-    CCAP_ENABLE_PERFORMANCE_TESTS=1
-)
+if(NOT MSVC)
+    target_compile_definitions(ccap_convert_test PRIVATE
+        GTEST_HAS_PTHREAD=1
+    )
+    target_compile_definitions(ccap_performance_test PRIVATE
+        GTEST_HAS_PTHREAD=1
+        CCAP_ENABLE_PERFORMANCE_TESTS=1
+        CCAP_ENABLE_LIBYUV_COMPARISON=1
+    )
+else()
+    target_compile_definitions(ccap_performance_test PRIVATE
+        CCAP_ENABLE_PERFORMANCE_TESTS=1
+        CCAP_ENABLE_LIBYUV_COMPARISON=1
+    )
+endif()
 
 # Enable testing
 enable_testing()
@@ -121,7 +158,21 @@ if(MSVC)
         /Zc:__cplusplus
         /Zc:preprocessor
         /source-charset:utf-8
+        /bigobj          # Allow big object files
+        /wd4996          # Disable deprecated function warnings
+        /D_CRT_SECURE_NO_WARNINGS
+    )
+    target_compile_options(ccap_performance_test PRIVATE
+        /MP
+        /std:c++17
+        /Zc:__cplusplus
+        /Zc:preprocessor
+        /source-charset:utf-8
+        /bigobj
+        /wd4996
+        /D_CRT_SECURE_NO_WARNINGS
     )
 else()
     target_compile_options(ccap_convert_test PRIVATE -std=c++17)
+    target_compile_options(ccap_performance_test PRIVATE -std=c++17)
 endif()

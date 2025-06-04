@@ -252,14 +252,14 @@ void TestYUVImage::fillSolid(uint8_t y, uint8_t u, uint8_t v) {
 
 void TestYUVImage::generateRandomYUVImage(int width, int height, uint32_t seed) {
     std::mt19937 gen(seed);
-    std::uniform_int_distribution<uint8_t> y_dist(16, 235);  // Y range for BT.601
-    std::uniform_int_distribution<uint8_t> uv_dist(16, 240); // UV range for BT.601
+    std::uniform_int_distribution<int> y_dist(16, 235);  // Y range for BT.601 - changed from uint8_t to int
+    std::uniform_int_distribution<int> uv_dist(16, 240); // UV range for BT.601 - changed from uint8_t to int
 
     // Fill Y plane with random values
     for (int row = 0; row < height; ++row) {
         uint8_t* y_row = y_plane_.data() + row * y_stride_;
         for (int col = 0; col < width; ++col) {
-            y_row[col] = y_dist(gen);
+            y_row[col] = static_cast<uint8_t>(y_dist(gen));
         }
     }
 
@@ -268,15 +268,15 @@ void TestYUVImage::generateRandomYUVImage(int width, int height, uint32_t seed) 
         if (isNV12_) {
             uint8_t* uv_row = uv_plane_.data() + row * uv_stride_;
             for (int x = 0; x < width_ / 2; ++x) {
-                uv_row[x * 2 + 0] = uv_dist(gen); // U
-                uv_row[x * 2 + 1] = uv_dist(gen); // V
+                uv_row[x * 2 + 0] = static_cast<uint8_t>(uv_dist(gen)); // U
+                uv_row[x * 2 + 1] = static_cast<uint8_t>(uv_dist(gen)); // V
             }
         } else {
             uint8_t* u_row = u_plane_.data() + row * uv_stride_;
             uint8_t* v_row = v_plane_.data() + row * uv_stride_;
             for (int x = 0; x < width_ / 2; ++x) {
-                u_row[x] = uv_dist(gen);
-                v_row[x] = uv_dist(gen);
+                u_row[x] = static_cast<uint8_t>(uv_dist(gen));
+                v_row[x] = static_cast<uint8_t>(uv_dist(gen));
             }
         }
     }
@@ -417,8 +417,8 @@ TestYUVImage TestDataGenerator::generateRandomYUVImage(int width, int height, ui
     TestYUVImage yuv_img(width, height, true); // Default to NV12
 
     std::mt19937 gen(seed);
-    std::uniform_int_distribution<> y_dis(16, 235);  // Video range Y
-    std::uniform_int_distribution<> uv_dis(16, 240); // UV range
+    std::uniform_int_distribution<int> y_dis(16, 235);  // Video range Y - changed from int to int (was already correct)
+    std::uniform_int_distribution<int> uv_dis(16, 240); // UV range - changed from int to int (was already correct)
 
     // Fill Y plane
     for (int y = 0; y < height; ++y) {

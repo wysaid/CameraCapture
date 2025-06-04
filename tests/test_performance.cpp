@@ -10,6 +10,9 @@
 #include <iomanip>
 #include <iostream>
 
+// LibYUV for performance comparison
+#include "libyuv.h"
+
 using namespace ccap_test;
 
 class PerformanceTest : public ::testing::Test {
@@ -105,6 +108,156 @@ protected:
         if (cpu_time > 0) {
             double speedup = cpu_time / avx2_time;
             std::cout << "[SPEEDUP]   " << name << ": " << speedup << "x faster with AVX2" << std::endl;
+        }
+    }
+
+    // New method for comparing CCAP vs LibYUV performance
+    void benchmarkLibYUVComparison(const std::string& name, std::function<void()> ccap_func, std::function<void()> libyuv_func,
+                                   int iterations = 10) {
+        std::cout << "[INFO] " << name << ": Comparing CCAP vs LibYUV performance" << std::endl;
+
+        double ccap_time = 0.0, libyuv_time = 0.0;
+
+        // Test CCAP implementation
+        {
+            // Warm up
+            ccap_func();
+
+            PerformanceTimer timer;
+            timer.start();
+
+            for (int i = 0; i < iterations; ++i) {
+                ccap_func();
+            }
+
+            ccap_time = timer.stopAndGetMs() / iterations;
+        }
+
+        // Test LibYUV implementation
+        {
+            // Warm up
+            libyuv_func();
+
+            PerformanceTimer timer;
+            timer.start();
+
+            for (int i = 0; i < iterations; ++i) {
+                libyuv_func();
+            }
+
+            libyuv_time = timer.stopAndGetMs() / iterations;
+        }
+
+        // Report results
+        std::cout << std::fixed << std::setprecision(3);
+        std::cout << "[BENCHMARK] " << name << " (CCAP):   " << ccap_time << "ms (avg of " << iterations << " runs)" << std::endl;
+        std::cout << "[BENCHMARK] " << name << " (LibYUV): " << libyuv_time << "ms (avg of " << iterations << " runs)" << std::endl;
+
+        if (libyuv_time > 0 && ccap_time > 0) {
+            double ccap_vs_libyuv = libyuv_time / ccap_time;
+            if (ccap_vs_libyuv > 1.0) {
+                std::cout << "[COMPARISON] " << name << ": CCAP is " << ccap_vs_libyuv << "x faster than LibYUV" << std::endl;
+            } else {
+                std::cout << "[COMPARISON] " << name << ": LibYUV is " << (1.0 / ccap_vs_libyuv) << "x faster than CCAP" << std::endl;
+            }
+        }
+    }
+
+    // Three-way comparison: CCAP AVX2 vs CCAP CPU vs LibYUV
+    void benchmarkThreeWayComparison(const std::string& name, std::function<void()> ccap_func, std::function<void()> libyuv_func,
+                                     int iterations = 10) {
+        bool original_avx2_state = ccap::hasAVX2();
+        bool avx2_supported = original_avx2_state;
+
+        std::cout << "[INFO] " << name << ": Three-way comparison (CCAP AVX2 vs CCAP CPU vs LibYUV)" << std::endl;
+
+        double ccap_avx2_time = 0.0, ccap_cpu_time = 0.0, libyuv_time = 0.0;
+
+        // Test CCAP with AVX2 (if supported)
+        if (avx2_supported) {
+            ccap::disableAVX2(false);
+            {
+                // Warm up
+                ccap_func();
+
+                PerformanceTimer timer;
+                timer.start();
+
+                for (int i = 0; i < iterations; ++i) {
+                    ccap_func();
+                }
+
+                ccap_avx2_time = timer.stopAndGetMs() / iterations;
+            }
+        }
+
+        // Test CCAP with CPU only
+        if (avx2_supported) {
+            ccap::disableAVX2(true);
+        }
+        {
+            // Warm up
+            ccap_func();
+
+            PerformanceTimer timer;
+            timer.start();
+
+            for (int i = 0; i < iterations; ++i) {
+                ccap_func();
+            }
+
+            ccap_cpu_time = timer.stopAndGetMs() / iterations;
+        }
+
+        // Restore original AVX2 state
+        if (avx2_supported) {
+            ccap::disableAVX2(!original_avx2_state);
+        }
+
+        // Test LibYUV implementation
+        {
+            // Warm up
+            libyuv_func();
+
+            PerformanceTimer timer;
+            timer.start();
+
+            for (int i = 0; i < iterations; ++i) {
+                libyuv_func();
+            }
+
+            libyuv_time = timer.stopAndGetMs() / iterations;
+        }
+
+        // Report results
+        std::cout << std::fixed << std::setprecision(3);
+        if (avx2_supported) {
+            std::cout << "[BENCHMARK] " << name << " (CCAP AVX2): " << ccap_avx2_time << "ms (avg of " << iterations << " runs)"
+                      << std::endl;
+        }
+        std::cout << "[BENCHMARK] " << name << " (CCAP CPU):  " << ccap_cpu_time << "ms (avg of " << iterations << " runs)" << std::endl;
+        std::cout << "[BENCHMARK] " << name << " (LibYUV):    " << libyuv_time << "ms (avg of " << iterations << " runs)" << std::endl;
+
+        // Performance comparisons
+        if (avx2_supported && ccap_avx2_time > 0) {
+            double avx2_speedup = ccap_cpu_time / ccap_avx2_time;
+            std::cout << "[SPEEDUP]    " << name << ": CCAP AVX2 is " << avx2_speedup << "x faster than CCAP CPU" << std::endl;
+
+            double avx2_vs_libyuv = libyuv_time / ccap_avx2_time;
+            if (avx2_vs_libyuv > 1.0) {
+                std::cout << "[COMPARISON] " << name << ": CCAP AVX2 is " << avx2_vs_libyuv << "x faster than LibYUV" << std::endl;
+            } else {
+                std::cout << "[COMPARISON] " << name << ": LibYUV is " << (1.0 / avx2_vs_libyuv) << "x faster than CCAP AVX2" << std::endl;
+            }
+        }
+
+        if (ccap_cpu_time > 0 && libyuv_time > 0) {
+            double cpu_vs_libyuv = libyuv_time / ccap_cpu_time;
+            if (cpu_vs_libyuv > 1.0) {
+                std::cout << "[COMPARISON] " << name << ": CCAP CPU is " << cpu_vs_libyuv << "x faster than LibYUV" << std::endl;
+            } else {
+                std::cout << "[COMPARISON] " << name << ": LibYUV is " << (1.0 / cpu_vs_libyuv) << "x faster than CCAP CPU" << std::endl;
+            }
         }
     }
 };
@@ -552,4 +705,248 @@ TEST_F(PerformanceTest, AVX2_vs_CPU_DetailedAnalysis) {
     EXPECT_GT(speedup, 1.0) << "AVX2 should be faster than CPU implementation";
     EXPECT_LT(avg_avx2, 30.0) << "AVX2 conversion should be under 30ms for 1080p";
     EXPECT_GT(fps_avx2, 30.0) << "AVX2 should achieve at least 30 FPS for 1080p";
+}
+
+// ============ CCAP vs LibYUV Performance Comparison Tests ============
+
+TEST_F(PerformanceTest, CCAP_vs_LibYUV_YUVConversion) {
+    const int width = 1920;
+    const int height = 1080;
+    const int iterations = 3;
+
+    TestYUVImage nv12_img(width, height, true);
+    TestYUVImage i420_img(width, height, false);
+    TestImage rgb_dst_ccap(width, height, 3);
+    TestImage rgb_dst_libyuv(width, height, 3);
+    TestImage rgba_dst_ccap(width, height, 4);
+    TestImage rgba_dst_libyuv(width, height, 4);
+    TestImage bgra_dst_ccap(width, height, 4);
+    TestImage bgra_dst_libyuv(width, height, 4);
+
+    // Temporary ARGB buffer for LibYUV two-step conversions
+    TestImage argb_temp(width, height, 4);
+
+    nv12_img.generateGradient();
+    i420_img.generateGradient();
+
+    std::cout << "\n=== CCAP vs LibYUV YUV Conversion Performance ===" << std::endl;
+
+    // NV12 to RGB24 comparison
+    benchmarkLibYUVComparison(
+        "NV12->RGB24 (1920x1080)",
+        [&]() {
+            ccap::nv12ToRgb24(nv12_img.y_data(), nv12_img.y_stride(), nv12_img.uv_data(), nv12_img.uv_stride(), rgb_dst_ccap.data(),
+                              rgb_dst_ccap.stride(), width, height, ccap::ConvertFlag::Default);
+        },
+        [&]() {
+            libyuv::NV12ToRGB24(nv12_img.y_data(), nv12_img.y_stride(), nv12_img.uv_data(), nv12_img.uv_stride(), rgb_dst_libyuv.data(),
+                                rgb_dst_libyuv.stride(), width, height);
+        },
+        iterations);
+
+    // NV12 to RGBA comparison (LibYUV: NV12->ARGB->RGBA)
+    benchmarkLibYUVComparison(
+        "NV12->RGBA (1920x1080)",
+        [&]() {
+            ccap::nv12ToRgba32(nv12_img.y_data(), nv12_img.y_stride(), nv12_img.uv_data(), nv12_img.uv_stride(), rgba_dst_ccap.data(),
+                               rgba_dst_ccap.stride(), width, height, ccap::ConvertFlag::Default);
+        },
+        [&]() {
+            // LibYUV two-step conversion: NV12->ARGB->RGBA
+            libyuv::NV12ToARGB(nv12_img.y_data(), nv12_img.y_stride(), nv12_img.uv_data(), nv12_img.uv_stride(), argb_temp.data(),
+                               argb_temp.stride(), width, height);
+            libyuv::ARGBToRGBA(argb_temp.data(), argb_temp.stride(), rgba_dst_libyuv.data(), rgba_dst_libyuv.stride(), width, height);
+        },
+        iterations);
+
+    // NV12 to BGRA comparison (LibYUV: NV12->ARGB->BGRA)
+    benchmarkLibYUVComparison(
+        "NV12->BGRA (1920x1080)",
+        [&]() {
+            ccap::nv12ToBgra32(nv12_img.y_data(), nv12_img.y_stride(), nv12_img.uv_data(), nv12_img.uv_stride(), bgra_dst_ccap.data(),
+                               bgra_dst_ccap.stride(), width, height, ccap::ConvertFlag::Default);
+        },
+        [&]() {
+            // LibYUV two-step conversion: NV12->ARGB->BGRA
+            libyuv::NV12ToARGB(nv12_img.y_data(), nv12_img.y_stride(), nv12_img.uv_data(), nv12_img.uv_stride(), argb_temp.data(),
+                               argb_temp.stride(), width, height);
+            libyuv::ARGBToBGRA(argb_temp.data(), argb_temp.stride(), bgra_dst_libyuv.data(), bgra_dst_libyuv.stride(), width, height);
+        },
+        iterations);
+
+    // I420 to RGB24 comparison
+    benchmarkLibYUVComparison(
+        "I420->RGB24 (1920x1080)",
+        [&]() {
+            ccap::i420ToRgb24(i420_img.y_data(), i420_img.y_stride(), i420_img.u_data(), i420_img.uv_stride(), i420_img.v_data(),
+                              i420_img.uv_stride(), rgb_dst_ccap.data(), rgb_dst_ccap.stride(), width, height, ccap::ConvertFlag::Default);
+        },
+        [&]() {
+            libyuv::I420ToRGB24(i420_img.y_data(), i420_img.y_stride(), i420_img.u_data(), i420_img.uv_stride(), i420_img.v_data(),
+                                i420_img.uv_stride(), rgb_dst_libyuv.data(), rgb_dst_libyuv.stride(), width, height);
+        },
+        iterations);
+
+    // I420 to RGBA comparison (LibYUV has direct function)
+    benchmarkLibYUVComparison(
+        "I420->RGBA (1920x1080)",
+        [&]() {
+            ccap::i420ToRgba32(i420_img.y_data(), i420_img.y_stride(), i420_img.u_data(), i420_img.uv_stride(), i420_img.v_data(),
+                               i420_img.uv_stride(), rgba_dst_ccap.data(), rgba_dst_ccap.stride(), width, height,
+                               ccap::ConvertFlag::Default);
+        },
+        [&]() {
+            libyuv::I420ToRGBA(i420_img.y_data(), i420_img.y_stride(), i420_img.u_data(), i420_img.uv_stride(), i420_img.v_data(),
+                               i420_img.uv_stride(), rgba_dst_libyuv.data(), rgba_dst_libyuv.stride(), width, height);
+        },
+        iterations);
+
+    // I420 to BGRA comparison (LibYUV has direct function)
+    benchmarkLibYUVComparison(
+        "I420->BGRA (1920x1080)",
+        [&]() {
+            ccap::i420ToBgra32(i420_img.y_data(), i420_img.y_stride(), i420_img.u_data(), i420_img.uv_stride(), i420_img.v_data(),
+                               i420_img.uv_stride(), bgra_dst_ccap.data(), bgra_dst_ccap.stride(), width, height,
+                               ccap::ConvertFlag::Default);
+        },
+        [&]() {
+            libyuv::I420ToBGRA(i420_img.y_data(), i420_img.y_stride(), i420_img.u_data(), i420_img.uv_stride(), i420_img.v_data(),
+                               i420_img.uv_stride(), bgra_dst_libyuv.data(), bgra_dst_libyuv.stride(), width, height);
+        },
+        iterations);
+
+    std::cout << "=================================================" << std::endl;
+}
+
+TEST_F(PerformanceTest, ThreeWay_CCAP_AVX2_CPU_vs_LibYUV) {
+    const int width = 1920;
+    const int height = 1080;
+    const int iterations = 3;
+
+    TestYUVImage nv12_img(width, height, true);
+    TestYUVImage i420_img(width, height, false);
+    TestImage rgb_dst_ccap(width, height, 3);
+    TestImage rgb_dst_libyuv(width, height, 3);
+    TestImage rgba_dst_ccap(width, height, 4);
+    TestImage rgba_dst_libyuv(width, height, 4);
+    TestImage bgra_dst_ccap(width, height, 4);
+    TestImage bgra_dst_libyuv(width, height, 4);
+
+    // Temporary ARGB buffer for LibYUV two-step conversions
+    TestImage argb_temp(width, height, 4);
+
+    nv12_img.generateGradient();
+    i420_img.generateGradient();
+
+    std::cout << "\n=== Three-way Comparison: CCAP AVX2 vs CCAP CPU vs LibYUV ===" << std::endl;
+
+    // NV12 to RGB24 three-way comparison
+    benchmarkThreeWayComparison(
+        "NV12->RGB24 (1920x1080)",
+        [&]() {
+            ccap::nv12ToRgb24(nv12_img.y_data(), nv12_img.y_stride(), nv12_img.uv_data(), nv12_img.uv_stride(), rgb_dst_ccap.data(),
+                              rgb_dst_ccap.stride(), width, height, ccap::ConvertFlag::Default);
+        },
+        [&]() {
+            libyuv::NV12ToRGB24(nv12_img.y_data(), nv12_img.y_stride(), nv12_img.uv_data(), nv12_img.uv_stride(), rgb_dst_libyuv.data(),
+                                rgb_dst_libyuv.stride(), width, height);
+        },
+        iterations);
+
+    // NV12 to RGBA three-way comparison
+    benchmarkThreeWayComparison(
+        "NV12->RGBA (1920x1080)",
+        [&]() {
+            ccap::nv12ToRgba32(nv12_img.y_data(), nv12_img.y_stride(), nv12_img.uv_data(), nv12_img.uv_stride(), rgba_dst_ccap.data(),
+                               rgba_dst_ccap.stride(), width, height, ccap::ConvertFlag::Default);
+        },
+        [&]() {
+            // LibYUV two-step conversion: NV12->ARGB->RGBA
+            libyuv::NV12ToARGB(nv12_img.y_data(), nv12_img.y_stride(), nv12_img.uv_data(), nv12_img.uv_stride(), argb_temp.data(),
+                               argb_temp.stride(), width, height);
+            libyuv::ARGBToRGBA(argb_temp.data(), argb_temp.stride(), rgba_dst_libyuv.data(), rgba_dst_libyuv.stride(), width, height);
+        },
+        iterations);
+
+    // NV12 to BGRA three-way comparison
+    benchmarkThreeWayComparison(
+        "NV12->BGRA (1920x1080)",
+        [&]() {
+            ccap::nv12ToBgra32(nv12_img.y_data(), nv12_img.y_stride(), nv12_img.uv_data(), nv12_img.uv_stride(), bgra_dst_ccap.data(),
+                               bgra_dst_ccap.stride(), width, height, ccap::ConvertFlag::Default);
+        },
+        [&]() {
+            // LibYUV two-step conversion: NV12->ARGB->BGRA
+            libyuv::NV12ToARGB(nv12_img.y_data(), nv12_img.y_stride(), nv12_img.uv_data(), nv12_img.uv_stride(), argb_temp.data(),
+                               argb_temp.stride(), width, height);
+            libyuv::ARGBToBGRA(argb_temp.data(), argb_temp.stride(), bgra_dst_libyuv.data(), bgra_dst_libyuv.stride(), width, height);
+        },
+        iterations);
+
+    // I420 to RGB24 three-way comparison
+    benchmarkThreeWayComparison(
+        "I420->RGB24 (1920x1080)",
+        [&]() {
+            ccap::i420ToRgb24(i420_img.y_data(), i420_img.y_stride(), i420_img.u_data(), i420_img.uv_stride(), i420_img.v_data(),
+                              i420_img.uv_stride(), rgb_dst_ccap.data(), rgb_dst_ccap.stride(), width, height, ccap::ConvertFlag::Default);
+        },
+        [&]() {
+            libyuv::I420ToRGB24(i420_img.y_data(), i420_img.y_stride(), i420_img.u_data(), i420_img.uv_stride(), i420_img.v_data(),
+                                i420_img.uv_stride(), rgb_dst_libyuv.data(), rgb_dst_libyuv.stride(), width, height);
+        },
+        iterations);
+
+    // I420 to RGBA three-way comparison
+    benchmarkThreeWayComparison(
+        "I420->RGBA (1920x1080)",
+        [&]() {
+            ccap::i420ToRgba32(i420_img.y_data(), i420_img.y_stride(), i420_img.u_data(), i420_img.uv_stride(), i420_img.v_data(),
+                               i420_img.uv_stride(), rgba_dst_ccap.data(), rgba_dst_ccap.stride(), width, height,
+                               ccap::ConvertFlag::Default);
+        },
+        [&]() {
+            libyuv::I420ToRGBA(i420_img.y_data(), i420_img.y_stride(), i420_img.u_data(), i420_img.uv_stride(), i420_img.v_data(),
+                               i420_img.uv_stride(), rgba_dst_libyuv.data(), rgba_dst_libyuv.stride(), width, height);
+        },
+        iterations);
+
+    // I420 to BGRA three-way comparison
+    benchmarkThreeWayComparison(
+        "I420->BGRA (1920x1080)",
+        [&]() {
+            ccap::i420ToBgra32(i420_img.y_data(), i420_img.y_stride(), i420_img.u_data(), i420_img.uv_stride(), i420_img.v_data(),
+                               i420_img.uv_stride(), bgra_dst_ccap.data(), bgra_dst_ccap.stride(), width, height,
+                               ccap::ConvertFlag::Default);
+        },
+        [&]() {
+            libyuv::I420ToBGRA(i420_img.y_data(), i420_img.y_stride(), i420_img.u_data(), i420_img.uv_stride(), i420_img.v_data(),
+                               i420_img.uv_stride(), bgra_dst_libyuv.data(), bgra_dst_libyuv.stride(), width, height);
+        },
+        iterations);
+
+    std::cout << "=============================================================" << std::endl;
+}
+
+TEST_F(PerformanceTest, LibYUV_Feature_Detection) {
+    std::cout << "\n=== LibYUV Feature Detection ===" << std::endl;
+
+    std::cout << "[INFO] LibYUV Version: " << LIBYUV_VERSION << std::endl;
+
+    // Check CPU features that LibYUV might use
+    bool has_avx2 = libyuv::TestCpuFlag(libyuv::kCpuHasAVX2);
+    bool has_ssse3 = libyuv::TestCpuFlag(libyuv::kCpuHasSSSE3);
+    bool has_sse2 = libyuv::TestCpuFlag(libyuv::kCpuHasSSE2);
+
+    std::cout << "[INFO] LibYUV AVX2 support: " << (has_avx2 ? "YES" : "NO") << std::endl;
+    std::cout << "[INFO] LibYUV SSSE3 support: " << (has_ssse3 ? "YES" : "NO") << std::endl;
+    std::cout << "[INFO] LibYUV SSE2 support: " << (has_sse2 ? "YES" : "NO") << std::endl;
+
+    // Compare with CCAP detection
+    bool ccap_avx2 = ccap::hasAVX2();
+    std::cout << "[INFO] CCAP AVX2 support: " << (ccap_avx2 ? "YES" : "NO") << std::endl;
+
+    std::cout << "================================" << std::endl;
+
+    // This is always a pass, just for information
+    EXPECT_TRUE(true);
 }

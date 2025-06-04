@@ -13,6 +13,39 @@
 
 set -e # Exit on any error
 
+function isWsl() {
+    [[ -d "/mnt/c" ]] || command -v wslpath &>/dev/null
+}
+
+function isWindows() {
+    [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]] || isWsl || [[ -n "$WINDIR" ]]
+}
+
+function detectCores() {
+    if isWindows; then
+        echo "${NUMBER_OF_PROCESSORS:-4}"
+    else
+        nproc
+    fi
+}
+
+if isWsl; then
+    # Switch to Git Bash when running in WSL
+    echo "You're using WSL, but WSL linux is not supported! Tring to run with Git Bash!" >&2
+    GIT_BASH_PATH_WIN=$(/mnt/c/Windows/system32/cmd.exe /C "where bash.exe" | grep -i Git | head -n 1 | tr -d '\n\r')
+    GIT_BASH_PATH_WSL=$(wslpath -u "$GIT_BASH_PATH_WIN")
+    echo "== GIT_BASH_PATH_WIN=$GIT_BASH_PATH_WIN"
+    echo "== GIT_BASH_PATH_WSL=$GIT_BASH_PATH_WSL"
+    if [[ -f "$GIT_BASH_PATH_WSL" ]]; then
+        THIS_BASE_NAME=$(basename "$0")
+        "$GIT_BASH_PATH_WSL" "$THIS_BASE_NAME" $@
+        exit $?
+    else
+        echo "Git Bash not found, please install Git Bash!" >&2
+        exit 1
+    fi
+fi
+
 # Parse command line arguments
 RUN_FUNCTIONAL=true
 RUN_PERFORMANCE=true
@@ -117,10 +150,10 @@ if [ "$RUN_PERFORMANCE" = true ]; then
     cmake ../.. -DCMAKE_BUILD_TYPE=Release -DCCAP_BUILD_TESTS=ON
 
     echo -e "${BLUE}Building Release project...${NC}"
-    make -j$(nproc)
+    cmake --build . --config Release --parallel $(detectCores)
 
     echo -e "${BLUE}Building Release tests...${NC}"
-    make -j$(nproc) ccap_performance_test
+    cmake --build . --config Release --target ccap_performance_test --parallel $(detectCores)
     cd ../..
 fi
 
@@ -131,9 +164,16 @@ if [ "$RUN_FUNCTIONAL" = true ]; then
     echo -e "${GREEN}Running Functional Tests (Debug)${NC}"
     echo "==============================================="
 
-    if [ -f "./build/Debug/tests/ccap_convert_test" ]; then
+    # Determine test executable path based on platform
+    if isWindows; then
+        TEST_EXECUTABLE="./build/Debug/tests/Debug/ccap_convert_test.exe"
+    else
+        TEST_EXECUTABLE="./build/Debug/tests/ccap_convert_test"
+    fi
+
+    if [ -f "$TEST_EXECUTABLE" ]; then
         echo -e "${YELLOW}Running functional tests in Debug mode...${NC}"
-        ./build/Debug/tests/ccap_convert_test --gtest_output=xml:build/Debug/test_results.xml
+        "$TEST_EXECUTABLE" --gtest_output=xml:build/Debug/test_results.xml
         TEST_RESULT=$?
 
         if [ $TEST_RESULT -eq 0 ]; then
@@ -142,7 +182,7 @@ if [ "$RUN_FUNCTIONAL" = true ]; then
             echo -e "${RED}✗ Functional tests FAILED${NC}"
         fi
     else
-        echo -e "${RED}Error: ccap_convert_test executable not found in Debug build${NC}"
+        echo -e "${RED}Error: ccap_convert_test executable not found at $TEST_EXECUTABLE${NC}"
         TEST_RESULT=1
     fi
 fi
@@ -154,14 +194,21 @@ if [ "$RUN_PERFORMANCE" = true ]; then
     echo -e "${GREEN}Running Performance Tests (Release)${NC}"
     echo "==============================================="
 
-    if [ -f "./build/Release/tests/ccap_performance_test" ]; then
+    # Determine test executable path based on platform
+    if isWindows; then
+        PERF_EXECUTABLE="./build/Release/tests/Release/ccap_performance_test.exe"
+    else
+        PERF_EXECUTABLE="./build/Release/tests/ccap_performance_test"
+    fi
+
+    if [ -f "$PERF_EXECUTABLE" ]; then
         echo -e "${YELLOW}Running performance benchmarks in Release mode...${NC}"
         echo -e "${BLUE}Note: Release mode provides accurate performance measurements${NC}"
         if [ -n "$FILTER" ]; then
             echo -e "${BLUE}Filter: $FILTER${NC}"
-            ./build/Release/tests/ccap_performance_test $FILTER --gtest_output=xml:build/Release/performance_results.xml
+            "$PERF_EXECUTABLE" $FILTER --gtest_output=xml:build/Release/performance_results.xml
         else
-            ./build/Release/tests/ccap_performance_test --gtest_output=xml:build/Release/performance_results.xml
+            "$PERF_EXECUTABLE" --gtest_output=xml:build/Release/performance_results.xml
         fi
         PERF_RESULT=$?
 
@@ -171,7 +218,7 @@ if [ "$RUN_PERFORMANCE" = true ]; then
             echo -e "${RED}✗ Performance tests FAILED${NC}"
         fi
     else
-        echo -e "${RED}Error: ccap_performance_test executable not found in Release build${NC}"
+        echo -e "${RED}Error: ccap_performance_test executable not found at $PERF_EXECUTABLE${NC}"
         PERF_RESULT=1
     fi
 fi
