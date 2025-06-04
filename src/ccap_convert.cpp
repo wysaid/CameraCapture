@@ -16,16 +16,22 @@
 
 namespace ccap
 {
-template <int inputChannels, int outputChannels>
+template <int inputChannels, int outputChannels, int swapRB>
 void colorShuffle(const uint8_t* src, int srcStride,
                   uint8_t* dst, int dstStride,
-                  int width, int height,
-                  const uint8_t shuffle[])
+                  int width, int height)
 {
+    static_assert((inputChannels == 3 || inputChannels == 4) &&
+                      (outputChannels == 3 || outputChannels == 4),
+                  "inputChannels and outputChannels must be 3 or 4");
+
+    static_assert(inputChannels != outputChannels || swapRB,
+                  "swapRB must be true when inputChannels == outputChannels");
+
 #if ENABLE_AVX2_IMP
     if (hasAVX2())
     {
-        colorShuffle_avx2<inputChannels, outputChannels>(src, srcStride, dst, dstStride, width, height, shuffle);
+        colorShuffle_avx2<inputChannels, outputChannels, swapRB>(src, srcStride, dst, dstStride, width, height);
         return;
     }
 #endif
@@ -43,13 +49,23 @@ void colorShuffle(const uint8_t* src, int srcStride,
         uint8_t* dstRow = dst + y * dstStride;
         for (int x = 0; x < width; ++x)
         {
-            dstRow[0] = srcRow[shuffle[0]];
-            dstRow[1] = srcRow[shuffle[1]];
-            dstRow[2] = srcRow[shuffle[2]];
+            if constexpr (swapRB)
+            {
+                dstRow[2] = srcRow[0];
+                dstRow[1] = srcRow[1];
+                dstRow[0] = srcRow[2];
+            }
+            else
+            {
+                dstRow[0] = srcRow[0];
+                dstRow[1] = srcRow[1];
+                dstRow[2] = srcRow[2];
+            }
+
             if constexpr (outputChannels == 4)
             {
                 if constexpr (inputChannels == 4)
-                    dstRow[3] = srcRow[shuffle[3]]; // BGRA
+                    dstRow[3] = srcRow[3]; // BGRA
                 else
                     dstRow[3] = 0xff; // RGBA
             }
@@ -59,48 +75,31 @@ void colorShuffle(const uint8_t* src, int srcStride,
     }
 }
 
-template void colorShuffle<4, 4>(const uint8_t* src, int srcStride,
-                                 uint8_t* dst, int dstStride,
-                                 int width, int height,
-                                 const uint8_t shuffle[]);
+template void colorShuffle<4, 4, true>(const uint8_t* src, int srcStride,
+                                       uint8_t* dst, int dstStride,
+                                       int width, int height);
 
-template void colorShuffle<4, 3>(const uint8_t* src, int srcStride,
-                                 uint8_t* dst, int dstStride,
-                                 int width, int height,
-                                 const uint8_t shuffle[]);
+template void colorShuffle<4, 3, true>(const uint8_t* src, int srcStride,
+                                       uint8_t* dst, int dstStride,
+                                       int width, int height);
 
-template void colorShuffle<3, 4>(const uint8_t* src, int srcStride,
-                                 uint8_t* dst, int dstStride,
-                                 int width, int height,
-                                 const uint8_t shuffle[]);
+template void colorShuffle<4, 3, false>(const uint8_t* src, int srcStride,
+                                        uint8_t* dst, int dstStride,
+                                        int width, int height);
 
-template void colorShuffle<3, 3>(const uint8_t* src, int srcStride,
-                                 uint8_t* dst, int dstStride,
-                                 int width, int height,
-                                 const uint8_t shuffle[]);
+template void colorShuffle<3, 4, true>(const uint8_t* src, int srcStride,
+                                       uint8_t* dst, int dstStride,
+                                       int width, int height);
+
+template void colorShuffle<3, 4, false>(const uint8_t* src, int srcStride,
+                                        uint8_t* dst, int dstStride,
+                                        int width, int height);
+
+template void colorShuffle<3, 3, true>(const uint8_t* src, int srcStride,
+                                       uint8_t* dst, int dstStride,
+                                       int width, int height);
 
 ///////////// YUV to RGB common functions /////////////
-
-// 定义YUV到RGB转换函数指针类型
-typedef void (*YuvToRgbFunc)(int y, int u, int v, int& r, int& g, int& b);
-
-inline YuvToRgbFunc getYuvToRgbFunc(bool is601, bool isFullRange)
-{
-    if (is601)
-    {
-        if (isFullRange)
-            return yuv2rgb601f;
-        else
-            return yuv2rgb601v;
-    }
-    else
-    {
-        if (isFullRange)
-            return yuv2rgb709f;
-        else
-            return yuv2rgb709v;
-    }
-}
 
 template <bool isBgrColor, bool hasAlpha>
 void nv12ToRgb_common(const uint8_t* srcY, int srcYStride,
@@ -242,7 +241,7 @@ void nv12ToBgr24(const uint8_t* srcY, int srcYStride,
 {
     if (hasAVX2())
     {
-        nv12ToBgr24_avx2(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height);
+        nv12ToBgr24_avx2(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, flag);
         return;
     }
 
@@ -257,7 +256,7 @@ void nv12ToRgb24(const uint8_t* srcY, int srcYStride,
 {
     if (hasAVX2())
     {
-        nv12ToRgb24_avx2(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height);
+        nv12ToRgb24_avx2(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, flag);
         return;
     }
 
@@ -272,7 +271,7 @@ void nv12ToBgra32(const uint8_t* srcY, int srcYStride,
 {
     if (hasAVX2())
     {
-        nv12ToBgra32_avx2(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height);
+        nv12ToBgra32_avx2(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, flag);
         return;
     }
 
@@ -287,7 +286,7 @@ void nv12ToRgba32(const uint8_t* srcY, int srcYStride,
 {
     if (hasAVX2())
     {
-        nv12ToRgba32_avx2(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height);
+        nv12ToRgba32_avx2(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, flag);
         return;
     }
 
@@ -303,7 +302,7 @@ void i420ToBgr24(const uint8_t* srcY, int srcYStride,
 {
     if (hasAVX2())
     {
-        i420ToBgr24_avx2(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height);
+        i420ToBgr24_avx2(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, flag);
         return;
     }
 
@@ -319,7 +318,7 @@ void i420ToRgb24(const uint8_t* srcY, int srcYStride,
 {
     if (hasAVX2())
     {
-        i420ToRgb24_avx2(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height);
+        i420ToRgb24_avx2(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, flag);
         return;
     }
 
@@ -335,7 +334,7 @@ void i420ToBgra32(const uint8_t* srcY, int srcYStride,
 {
     if (hasAVX2())
     {
-        i420ToBgra32_avx2(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height);
+        i420ToBgra32_avx2(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, flag);
         return;
     }
 
@@ -351,7 +350,7 @@ void i420ToRgba32(const uint8_t* srcY, int srcYStride,
 {
     if (hasAVX2())
     {
-        i420ToRgba32_avx2(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height);
+        i420ToRgba32_avx2(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, flag);
         return;
     }
 

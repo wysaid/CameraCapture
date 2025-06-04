@@ -195,17 +195,16 @@ bool inplaceConvertFrameRGB(VideoFrame* frame, PixelFormat toFormat, bool vertic
         assert(swapRB);
         if (inputChannelCount == 4) // RGBA <-> BGRA
         {
-            const uint8_t kShuffleMap[4] = { 2, 1, 0, 3 }; // RGBA->BGRA 或 BGRA->RGBA
 #if ENABLE_LIBYUV
+            const uint8_t kShuffleMap[4] = { 2, 1, 0, 3 }; // RGBA->BGRA 或 BGRA->RGBA
             libyuv::ARGBShuffle(inputBytes, inputLineSize, outputBytes, newLineSize, kShuffleMap, frame->width, height);
 #else
-            rgbaShuffle(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, height, kShuffleMap);
+            rgbaToBgra(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, height);
 #endif
         }
         else // RGB <-> BGR
         {
-            const uint8_t kShuffleMap[3] = { 2, 1, 0 }; // RGB->BGR 或 BGR->RGB
-            rgbShuffle(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, height, kShuffleMap);
+            rgbaToBgra(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, height);
         }
     }
     else /// Different number of channels, only 4 channels <-> 3 channels

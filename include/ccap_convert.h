@@ -21,6 +21,10 @@
 
 namespace ccap
 {
+// Check if AVX2 is available. If available, use AVX2 acceleration.
+bool hasAVX2();
+void disableAVX2(bool disable); // Disable AVX2 implementation, useful for testing
+
 /// @brief YUV 601 video-range to RGB (包含 video range 预处理)
 inline void yuv2rgb601v(int y, int u, int v, int& r, int& g, int& b)
 {
@@ -100,74 +104,60 @@ inline ConvertFlag operator|(ConvertFlag lhs, ConvertFlag rhs)
     return static_cast<ConvertFlag>(static_cast<int>(lhs) | static_cast<int>(rhs));
 }
 
-// Check if AVX2 is available. If available, use AVX2 acceleration.
-bool hasAVX2();
+// 定义YUV到RGB转换函数指针类型
+typedef void (*YuvToRgbFunc)(int y, int u, int v, int& r, int& g, int& b);
+
+inline YuvToRgbFunc getYuvToRgbFunc(bool is601, bool isFullRange)
+{
+    if (is601)
+    {
+        if (isFullRange)
+            return yuv2rgb601f;
+        else
+            return yuv2rgb601v;
+    }
+    else
+    {
+        if (isFullRange)
+            return yuv2rgb709f;
+        else
+            return yuv2rgb709v;
+    }
+}
 
 ///////////// color shuffle /////////////
 
-template <int inputChannels, int outputChannels>
+// swapRB indicates whether to swap Red and Blue channels
+template <int inputChannels, int outputChannels, int swapRB>
 void colorShuffle(const uint8_t* src, int srcStride,
                   uint8_t* dst, int dstStride,
-                  int width, int height,
-                  const uint8_t shuffle[]);
+                  int width, int height);
 
-/// @brief A general 4-channel shuffle
-inline void colorShuffle4To4(const uint8_t* src, int srcStride,
-                             uint8_t* dst, int dstStride,
-                             int width, int height,
-                             const uint8_t shuffle[4])
+inline void rgbaToBgra(const uint8_t* src, int srcStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height)
 {
-    colorShuffle<4, 4>(src, srcStride, dst, dstStride, width, height, shuffle);
+    colorShuffle<4, 4, true>(src, srcStride, dst, dstStride, width, height);
 }
 
-/// @brief A general channel shuffle, input is 3 channels, output is 4 channels
-inline void colorShuffle3To4(const uint8_t* src, int srcStride,
-                             uint8_t* dst, int dstStride,
-                             int width, int height,
-                             const uint8_t shuffle[4])
-{
-    colorShuffle<3, 4>(src, srcStride, dst, dstStride, width, height, shuffle);
-}
-
-/// @brief A general channel shuffle, input is 4 channels, output is 3 channels
-inline void colorShuffle4To3(const uint8_t* src, int srcStride,
-                             uint8_t* dst, int dstStride,
-                             int width, int height,
-                             const uint8_t shuffle[3])
-{
-    colorShuffle<4, 3>(src, srcStride, dst, dstStride, width, height, shuffle);
-}
-
-/// @brief A general channel shuffle, input is 3 channels, output is 3 channels
-inline void colorShuffle3To3(const uint8_t* src, int srcStride,
-                             uint8_t* dst, int dstStride,
-                             int width, int height,
-                             const uint8_t shuffle[3])
-{
-    colorShuffle<3, 3>(src, srcStride, dst, dstStride, width, height, shuffle);
-}
-
-constexpr auto rgbShuffle = colorShuffle3To3;
-constexpr auto rgbaShuffle = colorShuffle4To4;
+constexpr auto bgraToRgba = rgbaToBgra; // function alias
 
 // swap R and B, G not change, remove A
 inline void rgbaToBgr(const uint8_t* src, int srcStride,
                       uint8_t* dst, int dstStride,
                       int width, int height)
 {
-    constexpr uint8_t kShuffleMap[4] = { 2, 1, 0, 3 }; // RGBA -> BGR
-    colorShuffle<4, 3>(src, srcStride, dst, dstStride, width, height, kShuffleMap);
+    colorShuffle<4, 3, true>(src, srcStride, dst, dstStride, width, height);
 }
 
-constexpr auto bgraToRgb = rgbaToBgr; // function alias
+constexpr auto bgraToRgb = rgbaToBgr;
 
 /// remove last channel
 inline void rgbaToRgb(const uint8_t* src, int srcStride,
                       uint8_t* dst, int dstStride,
                       int width, int height)
 {
-    constexpr uint8_t kShuffleMap[4] = { 0, 1, 2, 3 }; // RGBA -> RGB
-    colorShuffle<4, 3>(src, srcStride, dst, dstStride, width, height, kShuffleMap);
+    colorShuffle<4, 3, false>(src, srcStride, dst, dstStride, width, height);
 }
 
 constexpr auto bgra2bgr = rgbaToRgb;
@@ -177,8 +167,7 @@ inline void rgbToBgra(const uint8_t* src, int srcStride,
                       uint8_t* dst, int dstStride,
                       int width, int height)
 {
-    constexpr uint8_t kShuffleMap[4] = { 2, 1, 0, 3 }; // RGB -> BGRA
-    colorShuffle<3, 4>(src, srcStride, dst, dstStride, width, height, kShuffleMap);
+    colorShuffle<3, 4, true>(src, srcStride, dst, dstStride, width, height);
 }
 
 constexpr auto bgrToRgba = rgbToBgra;
@@ -188,11 +177,19 @@ inline void rgbToRgba(const uint8_t* src, int srcStride,
                       uint8_t* dst, int dstStride,
                       int width, int height)
 {
-    constexpr uint8_t kShuffleMap[4] = { 0, 1, 2, 3 }; // RGB -> RGBA
-    colorShuffle<3, 4>(src, srcStride, dst, dstStride, width, height, kShuffleMap);
+    colorShuffle<3, 4, false>(src, srcStride, dst, dstStride, width, height);
 }
 
 constexpr auto bgrToBgra = rgbToRgba;
+
+inline void rgbToBgr(const uint8_t* src, int srcStride,
+                     uint8_t* dst, int dstStride,
+                     int width, int height)
+{
+    colorShuffle<3, 3, true>(src, srcStride, dst, dstStride, width, height);
+}
+
+constexpr auto bgrToRgb = rgbToBgr;
 
 //////////// yuv color to rgb color /////////////
 

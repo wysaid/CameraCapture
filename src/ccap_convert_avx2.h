@@ -9,6 +9,8 @@
 #ifndef CCAP_CONVERT_AVX2_H
 #define CCAP_CONVERT_AVX2_H
 
+#include "ccap_convert.h"
+
 #include <cstdint>
 
 #if __APPLE__
@@ -22,126 +24,70 @@
 #define ENABLE_AVX2_IMP 0
 #endif
 
-#if ENABLE_AVX2_IMP
-/// macOS 上直接使用 Accelerate.framework, 暂时不需要单独实现
-#include <immintrin.h> // AVX2
-
-#if defined(_MSC_VER)
-#include <intrin.h>
-inline bool hasAVX2_()
-{
-    int cpuInfo[4];
-    __cpuid(cpuInfo, 1);
-    bool osxsave = (cpuInfo[2] & (1 << 27)) != 0;
-    bool avx = (cpuInfo[2] & (1 << 28)) != 0;
-    if (!(osxsave && avx))
-        return false;
-    // 检查 XGETBV，确认 OS 支持 YMM
-    unsigned long long xcrFeatureMask = _xgetbv(0);
-    if ((xcrFeatureMask & 0x6) != 0x6)
-        return false;
-    // 检查 AVX2
-    __cpuid(cpuInfo, 7);
-    return (cpuInfo[1] & (1 << 5)) != 0;
-}
-#elif defined(__GNUC__) && (defined(_WIN32) || defined(__APPLE__))
-#include <cpuid.h>
-inline bool hasAVX2_()
-{
-    unsigned int eax, ebx, ecx, edx;
-    // 1. 检查 AVX 和 OSXSAVE
-    if (!__get_cpuid(1, &eax, &ebx, &ecx, &edx))
-        return false;
-    bool osxsave = (ecx & (1 << 27)) != 0;
-    bool avx = (ecx & (1 << 28)) != 0;
-    if (!(osxsave && avx))
-        return false;
-    // 2. 检查 XGETBV
-    unsigned int xcr0_lo = 0, xcr0_hi = 0;
-#if defined(_XCR_XFEATURE_ENABLED_MASK)
-    asm volatile("xgetbv"
-                 : "=a"(xcr0_lo), "=d"(xcr0_hi)
-                 : "c"(0));
-#else
-    asm volatile("xgetbv"
-                 : "=a"(xcr0_lo), "=d"(xcr0_hi)
-                 : "c"(0));
-#endif
-    if ((xcr0_lo & 0x6) != 0x6)
-        return false;
-    // 3. 检查 AVX2
-    if (!__get_cpuid_count(7, 0, &eax, &ebx, &ecx, &edx))
-        return false;
-    return (ebx & (1 << 5)) != 0;
-}
-#else
-inline bool hasAVX2_() { return false; }
-#endif
-
-#endif
-
 namespace ccap
 {
 bool hasAVX2();
 
+void disableAVX2(bool disable); // Disable AVX2 implementation, useful for testing
+
 #if ENABLE_AVX2_IMP
 
-template <int inputChannels, int outputChannels>
+template <int inputChannels, int outputChannels, int swapRB>
 void colorShuffle_avx2(const uint8_t* src, int srcStride,
                        uint8_t* dst, int dstStride,
-                       int width, int height, const uint8_t inputShuffle[]);
+                       int width, int height);
 
 // NV12 to BGRA32, AVX2 accelerated
 void nv12ToBgra32_avx2(const uint8_t* srcY, int srcYStride,
                        const uint8_t* srcUV, int srcUVStride,
                        uint8_t* dst, int dstStride,
-                       int width, int height);
+                       int width, int height, ConvertFlag flag);
 
 // NV12 to RGBA32, AVX2 accelerated
 void nv12ToRgba32_avx2(const uint8_t* srcY, int srcYStride,
                        const uint8_t* srcUV, int srcUVStride,
                        uint8_t* dst, int dstStride,
-                       int width, int height);
+                       int width, int height, ConvertFlag flag);
 
 // NV12 to BGR24, AVX2 accelerated
 void nv12ToBgr24_avx2(const uint8_t* srcY, int srcYStride,
                       const uint8_t* srcUV, int srcUVStride,
                       uint8_t* dst, int dstStride,
-                      int width, int height);
+                      int width, int height, ConvertFlag flag);
 
 // NV12 to RGB24, AVX2 accelerated
 void nv12ToRgb24_avx2(const uint8_t* srcY, int srcYStride,
                       const uint8_t* srcUV, int srcUVStride,
                       uint8_t* dst, int dstStride,
-                      int width, int height);
+                      int width, int height, ConvertFlag flag);
 
 // I420 to BGRA32, AVX2 accelerated
 void i420ToBgra32_avx2(const uint8_t* srcY, int srcYStride,
                        const uint8_t* srcU, int srcUStride,
                        const uint8_t* srcV, int srcVStride,
                        uint8_t* dst, int dstStride,
-                       int width, int height);
+                       int width, int height, ConvertFlag flag);
 
 // I420 to RGBA32, AVX2 accelerated
 void i420ToRgba32_avx2(const uint8_t* srcY, int srcYStride,
                        const uint8_t* srcU, int srcUStride,
                        const uint8_t* srcV, int srcVStride,
                        uint8_t* dst, int dstStride,
-                       int width, int height);
+                       int width, int height, ConvertFlag flag);
 
 // I420 to BGR24, AVX2 accelerated
 void i420ToBgr24_avx2(const uint8_t* srcY, int srcYStride,
                       const uint8_t* srcU, int srcUStride,
                       const uint8_t* srcV, int srcVStride,
                       uint8_t* dst, int dstStride,
-                      int width, int height);
+                      int width, int height, ConvertFlag flag);
 
 // I420 to RGB24, AVX2 accelerated
 void i420ToRgb24_avx2(const uint8_t* srcY, int srcYStride,
                       const uint8_t* srcU, int srcUStride,
                       const uint8_t* srcV, int srcVStride,
                       uint8_t* dst, int dstStride,
-                      int width, int height);
+                      int width, int height, ConvertFlag flag);
 #else
 
 #define nv12ToBgr24_avx2(...) assert(0 && "AVX2 not supported")
