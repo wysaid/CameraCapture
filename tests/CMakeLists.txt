@@ -12,10 +12,18 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+if(NOT DEFINED LIBYUV_REPO_URL)
+    if(DEFINED ENV{LIBYUV_REPO_URL})
+        set(LIBYUV_REPO_URL $ENV{LIBYUV_REPO_URL})
+    else()
+        set(LIBYUV_REPO_URL https://github.com/lemenkov/libyuv)
+    endif()
+endif()
+
 # LibYUV for performance comparison
 FetchContent_Declare(
     libyuv
-    GIT_REPOSITORY https://chromium.googlesource.com/libyuv/libyuv
+    GIT_REPOSITORY ${LIBYUV_REPO_URL}
     GIT_TAG main
 )
 
@@ -95,11 +103,11 @@ target_link_libraries(
     ccap_performance_test
     ccap_test_utils
     gtest_main
-    yuv  # Add libyuv for performance comparison
+    yuv # Add libyuv for performance comparison
 )
 
 # Add libyuv include directory for performance test
-target_include_directories(ccap_performance_test PRIVATE 
+target_include_directories(ccap_performance_test PRIVATE
     ${libyuv_SOURCE_DIR}/include
 )
 
@@ -158,8 +166,8 @@ if(MSVC)
         /Zc:__cplusplus
         /Zc:preprocessor
         /source-charset:utf-8
-        /bigobj          # Allow big object files
-        /wd4996          # Disable deprecated function warnings
+        /bigobj # Allow big object files
+        /wd4996 # Disable deprecated function warnings
         /D_CRT_SECURE_NO_WARNINGS
     )
     target_compile_options(ccap_performance_test PRIVATE

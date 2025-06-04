@@ -128,7 +128,7 @@ if [ "$RUN_FUNCTIONAL" = true ]; then
 
     cd build/Debug
     echo -e "${BLUE}Configuring CMake (Debug)...${NC}"
-    cmake ../.. -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_TESTS=ON
+    cmake ../.. -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_TESTS=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
     echo -e "${BLUE}Building Debug project...${NC}"
     cmake --build . --config Debug --parallel $(detectCores)
@@ -147,7 +147,7 @@ if [ "$RUN_PERFORMANCE" = true ]; then
 
     cd build/Release
     echo -e "${BLUE}Configuring CMake (Release)...${NC}"
-    cmake ../.. -DCMAKE_BUILD_TYPE=Release -DCCAP_BUILD_TESTS=ON
+    cmake ../.. -DCMAKE_BUILD_TYPE=Release -DCCAP_BUILD_TESTS=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
     echo -e "${BLUE}Building Release project...${NC}"
     cmake --build . --config Release --parallel $(detectCores)
