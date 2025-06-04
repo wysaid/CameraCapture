@@ -5,6 +5,7 @@
 
 #include "ccap_convert.h"
 #include "test_utils.h"
+#include "test_utils_avx2.h"
 
 #include <gtest/gtest.h>
 
@@ -350,3 +351,177 @@ INSTANTIATE_TEST_SUITE_P(
     ColorShuffleEdgeCase,
     ColorShuffleEdgeCaseTest,
     ::testing::ValuesIn(TestDataGenerator::getTestImageSizes()));
+
+// ============ Vertical Flip Tests ============
+
+TEST_F(ColorShuffleTest, Vertical_Flip_RGB_To_BGR)
+{
+    TestImage rgb_img(width_, height_, 3);
+    TestImage bgr_normal(width_, height_, 3);
+    TestImage bgr_flipped(width_, height_, 3);
+
+    rgb_img.fillGradient();
+
+    // Normal conversion
+    ccap::rgbToBgr(rgb_img.data(), rgb_img.stride(),
+                   bgr_normal.data(), bgr_normal.stride(),
+                   width_, height_);
+
+    // Flipped conversion (negative height)
+    // Only negative height is needed to trigger vertical flip
+    ccap::rgbToBgr(rgb_img.data(), rgb_img.stride(),
+                   bgr_flipped.data(), bgr_flipped.stride(),
+                   width_, -height_);  // Negative height triggers flip
+
+    // Verify that flipped version has the same content but vertically mirrored
+    for (int y = 0; y < height_; ++y)
+    {
+        const uint8_t* normal_row = bgr_normal.data() + y * bgr_normal.stride();
+        const uint8_t* flipped_row = bgr_flipped.data() + (height_ - 1 - y) * bgr_flipped.stride();
+
+        for (int x = 0; x < width_; ++x)
+        {
+            EXPECT_EQ(normal_row[x * 3 + 0], flipped_row[x * 3 + 0]) 
+                << "B channel mismatch at (" << x << "," << y << ")";
+            EXPECT_EQ(normal_row[x * 3 + 1], flipped_row[x * 3 + 1]) 
+                << "G channel mismatch at (" << x << "," << y << ")";
+            EXPECT_EQ(normal_row[x * 3 + 2], flipped_row[x * 3 + 2]) 
+                << "R channel mismatch at (" << x << "," << y << ")";
+        }
+    }
+}
+
+TEST_F(ColorShuffleTest, Vertical_Flip_RGBA_To_BGRA)
+{
+    TestImage rgba_img(width_, height_, 4);
+    TestImage bgra_normal(width_, height_, 4);
+    TestImage bgra_flipped(width_, height_, 4);
+
+    rgba_img.fillGradient();
+
+    // Normal conversion
+    ccap::rgbaToBgra(rgba_img.data(), rgba_img.stride(),
+                     bgra_normal.data(), bgra_normal.stride(),
+                     width_, height_);
+
+    // Flipped conversion
+    // Only negative height is needed to trigger vertical flip
+    ccap::rgbaToBgra(rgba_img.data(), rgba_img.stride(),
+                     bgra_flipped.data(), bgra_flipped.stride(),
+                     width_, -height_);
+
+    // Verify vertical flip occurred correctly
+    for (int y = 0; y < height_; ++y)
+    {
+        const uint8_t* normal_row = bgra_normal.data() + y * bgra_normal.stride();
+        const uint8_t* flipped_row = bgra_flipped.data() + (height_ - 1 - y) * bgra_flipped.stride();
+
+        for (int x = 0; x < width_; ++x)
+        {
+            for (int c = 0; c < 4; ++c)
+            {
+                EXPECT_EQ(normal_row[x * 4 + c], flipped_row[x * 4 + c])
+                    << "Channel " << c << " mismatch at (" << x << "," << y << ")";
+            }
+        }
+    }
+}
+
+// ============ Dual Implementation Tests (AVX2 vs CPU) ============
+
+TEST_F(ColorShuffleTest, Dual_Implementation_RGBA_To_BGR)
+{
+    const int width = 128;
+    const int height = 128;
+    
+    AVX2TestRunner::runImageComparisonTest([&]() -> TestImage {
+        TestImage rgba_src(width, height, 4);
+        TestImage bgr_dst(width, height, 3);
+        
+        rgba_src.fillGradient();
+        
+        ccap::rgbaToBgr(rgba_src.data(), rgba_src.stride(),
+                        bgr_dst.data(), bgr_dst.stride(),
+                        width, height);
+        
+        return bgr_dst;
+    }, "RGBA to BGR dual implementation test", 0);
+}
+
+TEST_F(ColorShuffleTest, Dual_Implementation_RGBA_To_BGRA)
+{
+    const int width = 128;
+    const int height = 128;
+    
+    AVX2TestRunner::runImageComparisonTest([&]() -> TestImage {
+        TestImage rgba_src(width, height, 4);
+        TestImage bgra_dst(width, height, 4);
+        
+        rgba_src.fillGradient();
+        
+        ccap::rgbaToBgra(rgba_src.data(), rgba_src.stride(),
+                         bgra_dst.data(), bgra_dst.stride(),
+                         width, height);
+        
+        return bgra_dst;
+    }, "RGBA to BGRA dual implementation test", 0);
+}
+
+TEST_F(ColorShuffleTest, Dual_Implementation_RGB_To_BGR)
+{
+    const int width = 128;
+    const int height = 128;
+    
+    AVX2TestRunner::runImageComparisonTest([&]() -> TestImage {
+        TestImage rgb_src(width, height, 3);
+        TestImage bgr_dst(width, height, 3);
+        
+        rgb_src.fillGradient();
+        
+        ccap::rgbToBgr(rgb_src.data(), rgb_src.stride(),
+                       bgr_dst.data(), bgr_dst.stride(),
+                       width, height);
+        
+        return bgr_dst;
+    }, "RGB to BGR dual implementation test", 0);
+}
+
+TEST_F(ColorShuffleTest, Dual_Implementation_BGRA_To_RGB)
+{
+    const int width = 128;
+    const int height = 128;
+    
+    AVX2TestRunner::runImageComparisonTest([&]() -> TestImage {
+        TestImage bgra_src(width, height, 4);
+        TestImage rgb_dst(width, height, 3);
+        
+        bgra_src.fillGradient();
+        
+        ccap::bgraToRgb(bgra_src.data(), bgra_src.stride(),
+                        rgb_dst.data(), rgb_dst.stride(),
+                        width, height);
+        
+        return rgb_dst;
+    }, "BGRA to RGB dual implementation test", 0);
+}
+
+TEST_F(ColorShuffleTest, Dual_Implementation_Vertical_Flip)
+{
+    const int width = 64;
+    const int height = 64;
+    
+    AVX2TestRunner::runImageComparisonTest([&]() -> TestImage {
+        TestImage rgba_src(width, height, 4);
+        TestImage bgra_dst(width, height, 4);
+        
+        rgba_src.fillGradient();
+        
+        // Test vertical flip with negative height
+        // Only negative height is needed to trigger vertical flip
+        ccap::rgbaToBgra(rgba_src.data(), rgba_src.stride(),
+                         bgra_dst.data(), bgra_dst.stride(),
+                         width, -height);
+        
+        return bgra_dst;
+    }, "Vertical flip dual implementation test", 0);
+}

@@ -97,41 +97,33 @@ TEST_F(ComprehensiveConvertTest, AllPredefinedConversions)
     }
 }
 
-// ============ Alias Function Tests ============
+// ============ Core Functionality Integration Tests ============
+// Note: Function alias validation is handled in test_convert_aliases_validation.cpp
+// to avoid test duplication while ensuring comprehensive coverage.
 
-TEST_F(ComprehensiveConvertTest, FunctionAliases)
+TEST_F(ComprehensiveConvertTest, ColorSpace_Consistency_Validation)
 {
-    TestImage src(width_, height_, 4);
-    TestImage dst1(width_, height_, 3);
-    TestImage dst2(width_, height_, 3);
+    // Test that color space conversions maintain expected relationships
+    TestImage rgb_src(width_, height_, 3);
+    TestImage bgr_temp(width_, height_, 3);
+    TestImage rgb_result(width_, height_, 3);
 
-    src.fillGradient();
+    rgb_src.fillGradient();
 
-    // Test that aliases produce the same result as original functions
-    ccap::rgbaToBgr(src.data(), src.stride(),
-                    dst1.data(), dst1.stride(),
-                    width_, height_);
+    // RGB -> BGR -> RGB should be identical (roundtrip test)
+    ccap::rgbToBgr(rgb_src.data(), rgb_src.stride(),
+                   bgr_temp.data(), bgr_temp.stride(),
+                   width_, height_);
 
-    ccap::bgraToRgb(src.data(), src.stride(),
-                    dst2.data(), dst2.stride(),
-                    width_, height_);
-
-    // Should be identical
-    EXPECT_TRUE(PixelTestUtils::compareImages(
-        dst1.data(), dst2.data(),
-        width_, height_, 3,
-        dst1.stride(), dst2.stride(), 0));
-
-    // Test bgra2bgr alias
-    TestImage dst3(width_, height_, 3);
-    ccap::bgra2bgr(src.data(), src.stride(),
-                   dst3.data(), dst3.stride(),
+    ccap::bgrToRgb(bgr_temp.data(), bgr_temp.stride(),
+                   rgb_result.data(), rgb_result.stride(),
                    width_, height_);
 
     EXPECT_TRUE(PixelTestUtils::compareImages(
-        dst1.data(), dst3.data(),
+        rgb_src.data(), rgb_result.data(),
         width_, height_, 3,
-        dst1.stride(), dst3.stride(), 0));
+        rgb_src.stride(), rgb_result.stride(), 0))
+        << "RGB->BGR->RGB roundtrip failed";
 }
 
 // ============ YUV Single Pixel Conversion Tests ============

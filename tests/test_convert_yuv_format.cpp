@@ -62,14 +62,16 @@ TEST_F(YUVFormatConversionTest, NV12_To_RGB24_BT601_VideoRange) {
     TestImage rgb_img(width_, height_, 3);
     
     yuv_img.generateGradient();
-    
+
     ccap::nv12ToRgb24(yuv_img.y_data(), yuv_img.y_stride(),
                       yuv_img.uv_data(), yuv_img.uv_stride(),
                       rgb_img.data(), rgb_img.stride(),
                       width_, height_, ccap::ConvertFlag::Default);
     
-    // Basic sanity check
-    EXPECT_NE(rgb_img.data()[0], 0) << "First pixel should not be black for gradient";
+    // Basic sanity check - first pixel should not be pure black for gradient
+    const uint8_t* first_pixel = rgb_img.data();
+    bool is_not_black = (first_pixel[0] != 0) || (first_pixel[1] != 0) || (first_pixel[2] != 0);
+    EXPECT_TRUE(is_not_black) << "First pixel should not be pure black for gradient";
 }
 
 TEST_F(YUVFormatConversionTest, NV12_To_BGRA32_BT709_VideoRange) {

@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 #include "test_utils.h"
+#include "test_utils_avx2.h"
 #include "ccap_convert.h"
 
 using namespace ccap_test;
@@ -291,4 +292,170 @@ TEST_F(YUVToRGBTest, CompareWithReferenceImplementation) {
         EXPECT_NEAR(ccap_g, ref_g, 2) << "BT.709f Green mismatch for YUV(" << y << "," << u << "," << v << ")";
         EXPECT_NEAR(ccap_b, ref_b, 2) << "BT.709f Blue mismatch for YUV(" << y << "," << u << "," << v << ")";
     }
+}
+
+// ============ Dual Implementation Tests (AVX2 vs CPU) ============
+
+TEST_F(YUVToRGBTest, Dual_Implementation_NV12_To_BGRA32)
+{
+    const int width = 128;
+    const int height = 128;
+    
+    AVX2TestRunner::runImageComparisonTest([&]() -> TestImage {
+        TestYUVImage yuv_src(width, height, true); // NV12
+        TestImage bgra_dst(width, height, 4);
+        
+        yuv_src.generateGradient();
+        
+        ccap::nv12ToBgra32(yuv_src.y_data(), yuv_src.y_stride(),
+                           yuv_src.uv_data(), yuv_src.uv_stride(),
+                           bgra_dst.data(), bgra_dst.stride(),
+                           width, height);
+        
+        return bgra_dst;
+    }, "NV12 to BGRA32 dual implementation test", 3);
+}
+
+TEST_F(YUVToRGBTest, Dual_Implementation_NV12_To_RGBA32)
+{
+    const int width = 128;
+    const int height = 128;
+    
+    AVX2TestRunner::runImageComparisonTest([&]() -> TestImage {
+        TestYUVImage yuv_src(width, height, true); // NV12
+        TestImage rgba_dst(width, height, 4);
+        
+        yuv_src.generateGradient();
+        
+        ccap::nv12ToRgba32(yuv_src.y_data(), yuv_src.y_stride(),
+                           yuv_src.uv_data(), yuv_src.uv_stride(),
+                           rgba_dst.data(), rgba_dst.stride(),
+                           width, height);
+        
+        return rgba_dst;
+    }, "NV12 to RGBA32 dual implementation test", 3);
+}
+
+TEST_F(YUVToRGBTest, Dual_Implementation_NV12_To_BGR24)
+{
+    const int width = 128;
+    const int height = 128;
+    
+    AVX2TestRunner::runImageComparisonTest([&]() -> TestImage {
+        TestYUVImage yuv_src(width, height, true); // NV12
+        TestImage bgr_dst(width, height, 3);
+        
+        yuv_src.generateGradient();
+        
+        ccap::nv12ToBgr24(yuv_src.y_data(), yuv_src.y_stride(),
+                          yuv_src.uv_data(), yuv_src.uv_stride(),
+                          bgr_dst.data(), bgr_dst.stride(),
+                          width, height);
+        
+        return bgr_dst;
+    }, "NV12 to BGR24 dual implementation test", 3);
+}
+
+TEST_F(YUVToRGBTest, Dual_Implementation_NV12_To_RGB24)
+{
+    const int width = 128;
+    const int height = 128;
+    
+    AVX2TestRunner::runImageComparisonTest([&]() -> TestImage {
+        TestYUVImage yuv_src(width, height, true); // NV12
+        TestImage rgb_dst(width, height, 3);
+        
+        yuv_src.generateGradient();
+        
+        ccap::nv12ToRgb24(yuv_src.y_data(), yuv_src.y_stride(),
+                          yuv_src.uv_data(), yuv_src.uv_stride(),
+                          rgb_dst.data(), rgb_dst.stride(),
+                          width, height);
+        
+        return rgb_dst;
+    }, "NV12 to RGB24 dual implementation test", 3);
+}
+
+TEST_F(YUVToRGBTest, Dual_Implementation_I420_To_BGRA32)
+{
+    const int width = 128;
+    const int height = 128;
+    
+    AVX2TestRunner::runImageComparisonTest([&]() -> TestImage {
+        TestYUVImage yuv_src(width, height, false); // I420
+        TestImage bgra_dst(width, height, 4);
+        
+        yuv_src.generateGradient();
+        
+        ccap::i420ToBgra32(yuv_src.y_data(), yuv_src.y_stride(),
+                           yuv_src.u_data(), yuv_src.uv_stride(),
+                           yuv_src.v_data(), yuv_src.uv_stride(),
+                           bgra_dst.data(), bgra_dst.stride(),
+                           width, height);
+        
+        return bgra_dst;
+    }, "I420 to BGRA32 dual implementation test", 3);
+}
+
+TEST_F(YUVToRGBTest, Dual_Implementation_I420_To_RGBA32)
+{
+    const int width = 128;
+    const int height = 128;
+    
+    AVX2TestRunner::runImageComparisonTest([&]() -> TestImage {
+        TestYUVImage yuv_src(width, height, false); // I420
+        TestImage rgba_dst(width, height, 4);
+        
+        yuv_src.generateGradient();
+        
+        ccap::i420ToRgba32(yuv_src.y_data(), yuv_src.y_stride(),
+                           yuv_src.u_data(), yuv_src.uv_stride(),
+                           yuv_src.v_data(), yuv_src.uv_stride(),
+                           rgba_dst.data(), rgba_dst.stride(),
+                           width, height);
+        
+        return rgba_dst;
+    }, "I420 to RGBA32 dual implementation test", 3);
+}
+
+TEST_F(YUVToRGBTest, Dual_Implementation_I420_To_BGR24)
+{
+    const int width = 128;
+    const int height = 128;
+    
+    AVX2TestRunner::runImageComparisonTest([&]() -> TestImage {
+        TestYUVImage yuv_src(width, height, false); // I420
+        TestImage bgr_dst(width, height, 3);
+        
+        yuv_src.generateGradient();
+        
+        ccap::i420ToBgr24(yuv_src.y_data(), yuv_src.y_stride(),
+                          yuv_src.u_data(), yuv_src.uv_stride(),
+                          yuv_src.v_data(), yuv_src.uv_stride(),
+                          bgr_dst.data(), bgr_dst.stride(),
+                          width, height);
+        
+        return bgr_dst;
+    }, "I420 to BGR24 dual implementation test", 3);
+}
+
+TEST_F(YUVToRGBTest, Dual_Implementation_I420_To_RGB24)
+{
+    const int width = 128;
+    const int height = 128;
+    
+    AVX2TestRunner::runImageComparisonTest([&]() -> TestImage {
+        TestYUVImage yuv_src(width, height, false); // I420
+        TestImage rgb_dst(width, height, 3);
+        
+        yuv_src.generateGradient();
+        
+        ccap::i420ToRgb24(yuv_src.y_data(), yuv_src.y_stride(),
+                          yuv_src.u_data(), yuv_src.uv_stride(),
+                          yuv_src.v_data(), yuv_src.uv_stride(),
+                          rgb_dst.data(), rgb_dst.stride(),
+                          width, height);
+        
+        return rgb_dst;
+    }, "I420 to RGB24 dual implementation test", 3);
 }

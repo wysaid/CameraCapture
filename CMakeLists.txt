@@ -110,13 +110,16 @@ endif()
 
 # ############### Examples ################
 message(STATUS "ccap: CCAP_BUILD_EXAMPLES=${CCAP_BUILD_EXAMPLES}")
+
 if(CCAP_BUILD_EXAMPLES)
     include(examples/desktop.cmake)
 endif()
 
 # ############### Tests ################
 message(STATUS "ccap: CCAP_BUILD_TESTS=${CCAP_BUILD_TESTS}")
+
 if(CCAP_BUILD_TESTS)
+    target_compile_definitions(ccap PUBLIC CCAP_BUILD_TESTS=1)
     enable_testing()
     add_subdirectory(tests)
 endif()

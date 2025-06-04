@@ -39,6 +39,7 @@ public:
 
     // Fill with test pattern
     void fillGradient();
+    void fillYUVGradient();  // For YUV video range gradient (16-235 for Y, 16-240 for UV)
     void fillRandom(uint32_t seed = 42);
     void fillSolid(uint8_t value);
     void fillChecker(uint8_t color1 = 0, uint8_t color2 = 255, int blockSize = 8);
@@ -119,9 +120,38 @@ public:
     // Verify RGB values are in valid range
     static bool isValidRGB(int r, int g, int b);
     
-    // Create reference YUV to RGB conversion (slow but accurate)
+    // Reference YUV to RGB conversion for testing
     static void yuv2rgbReference(int y, int u, int v, int& r, int& g, int& b,
                                bool isBT709 = false, bool isFullRange = false);
+
+    // Debug image saving functions
+    
+    /**
+     * @brief Save a TestImage as BMP file for debugging
+     * @param image The image to save
+     * @param filename The filename to save (without extension)
+     * @return true if successful, false otherwise
+     */
+    static bool saveImageForDebug(const TestImage& image, const std::string& filename);
+    
+    /**
+     * @brief Create a difference image highlighting pixels that differ between two images
+     * @param img1 First image
+     * @param img2 Second image
+     * @param tolerance Tolerance for considering pixels as different
+     * @return TestImage containing the difference visualization
+     */
+    static TestImage createDifferenceImage(const TestImage& img1, const TestImage& img2, int tolerance = 0);
+    
+    /**
+     * @brief Save debug images when a comparison fails
+     * @param img1 First image (e.g., AVX2 result)
+     * @param img2 Second image (e.g., CPU result)
+     * @param test_name Name of the test for filename generation
+     * @param tolerance Tolerance used in comparison
+     */
+    static void saveDebugImagesOnFailure(const TestImage& img1, const TestImage& img2, 
+                                       const std::string& test_name, int tolerance = 0);
 };
 
 /**

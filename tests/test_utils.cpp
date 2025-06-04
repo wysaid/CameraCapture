@@ -4,12 +4,15 @@
  */
 
 #include "test_utils.h"
+#include "ccap_utils.h"
 #include <cmath>
 #include <algorithm>
 #include <chrono>
 #include <cstring>
 #include <limits>
 #include <cstdlib>
+#include <iostream>
+#include <stdexcept>
 
 #ifdef _WIN32
 #include <malloc.h>
@@ -38,15 +41,38 @@ TestImage::TestImage(int width, int height, int channels, int alignment)
     }) {
     
     // Calculate stride with alignment
-        stride_ = ((width * channels + alignment - 1) / alignment) * alignment;
+    stride_ = ((width * channels + alignment - 1) / alignment) * alignment;
     size_ = stride_ * height;
     
     // Allocate aligned memory
-#ifdef _WIN32
-    uint8_t* ptr = static_cast<uint8_t*>(_aligned_malloc(size_, alignment));
-#else
     uint8_t* ptr = nullptr;
-    posix_memalign(reinterpret_cast<void**>(&ptr), alignment, size_);
+    
+#ifdef _WIN32
+    ptr = static_cast<uint8_t*>(_aligned_malloc(size_, alignment));
+#else
+    // posix_memalign requires alignment to be a power of 2 and at least sizeof(void*)
+    // For alignment = 1, just use regular malloc
+    if (alignment <= 1) {
+        ptr = static_cast<uint8_t*>(malloc(size_));
+    } else {
+        // Ensure alignment is at least sizeof(void*) and is a power of 2
+        size_t safe_alignment = alignment;
+        if (safe_alignment < sizeof(void*)) {
+            safe_alignment = sizeof(void*);
+        }
+        // Round up to nearest power of 2 if not already
+        if ((safe_alignment & (safe_alignment - 1)) != 0) {
+            safe_alignment = 1;
+            while (safe_alignment < alignment) {
+                safe_alignment <<= 1;
+            }
+        }
+        
+        int result = posix_memalign(reinterpret_cast<void**>(&ptr), safe_alignment, size_);
+        if (result != 0) {
+            ptr = nullptr;
+        }
+    }
 #endif
     
     if (!ptr) {
@@ -66,6 +92,25 @@ void TestImage::fillGradient() {
             for (int c = 0; c < channels_; ++c) {
                 // Create a gradient pattern
                 int value = ((x * 255 / width_) + (y * 255 / height_) + c * 64) % 256;
+                row[x * channels_ + c] = static_cast<uint8_t>(value);
+            }
+        }
+    }
+}
+
+void TestImage::fillYUVGradient() {
+    for (int y = 0; y < height_; ++y) {
+        uint8_t* row = data_.get() + y * stride_;
+        for (int x = 0; x < width_; ++x) {
+            for (int c = 0; c < channels_; ++c) {
+                int value;
+                if (channels_ == 1) {
+                    // Y plane: 16-235 range
+                    value = 16 + ((x * 219 / width_) + (y * 219 / height_)) % 220;
+                } else {
+                    // UV plane: 16-240 range
+                    value = 16 + ((x * 224 / width_) + (y * 224 / height_) + c * 112) % 225;
+                }
                 row[x * channels_ + c] = static_cast<uint8_t>(value);
             }
         }
@@ -152,7 +197,7 @@ void TestYUVImage::generateKnownPattern() {
 }
 
 void TestYUVImage::generateGradient() {
-    // Y plane gradient
+    // Y plane gradient (16-235 video range)
     for (int y = 0; y < height_; ++y) {
         uint8_t* y_row = y_plane_.data() + y * y_stride_;
         for (int x = 0; x < width_; ++x) {
@@ -160,20 +205,20 @@ void TestYUVImage::generateGradient() {
         }
     }
     
-    // UV planes with color variation
+    // UV planes with color variation (16-240 video range)
     for (int y = 0; y < height_/2; ++y) {
         if (isNV12_) {
             uint8_t* uv_row = uv_plane_.data() + y * uv_stride_;
             for (int x = 0; x < width_/2; ++x) {
-                uv_row[x * 2 + 0] = static_cast<uint8_t>(64 + (x * 128 / (width_/2))); // U
-                uv_row[x * 2 + 1] = static_cast<uint8_t>(64 + (y * 128 / (height_/2))); // V
+                uv_row[x * 2 + 0] = static_cast<uint8_t>(16 + (x * 224 / (width_/2))); // U (16-240)
+                uv_row[x * 2 + 1] = static_cast<uint8_t>(16 + (y * 224 / (height_/2))); // V (16-240)
             }
         } else {
             uint8_t* u_row = u_plane_.data() + y * uv_stride_;
             uint8_t* v_row = v_plane_.data() + y * uv_stride_;
             for (int x = 0; x < width_/2; ++x) {
-                u_row[x] = static_cast<uint8_t>(64 + (x * 128 / (width_/2)));
-                v_row[x] = static_cast<uint8_t>(64 + (y * 128 / (height_/2)));
+                u_row[x] = static_cast<uint8_t>(16 + (x * 224 / (width_/2))); // U (16-240)
+                v_row[x] = static_cast<uint8_t>(16 + (y * 224 / (height_/2))); // V (16-240)
             }
         }
     }
@@ -209,9 +254,9 @@ void TestYUVImage::generateRandomYUVImage(int width, int height, uint32_t seed) 
     std::uniform_int_distribution<uint8_t> uv_dist(16, 240); // UV range for BT.601
     
     // Fill Y plane with random values
-    for (int row = 0; row < height_; ++row) {
+    for (int row = 0; row < height; ++row) {
         uint8_t* y_row = y_plane_.data() + row * y_stride_;
-        for (int col = 0; col < width_; ++col) {
+        for (int col = 0; col < width; ++col) {
             y_row[col] = y_dist(gen);
         }
     }
@@ -401,6 +446,140 @@ TestYUVImage TestDataGenerator::generateRandomYUVImage(int width, int height, ui
     }
     
     return yuv_img;
+}
+
+// ============ PixelTestUtils Debug Functions Implementation ============
+
+bool PixelTestUtils::saveImageForDebug(const TestImage& image, const std::string& filename) {
+    // Include ccap_utils.h functionality
+    std::string full_filename = filename + ".bmp";
+    
+    // Determine if this is BGR format (we'll assume RGB by default, but allow BGR for 3-channel images)
+    bool isBGR = (image.channels() == 3); // Assume 3-channel images are BGR for ccap compatibility
+    bool hasAlpha = (image.channels() == 4);
+    
+    return ccap::saveRgbDataAsBMP(
+        full_filename.c_str(),
+        image.data(),
+        image.width(),
+        image.stride(),
+        image.height(),
+        isBGR,
+        hasAlpha,
+        false // isTopToBottom
+    );
+}
+
+TestImage PixelTestUtils::createDifferenceImage(const TestImage& img1, const TestImage& img2, int tolerance) {
+    // Images must have the same dimensions
+    if (img1.width() != img2.width() || img1.height() != img2.height() || img1.channels() != img2.channels()) {
+        throw std::invalid_argument("Images must have the same dimensions for difference calculation");
+    }
+    
+    int width = img1.width();
+    int height = img1.height();
+    int channels = img1.channels();
+    
+    // Create difference image (will be RGB/BGR depending on input)
+    TestImage diff_image(width, height, std::max(channels, 3)); // Ensure at least 3 channels for visualization
+    
+    for (int y = 0; y < height; ++y) {
+        const uint8_t* row1 = img1.data() + y * img1.stride();
+        const uint8_t* row2 = img2.data() + y * img2.stride();
+        uint8_t* diff_row = diff_image.data() + y * diff_image.stride();
+        
+        for (int x = 0; x < width; ++x) {
+            bool pixels_differ = false;
+            int max_diff = 0;
+            
+            // Check if pixels differ
+            for (int c = 0; c < channels; ++c) {
+                int diff = std::abs(static_cast<int>(row1[x * channels + c]) - 
+                                   static_cast<int>(row2[x * channels + c]));
+                max_diff = std::max(max_diff, diff);
+                if (diff > tolerance) {
+                    pixels_differ = true;
+                }
+            }
+            
+            // Color code the difference
+            if (pixels_differ) {
+                // Red for significant differences
+                diff_row[x * diff_image.channels() + 0] = 255; // R or B (depending on format)
+                diff_row[x * diff_image.channels() + 1] = 0;   // G
+                diff_row[x * diff_image.channels() + 2] = 0;   // B or R (depending on format)
+            } else if (max_diff > 0) {
+                // Yellow for minor differences within tolerance
+                diff_row[x * diff_image.channels() + 0] = 255; // R or B
+                diff_row[x * diff_image.channels() + 1] = 255; // G
+                diff_row[x * diff_image.channels() + 2] = 0;   // B or R
+            } else {
+                // Green for identical pixels
+                diff_row[x * diff_image.channels() + 0] = 0;   // R or B
+                diff_row[x * diff_image.channels() + 1] = 255; // G
+                diff_row[x * diff_image.channels() + 2] = 0;   // B or R
+            }
+            
+            // Set alpha channel if present
+            if (diff_image.channels() == 4) {
+                diff_row[x * diff_image.channels() + 3] = 255;
+            }
+        }
+    }
+    
+    return diff_image;
+}
+
+void PixelTestUtils::saveDebugImagesOnFailure(const TestImage& img1, const TestImage& img2, 
+                                             const std::string& test_name, int tolerance) {
+    // Create safe filename from test name
+    std::string safe_test_name = test_name;
+    // Replace spaces and special characters with underscores
+    std::replace_if(safe_test_name.begin(), safe_test_name.end(), 
+                   [](char c) { return !std::isalnum(c); }, '_');
+    
+    std::cout << "[DEBUG] Saving debug images for failed test: " << test_name << std::endl;
+    
+    // Save both original images
+    std::string img1_filename = "debug_" + safe_test_name + "_avx2_result";
+    std::string img2_filename = "debug_" + safe_test_name + "_cpu_result";
+    std::string diff_filename = "debug_" + safe_test_name + "_difference";
+    
+    if (saveImageForDebug(img1, img1_filename)) {
+        std::cout << "[DEBUG] Saved AVX2 result: " << img1_filename << ".bmp" << std::endl;
+    } else {
+        std::cout << "[ERROR] Failed to save AVX2 result image" << std::endl;
+    }
+    
+    if (saveImageForDebug(img2, img2_filename)) {
+        std::cout << "[DEBUG] Saved CPU result: " << img2_filename << ".bmp" << std::endl;
+    } else {
+        std::cout << "[ERROR] Failed to save CPU result image" << std::endl;
+    }
+    
+    // Create and save difference image
+    try {
+        TestImage diff_image = createDifferenceImage(img1, img2, tolerance);
+        if (saveImageForDebug(diff_image, diff_filename)) {
+            std::cout << "[DEBUG] Saved difference image: " << diff_filename << ".bmp" << std::endl;
+            std::cout << "[DEBUG] Difference image legend: Red=significant diff, Yellow=minor diff, Green=identical" << std::endl;
+        } else {
+            std::cout << "[ERROR] Failed to save difference image" << std::endl;
+        }
+    } catch (const std::exception& e) {
+        std::cout << "[ERROR] Failed to create difference image: " << e.what() << std::endl;
+    }
+    
+    // Calculate and report statistics
+    double mse = calculateMSE(img1.data(), img2.data(), img1.width(), img1.height(), img1.channels(),
+                             img1.stride(), img2.stride());
+    double psnr = calculatePSNR(img1.data(), img2.data(), img1.width(), img1.height(), img1.channels(),
+                               img1.stride(), img2.stride());
+    
+    std::cout << "[DEBUG] Image comparison statistics:" << std::endl;
+    std::cout << "[DEBUG]   MSE: " << mse << std::endl;
+    std::cout << "[DEBUG]   PSNR: " << psnr << " dB" << std::endl;
+    std::cout << "[DEBUG]   Tolerance used: " << tolerance << std::endl;
 }
 
 } // namespace ccap_test

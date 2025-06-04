@@ -3,9 +3,9 @@ cmake_minimum_required(VERSION 3.14)
 # Google Test
 include(FetchContent)
 FetchContent_Declare(
-  googletest
-  URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
-  DOWNLOAD_EXTRACT_TIMESTAMP ON
+    googletest
+    URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP ON
 )
 
 # For Windows: Prevent overriding the parent project's compiler/linker settings
@@ -16,15 +16,16 @@ FetchContent_MakeAvailable(googletest)
 add_library(ccap_test_utils
     test_utils.cpp
     test_utils.h
+    test_utils_avx2.h
 )
 
-target_link_libraries(ccap_test_utils 
-    PUBLIC 
-        ccap
-        gtest
-        gtest_main
-        gmock
-        gmock_main
+target_link_libraries(ccap_test_utils
+    PUBLIC
+    ccap
+    gtest
+    gtest_main
+    gmock
+    gmock_main
 )
 
 target_include_directories(ccap_test_utils PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -36,6 +37,8 @@ add_executable(
     test_convert_color_shuffle.cpp
     test_convert_yuv_format.cpp
     test_convert_comprehensive.cpp
+    test_convert_platform_features.cpp
+    test_dual_implementation.cpp
     test_accuracy.cpp
     test_debug_simple.cpp
 )
