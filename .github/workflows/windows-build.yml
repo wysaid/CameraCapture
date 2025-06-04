@@ -2,9 +2,9 @@ name: Windows Build
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, ci_test ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, ci_test ]
   workflow_dispatch: 
 
 jobs:
@@ -28,12 +28,23 @@ jobs:
       run: |
         mkdir -p build
         cd build
-        cmake .. -G "Visual Studio 17 2022" -A x64 -DCCAP_NO_LOG=${{ matrix.no_log }}
+        cmake .. -G "Visual Studio 17 2022" -A x64 -DCCAP_NO_LOG=${{ matrix.no_log }} -DCCAP_BUILD_TESTS=ON
       
     - name: Build
       run: |
         cd build
         cmake --build . --config ${{ matrix.config }} --parallel
+      
+    - name: Run Unit Tests
+      if: matrix.no_log == 'OFF'
+      shell: bash
+      run: |
+        cd scripts
+        if [ "${{ matrix.config }}" == "Debug" ]; then
+          ./run_tests.sh --functional --skip-build
+        else
+          ./run_tests.sh --performance --skip-build
+        fi
       
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
@@ -45,4 +56,5 @@ jobs:
           build/${{ matrix.config }}/1-minimal_example.exe
           build/${{ matrix.config }}/2-capture_grab.exe
           build/${{ matrix.config }}/3-capture_callback.exe
+          build/${{ matrix.config }}/*_results.xml
         if-no-files-found: error

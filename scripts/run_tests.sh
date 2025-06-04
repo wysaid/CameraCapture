@@ -4,6 +4,10 @@
 # This script builds and runs all ccap unit tests
 # Functional tests run in Debug mode, Performance tests run in Release mode
 #
+# Platform-specific behavior:
+# - Windows (MSVC): Uses single build directory, configs specified during build
+# - Linux/Mac: Uses separate build/Debug and build/Release directories
+#
 # Usage:
 #   ./run_tests.sh                    # Run all tests
 #   ./run_tests.sh --functional       # Run only functional tests
@@ -49,6 +53,7 @@ fi
 # Parse command line arguments
 RUN_FUNCTIONAL=true
 RUN_PERFORMANCE=true
+SKIP_BUILD=false
 FILTER=""
 
 while [[ $# -gt 0 ]]; do
@@ -69,6 +74,10 @@ while [[ $# -gt 0 ]]; do
         FILTER="--gtest_filter=*AVX2*"
         shift
         ;;
+    --skip-build)
+        SKIP_BUILD=true
+        shift
+        ;;
     --help)
         echo "CCAP Unit Tests Runner"
         echo ""
@@ -77,6 +86,7 @@ while [[ $# -gt 0 ]]; do
         echo "  $0 --functional       # Run only functional tests (Debug mode)"
         echo "  $0 --performance      # Run only performance tests (Release mode)"
         echo "  $0 --avx2             # Run only AVX2 performance tests (Release mode)"
+        echo "  $0 --skip-build       # Skip build step, run tests only"
         echo "  $0 --help             # Show this help"
         echo ""
         echo "Note: Performance tests are automatically run in Release mode for accurate results"
@@ -112,8 +122,14 @@ fi
 
 # Create build directories if they don't exist
 echo -e "${BLUE}Setting up build directories...${NC}"
-mkdir -p build/Debug
-mkdir -p build/Release
+if isWindows; then
+    # On Windows with MSVC, use single build directory
+    mkdir -p build
+else
+    # On Linux/Mac, use separate directories for Debug/Release
+    mkdir -p build/Debug
+    mkdir -p build/Release
+fi
 
 # Initialize results
 TEST_RESULT=0
@@ -123,38 +139,83 @@ PERF_RESULT=0
 if [ "$RUN_FUNCTIONAL" = true ]; then
     echo ""
     echo -e "${PURPLE}===============================================${NC}"
-    echo -e "${BLUE}Building Debug version (for functional tests)${NC}"
+    if [ "$SKIP_BUILD" = true ]; then
+        echo -e "${BLUE}Skipping build, using existing Debug binaries${NC}"
+    else
+        echo -e "${BLUE}Building Debug version (for functional tests)${NC}"
+    fi
     echo -e "${PURPLE}===============================================${NC}"
 
-    cd build/Debug
-    echo -e "${BLUE}Configuring CMake (Debug)...${NC}"
-    cmake ../.. -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_TESTS=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+    if [ "$SKIP_BUILD" = false ]; then
+        if isWindows; then
+            # Windows MSVC: use single build directory, specify config during build
+            cd build
+            echo -e "${BLUE}Configuring CMake (Windows MSVC)...${NC}"
+            cmake .. -DCCAP_BUILD_TESTS=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
-    echo -e "${BLUE}Building Debug project...${NC}"
-    cmake --build . --config Debug --parallel $(detectCores)
+            echo -e "${BLUE}Building Debug project...${NC}"
+            cmake --build . --config Debug --parallel $(detectCores)
 
-    echo -e "${BLUE}Building Debug tests...${NC}"
-    cmake --build . --config Debug --target ccap_convert_test --parallel $(detectCores)
-    cd ../..
+            echo -e "${BLUE}Building Debug tests...${NC}"
+            cmake --build . --config Debug --target ccap_convert_test --parallel $(detectCores)
+            cd ..
+        else
+            # Linux/Mac: use separate Debug directory
+            cd build/Debug
+            echo -e "${BLUE}Configuring CMake (Debug)...${NC}"
+            cmake ../.. -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_TESTS=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+
+            echo -e "${BLUE}Building Debug project...${NC}"
+            cmake --build . --config Debug --parallel $(detectCores)
+
+            echo -e "${BLUE}Building Debug tests...${NC}"
+            cmake --build . --config Debug --target ccap_convert_test --parallel $(detectCores)
+            cd ../..
+        fi
+    fi
 fi
 
 # Build Release version for performance tests
 if [ "$RUN_PERFORMANCE" = true ]; then
     echo ""
     echo -e "${PURPLE}===============================================${NC}"
-    echo -e "${BLUE}Building Release version (for performance tests)${NC}"
+    if [ "$SKIP_BUILD" = true ]; then
+        echo -e "${BLUE}Skipping build, using existing Release binaries${NC}"
+    else
+        echo -e "${BLUE}Building Release version (for performance tests)${NC}"
+    fi
     echo -e "${PURPLE}===============================================${NC}"
 
-    cd build/Release
-    echo -e "${BLUE}Configuring CMake (Release)...${NC}"
-    cmake ../.. -DCMAKE_BUILD_TYPE=Release -DCCAP_BUILD_TESTS=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+    if [ "$SKIP_BUILD" = false ]; then
+        if isWindows; then
+            # Windows MSVC: use single build directory, specify config during build
+            cd build
+            # Only configure if not already configured
+            if [ ! -f "CMakeCache.txt" ]; then
+                echo -e "${BLUE}Configuring CMake (Windows MSVC)...${NC}"
+                cmake .. -DCCAP_BUILD_TESTS=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+            fi
 
-    echo -e "${BLUE}Building Release project...${NC}"
-    cmake --build . --config Release --parallel $(detectCores)
+            echo -e "${BLUE}Building Release project...${NC}"
+            cmake --build . --config Release --parallel $(detectCores)
 
-    echo -e "${BLUE}Building Release tests...${NC}"
-    cmake --build . --config Release --target ccap_performance_test --parallel $(detectCores)
-    cd ../..
+            echo -e "${BLUE}Building Release tests...${NC}"
+            cmake --build . --config Release --target ccap_performance_test --parallel $(detectCores)
+            cd ..
+        else
+            # Linux/Mac: use separate Release directory
+            cd build/Release
+            echo -e "${BLUE}Configuring CMake (Release)...${NC}"
+            cmake ../.. -DCMAKE_BUILD_TYPE=Release -DCCAP_BUILD_TESTS=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+
+            echo -e "${BLUE}Building Release project...${NC}"
+            cmake --build . --config Release --parallel $(detectCores)
+
+            echo -e "${BLUE}Building Release tests...${NC}"
+            cmake --build . --config Release --target ccap_performance_test --parallel $(detectCores)
+            cd ../..
+        fi
+    fi
 fi
 
 # Run unit tests in Debug mode
@@ -162,18 +223,16 @@ if [ "$RUN_FUNCTIONAL" = true ]; then
     echo ""
     echo "==============================================="
     echo -e "${GREEN}Running Functional Tests (Debug)${NC}"
-    echo "==============================================="
-
-    # Determine test executable path based on platform
+    echo "===============================================" # Determine test executable path based on platform
     if isWindows; then
-        TEST_EXECUTABLE="./build/Debug/tests/Debug/ccap_convert_test.exe"
+        TEST_EXECUTABLE="./build/tests/Debug/ccap_convert_test.exe"
     else
         TEST_EXECUTABLE="./build/Debug/tests/ccap_convert_test"
     fi
 
     if [ -f "$TEST_EXECUTABLE" ]; then
         echo -e "${YELLOW}Running functional tests in Debug mode...${NC}"
-        "$TEST_EXECUTABLE" --gtest_output=xml:build/Debug/test_results.xml
+        "$TEST_EXECUTABLE" --gtest_output=xml:build/test_results_debug.xml
         TEST_RESULT=$?
 
         if [ $TEST_RESULT -eq 0 ]; then
@@ -192,23 +251,20 @@ if [ "$RUN_PERFORMANCE" = true ]; then
     echo ""
     echo "==============================================="
     echo -e "${GREEN}Running Performance Tests (Release)${NC}"
-    echo "==============================================="
-
-    # Determine test executable path based on platform
+    echo "===============================================" # Determine test executable path based on platform
     if isWindows; then
-        PERF_EXECUTABLE="./build/Release/tests/Release/ccap_performance_test.exe"
+        PERF_EXECUTABLE="./build/tests/Release/ccap_performance_test.exe"
     else
         PERF_EXECUTABLE="./build/Release/tests/ccap_performance_test"
     fi
 
     if [ -f "$PERF_EXECUTABLE" ]; then
-        echo -e "${YELLOW}Running performance benchmarks in Release mode...${NC}"
-        echo -e "${BLUE}Note: Release mode provides accurate performance measurements${NC}"
+        echo -e "${YELLOW}Running performance benchmarks in Release mode...${NC}" echo -e "${BLUE}Note: Release mode provides accurate performance measurements${NC}"
         if [ -n "$FILTER" ]; then
             echo -e "${BLUE}Filter: $FILTER${NC}"
-            "$PERF_EXECUTABLE" $FILTER --gtest_output=xml:build/Release/performance_results.xml
+            "$PERF_EXECUTABLE" $FILTER --gtest_output=xml:build/performance_results_release.xml
         else
-            "$PERF_EXECUTABLE" --gtest_output=xml:build/Release/performance_results.xml
+            "$PERF_EXECUTABLE" --gtest_output=xml:build/performance_results_release.xml
         fi
         PERF_RESULT=$?
 

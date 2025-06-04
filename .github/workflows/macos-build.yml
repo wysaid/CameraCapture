@@ -2,9 +2,9 @@ name: macOS Build
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, ci_test ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, ci_test ]
   workflow_dispatch: 
 
 jobs:
@@ -22,11 +22,22 @@ jobs:
       run: |
         mkdir -p build/${{ matrix.config }}
         cd build/${{ matrix.config }}
-        cmake ../.. -DCMAKE_BUILD_TYPE=${{ matrix.config }} -DCCAP_NO_LOG=${{ matrix.no_log }}
+        cmake ../.. -DCMAKE_BUILD_TYPE=${{ matrix.config }} -DCCAP_NO_LOG=${{ matrix.no_log }} -DCCAP_BUILD_TESTS=ON
     - name: Build
       run: |
         cd build/${{ matrix.config }}
         cmake --build . --config ${{ matrix.config }} --parallel
+      
+    - name: Run Unit Tests
+      if: matrix.no_log == 'OFF'
+      run: |
+        cd scripts
+        if [ "${{ matrix.config }}" == "Debug" ]; then
+          ./run_tests.sh --functional --skip-build
+        else
+          ./run_tests.sh --performance --skip-build
+        fi
+      
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -37,4 +48,5 @@ jobs:
           build/${{ matrix.config }}/1-minimal_example
           build/${{ matrix.config }}/2-capture_grab
           build/${{ matrix.config }}/3-capture_callback
+          build/${{ matrix.config }}/*_results.xml
         if-no-files-found: error
