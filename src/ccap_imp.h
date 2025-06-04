@@ -48,8 +48,7 @@ struct FrameProperty {
     int width{ 640 };
     int height{ 480 };
 
-    inline bool operator==(const FrameProperty& prop) const
-    {
+    inline bool operator==(const FrameProperty& prop) const {
         return fps == prop.fps && cameraPixelFormat == prop.cameraPixelFormat && outputPixelFormat == prop.outputPixelFormat &&
             width == prop.width && height == prop.height;
     }
@@ -119,8 +118,7 @@ protected:
 class FakeFrame : std::enable_shared_from_this<FakeFrame> {
 public:
     explicit FakeFrame(std::function<void()> deleter) : m_deleter(std::move(deleter)) {}
-    ~FakeFrame()
-    {
+    ~FakeFrame() {
         if (m_deleter) m_deleter();
     }
 

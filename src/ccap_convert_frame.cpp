@@ -14,8 +14,7 @@
 #include <cassert>
 
 namespace ccap {
-bool inplaceConvertFrameYUV2RGBColor(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip)
-{ /// (NV12/I420) -> (BGR24/BGRA32)
+bool inplaceConvertFrameYUV2RGBColor(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip) { /// (NV12/I420) -> (BGR24/BGRA32)
 
     /// TODO: 这里修正一下 toFormat, 只支持 YUV -> (BGR24/BGRA24). 简化一下 SDK 的设计. 后续再完善.
 
@@ -53,28 +52,24 @@ bool inplaceConvertFrameYUV2RGBColor(VideoFrame* frame, PixelFormat toFormat, bo
 #else
             if (isOutputBGR) {
                 nv12ToBgra32(inputData0, stride0, inputData1, stride1, frame->data[0], newLineSize, width, height);
-            }
-            else {
+            } else {
                 nv12ToRgba32(inputData0, stride0, inputData1, stride1, frame->data[0], newLineSize, width, height);
             }
             return true;
 #endif
-        }
-        else {
+        } else {
 #if ENABLE_LIBYUV
             return libyuv::NV12ToRGB24(inputData0, stride0, inputData1, stride1, frame->data[0], newLineSize, width, height) == 0;
 #else
             if (isOutputBGR) {
                 nv12ToBgr24(inputData0, stride0, inputData1, stride1, frame->data[0], newLineSize, width, height);
-            }
-            else {
+            } else {
                 nv12ToRgb24(inputData0, stride0, inputData1, stride1, frame->data[0], newLineSize, width, height);
             }
             return true;
 #endif
         }
-    }
-    else { // I420 -> BGR24
+    } else { // I420 -> BGR24
 
         if (outputHasAlpha) {
 #if ENABLE_LIBYUV
@@ -83,22 +78,19 @@ bool inplaceConvertFrameYUV2RGBColor(VideoFrame* frame, PixelFormat toFormat, bo
 #else
             if (isOutputBGR) {
                 i420ToBgra32(inputData0, stride0, inputData1, stride1, inputData2, stride2, frame->data[0], newLineSize, width, height);
-            }
-            else {
+            } else {
                 i420ToRgba32(inputData0, stride0, inputData1, stride1, inputData2, stride2, frame->data[0], newLineSize, width, height);
             }
             return true;
 #endif
-        }
-        else {
+        } else {
 #if ENABLE_LIBYUV
             return libyuv::I420ToRGB24(inputData0, stride0, inputData1, stride1, inputData2, stride2, frame->data[0], newLineSize, width,
                                        height) == 0;
 #else
             if (isOutputBGR) {
                 i420ToBgr24(inputData0, stride0, inputData1, stride1, inputData2, stride2, frame->data[0], newLineSize, width, height);
-            }
-            else {
+            } else {
                 i420ToRgb24(inputData0, stride0, inputData1, stride1, inputData2, stride2, frame->data[0], newLineSize, width, height);
             }
             return true;
@@ -109,8 +101,7 @@ bool inplaceConvertFrameYUV2RGBColor(VideoFrame* frame, PixelFormat toFormat, bo
     return false;
 }
 
-bool inplaceConvertFrameRGB(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip)
-{
+bool inplaceConvertFrameRGB(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip) {
     // rgb(a) 互转
 
     uint8_t* inputBytes = frame->data[0];
@@ -145,29 +136,24 @@ bool inplaceConvertFrameRGB(VideoFrame* frame, PixelFormat toFormat, bool vertic
 #else
             rgbaToBgra(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, height);
 #endif
-        }
-        else // RGB <-> BGR
+        } else // RGB <-> BGR
         {
             rgbaToBgra(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, height);
         }
-    }
-    else /// Different number of channels, only 4 channels <-> 3 channels
+    } else /// Different number of channels, only 4 channels <-> 3 channels
     {
         if (inputChannelCount == 4) // 4 channels -> 3 channels
         {
             if (swapRB) { // Possible cases: RGBA->BGR, BGRA->RGB
                 rgbaToBgr(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, height);
-            }
-            else { // Possible cases: RGBA->RGB, BGRA->BGR
+            } else { // Possible cases: RGBA->RGB, BGRA->BGR
                 rgbaToRgb(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, height);
             }
-        }
-        else // 3 channels -> 4 channels
+        } else // 3 channels -> 4 channels
         {
             if (swapRB) { // Possible cases: BGR->RGBA, RGB->BGRA
                 rgbToBgra(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, height);
-            }
-            else { // Possible cases: BGR->BGRA, RGB->RGBA
+            } else { // Possible cases: BGR->BGRA, RGB->RGBA
                 rgbToRgba(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, height);
             }
         }
@@ -175,8 +161,7 @@ bool inplaceConvertFrameRGB(VideoFrame* frame, PixelFormat toFormat, bool vertic
     return true;
 }
 
-bool inplaceConvertFrame(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip)
-{
+bool inplaceConvertFrame(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip) {
     if (frame->pixelFormat == toFormat) {
         if (verticalFlip && (toFormat & kPixelFormatRGBColorBit)) { // flip upside down
             int srcStride = (int)frame->stride[0];

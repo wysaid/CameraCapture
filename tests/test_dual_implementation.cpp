@@ -14,8 +14,7 @@ using namespace ccap_test;
 
 class DualImplementationTest : public ::testing::Test {
 protected:
-    void SetUp() override
-    {
+    void SetUp() override {
         // Standard test dimensions
         width_ = 256;
         height_ = 256;
@@ -25,8 +24,7 @@ protected:
         large_height_ = 512;
     }
 
-    void TearDown() override
-    {
+    void TearDown() override {
         // Ensure AVX2 is re-enabled after tests
         if (AVX2TestRunner::isAVX2Supported()) {
             ccap::disableAVX2(false);
@@ -40,8 +38,7 @@ protected:
 
 // ============ Color Shuffle Comprehensive Tests ============
 
-TEST_F(DualImplementationTest, All_ColorShuffle_Functions_Multiple_Sizes)
-{
+TEST_F(DualImplementationTest, All_ColorShuffle_Functions_Multiple_Sizes) {
     std::vector<std::pair<int, int>> test_sizes = {
         { small_width_, small_height_ },
         { width_, height_ },
@@ -96,8 +93,7 @@ TEST_F(DualImplementationTest, All_ColorShuffle_Functions_Multiple_Sizes)
 
 // ============ YUV Conversion Comprehensive Tests ============
 
-TEST_F(DualImplementationTest, All_NV12_Conversions_Multiple_Sizes)
-{
+TEST_F(DualImplementationTest, All_NV12_Conversions_Multiple_Sizes) {
     std::vector<std::pair<int, int>> test_sizes = {
         { 64, 64 },   // Small size
         { 128, 128 }, // Medium size
@@ -178,8 +174,7 @@ TEST_F(DualImplementationTest, All_NV12_Conversions_Multiple_Sizes)
     }
 }
 
-TEST_F(DualImplementationTest, All_I420_Conversions_Multiple_Sizes)
-{
+TEST_F(DualImplementationTest, All_I420_Conversions_Multiple_Sizes) {
     std::vector<std::pair<int, int>> test_sizes = {
         { 64, 64 },   // Small size
         { 128, 128 }, // Medium size
@@ -233,8 +228,7 @@ TEST_F(DualImplementationTest, All_I420_Conversions_Multiple_Sizes)
 
 // ============ Edge Case Tests ============
 
-TEST_F(DualImplementationTest, Vertical_Flip_All_Functions)
-{
+TEST_F(DualImplementationTest, Vertical_Flip_All_Functions) {
     const int w = 64;
     const int h = 64;
 
@@ -267,8 +261,7 @@ TEST_F(DualImplementationTest, Vertical_Flip_All_Functions)
 
 // ============ Solid Color YUV Conversion Tests ============
 
-TEST_F(DualImplementationTest, Solid_Color_YUV_Conversions_Multiple_Sizes)
-{
+TEST_F(DualImplementationTest, Solid_Color_YUV_Conversions_Multiple_Sizes) {
     // Test resolution array - comprehensive coverage of different image sizes
     std::vector<std::pair<int, int>> test_sizes = {
         { small_width_, small_height_ }, // 32x32 - Small size
@@ -389,8 +382,7 @@ TEST_F(DualImplementationTest, Solid_Color_YUV_Conversions_Multiple_Sizes)
 
 // ============ Performance Information Test ============
 
-TEST_F(DualImplementationTest, Performance_Information_Report)
-{
+TEST_F(DualImplementationTest, Performance_Information_Report) {
     bool hasAVX2Support = AVX2TestRunner::isAVX2Supported();
 
     std::cout << "\n=== Dual Implementation Test Report ===" << std::endl;
@@ -410,8 +402,7 @@ TEST_F(DualImplementationTest, Performance_Information_Report)
         EXPECT_TRUE(avx2_enabled) << "AVX2 should be enabled when disableAVX2(false) is called";
 
         std::cout << "AVX2 disable/enable functionality: VERIFIED" << std::endl;
-    }
-    else {
+    } else {
         std::cout << "Test Coverage: CPU implementation only (AVX2 not supported)" << std::endl;
         std::cout << "All conversion functions verified for correctness" << std::endl;
     }
@@ -424,8 +415,7 @@ TEST_F(DualImplementationTest, Performance_Information_Report)
 
 // ============ YUV Conversion ConvertFlag Tests ============
 
-TEST_F(DualImplementationTest, All_ConvertFlag_Combinations_NV12_Conversions)
-{
+TEST_F(DualImplementationTest, All_ConvertFlag_Combinations_NV12_Conversions) {
     // Test different flag combinations for NV12 conversions
     struct FlagCombination {
         ccap::ConvertFlag flag;
@@ -520,8 +510,7 @@ TEST_F(DualImplementationTest, All_ConvertFlag_Combinations_NV12_Conversions)
     }
 }
 
-TEST_F(DualImplementationTest, All_ConvertFlag_Combinations_I420_Conversions)
-{
+TEST_F(DualImplementationTest, All_ConvertFlag_Combinations_I420_Conversions) {
     // Test different flag combinations for I420 conversions
     struct FlagCombination {
         ccap::ConvertFlag flag;
@@ -624,8 +613,7 @@ TEST_F(DualImplementationTest, All_ConvertFlag_Combinations_I420_Conversions)
     }
 }
 
-TEST_F(DualImplementationTest, Solid_Color_ConvertFlag_Combinations_Extreme_Values)
-{
+TEST_F(DualImplementationTest, Solid_Color_ConvertFlag_Combinations_Extreme_Values) {
     // Test extreme YUV values with all ConvertFlag combinations
     struct FlagCombination {
         ccap::ConvertFlag flag;

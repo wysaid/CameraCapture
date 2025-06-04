@@ -11,8 +11,7 @@
 
 using namespace ccap_test;
 
-TEST(ShuffleMapDebugTest, DirectColorShuffleCall)
-{
+TEST(ShuffleMapDebugTest, DirectColorShuffleCall) {
     std::cout << "Testing direct colorShuffle4To3 call..." << std::endl;
     TestImage rgba_img(8, 8, 4);
     TestImage bgr_img(8, 8, 3);

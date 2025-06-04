@@ -21,7 +21,7 @@ AlwaysBreakBeforeMultilineStrings: false
 AlwaysBreakTemplateDeclarations: MultiLine
 BinPackArguments: true
 BinPackParameters: true
-BreakBeforeBraces: Stroustrup
+BreakBeforeBraces: Attach
 BreakBeforeBinaryOperators: None
 ObjCSpaceBeforeProtocolList: false
 ObjCSpaceAfterProperty: true

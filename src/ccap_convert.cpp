@@ -16,8 +16,7 @@
 
 namespace ccap {
 template <int inputChannels, int outputChannels, int swapRB>
-void colorShuffle(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height)
-{
+void colorShuffle(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height) {
     static_assert((inputChannels == 3 || inputChannels == 4) && (outputChannels == 3 || outputChannels == 4),
                   "inputChannels and outputChannels must be 3 or 4");
 
@@ -44,8 +43,7 @@ void colorShuffle(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride
                 dstRow[2] = srcRow[0];
                 dstRow[1] = srcRow[1];
                 dstRow[0] = srcRow[2];
-            }
-            else {
+            } else {
                 dstRow[0] = srcRow[0];
                 dstRow[1] = srcRow[1];
                 dstRow[2] = srcRow[2];
@@ -79,8 +77,7 @@ template void colorShuffle<3, 3, true>(const uint8_t* src, int srcStride, uint8_
 
 template <bool isBgrColor, bool hasAlpha>
 void nv12ToRgb_common(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride, int width,
-                      int height, ConvertFlag flag)
-{
+                      int height, ConvertFlag flag) {
     // 如果 height < 0，则反向写入 dst，src 顺序读取
     if (height < 0) {
         height = -height;
@@ -114,8 +111,7 @@ void nv12ToRgb_common(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV,
                 dstRow[(x + 1) * channels + 0] = b1;
                 dstRow[(x + 1) * channels + 1] = g1;
                 dstRow[(x + 1) * channels + 2] = r1;
-            }
-            else {
+            } else {
                 dstRow[(x + 0) * channels + 0] = r0;
                 dstRow[(x + 0) * channels + 1] = g0;
                 dstRow[(x + 0) * channels + 2] = b0;
@@ -135,8 +131,7 @@ void nv12ToRgb_common(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV,
 
 template <bool isBgrColor, bool hasAlpha>
 void i420ToRgb_common(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
-                      uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag)
-{
+                      uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
     // 如果 height < 0，则反向写入 dst，src 顺序读取
     if (height < 0) {
         height = -height;
@@ -171,8 +166,7 @@ void i420ToRgb_common(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, 
                 dstRow[(x + 1) * channels + 0] = b1;
                 dstRow[(x + 1) * channels + 1] = g1;
                 dstRow[(x + 1) * channels + 2] = r1;
-            }
-            else {
+            } else {
                 dstRow[(x + 0) * channels + 0] = r0;
                 dstRow[(x + 0) * channels + 1] = g0;
                 dstRow[(x + 0) * channels + 2] = b0;
@@ -191,8 +185,7 @@ void i420ToRgb_common(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, 
 }
 
 void nv12ToBgr24(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride, int width,
-                 int height, ConvertFlag flag)
-{
+                 int height, ConvertFlag flag) {
     if (hasAVX2()) {
         nv12ToBgr24_avx2(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, flag);
         return;
@@ -202,8 +195,7 @@ void nv12ToBgr24(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int 
 }
 
 void nv12ToRgb24(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride, int width,
-                 int height, ConvertFlag flag)
-{
+                 int height, ConvertFlag flag) {
     if (hasAVX2()) {
         nv12ToRgb24_avx2(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, flag);
         return;
@@ -213,8 +205,7 @@ void nv12ToRgb24(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int 
 }
 
 void nv12ToBgra32(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride, int width,
-                  int height, ConvertFlag flag)
-{
+                  int height, ConvertFlag flag) {
     if (hasAVX2()) {
         nv12ToBgra32_avx2(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, flag);
         return;
@@ -224,8 +215,7 @@ void nv12ToBgra32(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int
 }
 
 void nv12ToRgba32(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride, int width,
-                  int height, ConvertFlag flag)
-{
+                  int height, ConvertFlag flag) {
     if (hasAVX2()) {
         nv12ToRgba32_avx2(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, flag);
         return;
@@ -235,8 +225,7 @@ void nv12ToRgba32(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int
 }
 
 void i420ToBgr24(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
-                 uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag)
-{
+                 uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
     if (hasAVX2()) {
         i420ToBgr24_avx2(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, flag);
         return;
@@ -246,8 +235,7 @@ void i420ToBgr24(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int s
 }
 
 void i420ToRgb24(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
-                 uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag)
-{
+                 uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
     if (hasAVX2()) {
         i420ToRgb24_avx2(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, flag);
         return;
@@ -257,8 +245,7 @@ void i420ToRgb24(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int s
 }
 
 void i420ToBgra32(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
-                  uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag)
-{
+                  uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
     if (hasAVX2()) {
         i420ToBgra32_avx2(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, flag);
         return;
@@ -268,8 +255,7 @@ void i420ToBgra32(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int 
 }
 
 void i420ToRgba32(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
-                  uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag)
-{
+                  uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
     if (hasAVX2()) {
         i420ToRgba32_avx2(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, flag);
         return;

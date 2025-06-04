@@ -24,8 +24,7 @@ public:
      * @param test_func Function to execute for testing
      * @param test_name Name of the test for error reporting
      */
-    static void runWithBothImplementations(std::function<void()> test_func, const std::string& test_name = "Test")
-    {
+    static void runWithBothImplementations(std::function<void()> test_func, const std::string& test_name = "Test") {
         bool hasAVX2Support = ccap::hasAVX2();
 
         if (hasAVX2Support) {
@@ -45,8 +44,7 @@ public:
             ccap::disableAVX2(false);
 
             std::cout << "[INFO] " << test_name << " passed for both AVX2 and CPU implementations" << std::endl;
-        }
-        else {
+        } else {
             SCOPED_TRACE("Testing with CPU implementation only (AVX2 not supported)");
 
             // Only test CPU implementation if AVX2 is not supported
@@ -61,8 +59,7 @@ public:
      * @param test_func Function that returns a result for comparison
      * @param test_name Name of the test for error reporting
      */
-    template <typename T> static void runComparisonTest(std::function<T()> test_func, const std::string& test_name = "Comparison Test")
-    {
+    template <typename T> static void runComparisonTest(std::function<T()> test_func, const std::string& test_name = "Comparison Test") {
         bool hasAVX2Support = ccap::hasAVX2();
 
         if (hasAVX2Support) {
@@ -81,8 +78,7 @@ public:
             ccap::disableAVX2(false);
 
             std::cout << "[INFO] " << test_name << " - AVX2 and CPU implementations produce identical results" << std::endl;
-        }
-        else {
+        } else {
             // Just run the test once if AVX2 is not supported
             T result = test_func();
             (void)result; // Avoid unused variable warning
@@ -98,8 +94,7 @@ public:
      * @param tolerance Allowed pixel difference tolerance
      */
     static void runImageComparisonTest(std::function<TestImage()> test_func, const std::string& test_name = "Image Comparison Test",
-                                       int tolerance = 0)
-    {
+                                       int tolerance = 0) {
         bool hasAVX2Support = ccap::hasAVX2();
 
         if (hasAVX2Support) {
@@ -134,8 +129,7 @@ public:
             ccap::disableAVX2(false);
 
             std::cout << "[INFO] " << test_name << " - AVX2 and CPU implementations produce identical images" << std::endl;
-        }
-        else {
+        } else {
             // Just run the test once if AVX2 is not supported
             TestImage result = test_func();
             (void)result; // Avoid unused variable warning
@@ -147,13 +141,11 @@ public:
     /**
      * @brief Get a string describing the current implementation being tested
      */
-    static std::string getCurrentImplementationName()
-    {
+    static std::string getCurrentImplementationName() {
         bool hasAVX2Support = ccap::hasAVX2();
         if (hasAVX2Support) {
             return "AVX2";
-        }
-        else {
+        } else {
             return "CPU";
         }
     }

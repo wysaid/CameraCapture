@@ -13,8 +13,7 @@ using namespace ccap_test;
 
 class ComprehensiveConvertTest : public ::testing::Test {
 protected:
-    void SetUp() override
-    {
+    void SetUp() override {
         width_ = 32;
         height_ = 32;
     }
@@ -25,8 +24,7 @@ protected:
 
 // ============ Specific Conversion Function Tests ============
 
-TEST_F(ComprehensiveConvertTest, AllPredefinedConversions)
-{
+TEST_F(ComprehensiveConvertTest, AllPredefinedConversions) {
     // Test all the predefined conversion functions
 
     // RGBA to BGR
@@ -92,8 +90,7 @@ TEST_F(ComprehensiveConvertTest, AllPredefinedConversions)
 // Note: Function alias validation is handled in test_convert_aliases_validation.cpp
 // to avoid test duplication while ensuring comprehensive coverage.
 
-TEST_F(ComprehensiveConvertTest, ColorSpace_Consistency_Validation)
-{
+TEST_F(ComprehensiveConvertTest, ColorSpace_Consistency_Validation) {
     // Test that color space conversions maintain expected relationships
     TestImage rgb_src(width_, height_, 3);
     TestImage bgr_temp(width_, height_, 3);
@@ -113,8 +110,7 @@ TEST_F(ComprehensiveConvertTest, ColorSpace_Consistency_Validation)
 
 // ============ YUV Single Pixel Conversion Tests ============
 
-TEST_F(ComprehensiveConvertTest, YUVPixelConversions_EdgeCases)
-{
+TEST_F(ComprehensiveConvertTest, YUVPixelConversions_EdgeCases) {
     struct TestCase {
         int y, u, v;
         std::string description;
@@ -145,8 +141,7 @@ TEST_F(ComprehensiveConvertTest, YUVPixelConversions_EdgeCases)
 
 // ============ ConvertFlag Enum Tests ============
 
-TEST_F(ComprehensiveConvertTest, ConvertFlagOperations)
-{
+TEST_F(ComprehensiveConvertTest, ConvertFlagOperations) {
     using ccap::ConvertFlag;
 
     // Test bitwise operations
@@ -167,8 +162,7 @@ TEST_F(ComprehensiveConvertTest, ConvertFlagOperations)
 
 // ============ Memory Alignment Tests ============
 
-TEST_F(ComprehensiveConvertTest, MemoryAlignment)
-{
+TEST_F(ComprehensiveConvertTest, MemoryAlignment) {
     // Test that functions work with various stride alignments
     const int test_width = 17; // Odd width to test alignment
     const int test_height = 13;

@@ -93,8 +93,7 @@ namespace {
 constexpr FrameOrientation kDefaultFrameOrientation = FrameOrientation::BottomToTop;
 
 // Release the format block for a media type.
-void freeMediaType(AM_MEDIA_TYPE& mt)
-{
+void freeMediaType(AM_MEDIA_TYPE& mt) {
     if (mt.cbFormat != 0) {
         CoTaskMemFree((PVOID)mt.pbFormat);
         mt.cbFormat = 0;
@@ -108,8 +107,7 @@ void freeMediaType(AM_MEDIA_TYPE& mt)
 }
 
 // Delete a media type structure that was allocated on the heap.
-void deleteMediaType(AM_MEDIA_TYPE* pmt)
-{
+void deleteMediaType(AM_MEDIA_TYPE* pmt) {
     if (pmt != NULL) {
         freeMediaType(*pmt);
         CoTaskMemFree(pmt);
@@ -156,8 +154,7 @@ PixelFormtInfo s_pixelInfoList[] = {
     { MEDIASUBTYPE_420O, "420O", PixelFormat::Unknown },
 };
 
-PixelFormtInfo findPixelFormatInfo(const GUID& subtype)
-{
+PixelFormtInfo findPixelFormatInfo(const GUID& subtype) {
     for (auto& i : s_pixelInfoList) {
         if (subtype == i.subtype) {
             return i;
@@ -172,8 +169,7 @@ struct MediaInfo {
     std::shared_ptr<AM_MEDIA_TYPE*> mediaType;
 };
 
-void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
-{
+void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix) {
     const GUID& subtype = pmt->subtype;
     PixelFormtInfo info = findPixelFormatInfo(subtype);
 
@@ -194,11 +190,9 @@ void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
                     DXVA_ExtendedFormat* extFmt = (DXVA_ExtendedFormat*)extFmtPtr;
                     if (extFmt->NominalRange == DXVA_NominalRange_0_255) {
                         rangeStr = " (FullRange)";
-                    }
-                    else if (extFmt->NominalRange == DXVA_NominalRange_16_235) {
+                    } else if (extFmt->NominalRange == DXVA_NominalRange_16_235) {
                         rangeStr = " (VideoRange)";
-                    }
-                    else {
+                    } else {
                         rangeStr = " (UnknownRange)";
                     }
                 }
@@ -210,8 +204,7 @@ void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
     fflush(stdout);
 }
 
-bool setupCom()
-{
+bool setupCom() {
     static bool s_didSetup = false;
     if (!s_didSetup) {
         // Initialize COM without performing uninitialization, as other parts may also use COM
@@ -228,8 +221,7 @@ bool setupCom()
 
 #if ENABLE_LIBYUV
 
-bool inplaceConvertFrameYUV2YUV(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip)
-{
+bool inplaceConvertFrameYUV2YUV(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip) {
     /// (NV12/I420) <-> (NV12/I420)
     assert((frame->pixelFormat & kPixelFormatYUVColorBit) != 0 && (toFormat & kPixelFormatYUVColorBit) != 0);
     bool isInputNV12 = pixelFormatInclude(frame->pixelFormat, PixelFormat::NV12);
@@ -263,8 +255,7 @@ bool inplaceConvertFrameYUV2YUV(VideoFrame* frame, PixelFormat toFormat, bool ve
 
         return libyuv::NV12ToI420(inputData0, stride0, inputData1, stride1, outputData0, stride0, frame->data[1], frame->stride[1],
                                   frame->data[2], frame->stride[2], width, height) == 0;
-    }
-    else if (isInputI420) { // I420 -> NV12
+    } else if (isInputI420) { // I420 -> NV12
         frame->stride[1] = stride1 + stride2;
         frame->stride[2] = 0;
         frame->data[2] = nullptr;
@@ -281,8 +272,7 @@ bool inplaceConvertFrameYUV2YUV(VideoFrame* frame, PixelFormat toFormat, bool ve
 } // namespace
 
 namespace ccap {
-ProviderDirectShow::ProviderDirectShow()
-{
+ProviderDirectShow::ProviderDirectShow() {
     m_frameOrientation = kDefaultFrameOrientation;
 #if ENABLE_LIBYUV
     CCAP_LOG_V("ccap: ProviderDirectShow enable libyuv acceleration\n");
@@ -291,21 +281,18 @@ ProviderDirectShow::ProviderDirectShow()
 #endif
 }
 
-ProviderDirectShow::~ProviderDirectShow()
-{
+ProviderDirectShow::~ProviderDirectShow() {
     CCAP_LOG_V("ccap: ProviderDirectShow destructor called\n");
 
     ProviderDirectShow::close();
 }
 
-bool ProviderDirectShow::setup()
-{
+bool ProviderDirectShow::setup() {
     m_didSetup = setupCom();
     return m_didSetup;
 }
 
-void ProviderDirectShow::enumerateDevices(std::function<bool(IMoniker* moniker, std::string_view)> callback)
-{
+void ProviderDirectShow::enumerateDevices(std::function<bool(IMoniker* moniker, std::string_view)> callback) {
     if (!setup()) {
         return;
     }
@@ -324,8 +311,7 @@ void ProviderDirectShow::enumerateDevices(std::function<bool(IMoniker* moniker, 
     if (auto failed = FAILED(result); failed || !enumerator) {
         if (failed) {
             CCAP_LOG_E("ccap: CreateClassEnumerator CLSID_VideoInputDeviceCategory failed, result=0x%08X\n", result);
-        }
-        else {
+        } else {
             CCAP_LOG_E("ccap: No video capture devices found.\n");
         }
 
@@ -355,8 +341,7 @@ void ProviderDirectShow::enumerateDevices(std::function<bool(IMoniker* moniker, 
     enumerator->Release();
 }
 
-ProviderDirectShow::MediaInfo::~MediaInfo()
-{
+ProviderDirectShow::MediaInfo::~MediaInfo() {
     for (auto& mediaType : mediaTypes) {
         deleteMediaType(mediaType);
     }
@@ -368,8 +353,7 @@ ProviderDirectShow::MediaInfo::~MediaInfo()
 
 std::unique_ptr<ProviderDirectShow::MediaInfo> ProviderDirectShow::enumerateMediaInfo(
     std::function<bool(AM_MEDIA_TYPE* mediaType, const char* name, PixelFormat pixelFormat, const DeviceInfo::Resolution& resolution)>
-        callback)
-{
+        callback) {
     auto mediaInfo = std::make_unique<MediaInfo>();
     auto& streamConfig = mediaInfo->streamConfig;
     auto& mediaTypes = mediaInfo->mediaTypes;
@@ -412,8 +396,7 @@ std::unique_ptr<ProviderDirectShow::MediaInfo> ProviderDirectShow::enumerateMedi
     return mediaInfo;
 }
 
-std::vector<std::string> ProviderDirectShow::findDeviceNames()
-{
+std::vector<std::string> ProviderDirectShow::findDeviceNames() {
     if (!m_allDeviceNames.empty()) {
         return m_allDeviceNames;
     }
@@ -425,8 +408,7 @@ std::vector<std::string> ProviderDirectShow::findDeviceNames()
         if (SUCCEEDED(hr) && filter) {
             m_allDeviceNames.emplace_back(name.data(), name.size());
             filter->Release();
-        }
-        else {
+        } else {
             CCAP_LOG_I("ccap: \"%s\" is not a valid video capture device, removed\n", name.data());
         }
         // Unavailable devices are not added to the list
@@ -464,8 +446,7 @@ std::vector<std::string> ProviderDirectShow::findDeviceNames()
     return m_allDeviceNames;
 }
 
-bool ProviderDirectShow::buildGraph()
-{
+bool ProviderDirectShow::buildGraph() {
     HRESULT hr = S_OK;
 
     // Create Filter Graph
@@ -492,8 +473,7 @@ bool ProviderDirectShow::buildGraph()
     return true;
 }
 
-bool ProviderDirectShow::setGrabberOutputSubtype(GUID subtype)
-{
+bool ProviderDirectShow::setGrabberOutputSubtype(GUID subtype) {
     if (m_sampleGrabber) {
         AM_MEDIA_TYPE mt;
         ZeroMemory(&mt, sizeof(mt));
@@ -509,8 +489,7 @@ bool ProviderDirectShow::setGrabberOutputSubtype(GUID subtype)
     return false;
 }
 
-bool ProviderDirectShow::createStream()
-{
+bool ProviderDirectShow::createStream() {
     // Create SampleGrabber
     HRESULT hr = CoCreateInstance(CLSID_SampleGrabber, nullptr, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&m_sampleGrabberFilter);
     if (FAILED(hr)) {
@@ -540,8 +519,7 @@ bool ProviderDirectShow::createStream()
             if (desiredWidth <= videoHeader->bmiHeader.biWidth && desiredHeight <= videoHeader->bmiHeader.biHeight) {
                 matchedTypes.emplace_back(mediaType);
                 if (verboseLogEnabled()) printMediaType(mediaType, "> ");
-            }
-            else {
+            } else {
                 if (verboseLogEnabled()) printMediaType(mediaType, "  ");
             }
         }
@@ -560,8 +538,7 @@ bool ProviderDirectShow::createStream()
                 if (distance < closestDistance) {
                     closestDistance = distance;
                     bestMatchedTypes = { mediaType };
-                }
-                else if (std::abs(distance - closestDistance) < 1e-5) {
+                } else if (std::abs(distance - closestDistance) < 1e-5) {
                     bestMatchedTypes.emplace_back(mediaType);
                 }
             }
@@ -601,8 +578,7 @@ bool ProviderDirectShow::createStream()
                     m_frameProp.cameraPixelFormat = PixelFormat::BGR24;
                 }
                 subtype = (m_frameProp.cameraPixelFormat == PixelFormat::BGRA32) ? MEDIASUBTYPE_RGB32 : MEDIASUBTYPE_RGB24;
-            }
-            else {
+            } else {
                 m_frameProp.cameraPixelFormat = pixFormatInfo.pixelFormat;
             }
 
@@ -613,8 +589,7 @@ bool ProviderDirectShow::createStream()
                 if (ccap::infoLogEnabled()) {
                     printMediaType(mediaType, "ccap: SetFormat succeeded: ");
                 }
-            }
-            else {
+            } else {
                 CCAP_LOG_E("ccap: SetFormat failed, result=0x%lx\n", setFormatResult);
             }
         }
@@ -650,8 +625,7 @@ bool ProviderDirectShow::createStream()
         hr = m_graph->QueryInterface(IID_IMediaFilter, (void**)&pMediaFilter);
         if (FAILED(hr)) {
             CCAP_LOG_E("ccap: QueryInterface IMediaFilter failed, result=0x%lx\n", hr);
-        }
-        else {
+        } else {
             pMediaFilter->SetSyncSource(NULL);
             pMediaFilter->Release();
         }
@@ -663,8 +637,7 @@ bool ProviderDirectShow::createStream()
         if (SUCCEEDED(hr)) {
             CCAP_LOG_V("ccap: Connected media type: %s\n", findPixelFormatInfo(mt.subtype).name);
             freeMediaType(mt);
-        }
-        else {
+        } else {
             CCAP_LOG_E("ccap: GetConnectedMediaType failed, hr=0x%lx\n", hr);
             return false;
         }
@@ -678,8 +651,7 @@ bool ProviderDirectShow::createStream()
     return true;
 }
 
-bool ProviderDirectShow::open(std::string_view deviceName)
-{
+bool ProviderDirectShow::open(std::string_view deviceName) {
     if (m_isOpened && m_mediaControl) {
         CCAP_LOG_E("ccap: Camera already opened, please close it first.\n");
         return false;
@@ -695,8 +667,7 @@ bool ProviderDirectShow::open(std::string_view deviceName)
                 m_deviceName = name;
                 found = true;
                 return true; // stop enumeration when returning true
-            }
-            else {
+            } else {
                 if (!deviceName.empty()) {
                     CCAP_LOG_E("ccap: \"%s\" is not a valid video capture device, bind failed, result=%x\n", deviceName.data(), hr);
                     return true; // stop enumeration when returning true
@@ -749,8 +720,7 @@ bool ProviderDirectShow::open(std::string_view deviceName)
     return true;
 }
 
-HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMediaSample* mediaSample)
-{
+HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMediaSample* mediaSample) {
     std::lock_guard<std::mutex> lock(m_callbackMutex);
 
     auto newFrame = getFreeFrame();
@@ -795,8 +765,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
 
     if (fixTimestamp) { // sampleTime is wrong, implement it yourself. This often happens when using virtual cameras.
         newFrame->timestamp = (std::chrono::steady_clock::now() - m_startTime).count();
-    }
-    else {
+    } else {
         newFrame->timestamp = static_cast<uint64_t>(sampleTime * 1e9);
     }
 
@@ -827,8 +796,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
             newFrame->stride[2] = m_frameProp.width / 2;
 
             newFrame->data[2] = sampleData + m_frameProp.width * m_frameProp.height * 5 / 4;
-        }
-        else {
+        } else {
             newFrame->stride[1] = m_frameProp.width;
             newFrame->stride[2] = 0;
             newFrame->data[2] = nullptr;
@@ -837,8 +805,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
         assert(newFrame->stride[0] * newFrame->height + newFrame->stride[1] * newFrame->height / 2 +
                    newFrame->stride[2] * newFrame->height / 2 <=
                bufferLen);
-    }
-    else {
+    } else {
         auto stride = m_frameProp.width * (m_frameProp.cameraPixelFormat & kPixelFormatAlphaColorBit ? 4 : 3);
         newFrame->stride[0] = ((stride + 3) / 4) * 4; // 4-byte aligned
         newFrame->stride[1] = 0;
@@ -885,14 +852,12 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
                 "ccap: inplaceConvertFrame requested pixel format: %s, actual pixel format: %s, flip: %s, cost time %s: (cur %g ms, avg %g ms)\n",
                 pixelFormatToString(m_frameProp.outputPixelFormat).data(), pixelFormatToString(m_frameProp.cameraPixelFormat).data(),
                 shouldFlip ? "YES" : "NO", mode, durInMs, s_allCostTime / s_frames);
-        }
-        else {
+        } else {
             zeroCopy = !inplaceConvertFrame(newFrame.get(), m_frameProp.outputPixelFormat, shouldFlip);
         }
 
         newFrame->sizeInBytes = newFrame->stride[0] * newFrame->height + (newFrame->stride[1] + newFrame->stride[2]) * newFrame->height / 2;
-    }
-    else {
+    } else {
         newFrame->sizeInBytes = bufferLen;
 
         mediaSample->AddRef(); // Ensure data lifecycle
@@ -941,24 +906,20 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE ProviderDirectShow::BufferCB(double SampleTime, BYTE* pBuffer, long BufferLen)
-{
+HRESULT STDMETHODCALLTYPE ProviderDirectShow::BufferCB(double SampleTime, BYTE* pBuffer, long BufferLen) {
     CCAP_LOG_E("ccap: BufferCB called, SampleTime: %f, BufferLen: %ld\n", SampleTime, BufferLen);
     // This callback is not used in this implementation
     return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE ProviderDirectShow::QueryInterface(REFIID riid, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject)
-{
+HRESULT STDMETHODCALLTYPE ProviderDirectShow::QueryInterface(REFIID riid, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject) {
     static constexpr const IID IID_ISampleGrabberCB = { 0x0579154A, 0x2B53, 0x4994, { 0xB0, 0xD0, 0xE7, 0x73, 0x14, 0x8E, 0xFF, 0x85 } };
 
     if (riid == IID_IUnknown) {
         *ppvObject = static_cast<IUnknown*>(this);
-    }
-    else if (riid == IID_ISampleGrabberCB) {
+    } else if (riid == IID_ISampleGrabberCB) {
         *ppvObject = static_cast<ISampleGrabberCB*>(this);
-    }
-    else {
+    } else {
         *ppvObject = nullptr;
         return E_NOINTERFACE;
     }
@@ -966,20 +927,18 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::QueryInterface(REFIID riid, _COM_O
     return S_OK;
 }
 
-ULONG STDMETHODCALLTYPE ProviderDirectShow::AddRef()
-{ // Using smart pointers for management, reference counting implementation is not needed
+ULONG STDMETHODCALLTYPE
+    ProviderDirectShow::AddRef() { // Using smart pointers for management, reference counting implementation is not needed
     return S_OK;
 }
 
-ULONG STDMETHODCALLTYPE ProviderDirectShow::Release()
-{ // same as AddRef
+ULONG STDMETHODCALLTYPE ProviderDirectShow::Release() { // same as AddRef
     return S_OK;
 }
 
 bool ProviderDirectShow::isOpened() const { return m_isOpened; }
 
-std::optional<DeviceInfo> ProviderDirectShow::getDeviceInfo() const
-{
+std::optional<DeviceInfo> ProviderDirectShow::getDeviceInfo() const {
     std::optional<DeviceInfo> info;
     bool hasMJPG = false;
 
@@ -993,8 +952,7 @@ std::optional<DeviceInfo> ProviderDirectShow::getDeviceInfo() const
             auto& pixFormats = info->supportedPixelFormats;
             if (pixelFormat != PixelFormat::Unknown) {
                 pixFormats.emplace_back(pixelFormat);
-            }
-            else if (mediaType->subtype == MEDIASUBTYPE_MJPG) { // Supports MJPEG format, can be decoded to BGR24 and other formats
+            } else if (mediaType->subtype == MEDIASUBTYPE_MJPG) { // Supports MJPEG format, can be decoded to BGR24 and other formats
                 hasMJPG = true;
             }
             info->supportedResolutions.push_back(resolution);
@@ -1026,8 +984,7 @@ std::optional<DeviceInfo> ProviderDirectShow::getDeviceInfo() const
     return info;
 }
 
-void ProviderDirectShow::close()
-{
+void ProviderDirectShow::close() {
     CCAP_LOG_V("ccap: ProviderDirectShow close called\n");
 
     if (m_isRunning) {
@@ -1074,24 +1031,21 @@ void ProviderDirectShow::close()
     CCAP_LOG_V("ccap: Camera closed.\n");
 }
 
-bool ProviderDirectShow::start()
-{
+bool ProviderDirectShow::start() {
     if (!m_isOpened) return false;
     if (!m_isRunning && m_mediaControl) {
         HRESULT hr = m_mediaControl->Run();
         m_isRunning = !FAILED(hr);
         if (!m_isRunning) {
             CCAP_LOG_E("ccap: IMediaControl->Run() failed, hr=0x%08X\n", hr);
-        }
-        else {
+        } else {
             CCAP_LOG_V("ccap: IMediaControl->Run() succeeded.\n");
         }
     }
     return m_isRunning;
 }
 
-void ProviderDirectShow::stop()
-{
+void ProviderDirectShow::stop() {
     CCAP_LOG_V("ccap: ProviderDirectShow stop called\n");
 
     if (m_grabFrameWaiting) {

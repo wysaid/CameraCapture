@@ -149,8 +149,7 @@ public:
 /**
  * @brief Google Test custom matchers for image comparison
  */
-MATCHER_P2(ImageMatches, expected, tolerance, "Image matches within tolerance")
-{
+MATCHER_P2(ImageMatches, expected, tolerance, "Image matches within tolerance") {
     const auto& actual_img = std::get<0>(arg);
     const auto& expected_img = std::get<1>(arg);
 

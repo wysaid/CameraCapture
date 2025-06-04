@@ -22,8 +22,7 @@
 #include <vector>
 
 namespace ccap {
-std::string dumpFrameToDirectory(VideoFrame* frame, std::string_view directory)
-{
+std::string dumpFrameToDirectory(VideoFrame* frame, std::string_view directory) {
     // Create a filename based on current time
     auto now = std::chrono::system_clock::now();
     auto nowTime = std::chrono::system_clock::to_time_t(now);
@@ -36,8 +35,7 @@ std::string dumpFrameToDirectory(VideoFrame* frame, std::string_view directory)
 }
 
 bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t w, uint32_t stride, uint32_t h, bool isBGR, bool hasAlpha,
-                      bool isTopToBottom)
-{
+                      bool isTopToBottom) {
     auto startTime = std::chrono::steady_clock::now();
 
     FILE* fp = fopen(filename, "wb");
@@ -84,8 +82,7 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
                 dataCopy += lineSize;
                 data += srcLineOffset;
             }
-        }
-        else {
+        } else {
             // Swap R and B channels, write as BGRA
             // std::vector<unsigned char> line(lineSize);
             for (uint32_t i = 0; i < h; ++i) {
@@ -102,8 +99,7 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
                 data += srcLineOffset;
             }
         }
-    }
-    else {
+    } else {
         // 24bpp, BITMAPINFOHEADER
         unsigned char info[40] = { 40, 0, 0, 0, 0,    0,    0, 0, 0,    0,    0, 0, 1, 0, 24, 0, 0, 0, 0, 0,
                                    0,  0, 0, 0, 0x13, 0x0B, 0, 0, 0x13, 0x0B, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0 };
@@ -140,8 +136,7 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
                 }
                 data += srcLineOffset;
             }
-        }
-        else {
+        } else {
             // std::vector<unsigned char> line(lineSize);
             for (uint32_t i = 0; i < h; ++i) {
                 // RGB to BGR
@@ -169,8 +164,7 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
     return true;
 }
 
-std::string dumpFrameToFile(VideoFrame* frame, std::string_view fileNameWithNoSuffix)
-{
+std::string dumpFrameToFile(VideoFrame* frame, std::string_view fileNameWithNoSuffix) {
     if (frame->pixelFormat & ccap::kPixelFormatRGBColorBit) { /// RGB or RGBA
         auto filePath = std::string(fileNameWithNoSuffix) + ".bmp";
         bool isBGR = (frame->pixelFormat & ccap::kPixelFormatBGRBit) != 0;
@@ -178,8 +172,7 @@ std::string dumpFrameToFile(VideoFrame* frame, std::string_view fileNameWithNoSu
         saveRgbDataAsBMP(filePath.c_str(), frame->data[0], frame->width, frame->stride[0], frame->height, isBGR,
                          frame->pixelFormat & ccap::kPixelFormatAlphaColorBit, frame->orientation == FrameOrientation::TopToBottom);
         return filePath;
-    }
-    else if (ccap::pixelFormatInclude(frame->pixelFormat, ccap::kPixelFormatYUVColorBit)) {
+    } else if (ccap::pixelFormatInclude(frame->pixelFormat, ccap::kPixelFormatYUVColorBit)) {
         auto filePath = std::string(fileNameWithNoSuffix) + '.' + pixelFormatToString(frame->pixelFormat).data() + ".yuv";
         FILE* fp = fopen(filePath.c_str(), "wb");
         if (fp) {
@@ -195,8 +188,7 @@ std::string dumpFrameToFile(VideoFrame* frame, std::string_view fileNameWithNoSu
     return {};
 }
 
-std::string_view pixelFormatToString(PixelFormat format)
-{
+std::string_view pixelFormatToString(PixelFormat format) {
     switch (format) {
     case PixelFormat::NV12:
         return "NV12";
@@ -232,8 +224,7 @@ LogLevel globalLogLevel = LogLevel::Error;
 #endif
 #endif
 
-void setLogLevel(LogLevel level)
-{
+void setLogLevel(LogLevel level) {
 #if _CCAP_LOG_ENABLED_
     globalLogLevel = level;
 #ifdef DEBUG

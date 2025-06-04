@@ -13,8 +13,7 @@ using namespace ccap_test;
 
 class AccuracyTest : public ::testing::Test {
 protected:
-    void SetUp() override
-    {
+    void SetUp() override {
         width_ = 64;
         height_ = 64;
         tolerance_ = 2; // Allow small differences due to different rounding
@@ -29,8 +28,7 @@ protected:
 
 // ============ YUV to RGB Accuracy Tests ============
 
-TEST_F(AccuracyTest, YUVToRGB_AgainstReference)
-{
+TEST_F(AccuracyTest, YUVToRGB_AgainstReference) {
     // Test our YUV to RGB functions against reference implementations
     auto test_values = TestDataGenerator::getTestYUVValues();
 
@@ -95,8 +93,7 @@ TEST_F(AccuracyTest, YUVToRGB_AgainstReference)
 
 // ============ Round-trip Accuracy Tests ============
 
-TEST_F(AccuracyTest, ColorShuffle_Roundtrip)
-{
+TEST_F(AccuracyTest, ColorShuffle_Roundtrip) {
     TestImage original(width_, height_, 4);
     TestImage intermediate(width_, height_, 4);
     TestImage result(width_, height_, 4);
@@ -114,8 +111,7 @@ TEST_F(AccuracyTest, ColorShuffle_Roundtrip)
         << "Round-trip shuffle should preserve original data";
 }
 
-TEST_F(AccuracyTest, RGB_RGBA_Roundtrip)
-{
+TEST_F(AccuracyTest, RGB_RGBA_Roundtrip) {
     TestImage rgb_original(width_, height_, 3);
     TestImage rgba_intermediate(width_, height_, 4);
     TestImage rgb_result(width_, height_, 3);
@@ -143,8 +139,7 @@ TEST_F(AccuracyTest, RGB_RGBA_Roundtrip)
 
 // ============ Consistency Tests ============
 
-TEST_F(AccuracyTest, NV12_I420_Consistency)
-{
+TEST_F(AccuracyTest, NV12_I420_Consistency) {
     // Test that NV12 and I420 with same data produce same RGB output
     TestYUVImage nv12_img(width_, height_, true);
     TestYUVImage i420_img(width_, height_, false);
@@ -169,8 +164,7 @@ TEST_F(AccuracyTest, NV12_I420_Consistency)
         << "NV12 and I420 with same data should produce similar RGB results";
 }
 
-TEST_F(AccuracyTest, RGB_BGR_Relationship)
-{
+TEST_F(AccuracyTest, RGB_BGR_Relationship) {
     TestImage rgba_src(width_, height_, 4);
     TestImage rgb_dst(width_, height_, 3);
     TestImage bgr_dst(width_, height_, 3);
@@ -200,8 +194,7 @@ TEST_F(AccuracyTest, RGB_BGR_Relationship)
 
 // ============ Boundary Value Tests ============
 
-TEST_F(AccuracyTest, BoundaryValues)
-{
+TEST_F(AccuracyTest, BoundaryValues) {
     // Test extreme YUV values to ensure no overflow/underflow
     struct BoundaryTest {
         int y, u, v;
@@ -238,8 +231,7 @@ TEST_F(AccuracyTest, BoundaryValues)
 
 // ============ Statistical Accuracy Tests ============
 
-TEST_F(AccuracyTest, StatisticalAccuracy)
-{
+TEST_F(AccuracyTest, StatisticalAccuracy) {
     const int large_width = 256;
     const int large_height = 256;
 

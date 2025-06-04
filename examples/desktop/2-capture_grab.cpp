@@ -13,8 +13,7 @@
 #include <iostream>
 #include <string>
 
-int selectCamera(ccap::Provider& provider)
-{
+int selectCamera(ccap::Provider& provider) {
     if (auto names = provider.findDeviceNames(); names.size() > 1) {
         std::cout << "Multiple devices found, please select one:" << std::endl;
         for (size_t i = 0; i < names.size(); ++i) {
@@ -26,8 +25,7 @@ int selectCamera(ccap::Provider& provider)
         if (selectedIndex < 0 || selectedIndex >= static_cast<int>(names.size())) {
             selectedIndex = 0;
             std::cerr << "Invalid index, using the first device:" << names[0] << std::endl;
-        }
-        else {
+        } else {
             std::cout << "Using device: " << names[selectedIndex] << std::endl;
         }
         return selectedIndex;
@@ -36,8 +34,7 @@ int selectCamera(ccap::Provider& provider)
     return -1; // One or no device, use default.
 }
 
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
     /// Enable verbose log to see debug information
     ccap::setLogLevel(ccap::LogLevel::Verbose);
 
@@ -45,8 +42,7 @@ int main(int argc, char** argv)
 
     if (auto lastSlashPos = cwd.find_last_of("/\\"); lastSlashPos != std::string::npos && cwd[0] != '.') {
         cwd = cwd.substr(0, lastSlashPos);
-    }
-    else {
+    } else {
         cwd = std::filesystem::current_path().string();
     }
 
@@ -75,8 +71,7 @@ int main(int argc, char** argv)
     int deviceIndex;
     if (argc > 1 && std::isdigit(argv[1][0])) {
         deviceIndex = std::stoi(argv[1]);
-    }
-    else {
+    } else {
         deviceIndex = selectCamera(cameraProvider);
     }
 
@@ -101,8 +96,7 @@ int main(int argc, char** argv)
                frame->sizeInBytes);
         if (auto dumpFile = ccap::dumpFrameToDirectory(frame.get(), captureDir); !dumpFile.empty()) {
             std::cout << "VideoFrame saved to: " << dumpFile << std::endl;
-        }
-        else {
+        } else {
             std::cerr << "Failed to save frame!" << std::endl;
         }
 

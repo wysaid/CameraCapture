@@ -12,15 +12,13 @@ using namespace ccap_test;
 
 class YUVFormatConversionTest : public ::testing::Test {
 protected:
-    void SetUp() override
-    {
+    void SetUp() override {
         width_ = 64;
         height_ = 64;
         tolerance_ = 3; // YUV conversions may have small rounding differences
     }
 
-    void TearDown() override
-    {
+    void TearDown() override {
         // Cleanup if needed
     }
 
@@ -31,8 +29,7 @@ protected:
 
 // ============ NV12 to RGB/BGR Tests ============
 
-TEST_F(YUVFormatConversionTest, NV12_To_BGR24_BT601_VideoRange)
-{
+TEST_F(YUVFormatConversionTest, NV12_To_BGR24_BT601_VideoRange) {
     TestYUVImage yuv_img(width_, height_, true); // NV12 format
     TestImage bgr_img(width_, height_, 3);
 
@@ -57,8 +54,7 @@ TEST_F(YUVFormatConversionTest, NV12_To_BGR24_BT601_VideoRange)
     }
 }
 
-TEST_F(YUVFormatConversionTest, NV12_To_RGB24_BT601_VideoRange)
-{
+TEST_F(YUVFormatConversionTest, NV12_To_RGB24_BT601_VideoRange) {
     TestYUVImage yuv_img(width_, height_, true);
     TestImage rgb_img(width_, height_, 3);
 
@@ -73,8 +69,7 @@ TEST_F(YUVFormatConversionTest, NV12_To_RGB24_BT601_VideoRange)
     EXPECT_TRUE(is_not_black) << "First pixel should not be pure black for gradient";
 }
 
-TEST_F(YUVFormatConversionTest, NV12_To_BGRA32_BT709_VideoRange)
-{
+TEST_F(YUVFormatConversionTest, NV12_To_BGRA32_BT709_VideoRange) {
     TestYUVImage yuv_img(width_, height_, true);
     TestImage bgra_img(width_, height_, 4);
 
@@ -93,8 +88,7 @@ TEST_F(YUVFormatConversionTest, NV12_To_BGRA32_BT709_VideoRange)
     }
 }
 
-TEST_F(YUVFormatConversionTest, NV12_To_RGBA32_FullRange)
-{
+TEST_F(YUVFormatConversionTest, NV12_To_RGBA32_FullRange) {
     TestYUVImage yuv_img(width_, height_, true);
     TestImage rgba_img(width_, height_, 4);
 
@@ -120,8 +114,7 @@ TEST_F(YUVFormatConversionTest, NV12_To_RGBA32_FullRange)
 
 // ============ I420 to RGB/BGR Tests ============
 
-TEST_F(YUVFormatConversionTest, I420_To_BGR24_BT601_VideoRange)
-{
+TEST_F(YUVFormatConversionTest, I420_To_BGR24_BT601_VideoRange) {
     TestYUVImage yuv_img(width_, height_, false); // I420 format
     TestImage bgr_img(width_, height_, 3);
 
@@ -143,8 +136,7 @@ TEST_F(YUVFormatConversionTest, I420_To_BGR24_BT601_VideoRange)
     }
 }
 
-TEST_F(YUVFormatConversionTest, I420_To_RGB24_BT709_FullRange)
-{
+TEST_F(YUVFormatConversionTest, I420_To_RGB24_BT709_FullRange) {
     TestYUVImage yuv_img(width_, height_, false);
     TestImage rgb_img(width_, height_, 3);
 
@@ -161,8 +153,7 @@ TEST_F(YUVFormatConversionTest, I420_To_RGB24_BT709_FullRange)
     EXPECT_TRUE(has_variation) << "Gradient should produce color variation";
 }
 
-TEST_F(YUVFormatConversionTest, I420_To_BGRA32_Consistency)
-{
+TEST_F(YUVFormatConversionTest, I420_To_BGRA32_Consistency) {
     TestYUVImage yuv_img(width_, height_, false);
     TestImage bgra_img(width_, height_, 4);
 
@@ -183,8 +174,7 @@ TEST_F(YUVFormatConversionTest, I420_To_BGRA32_Consistency)
     }
 }
 
-TEST_F(YUVFormatConversionTest, I420_To_RGBA32_BT709_VideoRange)
-{
+TEST_F(YUVFormatConversionTest, I420_To_RGBA32_BT709_VideoRange) {
     TestYUVImage yuv_img(width_, height_, false);
     TestImage rgba_img(width_, height_, 4);
 
@@ -210,8 +200,7 @@ TEST_F(YUVFormatConversionTest, I420_To_RGBA32_BT709_VideoRange)
 
 // ============ Edge Case Tests ============
 
-TEST_F(YUVFormatConversionTest, SmallImageSize)
-{
+TEST_F(YUVFormatConversionTest, SmallImageSize) {
     const int small_width = 4;
     const int small_height = 4;
 
@@ -227,8 +216,7 @@ TEST_F(YUVFormatConversionTest, SmallImageSize)
     });
 }
 
-TEST_F(YUVFormatConversionTest, LargeImageSize)
-{
+TEST_F(YUVFormatConversionTest, LargeImageSize) {
     const int large_width = 256;
     const int large_height = 256;
 
@@ -246,8 +234,7 @@ TEST_F(YUVFormatConversionTest, LargeImageSize)
 
 // ============ Performance Tests ============
 
-TEST_F(YUVFormatConversionTest, PerformanceBaseline)
-{
+TEST_F(YUVFormatConversionTest, PerformanceBaseline) {
     const int perf_width = 1920;
     const int perf_height = 1080;
 

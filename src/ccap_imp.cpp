@@ -20,8 +20,7 @@ ProviderImp::ProviderImp() {}
 
 ProviderImp::~ProviderImp() = default;
 
-bool ProviderImp::set(PropertyName prop, double value)
-{
+bool ProviderImp::set(PropertyName prop, double value) {
     auto lastProp = m_frameProp;
     switch (prop) {
     case PropertyName::Width:
@@ -68,8 +67,7 @@ bool ProviderImp::set(PropertyName prop, double value)
     return true;
 }
 
-double ProviderImp::get(PropertyName prop)
-{
+double ProviderImp::get(PropertyName prop) {
     switch (prop) {
     case PropertyName::Width:
         return static_cast<double>(m_frameProp.width);
@@ -87,25 +85,21 @@ double ProviderImp::get(PropertyName prop)
     return NAN;
 }
 
-void ProviderImp::setNewFrameCallback(std::function<bool(const std::shared_ptr<VideoFrame>&)> callback)
-{
+void ProviderImp::setNewFrameCallback(std::function<bool(const std::shared_ptr<VideoFrame>&)> callback) {
     if (callback) {
         m_callback = std::make_shared<std::function<bool(const std::shared_ptr<VideoFrame>&)>>(std::move(callback));
-    }
-    else {
+    } else {
         m_callback = nullptr;
     }
 }
 
-void ProviderImp::setFrameAllocator(std::function<std::shared_ptr<Allocator>()> allocatorFactory)
-{
+void ProviderImp::setFrameAllocator(std::function<std::shared_ptr<Allocator>()> allocatorFactory) {
     std::lock_guard<std::mutex> lock(m_poolMutex);
     m_allocatorFactory = std::move(allocatorFactory);
     m_framePool.clear();
 }
 
-std::shared_ptr<VideoFrame> ProviderImp::grab(uint32_t timeoutInMs)
-{
+std::shared_ptr<VideoFrame> ProviderImp::grab(uint32_t timeoutInMs) {
     std::unique_lock<std::mutex> lock(m_availableFrameMutex);
 
     if (m_availableFrames.empty() && timeoutInMs > 0) {
@@ -143,8 +137,7 @@ void ProviderImp::setMaxAvailableFrameSize(uint32_t size) { m_maxAvailableFrameS
 
 void ProviderImp::setMaxCacheFrameSize(uint32_t size) { m_maxCacheFrameSize = size; }
 
-void ProviderImp::newFrameAvailable(std::shared_ptr<VideoFrame> frame)
-{
+void ProviderImp::newFrameAvailable(std::shared_ptr<VideoFrame> frame) {
     bool dropFrame = false;
     if (auto c = m_callback; c && *c) { // Prevent callback from being deleted during invocation, increase callback ref count
         dropFrame = (*c)(frame);
@@ -167,8 +160,7 @@ void ProviderImp::newFrameAvailable(std::shared_ptr<VideoFrame> frame)
 
 bool ProviderImp::tooManyNewFrames() { return m_availableFrames.size() > m_maxAvailableFrameSize; }
 
-std::shared_ptr<VideoFrame> ProviderImp::getFreeFrame()
-{
+std::shared_ptr<VideoFrame> ProviderImp::getFreeFrame() {
     std::lock_guard<std::mutex> lock(m_poolMutex);
     std::shared_ptr<VideoFrame> frame;
     if (!m_framePool.empty()) {
@@ -177,8 +169,7 @@ std::shared_ptr<VideoFrame> ProviderImp::getFreeFrame()
 
         if (ret != m_framePool.end()) {
             frame = *ret;
-        }
-        else {
+        } else {
             if (m_framePool.size() > m_maxCacheFrameSize) {
                 CCAP_LOG_W("ccap: VideoFrame pool is full, new frame allocated...");
                 m_framePool.pop_front();

@@ -13,16 +13,14 @@ using namespace ccap_test;
 
 class PlatformFeaturesTest : public ::testing::Test {
 protected:
-    void SetUp() override
-    {
+    void SetUp() override {
         // Platform feature tests
     }
 };
 
 // ============ Platform Feature Detection Tests ============
 
-TEST_F(PlatformFeaturesTest, HasAVX2_Function_Exists)
-{
+TEST_F(PlatformFeaturesTest, HasAVX2_Function_Exists) {
     // Test that hasAVX2() function can be called and returns a boolean
     bool avx2_available = ccap::hasAVX2();
 
@@ -31,8 +29,7 @@ TEST_F(PlatformFeaturesTest, HasAVX2_Function_Exists)
     EXPECT_TRUE(avx2_available || !avx2_available) << "hasAVX2() should return a valid boolean value";
 }
 
-TEST_F(PlatformFeaturesTest, AVX2_Detection_Consistency)
-{
+TEST_F(PlatformFeaturesTest, AVX2_Detection_Consistency) {
     // Test that hasAVX2() returns consistent results across multiple calls
     bool first_call = ccap::hasAVX2();
     bool second_call = ccap::hasAVX2();
@@ -42,8 +39,7 @@ TEST_F(PlatformFeaturesTest, AVX2_Detection_Consistency)
 
 // ============ Color Shuffle Performance Hint Tests ============
 
-TEST_F(PlatformFeaturesTest, ColorShuffle_Works_Regardless_Of_AVX2)
-{
+TEST_F(PlatformFeaturesTest, ColorShuffle_Works_Regardless_Of_AVX2) {
     // Test that color shuffle functions work whether AVX2 is available or not
     const int width = 32;
     const int height = 32;
@@ -69,8 +65,7 @@ TEST_F(PlatformFeaturesTest, ColorShuffle_Works_Regardless_Of_AVX2)
 
 // ============ AVX2 Disable/Enable Tests ============
 
-TEST_F(PlatformFeaturesTest, DisableAVX2_Function_Works)
-{
+TEST_F(PlatformFeaturesTest, DisableAVX2_Function_Works) {
     bool original_state = ccap::hasAVX2();
 
     if (AVX2TestRunner::isAVX2Supported()) {
@@ -86,8 +81,7 @@ TEST_F(PlatformFeaturesTest, DisableAVX2_Function_Works)
 
         // Restore original state
         ccap::disableAVX2(!original_state);
-    }
-    else {
+    } else {
         // On platforms without AVX2 support, disableAVX2 should not affect the result
         ccap::disableAVX2(false);
         EXPECT_FALSE(ccap::hasAVX2()) << "hasAVX2() should remain false on non-AVX2 platforms";
@@ -97,8 +91,7 @@ TEST_F(PlatformFeaturesTest, DisableAVX2_Function_Works)
     }
 }
 
-TEST_F(PlatformFeaturesTest, Dual_Implementation_ColorShuffle_RGB_BGR)
-{
+TEST_F(PlatformFeaturesTest, Dual_Implementation_ColorShuffle_RGB_BGR) {
     const int width = 64;
     const int height = 64;
 
@@ -116,8 +109,7 @@ TEST_F(PlatformFeaturesTest, Dual_Implementation_ColorShuffle_RGB_BGR)
         "RGB to BGR dual implementation test", 0);
 }
 
-TEST_F(PlatformFeaturesTest, Dual_Implementation_ColorShuffle_RGBA_BGRA)
-{
+TEST_F(PlatformFeaturesTest, Dual_Implementation_ColorShuffle_RGBA_BGRA) {
     const int width = 64;
     const int height = 64;
 

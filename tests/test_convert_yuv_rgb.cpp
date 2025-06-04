@@ -13,21 +13,18 @@ using namespace ccap_test;
 
 class YUVToRGBTest : public ::testing::Test {
 protected:
-    void SetUp() override
-    {
+    void SetUp() override {
         // Common test setup
     }
 
-    void TearDown() override
-    {
+    void TearDown() override {
         // Cleanup if needed
     }
 };
 
 // ============ Single Pixel Conversion Tests ============
 
-TEST_F(YUVToRGBTest, YUV2RGB601VideoRange_KnownValues)
-{
+TEST_F(YUVToRGBTest, YUV2RGB601VideoRange_KnownValues) {
     struct TestCase {
         int y, u, v;
         int expected_r, expected_g, expected_b;
@@ -66,8 +63,7 @@ TEST_F(YUVToRGBTest, YUV2RGB601VideoRange_KnownValues)
     }
 }
 
-TEST_F(YUVToRGBTest, YUV2RGB709VideoRange_KnownValues)
-{
+TEST_F(YUVToRGBTest, YUV2RGB709VideoRange_KnownValues) {
     // Test BT.709 conversion with known values
     int r, g, b;
 
@@ -84,8 +80,7 @@ TEST_F(YUVToRGBTest, YUV2RGB709VideoRange_KnownValues)
     EXPECT_NEAR(b, 255, 3);
 }
 
-TEST_F(YUVToRGBTest, YUV2RGB601FullRange_KnownValues)
-{
+TEST_F(YUVToRGBTest, YUV2RGB601FullRange_KnownValues) {
     int r, g, b;
 
     // Full range black
@@ -101,8 +96,7 @@ TEST_F(YUVToRGBTest, YUV2RGB601FullRange_KnownValues)
     EXPECT_NEAR(b, 255, 3);
 }
 
-TEST_F(YUVToRGBTest, YUV2RGB709FullRange_KnownValues)
-{
+TEST_F(YUVToRGBTest, YUV2RGB709FullRange_KnownValues) {
     int r, g, b;
 
     // Full range black
@@ -122,8 +116,7 @@ TEST_F(YUVToRGBTest, YUV2RGB709FullRange_KnownValues)
 
 class YUVConversionParameterizedTest : public ::testing::TestWithParam<std::tuple<int, int, int>> {
 protected:
-    void TestYUVConversion(void (*conv_func)(int, int, int, int&, int&, int&))
-    {
+    void TestYUVConversion(void (*conv_func)(int, int, int, int&, int&, int&)) {
         auto [y, u, v] = GetParam();
         int r, g, b;
 
@@ -147,8 +140,7 @@ INSTANTIATE_TEST_SUITE_P(YUVToRGBRangeTest, YUVConversionParameterizedTest, ::te
 
 // ============ Consistency Tests ============
 
-TEST_F(YUVToRGBTest, ConsistencyBetweenVideoAndFullRange)
-{
+TEST_F(YUVToRGBTest, ConsistencyBetweenVideoAndFullRange) {
     // Test that converting the same YUV values gives different but reasonable results
     // between video and full range
 
@@ -177,8 +169,7 @@ TEST_F(YUVToRGBTest, ConsistencyBetweenVideoAndFullRange)
     }
 }
 
-TEST_F(YUVToRGBTest, ConsistencyBetweenBT601AndBT709)
-{
+TEST_F(YUVToRGBTest, ConsistencyBetweenBT601AndBT709) {
     // Test that BT.601 and BT.709 give different results for the same input
 
     std::vector<std::tuple<int, int, int>> test_yuv = { { 100, 150, 200 }, { 150, 100, 180 }, { 200, 50, 100 } };
@@ -201,8 +192,7 @@ TEST_F(YUVToRGBTest, ConsistencyBetweenBT601AndBT709)
 
 // ============ Edge Cases Tests ============
 
-TEST_F(YUVToRGBTest, EdgeCases)
-{
+TEST_F(YUVToRGBTest, EdgeCases) {
     int r, g, b;
 
     // Test extreme values
@@ -238,8 +228,7 @@ TEST_F(YUVToRGBTest, EdgeCases)
 
 // ============ Reference Implementation Comparison ============
 
-TEST_F(YUVToRGBTest, CompareWithReferenceImplementation)
-{
+TEST_F(YUVToRGBTest, CompareWithReferenceImplementation) {
     auto test_values = TestDataGenerator::getTestYUVValues();
 
     for (const auto& [y, u, v] : test_values) {
@@ -281,8 +270,7 @@ TEST_F(YUVToRGBTest, CompareWithReferenceImplementation)
 
 // ============ Dual Implementation Tests (AVX2 vs CPU) ============
 
-TEST_F(YUVToRGBTest, Dual_Implementation_NV12_To_BGRA32)
-{
+TEST_F(YUVToRGBTest, Dual_Implementation_NV12_To_BGRA32) {
     const int width = 128;
     const int height = 128;
 
@@ -301,8 +289,7 @@ TEST_F(YUVToRGBTest, Dual_Implementation_NV12_To_BGRA32)
         "NV12 to BGRA32 dual implementation test", 3);
 }
 
-TEST_F(YUVToRGBTest, Dual_Implementation_NV12_To_RGBA32)
-{
+TEST_F(YUVToRGBTest, Dual_Implementation_NV12_To_RGBA32) {
     const int width = 128;
     const int height = 128;
 
@@ -321,8 +308,7 @@ TEST_F(YUVToRGBTest, Dual_Implementation_NV12_To_RGBA32)
         "NV12 to RGBA32 dual implementation test", 3);
 }
 
-TEST_F(YUVToRGBTest, Dual_Implementation_NV12_To_BGR24)
-{
+TEST_F(YUVToRGBTest, Dual_Implementation_NV12_To_BGR24) {
     const int width = 128;
     const int height = 128;
 
@@ -341,8 +327,7 @@ TEST_F(YUVToRGBTest, Dual_Implementation_NV12_To_BGR24)
         "NV12 to BGR24 dual implementation test", 3);
 }
 
-TEST_F(YUVToRGBTest, Dual_Implementation_NV12_To_RGB24)
-{
+TEST_F(YUVToRGBTest, Dual_Implementation_NV12_To_RGB24) {
     const int width = 128;
     const int height = 128;
 
@@ -361,8 +346,7 @@ TEST_F(YUVToRGBTest, Dual_Implementation_NV12_To_RGB24)
         "NV12 to RGB24 dual implementation test", 3);
 }
 
-TEST_F(YUVToRGBTest, Dual_Implementation_I420_To_BGRA32)
-{
+TEST_F(YUVToRGBTest, Dual_Implementation_I420_To_BGRA32) {
     const int width = 128;
     const int height = 128;
 
@@ -381,8 +365,7 @@ TEST_F(YUVToRGBTest, Dual_Implementation_I420_To_BGRA32)
         "I420 to BGRA32 dual implementation test", 3);
 }
 
-TEST_F(YUVToRGBTest, Dual_Implementation_I420_To_RGBA32)
-{
+TEST_F(YUVToRGBTest, Dual_Implementation_I420_To_RGBA32) {
     const int width = 128;
     const int height = 128;
 
@@ -401,8 +384,7 @@ TEST_F(YUVToRGBTest, Dual_Implementation_I420_To_RGBA32)
         "I420 to RGBA32 dual implementation test", 3);
 }
 
-TEST_F(YUVToRGBTest, Dual_Implementation_I420_To_BGR24)
-{
+TEST_F(YUVToRGBTest, Dual_Implementation_I420_To_BGR24) {
     const int width = 128;
     const int height = 128;
 
@@ -421,8 +403,7 @@ TEST_F(YUVToRGBTest, Dual_Implementation_I420_To_BGR24)
         "I420 to BGR24 dual implementation test", 3);
 }
 
-TEST_F(YUVToRGBTest, Dual_Implementation_I420_To_RGB24)
-{
+TEST_F(YUVToRGBTest, Dual_Implementation_I420_To_RGB24) {
     const int width = 128;
     const int height = 128;
 

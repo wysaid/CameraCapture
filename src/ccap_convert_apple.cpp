@@ -15,8 +15,7 @@
 
 namespace ccap {
 template <int inputChannels, int outputChannels, bool swapRB>
-void colorShuffle_apple(const uint8_t* src, uint32_t srcStride, uint8_t* dst, uint32_t dstStride, uint32_t width, uint32_t height)
-{
+void colorShuffle_apple(const uint8_t* src, uint32_t srcStride, uint8_t* dst, uint32_t dstStride, uint32_t width, uint32_t height) {
     static_assert((inputChannels == 3 || inputChannels == 4) && (outputChannels == 3 || outputChannels == 4),
                   "inputChannels and outputChannels must be 3 or 4");
 
@@ -36,35 +35,29 @@ void colorShuffle_apple(const uint8_t* src, uint32_t srcStride, uint8_t* dst, ui
         if constexpr (inputChannels == 4) // RGBA -> BGRA
         {
             vImagePermuteChannels_ARGB8888(&srcBuffer, &dstBuffer, permuteMap, kvImageNoFlags);
-        }
-        else {
+        } else {
             vImagePermuteChannels_RGB888(&srcBuffer, &dstBuffer, permuteMap, kvImageNoFlags);
         }
-    }
-    else // Different number of channels, only 4 channels <-> 3 channels
+    } else // Different number of channels, only 4 channels <-> 3 channels
     {
         if constexpr (inputChannels == 4) { // 4 channels -> 3 channels
             if constexpr (swapRB) {         // Possible cases: RGBA->BGR, BGRA->RGB
 
                 vImageConvert_RGBA8888toBGR888(&srcBuffer, &dstBuffer, kvImageNoFlags);
-            }
-            else { // Possible cases: RGBA->RGB, BGRA->BGR
+            } else { // Possible cases: RGBA->RGB, BGRA->BGR
                 vImageConvert_RGBA8888toRGB888(&srcBuffer, &dstBuffer, kvImageNoFlags);
             }
-        }
-        else {                      /// 3 channels -> 4 channels
+        } else {                    /// 3 channels -> 4 channels
             if constexpr (swapRB) { // Possible cases: BGR->RGBA, RGB->BGRA
                 vImageConvert_RGB888toBGRA8888(&srcBuffer, nullptr, 0xff, &dstBuffer, false, kvImageNoFlags);
-            }
-            else { // Possible cases: BGR->BGRA, RGB->RGBA
+            } else { // Possible cases: BGR->BGRA, RGB->RGBA
                 vImageConvert_RGB888toRGBA8888(&srcBuffer, nullptr, 0xff, &dstBuffer, false, kvImageNoFlags);
             }
         }
     }
 }
 
-void verticalFlip_apple(const uint8_t* src, uint32_t srcStride, uint8_t* dst, uint32_t dstStride, uint32_t width, uint32_t height)
-{
+void verticalFlip_apple(const uint8_t* src, uint32_t srcStride, uint8_t* dst, uint32_t dstStride, uint32_t width, uint32_t height) {
     vImage_Buffer srcBuffer = { (void*)src, height, width, srcStride };
     vImage_Buffer dstBuffer = { dst, height, width, dstStride };
     vImageVerticalReflect_Planar8(&srcBuffer, &dstBuffer, kvImageNoFlags);
@@ -73,8 +66,7 @@ void verticalFlip_apple(const uint8_t* src, uint32_t srcStride, uint8_t* dst, ui
 ////////////////// NV12 to BGRA8888 //////////////////////
 
 void nv12ToBgra32_apple_imp(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride,
-                            int width, int height, const vImage_YpCbCrToARGBMatrix* matrix, const vImage_YpCbCrPixelRange* range)
-{
+                            int width, int height, const vImage_YpCbCrToARGBMatrix* matrix, const vImage_YpCbCrPixelRange* range) {
     // 构造 vImage_Buffer
     vImage_Buffer yBuffer = { (void*)srcY, (vImagePixelCount)height, (vImagePixelCount)width, (size_t)srcYStride };
     vImage_Buffer uvBuffer = { (void*)srcUV, (vImagePixelCount)(height / 2), (vImagePixelCount)(width / 2), (size_t)srcUVStride };
@@ -105,8 +97,7 @@ void nv12ToBgra32_apple_imp(const uint8_t* srcY, int srcYStride, const uint8_t* 
 
 template <bool isFullRange, bool isBT601>
 void nv12ToBgra32_apple(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride, int width,
-                        int height)
-{
+                        int height) {
     // @refitem <https://developer.apple.com/documentation/accelerate/vimage_ypcbcrpixelrange?language=objc>
 
     // Video Range
@@ -152,8 +143,7 @@ template void nv12ToBgra32_apple<false, false>(const uint8_t* srcY, int srcYStri
 
 void i420ToBgra32_apple_imp(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
                             uint8_t* dst, int dstStride, int width, int height, const vImage_YpCbCrToARGBMatrix* matrix,
-                            const vImage_YpCbCrPixelRange* range)
-{
+                            const vImage_YpCbCrPixelRange* range) {
     vImage_Buffer yBuffer = { (void*)srcY, (vImagePixelCount)height, (vImagePixelCount)width, (size_t)srcYStride };
     vImage_Buffer uBuffer = { (void*)srcU, (vImagePixelCount)(height / 2), (vImagePixelCount)(width / 2), (size_t)srcUStride };
     vImage_Buffer vBuffer = { (void*)srcV, (vImagePixelCount)(height / 2), (vImagePixelCount)(width / 2), (size_t)srcVStride };
@@ -179,8 +169,7 @@ void i420ToBgra32_apple_imp(const uint8_t* srcY, int srcYStride, const uint8_t* 
 
 template <bool isFullRange, bool isBT601>
 void i420ToBgra32_apple(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
-                        uint8_t* dst, int dstStride, int width, int height)
-{
+                        uint8_t* dst, int dstStride, int width, int height) {
     // Video Range
     constexpr vImage_YpCbCrPixelRange videoRange = { 16, 128, 265, 240, 235, 16, 240, 16 };
     // Full Range

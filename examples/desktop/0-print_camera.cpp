@@ -11,8 +11,7 @@
 #include <string>
 #include <vector>
 
-std::vector<std::string> findCameraNames()
-{
+std::vector<std::string> findCameraNames() {
     ccap::Provider cameraProvider; /// Default ctor, no need to open camera.
     std::vector<std::string> deviceNames = cameraProvider.findDeviceNames();
 
@@ -22,16 +21,14 @@ std::vector<std::string> findCameraNames()
         for (const auto& name : deviceNames) {
             printf("    %d: %s\n", deviceIndex++, name.c_str());
         }
-    }
-    else {
+    } else {
         fputs("Failed to find any video capture device.", stderr);
     }
 
     return deviceNames;
 }
 
-void printCameraInfo(const std::string& deviceName)
-{
+void printCameraInfo(const std::string& deviceName) {
     ccap::setLogLevel(ccap::LogLevel::Verbose);
 
     ccap::Provider cameraProvider(deviceName); /// Pass a device name to open camera.
@@ -61,8 +58,7 @@ void printCameraInfo(const std::string& deviceName)
     puts("===== Info end =======\n");
 }
 
-int main()
-{
+int main() {
     auto deviceNames = findCameraNames();
     if (deviceNames.empty()) {
         return 1;

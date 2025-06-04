@@ -10,8 +10,7 @@
 
 using namespace ccap_test;
 
-TEST(DebugTest, TestImageConstruction)
-{
+TEST(DebugTest, TestImageConstruction) {
     // Test simple TestImage construction
     TestImage img(64, 64, 4);
 
@@ -24,8 +23,7 @@ TEST(DebugTest, TestImageConstruction)
     EXPECT_EQ(data[0], 255);
 }
 
-TEST(DebugTest, TestImageBasicOperations)
-{
+TEST(DebugTest, TestImageBasicOperations) {
     TestImage img(64, 64, 3);
 
     // Test stride and size
@@ -36,8 +34,7 @@ TEST(DebugTest, TestImageBasicOperations)
     EXPECT_EQ(img.channels(), 3);
 }
 
-TEST(DebugTest, SimpleRgbaToBgrCall)
-{
+TEST(DebugTest, SimpleRgbaToBgrCall) {
     TestImage rgba_img(8, 8, 4);
     TestImage bgr_img(8, 8, 3);
 

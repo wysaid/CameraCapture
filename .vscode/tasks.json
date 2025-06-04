@@ -232,6 +232,54 @@
             "dependsOrder": "sequence"
         },
         {
+            "label": "Run Functional Tests",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "run_tests.sh",
+                "--functional"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/scripts"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Run Performance Tests",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "run_tests.sh",
+                "--performance"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/scripts"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Run All Tests",
+            "type": "shell",
+            "command": "echo",
+            "args": [
+                "Done!"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/scripts"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Run Functional Tests",
+                "Run Performance Tests"
+            ],
+            "dependsOrder": "sequence"
+        },
+        {
             "label": "Run 0-print_camera (Debug)",
             "type": "shell",
             "command": "bash",

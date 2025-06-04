@@ -13,16 +13,14 @@ using namespace ccap_test;
 
 class ColorShuffleTest : public ::testing::Test {
 protected:
-    void SetUp() override
-    {
+    void SetUp() override {
         // Set up common test data
         width_ = 64;
         height_ = 64;
         tolerance_ = 0; // Exact match expected for shuffle operations
     }
 
-    void TearDown() override
-    {
+    void TearDown() override {
         // Cleanup if needed
     }
 
@@ -33,8 +31,7 @@ protected:
 
 // ============ RGB/BGR Conversion Tests ============
 
-TEST_F(ColorShuffleTest, RGBA_To_BGR_Conversion)
-{
+TEST_F(ColorShuffleTest, RGBA_To_BGR_Conversion) {
     TestImage rgba_img(width_, height_, 4);
     TestImage bgr_img(width_, height_, 3);
 
@@ -73,8 +70,7 @@ TEST_F(ColorShuffleTest, RGBA_To_BGR_Conversion)
     }
 }
 
-TEST_F(ColorShuffleTest, BGRA_To_RGB_Conversion)
-{
+TEST_F(ColorShuffleTest, BGRA_To_RGB_Conversion) {
     TestImage bgra_img(width_, height_, 4);
     TestImage rgb_img(width_, height_, 3);
 
@@ -105,8 +101,7 @@ TEST_F(ColorShuffleTest, BGRA_To_RGB_Conversion)
     }
 }
 
-TEST_F(ColorShuffleTest, RGBA_To_RGB_Conversion)
-{
+TEST_F(ColorShuffleTest, RGBA_To_RGB_Conversion) {
     TestImage rgba_img(width_, height_, 4);
     TestImage rgb_img(width_, height_, 3);
 
@@ -136,8 +131,7 @@ TEST_F(ColorShuffleTest, RGBA_To_RGB_Conversion)
     }
 }
 
-TEST_F(ColorShuffleTest, RGB_To_BGRA_Conversion)
-{
+TEST_F(ColorShuffleTest, RGB_To_BGRA_Conversion) {
     TestImage rgb_img(width_, height_, 3);
     TestImage bgra_img(width_, height_, 4);
 
@@ -168,8 +162,7 @@ TEST_F(ColorShuffleTest, RGB_To_BGRA_Conversion)
     }
 }
 
-TEST_F(ColorShuffleTest, BGR_To_RGBA_Conversion)
-{
+TEST_F(ColorShuffleTest, BGR_To_RGBA_Conversion) {
     TestImage bgr_img(width_, height_, 3);
     TestImage rgba_img(width_, height_, 4);
 
@@ -200,8 +193,7 @@ TEST_F(ColorShuffleTest, BGR_To_RGBA_Conversion)
     }
 }
 
-TEST_F(ColorShuffleTest, RGB_To_RGBA_Conversion)
-{
+TEST_F(ColorShuffleTest, RGB_To_RGBA_Conversion) {
     TestImage rgb_img(width_, height_, 3);
     TestImage rgba_img(width_, height_, 4);
 
@@ -225,8 +217,7 @@ TEST_F(ColorShuffleTest, RGB_To_RGBA_Conversion)
 
 // ============ Roundtrip Tests ============
 
-TEST_F(ColorShuffleTest, RGB_RGBA_Roundtrip)
-{
+TEST_F(ColorShuffleTest, RGB_RGBA_Roundtrip) {
     TestImage original_rgb(width_, height_, 3);
     TestImage rgba_temp(width_, height_, 4);
     TestImage final_rgb(width_, height_, 3);
@@ -244,8 +235,7 @@ TEST_F(ColorShuffleTest, RGB_RGBA_Roundtrip)
         << "RGB->RGBA->RGB roundtrip failed";
 }
 
-TEST_F(ColorShuffleTest, BGR_BGRA_Roundtrip)
-{
+TEST_F(ColorShuffleTest, BGR_BGRA_Roundtrip) {
     TestImage original_bgr(width_, height_, 3);
     TestImage bgra_temp(width_, height_, 4);
     TestImage final_bgr(width_, height_, 3);
@@ -267,8 +257,7 @@ TEST_F(ColorShuffleTest, BGR_BGRA_Roundtrip)
 
 class ColorShuffleEdgeCaseTest : public ::testing::TestWithParam<std::pair<int, int>> {
 protected:
-    void SetUp() override
-    {
+    void SetUp() override {
         auto [w, h] = GetParam();
         width_ = w;
         height_ = h;
@@ -278,8 +267,7 @@ protected:
     int height_;
 };
 
-TEST_P(ColorShuffleEdgeCaseTest, VariousImageSizes)
-{
+TEST_P(ColorShuffleEdgeCaseTest, VariousImageSizes) {
     TestImage rgb_img(width_, height_, 3);
     TestImage bgr_img(width_, height_, 3);
 
@@ -305,8 +293,7 @@ INSTANTIATE_TEST_SUITE_P(ColorShuffleEdgeCase, ColorShuffleEdgeCaseTest, ::testi
 
 // ============ Vertical Flip Tests ============
 
-TEST_F(ColorShuffleTest, Vertical_Flip_RGB_To_BGR)
-{
+TEST_F(ColorShuffleTest, Vertical_Flip_RGB_To_BGR) {
     TestImage rgb_img(width_, height_, 3);
     TestImage bgr_normal(width_, height_, 3);
     TestImage bgr_flipped(width_, height_, 3);
@@ -334,8 +321,7 @@ TEST_F(ColorShuffleTest, Vertical_Flip_RGB_To_BGR)
     }
 }
 
-TEST_F(ColorShuffleTest, Vertical_Flip_RGBA_To_BGRA)
-{
+TEST_F(ColorShuffleTest, Vertical_Flip_RGBA_To_BGRA) {
     TestImage rgba_img(width_, height_, 4);
     TestImage bgra_normal(width_, height_, 4);
     TestImage bgra_flipped(width_, height_, 4);
@@ -364,8 +350,7 @@ TEST_F(ColorShuffleTest, Vertical_Flip_RGBA_To_BGRA)
 
 // ============ Dual Implementation Tests (AVX2 vs CPU) ============
 
-TEST_F(ColorShuffleTest, Dual_Implementation_RGBA_To_BGR)
-{
+TEST_F(ColorShuffleTest, Dual_Implementation_RGBA_To_BGR) {
     const int width = 128;
     const int height = 128;
 
@@ -383,8 +368,7 @@ TEST_F(ColorShuffleTest, Dual_Implementation_RGBA_To_BGR)
         "RGBA to BGR dual implementation test", 0);
 }
 
-TEST_F(ColorShuffleTest, Dual_Implementation_RGBA_To_BGRA)
-{
+TEST_F(ColorShuffleTest, Dual_Implementation_RGBA_To_BGRA) {
     const int width = 128;
     const int height = 128;
 
@@ -402,8 +386,7 @@ TEST_F(ColorShuffleTest, Dual_Implementation_RGBA_To_BGRA)
         "RGBA to BGRA dual implementation test", 0);
 }
 
-TEST_F(ColorShuffleTest, Dual_Implementation_RGB_To_BGR)
-{
+TEST_F(ColorShuffleTest, Dual_Implementation_RGB_To_BGR) {
     const int width = 128;
     const int height = 128;
 
@@ -421,8 +404,7 @@ TEST_F(ColorShuffleTest, Dual_Implementation_RGB_To_BGR)
         "RGB to BGR dual implementation test", 0);
 }
 
-TEST_F(ColorShuffleTest, Dual_Implementation_BGRA_To_RGB)
-{
+TEST_F(ColorShuffleTest, Dual_Implementation_BGRA_To_RGB) {
     const int width = 128;
     const int height = 128;
 
@@ -440,8 +422,7 @@ TEST_F(ColorShuffleTest, Dual_Implementation_BGRA_To_RGB)
         "BGRA to RGB dual implementation test", 0);
 }
 
-TEST_F(ColorShuffleTest, Dual_Implementation_Vertical_Flip)
-{
+TEST_F(ColorShuffleTest, Dual_Implementation_Vertical_Flip) {
     const int width = 64;
     const int height = 64;
 

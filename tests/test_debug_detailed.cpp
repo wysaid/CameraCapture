@@ -12,8 +12,7 @@
 
 using namespace ccap_test;
 
-TEST(DebugTest, TestImageCreation)
-{
+TEST(DebugTest, TestImageCreation) {
     std::cout << "Creating TestImage 64x64x4..." << std::endl;
     TestImage rgba_img(64, 64, 4);
     std::cout << "RGBA Image created successfully" << std::endl;
@@ -35,8 +34,7 @@ TEST(DebugTest, TestImageCreation)
     std::cout << "Data pointer: " << (void*)bgr_img.data() << std::endl;
 }
 
-TEST(DebugTest, BasicMemoryAccess)
-{
+TEST(DebugTest, BasicMemoryAccess) {
     std::cout << "Testing basic memory access..." << std::endl;
     TestImage rgba_img(64, 64, 4);
 
@@ -61,14 +59,12 @@ TEST(DebugTest, BasicMemoryAccess)
         data[last_offset + 2] = 150; // B
         data[last_offset + 3] = 255; // A
         std::cout << "Last pixel set successfully" << std::endl;
-    }
-    else {
+    } else {
         std::cout << "ERROR: Last pixel offset exceeds buffer size!" << std::endl;
     }
 }
 
-TEST(DebugTest, FillTestPattern)
-{
+TEST(DebugTest, FillTestPattern) {
     std::cout << "Testing fill pattern..." << std::endl;
     TestImage rgba_img(64, 64, 4);
 
@@ -88,8 +84,7 @@ TEST(DebugTest, FillTestPattern)
     std::cout << "Pattern fill completed successfully" << std::endl;
 }
 
-TEST(DebugTest, SimpleRgbaToBgrCall)
-{
+TEST(DebugTest, SimpleRgbaToBgrCall) {
     std::cout << "Testing simple rgbaToBgr call..." << std::endl;
     TestImage rgba_img(4, 4, 4); // Very small image
     TestImage bgr_img(4, 4, 3);
@@ -116,8 +111,7 @@ TEST(DebugTest, SimpleRgbaToBgrCall)
     std::cout << "First BGR pixel: B=" << (int)bgr_data[0] << " G=" << (int)bgr_data[1] << " R=" << (int)bgr_data[2] << std::endl;
 }
 
-TEST(DebugTest, LargerRgbaToBgrCall)
-{
+TEST(DebugTest, LargerRgbaToBgrCall) {
     std::cout << "Testing larger rgbaToBgr call..." << std::endl;
     TestImage rgba_img(64, 64, 4);
     TestImage bgr_img(64, 64, 3);
