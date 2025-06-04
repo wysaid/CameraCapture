@@ -15,16 +15,11 @@
 /// Apple's vImage does not support passing negative stride or height for vertical flipping,
 /// so the parameters are defined as uint32_t.
 
-namespace ccap
-{
+namespace ccap {
 template <int inputChannels, int outputChannels, bool swapRB>
-void colorShuffle_apple(const uint8_t* src, uint32_t srcStride,
-                        uint8_t* dst, uint32_t dstStride,
-                        uint32_t width, uint32_t height);
+void colorShuffle_apple(const uint8_t* src, uint32_t srcStride, uint8_t* dst, uint32_t dstStride, uint32_t width, uint32_t height);
 
-void verticalFlip_apple(const uint8_t* src, uint32_t srcStride,
-                        uint8_t* dst, uint32_t dstStride,
-                        uint32_t width, uint32_t height);
+void verticalFlip_apple(const uint8_t* src, uint32_t srcStride, uint8_t* dst, uint32_t dstStride, uint32_t width, uint32_t height);
 
 /**
  * @brief NV12 to BGRA8888.
@@ -33,10 +28,8 @@ void verticalFlip_apple(const uint8_t* src, uint32_t srcStride,
  * @tparam isBT601 true 表示 BT.601, false 表示 BT.709
  */
 template <bool isFullRange, bool isBT601>
-void nv12ToBgra32_apple(const uint8_t* srcY, int srcYStride,
-                        const uint8_t* srcUV, int srcUVStride,
-                        uint8_t* dst, int dstStride,
-                        int width, int height);
+void nv12ToBgra32_apple(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride, int width,
+                        int height);
 
 /**
  * @brief I420 to BGRA8888.
@@ -45,11 +38,8 @@ void nv12ToBgra32_apple(const uint8_t* srcY, int srcYStride,
  * @tparam isBT601 true 表示 BT.601, false 表示 BT.709
  */
 template <bool isFullRange, bool isBT601>
-void i420ToBgra32_apple(const uint8_t* srcY, int srcYStride,
-                        const uint8_t* srcU, int srcUStride,
-                        const uint8_t* srcV, int srcVStride,
-                        uint8_t* dst, int dstStride,
-                        int width, int height);
+void i420ToBgra32_apple(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
+                        uint8_t* dst, int dstStride, int width, int height);
 
 } // namespace ccap
 

@@ -23,31 +23,24 @@
 #define ALIGNED_FREE(ptr) std::free(ptr)
 #endif
 
-namespace ccap
-{
+namespace ccap {
 ProviderImp* createProviderApple();
 ProviderImp* createProviderDirectShow();
 
-Allocator::~Allocator()
-{
-    CCAP_LOG_V("ccap: Allocator::~Allocator() called, this=%p\n", this);
-}
+Allocator::~Allocator() { CCAP_LOG_V("ccap: Allocator::~Allocator() called, this=%p\n", this); }
 
 DefaultAllocator::~DefaultAllocator()
 {
-    if (m_data)
-        ALIGNED_FREE(m_data);
+    if (m_data) ALIGNED_FREE(m_data);
     CCAP_LOG_V("ccap: DefaultAllocator destroyed, deallocated %zu bytes of memory at %p, this=%p\n", m_size, m_data, this);
 }
 
 void DefaultAllocator::resize(size_t size)
 {
     assert(size != 0);
-    if (size <= m_size && size >= m_size / 2 && m_data != nullptr)
-        return;
+    if (size <= m_size && size >= m_size / 2 && m_data != nullptr) return;
 
-    if (m_data)
-        ALIGNED_FREE(m_data);
+    if (m_data) ALIGNED_FREE(m_data);
 
     // 64字节对齐，size必须是对齐的倍数
     size_t alignedSize = (size + 63) & ~size_t(63);
@@ -57,10 +50,7 @@ void DefaultAllocator::resize(size_t size)
 }
 
 VideoFrame::VideoFrame() = default;
-VideoFrame::~VideoFrame()
-{
-    CCAP_LOG_V("ccap: VideoFrame::VideoFrameFrame() called, this=%p\n", this);
-}
+VideoFrame::~VideoFrame() { CCAP_LOG_V("ccap: VideoFrame::VideoFrameFrame() called, this=%p\n", this); }
 
 ProviderImp* createProvider(std::string_view extraInfo)
 {
@@ -69,18 +59,14 @@ ProviderImp* createProvider(std::string_view extraInfo)
 #elif defined(_MSC_VER) || defined(_WIN32)
     return createProviderDirectShow();
 #else
-    if (warningLogEnabled())
-    {
+    if (warningLogEnabled()) {
         CCAP_LOG_W("ccap: Unsupported platform!\n");
     }
 #endif
     return nullptr;
 }
 
-Provider::Provider() :
-    m_imp(createProvider(""))
-{
-}
+Provider::Provider() : m_imp(createProvider("")) {}
 
 Provider::~Provider()
 {
@@ -88,28 +74,21 @@ Provider::~Provider()
     delete m_imp;
 }
 
-Provider::Provider(std::string_view deviceName, std::string_view extraInfo) :
-    m_imp(createProvider(extraInfo))
+Provider::Provider(std::string_view deviceName, std::string_view extraInfo) : m_imp(createProvider(extraInfo))
 {
-    if (m_imp)
-    {
+    if (m_imp) {
         open(deviceName);
     }
 }
 
-Provider::Provider(int deviceIndex, std::string_view extraInfo) :
-    m_imp(createProvider(extraInfo))
+Provider::Provider(int deviceIndex, std::string_view extraInfo) : m_imp(createProvider(extraInfo))
 {
-    if (m_imp)
-    {
+    if (m_imp) {
         open(deviceIndex);
     }
 }
 
-std::vector<std::string> Provider::findDeviceNames()
-{
-    return m_imp ? m_imp->findDeviceNames() : std::vector<std::string>();
-}
+std::vector<std::string> Provider::findDeviceNames() { return m_imp ? m_imp->findDeviceNames() : std::vector<std::string>(); }
 
 bool Provider::open(std::string_view deviceName, bool autoStart)
 {
@@ -118,15 +97,12 @@ bool Provider::open(std::string_view deviceName, bool autoStart)
 
 bool Provider::open(int deviceIndex, bool autoStart)
 {
-    if (!m_imp)
-        return false;
+    if (!m_imp) return false;
 
     std::string deviceName;
-    if (deviceIndex >= 0)
-    {
+    if (deviceIndex >= 0) {
         auto deviceNames = findDeviceNames();
-        if (!deviceNames.empty())
-        {
+        if (!deviceNames.empty()) {
             deviceIndex = std::min(deviceIndex, static_cast<int>(deviceNames.size()) - 1);
             deviceName = deviceNames[deviceIndex];
 
@@ -137,51 +113,26 @@ bool Provider::open(int deviceIndex, bool autoStart)
     return open(deviceName) && (!autoStart || m_imp->start());
 }
 
-bool Provider::isOpened() const
-{
-    return m_imp && m_imp->isOpened();
-}
+bool Provider::isOpened() const { return m_imp && m_imp->isOpened(); }
 
-std::optional<DeviceInfo> Provider::getDeviceInfo() const
-{
-    return m_imp ? m_imp->getDeviceInfo() : std::nullopt;
-}
+std::optional<DeviceInfo> Provider::getDeviceInfo() const { return m_imp ? m_imp->getDeviceInfo() : std::nullopt; }
 
-void Provider::close()
-{
-    m_imp->close();
-}
+void Provider::close() { m_imp->close(); }
 
-bool Provider::start()
-{
-    return m_imp && m_imp->start();
-}
+bool Provider::start() { return m_imp && m_imp->start(); }
 
 void Provider::stop()
 {
-    if (m_imp)
-        m_imp->stop();
+    if (m_imp) m_imp->stop();
 }
 
-bool Provider::isStarted() const
-{
-    return m_imp && m_imp->isStarted();
-}
+bool Provider::isStarted() const { return m_imp && m_imp->isStarted(); }
 
-bool Provider::set(PropertyName prop, double value)
-{
-    return m_imp->set(prop, value);
-}
+bool Provider::set(PropertyName prop, double value) { return m_imp->set(prop, value); }
 
-double Provider::get(PropertyName prop)
-{
-    return m_imp ? m_imp->get(prop) : NAN;
-}
+double Provider::get(PropertyName prop) { return m_imp ? m_imp->get(prop) : NAN; }
 
-std::shared_ptr<VideoFrame> Provider::grab(uint32_t timeoutInMs)
-{
-    return m_imp->grab(timeoutInMs);
-}
+std::shared_ptr<VideoFrame> Provider::grab(uint32_t timeoutInMs) { return m_imp->grab(timeoutInMs); }
 
 void Provider::setNewFrameCallback(std::function<bool(const std::shared_ptr<VideoFrame>&)> callback)
 {
@@ -193,14 +144,8 @@ void Provider::setFrameAllocator(std::function<std::shared_ptr<Allocator>()> all
     m_imp->setFrameAllocator(std::move(allocatorFactory));
 }
 
-void Provider::setMaxAvailableFrameSize(uint32_t size)
-{
-    m_imp->setMaxAvailableFrameSize(size);
-}
+void Provider::setMaxAvailableFrameSize(uint32_t size) { m_imp->setMaxAvailableFrameSize(size); }
 
-void Provider::setMaxCacheFrameSize(uint32_t size)
-{
-    m_imp->setMaxCacheFrameSize(size);
-}
+void Provider::setMaxCacheFrameSize(uint32_t size) { m_imp->setMaxCacheFrameSize(size); }
 
 } // namespace ccap

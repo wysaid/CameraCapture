@@ -31,10 +31,8 @@
 #endif
 #endif
 
-namespace ccap
-{
-struct FrameProperty
-{
+namespace ccap {
+struct FrameProperty {
     double fps{ 0.0 }; ///< 0 means device default.
 
     PixelFormat cameraPixelFormat = PixelFormat::Unknown;
@@ -55,14 +53,10 @@ struct FrameProperty
         return fps == prop.fps && cameraPixelFormat == prop.cameraPixelFormat && outputPixelFormat == prop.outputPixelFormat &&
             width == prop.width && height == prop.height;
     }
-    inline bool operator!=(const FrameProperty& prop) const
-    {
-        return !(*this == prop);
-    }
+    inline bool operator!=(const FrameProperty& prop) const { return !(*this == prop); }
 };
 
-class ProviderImp
-{
+class ProviderImp {
 public:
     ProviderImp();
     virtual ~ProviderImp();
@@ -122,27 +116,19 @@ protected:
 };
 
 /// A lightweight class used to call the deleter function in the destructor of Frame
-class FakeFrame : std::enable_shared_from_this<FakeFrame>
-{
+class FakeFrame : std::enable_shared_from_this<FakeFrame> {
 public:
-    explicit FakeFrame(std::function<void()> deleter) :
-        m_deleter(std::move(deleter))
-    {
-    }
+    explicit FakeFrame(std::function<void()> deleter) : m_deleter(std::move(deleter)) {}
     ~FakeFrame()
     {
-        if (m_deleter)
-            m_deleter();
+        if (m_deleter) m_deleter();
     }
 
 private:
     std::function<void()> m_deleter;
 };
 
-inline bool operator&(PixelFormat lhs, PixelFormatConstants rhs)
-{
-    return (static_cast<uint32_t>(lhs) & rhs) != 0;
-}
+inline bool operator&(PixelFormat lhs, PixelFormatConstants rhs) { return (static_cast<uint32_t>(lhs) & rhs) != 0; }
 
 } // namespace ccap
 

@@ -15,8 +15,7 @@
 /// The methods here require that the data field of frame is not allocated with an allocator.
 /// This method will use an allocator to allocate memory and convert to a new data format.
 
-namespace ccap
-{
+namespace ccap {
 
 bool inplaceConvertFrame(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip);
 bool inplaceConvertFrameRGB(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip);

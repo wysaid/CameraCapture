@@ -12,8 +12,7 @@
 
 using namespace ccap_test;
 
-class PerformanceTest : public ::testing::Test
-{
+class PerformanceTest : public ::testing::Test {
 protected:
     void SetUp() override
     {
@@ -28,8 +27,7 @@ protected:
         PerformanceTimer timer;
         timer.start();
 
-        for (int i = 0; i < iterations; ++i)
-        {
+        for (int i = 0; i < iterations; ++i) {
             func();
         }
 
@@ -37,8 +35,7 @@ protected:
         double avg_ms = total_ms / iterations;
 
         std::cout << std::fixed << std::setprecision(3);
-        std::cout << "[BENCHMARK] " << name << ": "
-                  << avg_ms << "ms (avg of " << iterations << " runs)" << std::endl;
+        std::cout << "[BENCHMARK] " << name << ": " << avg_ms << "ms (avg of " << iterations << " runs)" << std::endl;
     }
 };
 
@@ -58,24 +55,24 @@ TEST_F(PerformanceTest, ColorShufflePerformance)
     rgba_src.fillGradient();
 
     // Test RGBA to RGB
-    benchmarkFunction("RGBA->RGB (1920x1080)", [&]() { ccap::rgbaToRgb(rgba_src.data(), rgba_src.stride(),
-                                                                       rgb_dst.data(), rgb_dst.stride(),
-                                                                       width, height); }, iterations);
+    benchmarkFunction(
+        "RGBA->RGB (1920x1080)",
+        [&]() { ccap::rgbaToRgb(rgba_src.data(), rgba_src.stride(), rgb_dst.data(), rgb_dst.stride(), width, height); }, iterations);
 
     // Test RGBA to BGR
-    benchmarkFunction("RGBA->BGR (1920x1080)", [&]() { ccap::rgbaToBgr(rgba_src.data(), rgba_src.stride(),
-                                                                       bgr_dst.data(), bgr_dst.stride(),
-                                                                       width, height); }, iterations);
+    benchmarkFunction(
+        "RGBA->BGR (1920x1080)",
+        [&]() { ccap::rgbaToBgr(rgba_src.data(), rgba_src.stride(), bgr_dst.data(), bgr_dst.stride(), width, height); }, iterations);
 
     // Test RGB to RGBA
-    benchmarkFunction("RGB->RGBA (1920x1080)", [&]() { ccap::rgbToRgba(rgb_dst.data(), rgb_dst.stride(),
-                                                                       rgba_dst.data(), rgba_dst.stride(),
-                                                                       width, height); }, iterations);
+    benchmarkFunction(
+        "RGB->RGBA (1920x1080)",
+        [&]() { ccap::rgbToRgba(rgb_dst.data(), rgb_dst.stride(), rgba_dst.data(), rgba_dst.stride(), width, height); }, iterations);
 
     // Test 4-channel shuffle
-    benchmarkFunction("RGBA Shuffle (1920x1080)", [&]() { ccap::rgbaToBgra(rgba_src.data(), rgba_src.stride(),
-                                                                           rgba_dst.data(), rgba_dst.stride(),
-                                                                           width, height); }, iterations);
+    benchmarkFunction(
+        "RGBA Shuffle (1920x1080)",
+        [&]() { ccap::rgbaToBgra(rgba_src.data(), rgba_src.stride(), rgba_dst.data(), rgba_dst.stride(), width, height); }, iterations);
 }
 
 // ============ YUV to RGB Performance Tests ============
@@ -97,78 +94,93 @@ TEST_F(PerformanceTest, YUVConversionPerformance)
     i420_img.generateGradient();
 
     // NV12 conversions
-    benchmarkFunction("NV12->RGB24 BT601 (1920x1080)", [&]() { ccap::nv12ToRgb24(nv12_img.y_data(), nv12_img.y_stride(),
-                                                                                 nv12_img.uv_data(), nv12_img.uv_stride(),
-                                                                                 rgb_dst.data(), rgb_dst.stride(),
-                                                                                 width, height, ccap::ConvertFlag::Default); }, iterations);
+    benchmarkFunction(
+        "NV12->RGB24 BT601 (1920x1080)",
+        [&]() {
+            ccap::nv12ToRgb24(nv12_img.y_data(), nv12_img.y_stride(), nv12_img.uv_data(), nv12_img.uv_stride(), rgb_dst.data(),
+                              rgb_dst.stride(), width, height, ccap::ConvertFlag::Default);
+        },
+        iterations);
 
-    benchmarkFunction("NV12->BGR24 BT601 (1920x1080)", [&]() { ccap::nv12ToBgr24(nv12_img.y_data(), nv12_img.y_stride(),
-                                                                                 nv12_img.uv_data(), nv12_img.uv_stride(),
-                                                                                 bgr_dst.data(), bgr_dst.stride(),
-                                                                                 width, height, ccap::ConvertFlag::Default); }, iterations);
+    benchmarkFunction(
+        "NV12->BGR24 BT601 (1920x1080)",
+        [&]() {
+            ccap::nv12ToBgr24(nv12_img.y_data(), nv12_img.y_stride(), nv12_img.uv_data(), nv12_img.uv_stride(), bgr_dst.data(),
+                              bgr_dst.stride(), width, height, ccap::ConvertFlag::Default);
+        },
+        iterations);
 
-    benchmarkFunction("NV12->RGBA32 BT709 (1920x1080)", [&]() { ccap::nv12ToRgba32(nv12_img.y_data(), nv12_img.y_stride(),
-                                                                                   nv12_img.uv_data(), nv12_img.uv_stride(),
-                                                                                   rgba_dst.data(), rgba_dst.stride(),
-                                                                                   width, height, ccap::ConvertFlag::BT709 | ccap::ConvertFlag::VideoRange); }, iterations);
+    benchmarkFunction(
+        "NV12->RGBA32 BT709 (1920x1080)",
+        [&]() {
+            ccap::nv12ToRgba32(nv12_img.y_data(), nv12_img.y_stride(), nv12_img.uv_data(), nv12_img.uv_stride(), rgba_dst.data(),
+                               rgba_dst.stride(), width, height, ccap::ConvertFlag::BT709 | ccap::ConvertFlag::VideoRange);
+        },
+        iterations);
 
-    benchmarkFunction("NV12->BGRA32 FullRange (1920x1080)", [&]() { ccap::nv12ToBgra32(nv12_img.y_data(), nv12_img.y_stride(),
-                                                                                       nv12_img.uv_data(), nv12_img.uv_stride(),
-                                                                                       bgra_dst.data(), bgra_dst.stride(),
-                                                                                       width, height, ccap::ConvertFlag::BT601 | ccap::ConvertFlag::FullRange); }, iterations);
+    benchmarkFunction(
+        "NV12->BGRA32 FullRange (1920x1080)",
+        [&]() {
+            ccap::nv12ToBgra32(nv12_img.y_data(), nv12_img.y_stride(), nv12_img.uv_data(), nv12_img.uv_stride(), bgra_dst.data(),
+                               bgra_dst.stride(), width, height, ccap::ConvertFlag::BT601 | ccap::ConvertFlag::FullRange);
+        },
+        iterations);
 
     // I420 conversions
-    benchmarkFunction("I420->RGB24 BT601 (1920x1080)", [&]() { ccap::i420ToRgb24(i420_img.y_data(), i420_img.y_stride(),
-                                                                                 i420_img.u_data(), i420_img.uv_stride(),
-                                                                                 i420_img.v_data(), i420_img.uv_stride(),
-                                                                                 rgb_dst.data(), rgb_dst.stride(),
-                                                                                 width, height, ccap::ConvertFlag::Default); }, iterations);
+    benchmarkFunction(
+        "I420->RGB24 BT601 (1920x1080)",
+        [&]() {
+            ccap::i420ToRgb24(i420_img.y_data(), i420_img.y_stride(), i420_img.u_data(), i420_img.uv_stride(), i420_img.v_data(),
+                              i420_img.uv_stride(), rgb_dst.data(), rgb_dst.stride(), width, height, ccap::ConvertFlag::Default);
+        },
+        iterations);
 
-    benchmarkFunction("I420->BGR24 BT709 (1920x1080)", [&]() { ccap::i420ToBgr24(i420_img.y_data(), i420_img.y_stride(),
-                                                                                 i420_img.u_data(), i420_img.uv_stride(),
-                                                                                 i420_img.v_data(), i420_img.uv_stride(),
-                                                                                 bgr_dst.data(), bgr_dst.stride(),
-                                                                                 width, height, ccap::ConvertFlag::BT709 | ccap::ConvertFlag::VideoRange); }, iterations);
+    benchmarkFunction(
+        "I420->BGR24 BT709 (1920x1080)",
+        [&]() {
+            ccap::i420ToBgr24(i420_img.y_data(), i420_img.y_stride(), i420_img.u_data(), i420_img.uv_stride(), i420_img.v_data(),
+                              i420_img.uv_stride(), bgr_dst.data(), bgr_dst.stride(), width, height,
+                              ccap::ConvertFlag::BT709 | ccap::ConvertFlag::VideoRange);
+        },
+        iterations);
 
-    benchmarkFunction("I420->RGBA32 FullRange (1920x1080)", [&]() { ccap::i420ToRgba32(i420_img.y_data(), i420_img.y_stride(),
-                                                                                       i420_img.u_data(), i420_img.uv_stride(),
-                                                                                       i420_img.v_data(), i420_img.uv_stride(),
-                                                                                       rgba_dst.data(), rgba_dst.stride(),
-                                                                                       width, height, ccap::ConvertFlag::BT601 | ccap::ConvertFlag::FullRange); }, iterations);
+    benchmarkFunction(
+        "I420->RGBA32 FullRange (1920x1080)",
+        [&]() {
+            ccap::i420ToRgba32(i420_img.y_data(), i420_img.y_stride(), i420_img.u_data(), i420_img.uv_stride(), i420_img.v_data(),
+                               i420_img.uv_stride(), rgba_dst.data(), rgba_dst.stride(), width, height,
+                               ccap::ConvertFlag::BT601 | ccap::ConvertFlag::FullRange);
+        },
+        iterations);
 }
 
 // ============ Scaling Performance Tests ============
 
 TEST_F(PerformanceTest, ScalingPerformance)
 {
-    struct TestSize
-    {
+    struct TestSize {
         int width, height;
         std::string name;
     };
 
-    std::vector<TestSize> sizes = {
-        { 640, 480, "VGA" },
-        { 1280, 720, "HD" },
-        { 1920, 1080, "FHD" },
-        { 3840, 2160, "4K" }
-    };
+    std::vector<TestSize> sizes = { { 640, 480, "VGA" }, { 1280, 720, "HD" }, { 1920, 1080, "FHD" }, { 3840, 2160, "4K" } };
 
-    for (const auto& size : sizes)
-    {
+    for (const auto& size : sizes) {
         TestYUVImage nv12_img(size.width, size.height, true);
         TestImage rgb_dst(size.width, size.height, 3);
 
         nv12_img.generateGradient();
 
-        std::string benchmark_name = "NV12->RGB24 " + size.name + " (" +
-            std::to_string(size.width) + "x" +
-            std::to_string(size.height) + ")";
+        std::string benchmark_name =
+            "NV12->RGB24 " + size.name + " (" + std::to_string(size.width) + "x" + std::to_string(size.height) + ")";
 
-        benchmarkFunction(benchmark_name, [&]() { ccap::nv12ToRgb24(nv12_img.y_data(), nv12_img.y_stride(),
-                                                                    nv12_img.uv_data(), nv12_img.uv_stride(),
-                                                                    rgb_dst.data(), rgb_dst.stride(),
-                                                                    size.width, size.height); }, size.width >= 1920 ? 2 : 5); // Fewer iterations for larger images
+        benchmarkFunction(
+            benchmark_name,
+            [&]() {
+                ccap::nv12ToRgb24(nv12_img.y_data(), nv12_img.y_stride(), nv12_img.uv_data(), nv12_img.uv_stride(), rgb_dst.data(),
+                                  rgb_dst.stride(), size.width, size.height);
+            },
+            size.width >= 1920 ? 2 : 5); // Fewer iterations for larger images
     }
 }
 
@@ -197,12 +209,10 @@ TEST_F(PerformanceTest, AVX2Detection)
 
     std::cout << "[INFO] AVX2 support: " << (has_avx2 ? "YES" : "NO") << std::endl;
 
-    if (has_avx2)
-    {
+    if (has_avx2) {
         std::cout << "[INFO] SIMD acceleration should be enabled" << std::endl;
     }
-    else
-    {
+    else {
         std::cout << "[INFO] Falling back to scalar implementation" << std::endl;
     }
 
@@ -226,12 +236,9 @@ TEST_F(PerformanceTest, ThroughputMeasurement)
     PerformanceTimer timer;
     timer.start();
 
-    for (int i = 0; i < iterations; ++i)
-    {
-        ccap::nv12ToRgb24(nv12_img.y_data(), nv12_img.y_stride(),
-                          nv12_img.uv_data(), nv12_img.uv_stride(),
-                          rgb_dst.data(), rgb_dst.stride(),
-                          width, height);
+    for (int i = 0; i < iterations; ++i) {
+        ccap::nv12ToRgb24(nv12_img.y_data(), nv12_img.y_stride(), nv12_img.uv_data(), nv12_img.uv_stride(), rgb_dst.data(),
+                          rgb_dst.stride(), width, height);
     }
 
     double total_ms = timer.stopAndGetMs();

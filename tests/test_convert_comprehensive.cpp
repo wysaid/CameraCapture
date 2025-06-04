@@ -11,8 +11,7 @@
 
 using namespace ccap_test;
 
-class ComprehensiveConvertTest : public ::testing::Test
-{
+class ComprehensiveConvertTest : public ::testing::Test {
 protected:
     void SetUp() override
     {
@@ -36,9 +35,7 @@ TEST_F(ComprehensiveConvertTest, AllPredefinedConversions)
         TestImage bgr(width_, height_, 3);
         rgba.fillChecker(50, 200);
 
-        ccap::rgbaToBgr(rgba.data(), rgba.stride(),
-                        bgr.data(), bgr.stride(),
-                        width_, height_);
+        ccap::rgbaToBgr(rgba.data(), rgba.stride(), bgr.data(), bgr.stride(), width_, height_);
 
         // Verify conversion
         EXPECT_EQ(rgba.data()[0], bgr.data()[2]); // R->B
@@ -52,9 +49,7 @@ TEST_F(ComprehensiveConvertTest, AllPredefinedConversions)
         TestImage rgb(width_, height_, 3);
         rgba.fillGradient();
 
-        ccap::rgbaToRgb(rgba.data(), rgba.stride(),
-                        rgb.data(), rgb.stride(),
-                        width_, height_);
+        ccap::rgbaToRgb(rgba.data(), rgba.stride(), rgb.data(), rgb.stride(), width_, height_);
 
         // Should preserve RGB order, drop alpha
         EXPECT_EQ(rgba.data()[0], rgb.data()[0]); // R->R
@@ -68,9 +63,7 @@ TEST_F(ComprehensiveConvertTest, AllPredefinedConversions)
         TestImage bgra(width_, height_, 4);
         rgb.fillSolid(128);
 
-        ccap::rgbToBgra(rgb.data(), rgb.stride(),
-                        bgra.data(), bgra.stride(),
-                        width_, height_);
+        ccap::rgbToBgra(rgb.data(), rgb.stride(), bgra.data(), bgra.stride(), width_, height_);
 
         // Check color swap and alpha addition
         EXPECT_EQ(rgb.data()[0], bgra.data()[2]); // R->B
@@ -85,9 +78,7 @@ TEST_F(ComprehensiveConvertTest, AllPredefinedConversions)
         TestImage rgba(width_, height_, 4);
         rgb.fillRandom();
 
-        ccap::rgbToRgba(rgb.data(), rgb.stride(),
-                        rgba.data(), rgba.stride(),
-                        width_, height_);
+        ccap::rgbToRgba(rgb.data(), rgb.stride(), rgba.data(), rgba.stride(), width_, height_);
 
         // Should preserve RGB order, add alpha
         EXPECT_EQ(rgb.data()[0], rgba.data()[0]); // R->R
@@ -111,18 +102,12 @@ TEST_F(ComprehensiveConvertTest, ColorSpace_Consistency_Validation)
     rgb_src.fillGradient();
 
     // RGB -> BGR -> RGB should be identical (roundtrip test)
-    ccap::rgbToBgr(rgb_src.data(), rgb_src.stride(),
-                   bgr_temp.data(), bgr_temp.stride(),
-                   width_, height_);
+    ccap::rgbToBgr(rgb_src.data(), rgb_src.stride(), bgr_temp.data(), bgr_temp.stride(), width_, height_);
 
-    ccap::bgrToRgb(bgr_temp.data(), bgr_temp.stride(),
-                   rgb_result.data(), rgb_result.stride(),
-                   width_, height_);
+    ccap::bgrToRgb(bgr_temp.data(), bgr_temp.stride(), rgb_result.data(), rgb_result.stride(), width_, height_);
 
-    EXPECT_TRUE(PixelTestUtils::compareImages(
-        rgb_src.data(), rgb_result.data(),
-        width_, height_, 3,
-        rgb_src.stride(), rgb_result.stride(), 0))
+    EXPECT_TRUE(
+        PixelTestUtils::compareImages(rgb_src.data(), rgb_result.data(), width_, height_, 3, rgb_src.stride(), rgb_result.stride(), 0))
         << "RGB->BGR->RGB roundtrip failed";
 }
 
@@ -130,43 +115,31 @@ TEST_F(ComprehensiveConvertTest, ColorSpace_Consistency_Validation)
 
 TEST_F(ComprehensiveConvertTest, YUVPixelConversions_EdgeCases)
 {
-    struct TestCase
-    {
+    struct TestCase {
         int y, u, v;
         std::string description;
     };
 
     std::vector<TestCase> edge_cases = {
-        { 0, 0, 0, "Min values" },
-        { 255, 255, 255, "Max values" },
-        { 16, 128, 128, "Video black" },
-        { 235, 128, 128, "Video white" },
-        { 0, 128, 128, "Full black" },
-        { 255, 128, 128, "Full white" },
-        { 128, 0, 0, "Min UV" },
-        { 128, 255, 255, "Max UV" },
+        { 0, 0, 0, "Min values" },     { 255, 255, 255, "Max values" }, { 16, 128, 128, "Video black" }, { 235, 128, 128, "Video white" },
+        { 0, 128, 128, "Full black" }, { 255, 128, 128, "Full white" }, { 128, 0, 0, "Min UV" },         { 128, 255, 255, "Max UV" },
     };
 
-    for (const auto& test_case : edge_cases)
-    {
+    for (const auto& test_case : edge_cases) {
         int r, g, b;
 
         // Test all YUV conversion functions
         ccap::yuv2rgb601v(test_case.y, test_case.u, test_case.v, r, g, b);
-        EXPECT_TRUE(PixelTestUtils::isValidRGB(r, g, b))
-            << "BT601 video range failed for " << test_case.description;
+        EXPECT_TRUE(PixelTestUtils::isValidRGB(r, g, b)) << "BT601 video range failed for " << test_case.description;
 
         ccap::yuv2rgb709v(test_case.y, test_case.u, test_case.v, r, g, b);
-        EXPECT_TRUE(PixelTestUtils::isValidRGB(r, g, b))
-            << "BT709 video range failed for " << test_case.description;
+        EXPECT_TRUE(PixelTestUtils::isValidRGB(r, g, b)) << "BT709 video range failed for " << test_case.description;
 
         ccap::yuv2rgb601f(test_case.y, test_case.u, test_case.v, r, g, b);
-        EXPECT_TRUE(PixelTestUtils::isValidRGB(r, g, b))
-            << "BT601 full range failed for " << test_case.description;
+        EXPECT_TRUE(PixelTestUtils::isValidRGB(r, g, b)) << "BT601 full range failed for " << test_case.description;
 
         ccap::yuv2rgb709f(test_case.y, test_case.u, test_case.v, r, g, b);
-        EXPECT_TRUE(PixelTestUtils::isValidRGB(r, g, b))
-            << "BT709 full range failed for " << test_case.description;
+        EXPECT_TRUE(PixelTestUtils::isValidRGB(r, g, b)) << "BT709 full range failed for " << test_case.description;
     }
 }
 
@@ -201,19 +174,14 @@ TEST_F(ComprehensiveConvertTest, MemoryAlignment)
     const int test_height = 13;
 
     // Test with different stride alignments
-    for (int alignment : { 1, 4, 16, 32 })
-    {
+    for (int alignment : { 1, 4, 16, 32 }) {
         TestImage src(test_width, test_height, 3, alignment);
         TestImage dst(test_width, test_height, 4, alignment);
 
         src.fillRandom(42);
 
-        EXPECT_NO_THROW({
-            ccap::rgbToRgba(src.data(), src.stride(),
-                            dst.data(), dst.stride(),
-                            test_width, test_height);
-        }) << "Failed with alignment "
-           << alignment;
+        EXPECT_NO_THROW({ ccap::rgbToRgba(src.data(), src.stride(), dst.data(), dst.stride(), test_width, test_height); })
+            << "Failed with alignment " << alignment;
 
         // Basic verification
         EXPECT_EQ(dst.data()[3], 255) << "Alpha not set with alignment " << alignment;

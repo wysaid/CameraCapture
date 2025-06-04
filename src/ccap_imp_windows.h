@@ -34,31 +34,22 @@ MIDL_INTERFACE("0579154A-2B53-4994-B0D0-E773148EFF85")
 ISampleGrabberCB : public IUnknown
 {
 public:
-    virtual HRESULT STDMETHODCALLTYPE SampleCB(
-        double SampleTime,
-        IMediaSample* pSample) = 0;
+    virtual HRESULT STDMETHODCALLTYPE SampleCB(double SampleTime, IMediaSample* pSample) = 0;
 
-    virtual HRESULT STDMETHODCALLTYPE BufferCB(
-        double SampleTime,
-        BYTE* pBuffer,
-        long BufferLen) = 0;
+    virtual HRESULT STDMETHODCALLTYPE BufferCB(double SampleTime, BYTE* pBuffer, long BufferLen) = 0;
 };
 
 MIDL_INTERFACE("6B652FFF-11FE-4fce-92AD-0266B5D7C78F")
 ISampleGrabber : public IUnknown
 {
 public:
-    virtual HRESULT STDMETHODCALLTYPE SetOneShot(
-        BOOL OneShot) = 0;
+    virtual HRESULT STDMETHODCALLTYPE SetOneShot(BOOL OneShot) = 0;
 
-    virtual HRESULT STDMETHODCALLTYPE SetMediaType(
-        const AM_MEDIA_TYPE* pType) = 0;
+    virtual HRESULT STDMETHODCALLTYPE SetMediaType(const AM_MEDIA_TYPE* pType) = 0;
 
-    virtual HRESULT STDMETHODCALLTYPE GetConnectedMediaType(
-        AM_MEDIA_TYPE * pType) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetConnectedMediaType(AM_MEDIA_TYPE * pType) = 0;
 
-    virtual HRESULT STDMETHODCALLTYPE SetBufferSamples(
-        BOOL BufferThem) = 0;
+    virtual HRESULT STDMETHODCALLTYPE SetBufferSamples(BOOL BufferThem) = 0;
 
     virtual HRESULT STDMETHODCALLTYPE GetCurrentBuffer(
         /* [out][in] */ long* pBufferSize,
@@ -67,18 +58,14 @@ public:
     virtual HRESULT STDMETHODCALLTYPE GetCurrentSample(
         /* [retval][out] */ IMediaSample * *ppSample) = 0;
 
-    virtual HRESULT STDMETHODCALLTYPE SetCallback(
-        ISampleGrabberCB * pCallback,
-        long WhichMethodToCallback) = 0;
+    virtual HRESULT STDMETHODCALLTYPE SetCallback(ISampleGrabberCB * pCallback, long WhichMethodToCallback) = 0;
 };
 EXTERN_C const CLSID CLSID_SampleGrabber;
 EXTERN_C const IID IID_ISampleGrabber;
 EXTERN_C const CLSID CLSID_NullRenderer;
 
-namespace ccap
-{
-class ProviderDirectShow : public ProviderImp, public ISampleGrabberCB
-{
+namespace ccap {
+class ProviderDirectShow : public ProviderImp, public ISampleGrabberCB {
 public:
     ProviderDirectShow();
     ~ProviderDirectShow() override;
@@ -111,15 +98,16 @@ private:
     bool createStream();
     bool setGrabberOutputSubtype(GUID subtype);
 
-    struct MediaInfo
-    {
+    struct MediaInfo {
         ~MediaInfo();
         IAMStreamConfig* streamConfig = nullptr;
         std::vector<AM_MEDIA_TYPE*> mediaTypes;
         std::vector<AM_MEDIA_TYPE*> videoMediaTypes;
     };
 
-    std::unique_ptr<MediaInfo> enumerateMediaInfo(std::function<bool(AM_MEDIA_TYPE* mediaType, const char* name, PixelFormat pixelFormat, const DeviceInfo::Resolution& resolution)> callback);
+    std::unique_ptr<MediaInfo> enumerateMediaInfo(
+        std::function<bool(AM_MEDIA_TYPE* mediaType, const char* name, PixelFormat pixelFormat, const DeviceInfo::Resolution& resolution)>
+            callback);
 
 private:
     IGraphBuilder* m_graph = nullptr;

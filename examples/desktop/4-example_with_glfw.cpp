@@ -67,23 +67,19 @@ void main() {
 
 int selectCamera(ccap::Provider& provider)
 {
-    if (auto names = provider.findDeviceNames(); names.size() > 1)
-    {
+    if (auto names = provider.findDeviceNames(); names.size() > 1) {
         std::cout << "Multiple devices found, please select one:" << std::endl;
-        for (size_t i = 0; i < names.size(); ++i)
-        {
+        for (size_t i = 0; i < names.size(); ++i) {
             std::cout << "  " << i << ": " << names[i] << std::endl;
         }
         int selectedIndex;
         std::cout << "Enter the index of the device you want to use: ";
         std::cin >> selectedIndex;
-        if (selectedIndex < 0 || selectedIndex >= static_cast<int>(names.size()))
-        {
+        if (selectedIndex < 0 || selectedIndex >= static_cast<int>(names.size())) {
             selectedIndex = 0;
             std::cerr << "Invalid index, using the first device:" << names[0] << std::endl;
         }
-        else
-        {
+        else {
             std::cout << "Using device: " << names[selectedIndex] << std::endl;
         }
         return selectedIndex;
@@ -99,10 +95,8 @@ int main(int argc, char** argv)
 
     ccap::Provider cameraProvider;
 
-    if (auto deviceNames = cameraProvider.findDeviceNames(); !deviceNames.empty())
-    {
-        for (const auto& name : deviceNames)
-        {
+    if (auto deviceNames = cameraProvider.findDeviceNames(); !deviceNames.empty()) {
+        for (const auto& name : deviceNames) {
             std::cout << "## Found video capture device: " << name << std::endl;
         }
     }
@@ -122,18 +116,15 @@ int main(int argc, char** argv)
     cameraProvider.set(ccap::PropertyName::FrameOrientation, ccap::FrameOrientation::BottomToTop);
 
     int deviceIndex;
-    if (argc > 1 && std::isdigit(argv[1][0]))
-    {
+    if (argc > 1 && std::isdigit(argv[1][0])) {
         deviceIndex = std::stoi(argv[1]);
     }
-    else
-    {
+    else {
         deviceIndex = selectCamera(cameraProvider);
     }
     cameraProvider.open(deviceIndex, true);
 
-    if (!cameraProvider.isStarted())
-    {
+    if (!cameraProvider.isStarted()) {
         std::cerr << "Failed to start camera!" << std::endl;
         return -1;
     }
@@ -141,14 +132,12 @@ int main(int argc, char** argv)
     int frameWidth{}, frameHeight{};
 
     /// 5s timeout for grab
-    if (auto frame = cameraProvider.grab(5000))
-    {
+    if (auto frame = cameraProvider.grab(5000)) {
         frameWidth = frame->width;
         frameHeight = frame->height;
         std::cout << "## VideoFrame resolution: " << frameWidth << "x" << frameHeight << std::endl;
     }
-    else
-    {
+    else {
         std::cerr << "Failed to grab a frame!" << std::endl;
         return -1;
     }
@@ -160,8 +149,7 @@ int main(int argc, char** argv)
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
     GLFWwindow* window = glfwCreateWindow(frameWidth, frameHeight, "ccap gui example", nullptr, nullptr);
-    if (!window)
-    {
+    if (!window) {
         glfwTerminate();
         return -1;
     }
@@ -209,13 +197,12 @@ int main(int argc, char** argv)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    for (; !glfwWindowShouldClose(window);)
-    {
+    for (; !glfwWindowShouldClose(window);) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture);
 
-        if (auto frame = cameraProvider.grab(30))
-        { // buffer orphaning: <https://www.khronos.org/opengl/wiki/Buffer_Object_Streaming>, pass nullptr first.
+        if (auto frame = cameraProvider.grab(
+                30)) { // buffer orphaning: <https://www.khronos.org/opengl/wiki/Buffer_Object_Streaming>, pass nullptr first.
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, frameWidth, frameHeight, 0, pixelFormatGl, GL_UNSIGNED_BYTE, nullptr);
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, frameWidth, frameHeight, pixelFormatGl, GL_UNSIGNED_BYTE, frame->data[0]);
         }

@@ -20,10 +20,8 @@
 typedef void* CameraCaptureObjc;
 #endif
 
-namespace ccap
-{
-class ProviderApple : public ProviderImp
-{
+namespace ccap {
+class ProviderApple : public ProviderImp {
 public:
     ProviderApple();
     ~ProviderApple() override;

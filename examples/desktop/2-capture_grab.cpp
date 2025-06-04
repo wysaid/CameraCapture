@@ -15,23 +15,19 @@
 
 int selectCamera(ccap::Provider& provider)
 {
-    if (auto names = provider.findDeviceNames(); names.size() > 1)
-    {
+    if (auto names = provider.findDeviceNames(); names.size() > 1) {
         std::cout << "Multiple devices found, please select one:" << std::endl;
-        for (size_t i = 0; i < names.size(); ++i)
-        {
+        for (size_t i = 0; i < names.size(); ++i) {
             std::cout << "  " << i << ": " << names[i] << std::endl;
         }
         int selectedIndex;
         std::cout << "Enter the index of the device you want to use: ";
         std::cin >> selectedIndex;
-        if (selectedIndex < 0 || selectedIndex >= static_cast<int>(names.size()))
-        {
+        if (selectedIndex < 0 || selectedIndex >= static_cast<int>(names.size())) {
             selectedIndex = 0;
             std::cerr << "Invalid index, using the first device:" << names[0] << std::endl;
         }
-        else
-        {
+        else {
             std::cout << "Using device: " << names[selectedIndex] << std::endl;
         }
         return selectedIndex;
@@ -47,19 +43,16 @@ int main(int argc, char** argv)
 
     std::string cwd = argv[0];
 
-    if (auto lastSlashPos = cwd.find_last_of("/\\"); lastSlashPos != std::string::npos && cwd[0] != '.')
-    {
+    if (auto lastSlashPos = cwd.find_last_of("/\\"); lastSlashPos != std::string::npos && cwd[0] != '.') {
         cwd = cwd.substr(0, lastSlashPos);
     }
-    else
-    {
+    else {
         cwd = std::filesystem::current_path().string();
     }
 
     /// 在 cwd 目录下创建一个 capture 目录
     std::string captureDir = cwd + "/image_capture";
-    if (!std::filesystem::exists(captureDir))
-    {
+    if (!std::filesystem::exists(captureDir)) {
         std::filesystem::create_directory(captureDir);
     }
 
@@ -80,19 +73,16 @@ int main(int argc, char** argv)
     cameraProvider.set(ccap::PropertyName::FrameRate, requestedFps);
 
     int deviceIndex;
-    if (argc > 1 && std::isdigit(argv[1][0]))
-    {
+    if (argc > 1 && std::isdigit(argv[1][0])) {
         deviceIndex = std::stoi(argv[1]);
     }
-    else
-    {
+    else {
         deviceIndex = selectCamera(cameraProvider);
     }
 
     cameraProvider.open(deviceIndex, true);
 
-    if (!cameraProvider.isStarted())
-    {
+    if (!cameraProvider.isStarted()) {
         std::cerr << "Failed to start camera!" << std::endl;
         return -1;
     }
@@ -102,23 +92,21 @@ int main(int argc, char** argv)
     int realHeight = static_cast<int>(cameraProvider.get(ccap::PropertyName::Height));
     double realFps = cameraProvider.get(ccap::PropertyName::FrameRate);
 
-    printf("Camera started successfully, requested resolution: %dx%d, real resolution: %dx%d, requested fps %g, real fps: %g\n", requestedWidth, requestedHeight, realWidth, realHeight, requestedFps, realFps);
+    printf("Camera started successfully, requested resolution: %dx%d, real resolution: %dx%d, requested fps %g, real fps: %g\n",
+           requestedWidth, requestedHeight, realWidth, realHeight, requestedFps, realFps);
 
     /// 3000 ms timeout when grabbing frames
-    while (auto frame = cameraProvider.grab(3000))
-    {
-        printf("VideoFrame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes);
-        if (auto dumpFile = ccap::dumpFrameToDirectory(frame.get(), captureDir); !dumpFile.empty())
-        {
+    while (auto frame = cameraProvider.grab(3000)) {
+        printf("VideoFrame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height,
+               frame->sizeInBytes);
+        if (auto dumpFile = ccap::dumpFrameToDirectory(frame.get(), captureDir); !dumpFile.empty()) {
             std::cout << "VideoFrame saved to: " << dumpFile << std::endl;
         }
-        else
-        {
+        else {
             std::cerr << "Failed to save frame!" << std::endl;
         }
 
-        if (frame->frameIndex >= 10)
-        {
+        if (frame->frameIndex >= 10) {
             frame = nullptr;
             std::cout << "Captured 10 frames, stopping..." << std::endl;
             break;

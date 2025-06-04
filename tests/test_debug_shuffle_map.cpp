@@ -19,8 +19,7 @@ TEST(ShuffleMapDebugTest, DirectColorShuffleCall)
 
     // Fill with simple data
     uint8_t* rgba_data = rgba_img.data();
-    for (int i = 0; i < 8 * 8; ++i)
-    {
+    for (int i = 0; i < 8 * 8; ++i) {
         rgba_data[i * 4 + 0] = 100; // R
         rgba_data[i * 4 + 1] = 150; // G
         rgba_data[i * 4 + 2] = 200; // B
@@ -28,17 +27,13 @@ TEST(ShuffleMapDebugTest, DirectColorShuffleCall)
     }
 
     std::cout << "Using correct 3-element shuffle map..." << std::endl;
-    ccap::bgrToRgba(rgba_img.data(), rgba_img.stride(),
-                    bgr_img.data(), bgr_img.stride(),
-                    8, 8);
+    ccap::bgrToRgba(rgba_img.data(), rgba_img.stride(), bgr_img.data(), bgr_img.stride(), 8, 8);
 
     std::cout << "Direct colorShuffle4To3 call completed successfully" << std::endl;
 
     // Check result
     uint8_t* bgr_data = bgr_img.data();
-    std::cout << "First BGR pixel: B=" << (int)bgr_data[0]
-              << " G=" << (int)bgr_data[1]
-              << " R=" << (int)bgr_data[2] << std::endl;
+    std::cout << "First BGR pixel: B=" << (int)bgr_data[0] << " G=" << (int)bgr_data[1] << " R=" << (int)bgr_data[2] << std::endl;
 
     EXPECT_EQ(bgr_data[0], 200); // B
     EXPECT_EQ(bgr_data[1], 150); // G

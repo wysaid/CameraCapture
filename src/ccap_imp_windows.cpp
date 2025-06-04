@@ -35,8 +35,7 @@
 #pragma comment(lib, "strmiids.lib")
 
 /// @see <https://doxygen.reactos.org/d9/dce/structtagVIDEOINFOHEADER2.html>
-typedef struct tagVIDEOINFOHEADER2
-{
+typedef struct tagVIDEOINFOHEADER2 {
     RECT rcSource;
     RECT rcTarget;
     DWORD dwBitRate;
@@ -46,8 +45,7 @@ typedef struct tagVIDEOINFOHEADER2
     DWORD dwCopyProtectFlags;
     DWORD dwPictAspectRatioX;
     DWORD dwPictAspectRatioY;
-    union
-    {
+    union {
         DWORD dwControlFlags;
         DWORD dwReserved1;
 
@@ -63,12 +61,9 @@ typedef struct tagVIDEOINFOHEADER2
 #define DXVA_ExtendedFormat_DEFINED
 
 /// @see <https://learn.microsoft.com/zh-cn/windows-hardware/drivers/ddi/dxva/ns-dxva-_dxva_extendedformat>
-typedef struct _DXVA_ExtendedFormat
-{
-    union
-    {
-        struct
-        {
+typedef struct _DXVA_ExtendedFormat {
+    union {
+        struct {
             UINT SampleFormat : 8;
             UINT VideoChromaSubsampling : 4;
             UINT NominalRange : 3;
@@ -94,21 +89,18 @@ DEFINE_GUID(MEDIASUBTYPE_I420, 0x30323449, 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xa
 
 using namespace ccap;
 
-namespace
-{
+namespace {
 constexpr FrameOrientation kDefaultFrameOrientation = FrameOrientation::BottomToTop;
 
 // Release the format block for a media type.
 void freeMediaType(AM_MEDIA_TYPE& mt)
 {
-    if (mt.cbFormat != 0)
-    {
+    if (mt.cbFormat != 0) {
         CoTaskMemFree((PVOID)mt.pbFormat);
         mt.cbFormat = 0;
         mt.pbFormat = NULL;
     }
-    if (mt.pUnk != NULL)
-    {
+    if (mt.pUnk != NULL) {
         // pUnk should not be used.
         mt.pUnk->Release();
         mt.pUnk = NULL;
@@ -118,15 +110,13 @@ void freeMediaType(AM_MEDIA_TYPE& mt)
 // Delete a media type structure that was allocated on the heap.
 void deleteMediaType(AM_MEDIA_TYPE* pmt)
 {
-    if (pmt != NULL)
-    {
+    if (pmt != NULL) {
         freeMediaType(*pmt);
         CoTaskMemFree(pmt);
     }
 }
 
-struct PixelFormtInfo
-{
+struct PixelFormtInfo {
     GUID subtype;
     const char* name;
     PixelFormat pixelFormat;
@@ -168,18 +158,15 @@ PixelFormtInfo s_pixelInfoList[] = {
 
 PixelFormtInfo findPixelFormatInfo(const GUID& subtype)
 {
-    for (auto& i : s_pixelInfoList)
-    {
-        if (subtype == i.subtype)
-        {
+    for (auto& i : s_pixelInfoList) {
+        if (subtype == i.subtype) {
             return i;
         }
     }
     return { MEDIASUBTYPE_None, "Unknown", PixelFormat::Unknown };
 }
 
-struct MediaInfo
-{
+struct MediaInfo {
     DeviceInfo::Resolution resolution;
     PixelFormtInfo pixelFormatInfo;
     std::shared_ptr<AM_MEDIA_TYPE*> mediaType;
@@ -197,28 +184,21 @@ void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
     auto height = vih->bmiHeader.biHeight;
     double fps = vih->AvgTimePerFrame != 0 ? 10000000.0 / vih->AvgTimePerFrame : 0;
 
-    if (info.pixelFormat & kPixelFormatYUVColorBit)
-    {
-        if (pmt->formattype == FORMAT_VideoInfo2 && pmt->cbFormat >= sizeof(VIDEOINFOHEADER2))
-        {
+    if (info.pixelFormat & kPixelFormatYUVColorBit) {
+        if (pmt->formattype == FORMAT_VideoInfo2 && pmt->cbFormat >= sizeof(VIDEOINFOHEADER2)) {
             VIDEOINFOHEADER2* vih2 = (VIDEOINFOHEADER2*)pmt->pbFormat;
             // Check AMCONTROL_COLORINFO_PRESENT
-            if (vih2->dwControlFlags & AMCONTROL_COLORINFO_PRESENT)
-            { // DXVA_ExtendedFormat follows immediately after VIDEOINFOHEADER2
+            if (vih2->dwControlFlags & AMCONTROL_COLORINFO_PRESENT) { // DXVA_ExtendedFormat follows immediately after VIDEOINFOHEADER2
                 BYTE* extFmtPtr = (BYTE*)vih2 + sizeof(VIDEOINFOHEADER2);
-                if (pmt->cbFormat >= sizeof(VIDEOINFOHEADER2) + sizeof(DXVA_ExtendedFormat))
-                {
+                if (pmt->cbFormat >= sizeof(VIDEOINFOHEADER2) + sizeof(DXVA_ExtendedFormat)) {
                     DXVA_ExtendedFormat* extFmt = (DXVA_ExtendedFormat*)extFmtPtr;
-                    if (extFmt->NominalRange == DXVA_NominalRange_0_255)
-                    {
+                    if (extFmt->NominalRange == DXVA_NominalRange_0_255) {
                         rangeStr = " (FullRange)";
                     }
-                    else if (extFmt->NominalRange == DXVA_NominalRange_16_235)
-                    {
+                    else if (extFmt->NominalRange == DXVA_NominalRange_16_235) {
                         rangeStr = " (VideoRange)";
                     }
-                    else
-                    {
+                    else {
                         rangeStr = " (UnknownRange)";
                     }
                 }
@@ -233,15 +213,13 @@ void printMediaType(AM_MEDIA_TYPE* pmt, const char* prefix)
 bool setupCom()
 {
     static bool s_didSetup = false;
-    if (!s_didSetup)
-    {
+    if (!s_didSetup) {
         // Initialize COM without performing uninitialization, as other parts may also use COM
         // Use COINIT_APARTMENTTHREADED mode here, as we only use COM in a single thread
         auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
         s_didSetup = !(FAILED(hr) && hr != RPC_E_CHANGED_MODE);
 
-        if (!s_didSetup)
-        {
+        if (!s_didSetup) {
             CCAP_LOG_E("ccap: CoInitializeEx failed, hr=0x%08X\n", hr);
         }
     }
@@ -277,32 +255,22 @@ bool inplaceConvertFrameYUV2YUV(VideoFrame* frame, PixelFormat toFormat, bool ve
     uint8_t* outputData0 = frame->data[0];
     frame->data[1] = outputData0 + stride0 * frame->height;
 
-    if (isInputNV12)
-    { /// NV12 -> I420
+    if (isInputNV12) { /// NV12 -> I420
         frame->stride[1] = stride1 / 2;
         frame->stride[2] = frame->stride[1];
         frame->data[2] = isOutputI420 ? frame->data[1] + stride1 * frame->height / 2 : nullptr;
         frame->pixelFormat = toFormat;
 
-        return libyuv::NV12ToI420(inputData0, stride0,
-                                  inputData1, stride1,
-                                  outputData0, stride0,
-                                  frame->data[1], frame->stride[1],
-                                  frame->data[2], frame->stride[2],
-                                  width, height) == 0;
+        return libyuv::NV12ToI420(inputData0, stride0, inputData1, stride1, outputData0, stride0, frame->data[1], frame->stride[1],
+                                  frame->data[2], frame->stride[2], width, height) == 0;
     }
-    else if (isInputI420)
-    { // I420 -> NV12
+    else if (isInputI420) { // I420 -> NV12
         frame->stride[1] = stride1 + stride2;
         frame->stride[2] = 0;
         frame->data[2] = nullptr;
 
-        return libyuv::I420ToNV12(inputData0, stride0,
-                                  inputData1, stride1,
-                                  inputData2, stride2,
-                                  frame->data[0], stride0,
-                                  frame->data[1], frame->stride[1],
-                                  width, height) == 0;
+        return libyuv::I420ToNV12(inputData0, stride0, inputData1, stride1, inputData2, stride2, frame->data[0], stride0, frame->data[1],
+                                  frame->stride[1], width, height) == 0;
     }
 
     return false;
@@ -312,8 +280,7 @@ bool inplaceConvertFrameYUV2YUV(VideoFrame* frame, PixelFormat toFormat, bool ve
 
 } // namespace
 
-namespace ccap
-{
+namespace ccap {
 ProviderDirectShow::ProviderDirectShow()
 {
     m_frameOrientation = kDefaultFrameOrientation;
@@ -339,16 +306,14 @@ bool ProviderDirectShow::setup()
 
 void ProviderDirectShow::enumerateDevices(std::function<bool(IMoniker* moniker, std::string_view)> callback)
 {
-    if (!setup())
-    {
+    if (!setup()) {
         return;
     }
 
     // Enumerate video capture devices
     ICreateDevEnum* deviceEnum = nullptr;
     auto result = CoCreateInstance(CLSID_SystemDeviceEnum, nullptr, CLSCTX_INPROC_SERVER, IID_ICreateDevEnum, (void**)&deviceEnum);
-    if (FAILED(result))
-    {
+    if (FAILED(result)) {
         CCAP_LOG_E("ccap: CoCreateInstance CLSID_SystemDeviceEnum failed, result=0x%08X\n", result);
         return;
     }
@@ -356,14 +321,11 @@ void ProviderDirectShow::enumerateDevices(std::function<bool(IMoniker* moniker, 
     IEnumMoniker* enumerator = nullptr;
     result = deviceEnum->CreateClassEnumerator(CLSID_VideoInputDeviceCategory, &enumerator, 0);
     deviceEnum->Release();
-    if (auto failed = FAILED(result); failed || !enumerator)
-    {
-        if (failed)
-        {
+    if (auto failed = FAILED(result); failed || !enumerator) {
+        if (failed) {
             CCAP_LOG_E("ccap: CreateClassEnumerator CLSID_VideoInputDeviceCategory failed, result=0x%08X\n", result);
         }
-        else
-        {
+        else {
             CCAP_LOG_E("ccap: No video capture devices found.\n");
         }
 
@@ -373,17 +335,14 @@ void ProviderDirectShow::enumerateDevices(std::function<bool(IMoniker* moniker, 
     IMoniker* moniker = nullptr;
     ULONG fetched = 0;
     bool stop = false;
-    while (enumerator->Next(1, &moniker, &fetched) == S_OK && !stop)
-    {
+    while (enumerator->Next(1, &moniker, &fetched) == S_OK && !stop) {
         IPropertyBag* propertyBag = nullptr;
         result = moniker->BindToStorage(0, 0, IID_IPropertyBag, (void**)&propertyBag);
-        if (SUCCEEDED(result))
-        {
+        if (SUCCEEDED(result)) {
             VARIANT nameVariant;
             VariantInit(&nameVariant);
             result = propertyBag->Read(L"FriendlyName", &nameVariant, 0);
-            if (SUCCEEDED(result))
-            {
+            if (SUCCEEDED(result)) {
                 char deviceName[256] = { 0 };
                 WideCharToMultiByte(CP_UTF8, 0, nameVariant.bstrVal, -1, deviceName, 256, nullptr, nullptr);
                 stop = callback && callback(moniker, deviceName);
@@ -398,61 +357,55 @@ void ProviderDirectShow::enumerateDevices(std::function<bool(IMoniker* moniker, 
 
 ProviderDirectShow::MediaInfo::~MediaInfo()
 {
-    for (auto& mediaType : mediaTypes)
-    {
+    for (auto& mediaType : mediaTypes) {
         deleteMediaType(mediaType);
     }
 
-    if (streamConfig)
-    {
+    if (streamConfig) {
         streamConfig->Release();
     }
 }
 
-std::unique_ptr<ProviderDirectShow::MediaInfo> ProviderDirectShow::enumerateMediaInfo(std::function<bool(AM_MEDIA_TYPE* mediaType, const char* name, PixelFormat pixelFormat, const DeviceInfo::Resolution& resolution)> callback)
+std::unique_ptr<ProviderDirectShow::MediaInfo> ProviderDirectShow::enumerateMediaInfo(
+    std::function<bool(AM_MEDIA_TYPE* mediaType, const char* name, PixelFormat pixelFormat, const DeviceInfo::Resolution& resolution)>
+        callback)
 {
     auto mediaInfo = std::make_unique<MediaInfo>();
     auto& streamConfig = mediaInfo->streamConfig;
     auto& mediaTypes = mediaInfo->mediaTypes;
     auto& videoMediaTypes = mediaInfo->videoMediaTypes;
-    HRESULT hr = m_captureBuilder->FindInterface(&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, m_deviceFilter, IID_IAMStreamConfig, (void**)&streamConfig);
-    if (SUCCEEDED(hr) && streamConfig)
-    {
+    HRESULT hr = m_captureBuilder->FindInterface(&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, m_deviceFilter, IID_IAMStreamConfig,
+                                                 (void**)&streamConfig);
+    if (SUCCEEDED(hr) && streamConfig) {
         int capabilityCount = 0, capabilitySize = 0;
         streamConfig->GetNumberOfCapabilities(&capabilityCount, &capabilitySize);
 
         std::vector<BYTE> capabilityData(capabilitySize);
         mediaTypes.reserve(capabilityCount);
         videoMediaTypes.reserve(capabilityCount);
-        for (int i = 0; i < capabilityCount; ++i)
-        {
+        for (int i = 0; i < capabilityCount; ++i) {
             AM_MEDIA_TYPE* mediaType{};
-            if (SUCCEEDED(streamConfig->GetStreamCaps(i, &mediaType, capabilityData.data())))
-            {
-                if (mediaType->formattype == FORMAT_VideoInfo && mediaType->pbFormat)
-                {
+            if (SUCCEEDED(streamConfig->GetStreamCaps(i, &mediaType, capabilityData.data()))) {
+                if (mediaType->formattype == FORMAT_VideoInfo && mediaType->pbFormat) {
                     videoMediaTypes.emplace_back(mediaType);
-                    if (callback)
-                    {
+                    if (callback) {
                         VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)mediaType->pbFormat;
                         auto info = findPixelFormatInfo(mediaType->subtype);
-                        if (callback(mediaType, info.name, info.pixelFormat, { (uint32_t)vih->bmiHeader.biWidth, (uint32_t)vih->bmiHeader.biHeight }))
-                        {
+                        if (callback(mediaType, info.name, info.pixelFormat,
+                                     { (uint32_t)vih->bmiHeader.biWidth, (uint32_t)vih->bmiHeader.biHeight })) {
                             break; // stop enumeration when returning true
                         }
                     }
                 }
             }
 
-            if (mediaType != nullptr)
-            {
+            if (mediaType != nullptr) {
                 mediaTypes.emplace_back(mediaType);
             }
         }
     }
 
-    if (mediaTypes.empty())
-    {
+    if (mediaTypes.empty()) {
         mediaInfo = nullptr;
     }
 
@@ -461,8 +414,7 @@ std::unique_ptr<ProviderDirectShow::MediaInfo> ProviderDirectShow::enumerateMedi
 
 std::vector<std::string> ProviderDirectShow::findDeviceNames()
 {
-    if (!m_allDeviceNames.empty())
-    {
+    if (!m_allDeviceNames.empty()) {
         return m_allDeviceNames;
     }
 
@@ -470,13 +422,11 @@ std::vector<std::string> ProviderDirectShow::findDeviceNames()
         // Try to bind device, check if available
         IBaseFilter* filter = nullptr;
         HRESULT hr = moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&filter);
-        if (SUCCEEDED(hr) && filter)
-        {
+        if (SUCCEEDED(hr) && filter) {
             m_allDeviceNames.emplace_back(name.data(), name.size());
             filter->Release();
         }
-        else
-        {
+        else {
             CCAP_LOG_I("ccap: \"%s\" is not a valid video capture device, removed\n", name.data());
         }
         // Unavailable devices are not added to the list
@@ -495,21 +445,16 @@ std::vector<std::string> ProviderDirectShow::findDeviceNames()
             std::transform(name1.begin(), name1.end(), copyName1.begin(), ::tolower);
             std::transform(name2.begin(), name2.end(), copyName2.begin(), ::tolower);
             int64_t index1 = std::find_if(std::begin(keywords), std::end(keywords),
-                                          [&](std::string_view keyword) {
-                                              return copyName1.find(keyword) != std::string::npos;
-                                          }) -
+                                          [&](std::string_view keyword) { return copyName1.find(keyword) != std::string::npos; }) -
                 std::begin(keywords);
-            if (index1 == std::size(keywords))
-            {
+            if (index1 == std::size(keywords)) {
                 index1 = -1;
             }
 
-            int64_t index2 = std::find_if(std::begin(keywords), std::end(keywords), [&](std::string_view keyword) {
-                                 return copyName2.find(keyword) != std::string::npos;
-                             }) -
+            int64_t index2 = std::find_if(std::begin(keywords), std::end(keywords),
+                                          [&](std::string_view keyword) { return copyName2.find(keyword) != std::string::npos; }) -
                 std::begin(keywords);
-            if (index2 == std::size(keywords))
-            {
+            if (index2 == std::size(keywords)) {
                 index2 = -1;
             }
             return index1 < index2;
@@ -525,16 +470,14 @@ bool ProviderDirectShow::buildGraph()
 
     // Create Filter Graph
     hr = CoCreateInstance(CLSID_FilterGraph, nullptr, CLSCTX_INPROC_SERVER, IID_IGraphBuilder, (void**)&m_graph);
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         CCAP_LOG_E("ccap: CoCreateInstance CLSID_FilterGraph failed, hr=0x%08X\n", hr);
         return false;
     }
 
     // Create Capture Graph Builder
     hr = CoCreateInstance(CLSID_CaptureGraphBuilder2, nullptr, CLSCTX_INPROC_SERVER, IID_ICaptureGraphBuilder2, (void**)&m_captureBuilder);
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         CCAP_LOG_E("ccap: CoCreateInstance CLSID_CaptureGraphBuilder2 failed, hr=0x%08X\n", hr);
         return false;
     }
@@ -542,8 +485,7 @@ bool ProviderDirectShow::buildGraph()
 
     // Add device filter to the graph
     hr = m_graph->AddFilter(m_deviceFilter, L"Video Capture");
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         CCAP_LOG_E("ccap: AddFilter Video Capture failed, hr=0x%08X\n", hr);
         return false;
     }
@@ -552,16 +494,14 @@ bool ProviderDirectShow::buildGraph()
 
 bool ProviderDirectShow::setGrabberOutputSubtype(GUID subtype)
 {
-    if (m_sampleGrabber)
-    {
+    if (m_sampleGrabber) {
         AM_MEDIA_TYPE mt;
         ZeroMemory(&mt, sizeof(mt));
         mt.majortype = MEDIATYPE_Video;
         mt.subtype = subtype;
         mt.formattype = FORMAT_VideoInfo;
         HRESULT hr = m_sampleGrabber->SetMediaType(&mt);
-        if (SUCCEEDED(hr))
-            return false;
+        if (SUCCEEDED(hr)) return false;
 
         CCAP_LOG_E("ccap: SetMediaType failed, hr=0x%lx\n", hr);
     }
@@ -573,21 +513,18 @@ bool ProviderDirectShow::createStream()
 {
     // Create SampleGrabber
     HRESULT hr = CoCreateInstance(CLSID_SampleGrabber, nullptr, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&m_sampleGrabberFilter);
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         CCAP_LOG_E("ccap: CoCreateInstance CLSID_SampleGrabber failed, hr=0x%08X\n", hr);
         return false;
     }
 
     hr = m_sampleGrabberFilter->QueryInterface(IID_ISampleGrabber, (void**)&m_sampleGrabber);
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         CCAP_LOG_E("ccap: QueryInterface ISampleGrabber failed, hr=0x%08X\n", hr);
         return false;
     }
 
-    if (auto mediaInfo = enumerateMediaInfo(nullptr))
-    {
+    if (auto mediaInfo = enumerateMediaInfo(nullptr)) {
         // Desired resolution
         const int desiredWidth = m_frameProp.width;
         const int desiredHeight = m_frameProp.height;
@@ -598,67 +535,56 @@ bool ProviderDirectShow::createStream()
         std::vector<AM_MEDIA_TYPE*> matchedTypes;
         std::vector<AM_MEDIA_TYPE*> bestMatchedTypes;
 
-        for (auto* mediaType : videoTypes)
-        {
+        for (auto* mediaType : videoTypes) {
             VIDEOINFOHEADER* videoHeader = (VIDEOINFOHEADER*)mediaType->pbFormat;
-            if (desiredWidth <= videoHeader->bmiHeader.biWidth && desiredHeight <= videoHeader->bmiHeader.biHeight)
-            {
+            if (desiredWidth <= videoHeader->bmiHeader.biWidth && desiredHeight <= videoHeader->bmiHeader.biHeight) {
                 matchedTypes.emplace_back(mediaType);
-                if (verboseLogEnabled())
-                    printMediaType(mediaType, "> ");
+                if (verboseLogEnabled()) printMediaType(mediaType, "> ");
             }
-            else
-            {
-                if (verboseLogEnabled())
-                    printMediaType(mediaType, "  ");
+            else {
+                if (verboseLogEnabled()) printMediaType(mediaType, "  ");
             }
         }
 
-        if (matchedTypes.empty())
-        {
+        if (matchedTypes.empty()) {
             CCAP_LOG_W("ccap: No suitable resolution found, using the closest one instead.\n");
             matchedTypes = videoTypes;
         }
 
-        for (auto* mediaType : matchedTypes)
-        {
-            if (mediaType->formattype == FORMAT_VideoInfo && mediaType->pbFormat)
-            {
+        for (auto* mediaType : matchedTypes) {
+            if (mediaType->formattype == FORMAT_VideoInfo && mediaType->pbFormat) {
                 VIDEOINFOHEADER* videoHeader = (VIDEOINFOHEADER*)mediaType->pbFormat;
                 double width = static_cast<double>(videoHeader->bmiHeader.biWidth);
                 double height = static_cast<double>(videoHeader->bmiHeader.biHeight);
                 double distance = std::abs((width - desiredWidth) + std::abs(height - desiredHeight));
-                if (distance < closestDistance)
-                {
+                if (distance < closestDistance) {
                     closestDistance = distance;
                     bestMatchedTypes = { mediaType };
                 }
-                else if (std::abs(distance - closestDistance) < 1e-5)
-                {
+                else if (std::abs(distance - closestDistance) < 1e-5) {
                     bestMatchedTypes.emplace_back(mediaType);
                 }
             }
         }
 
-        if (!bestMatchedTypes.empty())
-        { // Resolution is closest, now try to select a suitable format.
+        if (!bestMatchedTypes.empty()) { // Resolution is closest, now try to select a suitable format.
 
-            auto preferredPixelFormat = m_frameProp.cameraPixelFormat != PixelFormat::Unknown ? m_frameProp.cameraPixelFormat : m_frameProp.outputPixelFormat;
+            auto preferredPixelFormat = m_frameProp.cameraPixelFormat != PixelFormat::Unknown ? m_frameProp.cameraPixelFormat :
+                                                                                                m_frameProp.outputPixelFormat;
             AM_MEDIA_TYPE* mediaType = nullptr;
 
             // When format is YUV, only one suitable format can be found
             auto rightFormat = std::find_if(bestMatchedTypes.begin(), bestMatchedTypes.end(), [&](AM_MEDIA_TYPE* mediaType) {
                 auto pixFormatInfo = findPixelFormatInfo(mediaType->subtype);
-                return pixFormatInfo.pixelFormat == preferredPixelFormat || (!(preferredPixelFormat & kPixelFormatYUVColorBit) && pixFormatInfo.subtype == MEDIASUBTYPE_MJPG);
+                return pixFormatInfo.pixelFormat == preferredPixelFormat ||
+                    (!(preferredPixelFormat & kPixelFormatYUVColorBit) && pixFormatInfo.subtype == MEDIASUBTYPE_MJPG);
             });
 
-            if (rightFormat != bestMatchedTypes.end())
-            {
+            if (rightFormat != bestMatchedTypes.end()) {
                 mediaType = *rightFormat;
             }
 
-            if (mediaType == nullptr)
-            {
+            if (mediaType == nullptr) {
                 mediaType = bestMatchedTypes[0];
             }
 
@@ -669,32 +595,26 @@ bool ProviderDirectShow::createStream()
             auto pixFormatInfo = findPixelFormatInfo(mediaType->subtype);
             auto subtype = mediaType->subtype;
 
-            if (subtype == MEDIASUBTYPE_MJPG)
-            {
-                if (m_frameProp.cameraPixelFormat != PixelFormat::BGRA32)
-                {
+            if (subtype == MEDIASUBTYPE_MJPG) {
+                if (m_frameProp.cameraPixelFormat != PixelFormat::BGRA32) {
                     CCAP_LOG_V("ccap: MJPG format, internal format is not set to BGRA32, select BGR24\n");
                     m_frameProp.cameraPixelFormat = PixelFormat::BGR24;
                 }
                 subtype = (m_frameProp.cameraPixelFormat == PixelFormat::BGRA32) ? MEDIASUBTYPE_RGB32 : MEDIASUBTYPE_RGB24;
             }
-            else
-            {
+            else {
                 m_frameProp.cameraPixelFormat = pixFormatInfo.pixelFormat;
             }
 
             setGrabberOutputSubtype(subtype);
             auto setFormatResult = streamConfig->SetFormat(mediaType);
 
-            if (SUCCEEDED(setFormatResult))
-            {
-                if (ccap::infoLogEnabled())
-                {
+            if (SUCCEEDED(setFormatResult)) {
+                if (ccap::infoLogEnabled()) {
                     printMediaType(mediaType, "ccap: SetFormat succeeded: ");
                 }
             }
-            else
-            {
+            else {
                 CCAP_LOG_E("ccap: SetFormat failed, result=0x%lx\n", setFormatResult);
             }
         }
@@ -702,29 +622,25 @@ bool ProviderDirectShow::createStream()
 
     // Add SampleGrabber to the Graph
     hr = m_graph->AddFilter(m_sampleGrabberFilter, L"Sample Grabber");
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         CCAP_LOG_E("ccap: AddFilter Sample Grabber failed, result=0x%lx\n", hr);
         return false;
     }
 
     hr = CoCreateInstance(CLSID_NullRenderer, NULL, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)(&m_dstNullFilter));
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         CCAP_LOG_E("ccap: CoCreateInstance CLSID_NullRenderer failed, result=0x%lx\n", hr);
         return false;
     }
 
     hr = m_graph->AddFilter(m_dstNullFilter, L"NullRenderer");
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         CCAP_LOG_E("ccap: AddFilter NullRenderer failed, result=0x%lx\n", hr);
         return hr;
     }
 
     hr = m_captureBuilder->RenderStream(&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video, m_deviceFilter, m_sampleGrabberFilter, m_dstNullFilter);
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         CCAP_LOG_E("ccap: RenderStream failed, result=0x%lx\n", hr);
         return false;
     }
@@ -732,12 +648,10 @@ bool ProviderDirectShow::createStream()
     {
         IMediaFilter* pMediaFilter = 0;
         hr = m_graph->QueryInterface(IID_IMediaFilter, (void**)&pMediaFilter);
-        if (FAILED(hr))
-        {
+        if (FAILED(hr)) {
             CCAP_LOG_E("ccap: QueryInterface IMediaFilter failed, result=0x%lx\n", hr);
         }
-        else
-        {
+        else {
             pMediaFilter->SetSyncSource(NULL);
             pMediaFilter->Release();
         }
@@ -746,13 +660,11 @@ bool ProviderDirectShow::createStream()
     {
         AM_MEDIA_TYPE mt;
         hr = m_sampleGrabber->GetConnectedMediaType(&mt);
-        if (SUCCEEDED(hr))
-        {
+        if (SUCCEEDED(hr)) {
             CCAP_LOG_V("ccap: Connected media type: %s\n", findPixelFormatInfo(mt.subtype).name);
             freeMediaType(mt);
         }
-        else
-        {
+        else {
             CCAP_LOG_E("ccap: GetConnectedMediaType failed, hr=0x%lx\n", hr);
             return false;
         }
@@ -768,8 +680,7 @@ bool ProviderDirectShow::createStream()
 
 bool ProviderDirectShow::open(std::string_view deviceName)
 {
-    if (m_isOpened && m_mediaControl)
-    {
+    if (m_isOpened && m_mediaControl) {
         CCAP_LOG_E("ccap: Camera already opened, please close it first.\n");
         return false;
     }
@@ -777,20 +688,16 @@ bool ProviderDirectShow::open(std::string_view deviceName)
     bool found = false;
 
     enumerateDevices([&](IMoniker* moniker, std::string_view name) {
-        if (deviceName.empty() || deviceName == name)
-        {
+        if (deviceName.empty() || deviceName == name) {
             auto hr = moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&m_deviceFilter);
-            if (SUCCEEDED(hr))
-            {
+            if (SUCCEEDED(hr)) {
                 CCAP_LOG_V("ccap: Using video capture device: %s\n", name.data());
                 m_deviceName = name;
                 found = true;
                 return true; // stop enumeration when returning true
             }
-            else
-            {
-                if (!deviceName.empty())
-                {
+            else {
+                if (!deviceName.empty()) {
                     CCAP_LOG_E("ccap: \"%s\" is not a valid video capture device, bind failed, result=%x\n", deviceName.data(), hr);
                     return true; // stop enumeration when returning true
                 }
@@ -802,28 +709,24 @@ bool ProviderDirectShow::open(std::string_view deviceName)
         return false;
     });
 
-    if (!found)
-    {
+    if (!found) {
         CCAP_LOG_E("ccap: No video capture device: %s\n", deviceName.empty() ? unavailableMsg : deviceName.data());
         return false;
     }
 
     CCAP_LOG_I("ccap: Found video capture device: %s\n", m_deviceName.c_str());
 
-    if (!buildGraph())
-    {
+    if (!buildGraph()) {
         return false;
     }
 
-    if (!createStream())
-    {
+    if (!createStream()) {
         return false;
     }
 
     // Retrieve IMediaControl
     HRESULT hr = m_graph->QueryInterface(IID_IMediaControl, (void**)&m_mediaControl);
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         CCAP_LOG_E("ccap: QueryInterface IMediaControl failed, result=0x%lx\n", hr);
         return false;
     }
@@ -831,8 +734,7 @@ bool ProviderDirectShow::open(std::string_view deviceName)
     { // Remove the `ActiveMovie Window`.
         IVideoWindow* videoWindow = nullptr;
         hr = m_graph->QueryInterface(IID_IVideoWindow, (LPVOID*)&videoWindow);
-        if (FAILED(hr))
-        {
+        if (FAILED(hr)) {
             CCAP_LOG_E("ccap: QueryInterface IVideoWindow failed, result=0x%lx\n", hr);
             return hr;
         }
@@ -852,10 +754,8 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     std::lock_guard<std::mutex> lock(m_callbackMutex);
 
     auto newFrame = getFreeFrame();
-    if (!newFrame)
-    {
-        if (!newFrame)
-        {
+    if (!newFrame) {
+        if (!newFrame) {
             CCAP_LOG_W("ccap: VideoFrame pool is full, a new frame skipped...\n");
         }
         return S_OK;
@@ -863,34 +763,29 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
 
     // Get sample data
     BYTE* sampleData = nullptr;
-    if (auto hr = mediaSample->GetPointer(&sampleData); FAILED(hr))
-    {
+    if (auto hr = mediaSample->GetPointer(&sampleData); FAILED(hr)) {
         CCAP_LOG_E("ccap: GetPointer failed, hr=0x%lx\n", hr);
         return S_OK;
     }
 
     bool fixTimestamp = m_firstFrameArrived && sampleTime == 0.0;
 
-    if (!m_firstFrameArrived)
-    {
+    if (!m_firstFrameArrived) {
         m_firstFrameArrived = true;
         m_startTime = std::chrono::steady_clock::now();
         AM_MEDIA_TYPE mt;
         HRESULT hr = m_sampleGrabber->GetConnectedMediaType(&mt);
-        if (SUCCEEDED(hr))
-        {
+        if (SUCCEEDED(hr)) {
             VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)mt.pbFormat;
             m_frameProp.width = vih->bmiHeader.biWidth;
             m_frameProp.height = vih->bmiHeader.biHeight;
             m_frameProp.fps = 10000000.0 / vih->AvgTimePerFrame;
             auto info = findPixelFormatInfo(mt.subtype);
-            if (info.pixelFormat != PixelFormat::Unknown)
-            {
+            if (info.pixelFormat != PixelFormat::Unknown) {
                 m_frameProp.cameraPixelFormat = info.pixelFormat;
             }
 
-            if (verboseLogEnabled())
-            {
+            if (verboseLogEnabled()) {
                 printMediaType(&mt, "ccap: First frame media type: ");
             }
 
@@ -898,12 +793,10 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
         }
     }
 
-    if (fixTimestamp)
-    { // sampleTime is wrong, implement it yourself. This often happens when using virtual cameras.
+    if (fixTimestamp) { // sampleTime is wrong, implement it yourself. This often happens when using virtual cameras.
         newFrame->timestamp = (std::chrono::steady_clock::now() - m_startTime).count();
     }
-    else
-    {
+    else {
         newFrame->timestamp = static_cast<uint64_t>(sampleTime * 1e9);
     }
 
@@ -922,32 +815,30 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     bool shouldConvert = m_frameProp.cameraPixelFormat != m_frameProp.outputPixelFormat;
     bool zeroCopy = !shouldConvert && !shouldFlip;
 
-    if (isInputYUV)
-    {
+    if (isInputYUV) {
         // Zero-copy, directly reference sample data
         newFrame->data[0] = sampleData;
         newFrame->data[1] = sampleData + m_frameProp.width * m_frameProp.height;
 
         newFrame->stride[0] = m_frameProp.width;
 
-        if (pixelFormatInclude(m_frameProp.cameraPixelFormat, PixelFormat::I420))
-        {
+        if (pixelFormatInclude(m_frameProp.cameraPixelFormat, PixelFormat::I420)) {
             newFrame->stride[1] = m_frameProp.width / 2;
             newFrame->stride[2] = m_frameProp.width / 2;
 
             newFrame->data[2] = sampleData + m_frameProp.width * m_frameProp.height * 5 / 4;
         }
-        else
-        {
+        else {
             newFrame->stride[1] = m_frameProp.width;
             newFrame->stride[2] = 0;
             newFrame->data[2] = nullptr;
         }
 
-        assert(newFrame->stride[0] * newFrame->height + newFrame->stride[1] * newFrame->height / 2 + newFrame->stride[2] * newFrame->height / 2 <= bufferLen);
+        assert(newFrame->stride[0] * newFrame->height + newFrame->stride[1] * newFrame->height / 2 +
+                   newFrame->stride[2] * newFrame->height / 2 <=
+               bufferLen);
     }
-    else
-    {
+    else {
         auto stride = m_frameProp.width * (m_frameProp.cameraPixelFormat & kPixelFormatAlphaColorBit ? 4 : 3);
         newFrame->stride[0] = ((stride + 3) / 4) * 4; // 4-byte aligned
         newFrame->stride[1] = 0;
@@ -961,16 +852,13 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
         assert(newFrame->stride[0] * newFrame->height <= bufferLen);
     }
 
-    if (!zeroCopy)
-    { // If convert fails, fallback to using sampleData, need to continue with zeroCopy logic
+    if (!zeroCopy) { // If convert fails, fallback to using sampleData, need to continue with zeroCopy logic
 
-        if (!newFrame->allocator)
-        {
+        if (!newFrame->allocator) {
             newFrame->allocator = m_allocatorFactory ? m_allocatorFactory() : std::make_shared<DefaultAllocator>();
         }
 
-        if (verboseLogEnabled())
-        {
+        if (verboseLogEnabled()) {
 #ifdef DEBUG
             constexpr const char* mode = "(Debug)";
 #else
@@ -985,8 +873,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
             static double s_allCostTime = 0;
             static double s_frames = 0;
 
-            if (s_frames > 60)
-            {
+            if (s_frames > 60) {
                 s_allCostTime = 0;
                 s_frames = 0;
             }
@@ -994,21 +881,18 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
             s_allCostTime += durInMs;
             ++s_frames;
 
-            CCAP_LOG_V("ccap: inplaceConvertFrame requested pixel format: %s, actual pixel format: %s, flip: %s, cost time %s: (cur %g ms, avg %g ms)\n",
-                       pixelFormatToString(m_frameProp.outputPixelFormat).data(),
-                       pixelFormatToString(m_frameProp.cameraPixelFormat).data(),
-                       shouldFlip ? "YES" : "NO",
-                       mode, durInMs, s_allCostTime / s_frames);
+            CCAP_LOG_V(
+                "ccap: inplaceConvertFrame requested pixel format: %s, actual pixel format: %s, flip: %s, cost time %s: (cur %g ms, avg %g ms)\n",
+                pixelFormatToString(m_frameProp.outputPixelFormat).data(), pixelFormatToString(m_frameProp.cameraPixelFormat).data(),
+                shouldFlip ? "YES" : "NO", mode, durInMs, s_allCostTime / s_frames);
         }
-        else
-        {
+        else {
             zeroCopy = !inplaceConvertFrame(newFrame.get(), m_frameProp.outputPixelFormat, shouldFlip);
         }
 
         newFrame->sizeInBytes = newFrame->stride[0] * newFrame->height + (newFrame->stride[1] + newFrame->stride[2]) * newFrame->height / 2;
     }
-    else
-    {
+    else {
         newFrame->sizeInBytes = bufferLen;
 
         mediaSample->AddRef(); // Ensure data lifecycle
@@ -1022,13 +906,12 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
 
     newFrame->frameIndex = m_frameIndex++;
 
-    if (ccap::verboseLogEnabled())
-    { // Usually camera interfaces are not called from multiple threads, and verbose log is for debugging, so no lock here.
+    if (ccap::verboseLogEnabled()) { // Usually camera interfaces are not called from multiple threads, and verbose log is for debugging, so
+                                     // no lock here.
         static uint64_t s_lastFrameTime;
         static std::deque<uint64_t> s_durations;
 
-        if (s_lastFrameTime != 0)
-        {
+        if (s_lastFrameTime != 0) {
             auto dur = newFrame->timestamp - s_lastFrameTime;
             s_durations.emplace_back(dur);
         }
@@ -1036,24 +919,22 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
         s_lastFrameTime = newFrame->timestamp;
 
         // use a window of 30 frames to calculate the fps
-        if (s_durations.size() > 30)
-        {
+        if (s_durations.size() > 30) {
             s_durations.pop_front();
         }
 
         double fps = 0.0;
 
-        if (!s_durations.empty())
-        {
+        if (!s_durations.empty()) {
             double sum = 0.0;
-            for (auto& d : s_durations)
-            {
+            for (auto& d : s_durations) {
                 sum += d / 1e9f;
             }
             fps = std::round(s_durations.size() / sum * 10) / 10.0;
         }
 
-        CCAP_LOG_V("ccap: New frame available: %lux%lu, bytes %lu, Data address: %p, fps: %g\n", newFrame->width, newFrame->height, newFrame->sizeInBytes, newFrame->data[0], fps);
+        CCAP_LOG_V("ccap: New frame available: %lux%lu, bytes %lu, Data address: %p, fps: %g\n", newFrame->width, newFrame->height,
+                   newFrame->sizeInBytes, newFrame->data[0], fps);
     }
 
     newFrameAvailable(std::move(newFrame));
@@ -1071,16 +952,13 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::QueryInterface(REFIID riid, _COM_O
 {
     static constexpr const IID IID_ISampleGrabberCB = { 0x0579154A, 0x2B53, 0x4994, { 0xB0, 0xD0, 0xE7, 0x73, 0x14, 0x8E, 0xFF, 0x85 } };
 
-    if (riid == IID_IUnknown)
-    {
+    if (riid == IID_IUnknown) {
         *ppvObject = static_cast<IUnknown*>(this);
     }
-    else if (riid == IID_ISampleGrabberCB)
-    {
+    else if (riid == IID_ISampleGrabberCB) {
         *ppvObject = static_cast<ISampleGrabberCB*>(this);
     }
-    else
-    {
+    else {
         *ppvObject = nullptr;
         return E_NOINTERFACE;
     }
@@ -1098,51 +976,44 @@ ULONG STDMETHODCALLTYPE ProviderDirectShow::Release()
     return S_OK;
 }
 
-bool ProviderDirectShow::isOpened() const
-{
-    return m_isOpened;
-}
+bool ProviderDirectShow::isOpened() const { return m_isOpened; }
 
 std::optional<DeviceInfo> ProviderDirectShow::getDeviceInfo() const
 {
     std::optional<DeviceInfo> info;
     bool hasMJPG = false;
 
-    const_cast<ProviderDirectShow*>(this)->enumerateMediaInfo([&](AM_MEDIA_TYPE* mediaType, const char* name, PixelFormat pixelFormat, const DeviceInfo::Resolution& resolution) {
-        if (!info)
-        {
-            info.emplace();
-            info->deviceName = m_deviceName;
-        }
+    const_cast<ProviderDirectShow*>(this)->enumerateMediaInfo(
+        [&](AM_MEDIA_TYPE* mediaType, const char* name, PixelFormat pixelFormat, const DeviceInfo::Resolution& resolution) {
+            if (!info) {
+                info.emplace();
+                info->deviceName = m_deviceName;
+            }
 
-        auto& pixFormats = info->supportedPixelFormats;
-        if (pixelFormat != PixelFormat::Unknown)
-        {
-            pixFormats.emplace_back(pixelFormat);
-        }
-        else if (mediaType->subtype == MEDIASUBTYPE_MJPG)
-        { // Supports MJPEG format, can be decoded to BGR24 and other formats
-            hasMJPG = true;
-        }
-        info->supportedResolutions.push_back(resolution);
-        return false; // continue enumerating
-    });
-
-    if (info)
-    {
-        auto& resolutions = info->supportedResolutions;
-        std::sort(resolutions.begin(), resolutions.end(), [](const DeviceInfo::Resolution& a, const DeviceInfo::Resolution& b) {
-            return a.width * a.height < b.width * b.height;
+            auto& pixFormats = info->supportedPixelFormats;
+            if (pixelFormat != PixelFormat::Unknown) {
+                pixFormats.emplace_back(pixelFormat);
+            }
+            else if (mediaType->subtype == MEDIASUBTYPE_MJPG) { // Supports MJPEG format, can be decoded to BGR24 and other formats
+                hasMJPG = true;
+            }
+            info->supportedResolutions.push_back(resolution);
+            return false; // continue enumerating
         });
-        resolutions.erase(std::unique(resolutions.begin(), resolutions.end(), [](const DeviceInfo::Resolution& a, const DeviceInfo::Resolution& b) {
-                              return a.width == b.width && a.height == b.height;
-                          }),
+
+    if (info) {
+        auto& resolutions = info->supportedResolutions;
+        std::sort(resolutions.begin(), resolutions.end(),
+                  [](const DeviceInfo::Resolution& a, const DeviceInfo::Resolution& b) { return a.width * a.height < b.width * b.height; });
+        resolutions.erase(std::unique(resolutions.begin(), resolutions.end(),
+                                      [](const DeviceInfo::Resolution& a, const DeviceInfo::Resolution& b) {
+                                          return a.width == b.width && a.height == b.height;
+                                      }),
                           resolutions.end());
 
         auto& pixFormats = info->supportedPixelFormats;
 
-        if (hasMJPG)
-        {
+        if (hasMJPG) {
             pixFormats.emplace_back(PixelFormat::BGR24);
             pixFormats.emplace_back(PixelFormat::BGRA32);
             pixFormats.emplace_back(PixelFormat::RGB24);
@@ -1159,50 +1030,41 @@ void ProviderDirectShow::close()
 {
     CCAP_LOG_V("ccap: ProviderDirectShow close called\n");
 
-    if (m_isRunning)
-    {
+    if (m_isRunning) {
         stop();
     }
 
-    if (m_sampleGrabber != nullptr)
-    {
+    if (m_sampleGrabber != nullptr) {
         std::lock_guard<std::mutex> lock(m_callbackMutex);
         m_sampleGrabber->SetCallback(nullptr, 0); // 0 = SampleCB
         m_sampleGrabber->SetBufferSamples(FALSE);
     }
 
-    if (m_mediaControl)
-    {
+    if (m_mediaControl) {
         m_mediaControl->Release();
         m_mediaControl = nullptr;
     }
-    if (m_sampleGrabber)
-    {
+    if (m_sampleGrabber) {
         m_sampleGrabber->Release();
         m_sampleGrabber = nullptr;
     }
-    if (m_sampleGrabberFilter)
-    {
+    if (m_sampleGrabberFilter) {
         m_sampleGrabberFilter->Release();
         m_sampleGrabberFilter = nullptr;
     }
-    if (m_deviceFilter)
-    {
+    if (m_deviceFilter) {
         m_deviceFilter->Release();
         m_deviceFilter = nullptr;
     }
-    if (m_dstNullFilter)
-    {
+    if (m_dstNullFilter) {
         m_dstNullFilter->Release();
         m_dstNullFilter = nullptr;
     }
-    if (m_captureBuilder)
-    {
+    if (m_captureBuilder) {
         m_captureBuilder->Release();
         m_captureBuilder = nullptr;
     }
-    if (m_graph)
-    {
+    if (m_graph) {
         m_graph->Release();
         m_graph = nullptr;
     }
@@ -1214,18 +1076,14 @@ void ProviderDirectShow::close()
 
 bool ProviderDirectShow::start()
 {
-    if (!m_isOpened)
-        return false;
-    if (!m_isRunning && m_mediaControl)
-    {
+    if (!m_isOpened) return false;
+    if (!m_isRunning && m_mediaControl) {
         HRESULT hr = m_mediaControl->Run();
         m_isRunning = !FAILED(hr);
-        if (!m_isRunning)
-        {
+        if (!m_isRunning) {
             CCAP_LOG_E("ccap: IMediaControl->Run() failed, hr=0x%08X\n", hr);
         }
-        else
-        {
+        else {
             CCAP_LOG_V("ccap: IMediaControl->Run() succeeded.\n");
         }
     }
@@ -1236,16 +1094,14 @@ void ProviderDirectShow::stop()
 {
     CCAP_LOG_V("ccap: ProviderDirectShow stop called\n");
 
-    if (m_grabFrameWaiting)
-    {
+    if (m_grabFrameWaiting) {
         CCAP_LOG_V("ccap: VideoFrame waiting stopped\n");
 
         m_grabFrameWaiting = false;
         m_frameCondition.notify_all();
     }
 
-    if (m_isRunning && m_mediaControl)
-    {
+    if (m_isRunning && m_mediaControl) {
         m_mediaControl->Stop();
         m_isRunning = false;
 
@@ -1253,15 +1109,9 @@ void ProviderDirectShow::stop()
     }
 }
 
-bool ProviderDirectShow::isStarted() const
-{
-    return m_isRunning && m_mediaControl;
-}
+bool ProviderDirectShow::isStarted() const { return m_isRunning && m_mediaControl; }
 
-ProviderImp* createProviderDirectShow()
-{
-    return new ProviderDirectShow();
-}
+ProviderImp* createProviderDirectShow() { return new ProviderDirectShow(); }
 
 } // namespace ccap
 #endif
