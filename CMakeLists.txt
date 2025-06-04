@@ -52,6 +52,16 @@ endif()
 
 include(CheckCXXCompilerFlag)
 
+# 检查OpenMP支持
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+    message(STATUS "ccap: OpenMP found, enabling parallel processing")
+    set(CCAP_HAS_OPENMP ON)
+else()
+    message(STATUS "ccap: OpenMP not found, using single-threaded processing")
+    set(CCAP_HAS_OPENMP OFF)
+endif()
+
 # 检查是否支持AVX2
 if(MSVC)
     check_cxx_compiler_flag("/arch:AVX2" CCAP_SUPPORTS_AVX2)
@@ -74,6 +84,12 @@ target_compile_definitions(ccap PUBLIC
     $<$<CONFIG:RelWithDebInfo>:NDEBUG=1>
     $<$<CONFIG:MinSizeRel>:NDEBUG=1>
 )
+
+# 添加OpenMP支持
+if(CCAP_HAS_OPENMP)
+    target_link_libraries(ccap PUBLIC OpenMP::OpenMP_CXX)
+    target_compile_definitions(ccap PUBLIC CCAP_HAS_OPENMP=1)
+endif()
 
 if(CCAP_NO_LOG)
     target_compile_definitions(ccap PUBLIC CCAP_NO_LOG=1)

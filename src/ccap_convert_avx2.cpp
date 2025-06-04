@@ -9,6 +9,19 @@
 
 #include <cassert>
 
+#ifdef CCAP_HAS_OPENMP
+#include <omp.h>
+
+// 设置OpenMP线程数为2（基于性能测试结果）
+inline void setOptimalThreadCount() {
+    static bool initialized = false;
+    if (!initialized) {
+        omp_set_num_threads(2);
+        initialized = true;
+    }
+}
+#endif
+
 #if ENABLE_AVX2_IMP
 /// macOS 上直接使用 Accelerate.framework, 暂时不需要单独实现
 #include <immintrin.h> // AVX2
@@ -131,9 +144,11 @@ void colorShuffle_avx2(const uint8_t* src, int srcStride, uint8_t* dst, int dstS
     if constexpr (inputChannels == 4 && outputChannels == 4) { // 只有 4 -> 4 才能使用 256 位的 AVX2 指令
         shuffle256 = _mm256_load_si256((const __m256i*)shuffleData);
     } else {
-        shuffle128 = _mm_load_si128((__m128i*)shuffleData);
-    }
+        shuffle128 = _mm_load_si128((__m128i*)shuffleData);    }
 
+#ifdef CCAP_HAS_OPENMP
+    #pragma omp parallel for schedule(static) if(height >= 480)
+#endif
     for (int y = 0; y < height; ++y) {
         const uint8_t* srcRow = src + y * srcStride;
         uint8_t* dstRow = dst + y * dstStride;
@@ -188,9 +203,7 @@ void colorShuffle_avx2(const uint8_t* src, int srcStride, uint8_t* dst, int dstS
                 _mm256_storeu_si256((__m256i*)(dstRow + x * outputChannels), result);
             }
 
-            x += patchSize;
-        }
-        // Handle remaining pixels
+            x += patchSize;        }        // Handle remaining pixels
         for (; x < (uint32_t)width; ++x) {
             for (int c = 0; c < outputChannels; ++c) {
                 if (inputChannels == 3 && c == 3) {
@@ -268,13 +281,12 @@ void nv12ToRgbaColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t
     __m256i c_r = _mm256_set1_epi16(cr);
     __m256i c_gu = _mm256_set1_epi16(cgu);
     __m256i c_gv = _mm256_set1_epi16(cgv);
-    __m256i c_b = _mm256_set1_epi16(cb);
+    __m256i c_b = _mm256_set1_epi16(cb);    __m256i c128 = _mm256_set1_epi16(128);
+    __m128i a8 = _mm_set1_epi8((char)255);    YuvToRgbFunc convertFunc = getYuvToRgbFunc(is601, isFullRange);
 
-    __m256i c128 = _mm256_set1_epi16(128);
-    __m128i a8 = _mm_set1_epi8((char)255);
-
-    YuvToRgbFunc convertFunc = getYuvToRgbFunc(is601, isFullRange);
-
+#ifdef CCAP_HAS_OPENMP
+    #pragma omp parallel for schedule(static) if(height >= 480)
+#endif
     for (int y = 0; y < height; ++y) {
         const uint8_t* yRow = srcY + y * srcYStride;
         const uint8_t* uvRow = srcUV + (y / 2) * srcUVStride;
@@ -410,8 +422,7 @@ void nv12ToRgbaColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t
                 dstRow[(x + 1) * 4 + 0] = r1;
                 dstRow[(x + 1) * 4 + 1] = g1;
                 dstRow[(x + 1) * 4 + 2] = b1;
-                dstRow[(x + 1) * 4 + 3] = 255;
-            }
+                dstRow[(x + 1) * 4 + 3] = 255;            }
         }
     }
 }
@@ -442,6 +453,9 @@ void _nv12ToRgbColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t
 
     YuvToRgbFunc convertFunc = getYuvToRgbFunc(is601, isFullRange);
 
+#ifdef CCAP_HAS_OPENMP
+    #pragma omp parallel for schedule(static) if(height >= 480)
+#endif
     for (int y = 0; y < height; ++y) {
         const uint8_t* yRow = srcY + y * srcYStride;
         const uint8_t* uvRow = srcUV + (y / 2) * srcUVStride;
@@ -585,6 +599,9 @@ void _i420ToRgba_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* sr
 
     YuvToRgbFunc convertFunc = getYuvToRgbFunc(is601, isFullRange);
 
+#ifdef CCAP_HAS_OPENMP
+    #pragma omp parallel for schedule(static) if(height >= 480)
+#endif
     for (int y = 0; y < height; ++y) {
         const uint8_t* yRow = srcY + y * srcYStride;
         const uint8_t* uRow = srcU + (y / 2) * srcUStride;
@@ -745,6 +762,9 @@ void _i420ToRgb_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* src
 
     YuvToRgbFunc convertFunc = getYuvToRgbFunc(is601, isFullRange);
 
+#ifdef CCAP_HAS_OPENMP
+    #pragma omp parallel for schedule(static) if(height >= 480)
+#endif
     for (int y = 0; y < height; ++y) {
         const uint8_t* yRow = srcY + y * srcYStride;
         const uint8_t* uRow = srcU + (y / 2) * srcUStride;

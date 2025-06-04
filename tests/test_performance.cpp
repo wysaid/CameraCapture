@@ -950,3 +950,137 @@ TEST_F(PerformanceTest, LibYUV_Feature_Detection) {
     // This is always a pass, just for information
     EXPECT_TRUE(true);
 }
+
+#ifdef CCAP_HAS_OPENMP
+#include <omp.h>
+
+TEST_F(PerformanceTest, OpenMP_MultiThreading_Performance) {
+    std::cout << "\n=== OpenMP Multi-Threading Performance ===" << std::endl;
+    
+    // 检测OpenMP支持和线程数
+    int max_threads = omp_get_max_threads();
+    std::cout << "[INFO] OpenMP Max Threads: " << max_threads << std::endl;
+    std::cout << "[INFO] Testing single vs multi-threaded performance" << std::endl;
+    
+    // 使用4K分辨率来更好地展示多线程优势
+    const int width = 3840;
+    const int height = 2160;
+    const int iterations = 3;
+    
+    // 创建测试数据
+    TestImage rgba_src(width, height, 4);
+    TestImage rgb_dst(width, height, 3);
+    rgba_src.fillGradient();
+    
+    TestYUVImage nv12_img(width, height, true); // NV12 format
+    nv12_img.generateGradient();
+    TestImage rgba_dst(width, height, 4);
+    
+    // 测试1: 色彩转换性能 (单线程 vs 多线程)
+    std::cout << "\n[TEST] Color Shuffle Performance (4K):" << std::endl;
+    
+    // 强制使用单线程
+    omp_set_num_threads(1);
+    benchmarkFunction("RGBA->RGB (4K) Single-Thread", [&]() {
+        ccap::rgbaToRgb(rgba_src.data(), rgba_src.stride(), rgb_dst.data(), rgb_dst.stride(), width, height);
+    }, iterations);
+    
+    // 使用多线程
+    omp_set_num_threads(max_threads);
+    benchmarkFunction("RGBA->RGB (4K) Multi-Thread", [&]() {
+        ccap::rgbaToRgb(rgba_src.data(), rgba_src.stride(), rgb_dst.data(), rgb_dst.stride(), width, height);
+    }, iterations);
+    
+    // 测试2: YUV转换性能 (单线程 vs 多线程)
+    std::cout << "\n[TEST] YUV Conversion Performance (4K):" << std::endl;
+    
+    // 强制使用单线程
+    omp_set_num_threads(1);
+    benchmarkFunction("NV12->RGBA (4K) Single-Thread", [&]() {
+        ccap::nv12ToRgba32(nv12_img.y_data(), nv12_img.y_stride(), 
+                          nv12_img.uv_data(), nv12_img.uv_stride(),
+                          rgba_dst.data(), rgba_dst.stride(), width, height,
+                          ccap::ConvertFlag::Default);
+    }, iterations);
+    
+    // 使用多线程
+    omp_set_num_threads(max_threads);
+    benchmarkFunction("NV12->RGBA (4K) Multi-Thread", [&]() {
+        ccap::nv12ToRgba32(nv12_img.y_data(), nv12_img.y_stride(), 
+                          nv12_img.uv_data(), nv12_img.uv_stride(),
+                          rgba_dst.data(), rgba_dst.stride(), width, height,
+                          ccap::ConvertFlag::Default);
+    }, iterations);
+    
+    // 恢复默认线程数设置
+    omp_set_num_threads(max_threads);
+    
+    std::cout << "\n[INFO] Multi-threading benefits are most apparent with:" << std::endl;
+    std::cout << "       - High resolution images (4K+)" << std::endl;
+    std::cout << "       - Multi-core processors" << std::endl;
+    std::cout << "       - Complex conversion operations" << std::endl;
+    std::cout << "==========================================" << std::endl;
+    
+    EXPECT_TRUE(true); // This test is informational
+}
+
+TEST_F(PerformanceTest, OpenMP_Scalability_Analysis) {
+    std::cout << "\n=== OpenMP Thread Scalability Analysis ===" << std::endl;
+    
+    int max_threads = omp_get_max_threads();
+    std::cout << "[INFO] Testing thread scalability from 1 to " << max_threads << " threads" << std::endl;
+    
+    // 使用4K分辨率
+    const int width = 3840;
+    const int height = 2160;
+    
+    TestYUVImage nv12_img(width, height, true);
+    nv12_img.generateGradient();
+    TestImage rgba_dst(width, height, 4);
+    
+    std::vector<double> thread_performance;
+    
+    for (int thread_count = 1; thread_count <= max_threads; thread_count++) {
+        omp_set_num_threads(thread_count);
+        
+        // 测量性能
+        PerformanceTimer timer;
+        timer.start();
+        
+        for (int i = 0; i < 3; ++i) {
+            ccap::nv12ToRgba32(nv12_img.y_data(), nv12_img.y_stride(), 
+                              nv12_img.uv_data(), nv12_img.uv_stride(),
+                              rgba_dst.data(), rgba_dst.stride(), width, height,
+                              ccap::ConvertFlag::Default);
+        }
+        
+        double avg_ms = timer.stopAndGetMs() / 3.0;
+        thread_performance.push_back(avg_ms);
+        
+        std::cout << std::fixed << std::setprecision(3);
+        std::cout << "[BENCHMARK] NV12->RGBA (4K) with " << thread_count 
+                  << " thread(s): " << avg_ms << "ms" << std::endl;
+    }
+    
+    // 计算效率
+    std::cout << "\n[ANALYSIS] Thread Efficiency:" << std::endl;
+    double single_thread_time = thread_performance[0];
+    
+    for (size_t i = 0; i < thread_performance.size(); ++i) {
+        int thread_count = static_cast<int>(i + 1);
+        double speedup = single_thread_time / thread_performance[i];
+        double efficiency = speedup / thread_count * 100.0;
+        
+        std::cout << std::fixed << std::setprecision(1);
+        std::cout << "  " << thread_count << " thread(s): " 
+                  << speedup << "x speedup, " 
+                  << efficiency << "% efficiency" << std::endl;
+    }
+    
+    // 恢复默认设置
+    omp_set_num_threads(max_threads);
+    
+    std::cout << "==========================================" << std::endl;
+    EXPECT_TRUE(true); // This test is informational
+}
+#endif // CCAP_HAS_OPENMP
