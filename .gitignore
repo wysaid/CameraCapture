@@ -2,3 +2,4 @@ build/
 *-build-*
 .idea/
 dev.cmake
+/install

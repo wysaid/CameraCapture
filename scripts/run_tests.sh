@@ -60,12 +60,12 @@ FILTER=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-    --functional)
+    -f | --functional)
         RUN_FUNCTIONAL=true
         RUN_PERFORMANCE=false
         shift
         ;;
-    --performance)
+    -p | --performance)
         RUN_FUNCTIONAL=false
         RUN_PERFORMANCE=true
         shift

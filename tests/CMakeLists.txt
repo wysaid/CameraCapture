@@ -36,7 +36,6 @@ FetchContent_MakeAvailable(libyuv)
 add_library(ccap_test_utils
     test_utils.cpp
     test_utils.h
-    test_utils_avx2.h
 )
 
 target_link_libraries(ccap_test_utils
@@ -62,66 +61,36 @@ if(MSVC)
     )
 endif()
 
-# Test executables
+# Test executables - Refactored and simplified
 add_executable(
     ccap_convert_test
-    test_convert_yuv_rgb.cpp
-    test_convert_color_shuffle.cpp
-    test_convert_yuv_format.cpp
-    test_convert_comprehensive.cpp
-    test_convert_platform_features.cpp
-    test_dual_implementation.cpp
     test_accuracy.cpp
-    test_debug_simple.cpp
+    test_color_conversions.cpp
+    test_yuv_conversions.cpp
+    test_platform_features.cpp
 )
 
-# Performance benchmarks (separate executable)
+target_link_libraries(
+    ccap_convert_test
+    ccap_test_utils
+    gtest_main
+)
+
+# Performance test executable - should be compiled in Release mode
 add_executable(
     ccap_performance_test
     test_performance.cpp
 )
 
-# Debug test executable
-add_executable(
-    ccap_debug_detailed_test
-    test_debug_detailed.cpp
-)
-
-# Debug shuffle map test
-add_executable(
-    ccap_debug_shuffle_test
-    test_debug_shuffle_map.cpp
-)
-
-target_link_libraries(
-    ccap_convert_test
-    ccap_test_utils
-    gtest_main
-)
-
 target_link_libraries(
     ccap_performance_test
     ccap_test_utils
     gtest_main
-    yuv # Add libyuv for performance comparison
+    yuv
 )
 
-# Add libyuv include directory for performance test
-target_include_directories(ccap_performance_test PRIVATE
-    ${libyuv_SOURCE_DIR}/include
-)
-
-target_link_libraries(
-    ccap_debug_detailed_test
-    ccap_test_utils
-    gtest_main
-)
-
-target_link_libraries(
-    ccap_debug_shuffle_test
-    ccap_test_utils
-    gtest_main
-)
+# Add LibYUV include directory for performance test
+target_include_directories(ccap_performance_test PRIVATE ${libyuv_SOURCE_DIR}/include)
 
 # Register tests with CTest
 include(GoogleTest)
@@ -134,27 +103,24 @@ set_target_properties(ccap_convert_test PROPERTIES
     CXX_STANDARD_REQUIRED ON
 )
 
+# Set performance test properties - optimize for Release builds
 set_target_properties(ccap_performance_test PROPERTIES
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED ON
 )
 
 # Add compile definitions for tests
-if(NOT MSVC)
-    target_compile_definitions(ccap_convert_test PRIVATE
-        GTEST_HAS_PTHREAD=1
-    )
-    target_compile_definitions(ccap_performance_test PRIVATE
-        GTEST_HAS_PTHREAD=1
-        CCAP_ENABLE_PERFORMANCE_TESTS=1
-        CCAP_ENABLE_LIBYUV_COMPARISON=1
-    )
-else()
-    target_compile_definitions(ccap_performance_test PRIVATE
-        CCAP_ENABLE_PERFORMANCE_TESTS=1
-        CCAP_ENABLE_LIBYUV_COMPARISON=1
-    )
-endif()
+target_compile_definitions(ccap_convert_test PRIVATE
+    $<$<CONFIG:Debug>:DEBUG> # Define DEBUG macro for Debug builds
+    $<$<CONFIG:Release>:NDEBUG> # Define NDEBUG macro for Release builds
+    $<$<NOT:$<BOOL:${MSVC}>>:GTEST_HAS_PTHREAD=1> # Enable pthread for non-MSVC compilers
+)
+
+target_compile_definitions(ccap_performance_test PRIVATE
+    $<$<CONFIG:Debug>:DEBUG> # Define DEBUG macro for Debug builds
+    $<$<CONFIG:Release>:NDEBUG> # Define NDEBUG macro for Release builds
+    $<$<NOT:$<BOOL:${MSVC}>>:GTEST_HAS_PTHREAD=1> # Enable pthread for non-MSVC compilers
+)
 
 # Enable testing
 enable_testing()
@@ -170,17 +136,24 @@ if(MSVC)
         /wd4996 # Disable deprecated function warnings
         /D_CRT_SECURE_NO_WARNINGS
     )
+
     target_compile_options(ccap_performance_test PRIVATE
         /MP
         /std:c++17
         /Zc:__cplusplus
         /Zc:preprocessor
         /source-charset:utf-8
-        /bigobj
-        /wd4996
+        /bigobj # Allow big object files
+        /wd4996 # Disable deprecated function warnings
         /D_CRT_SECURE_NO_WARNINGS
     )
+
 else()
-    target_compile_options(ccap_convert_test PRIVATE -std=c++17)
-    target_compile_options(ccap_performance_test PRIVATE -std=c++17)
+    target_compile_options(ccap_convert_test PRIVATE
+        -std=c++17
+    )
+    target_compile_options(ccap_performance_test PRIVATE
+        -std=c++17
+        -O3
+    )
 endif()

@@ -1,30 +1,24 @@
-# ccap Examples Build Instructions
+# ccap Examples
 
-## Desktop (Windows/macOS, etc.)
+## Desktop Examples
 
-Initialize and build as a standard CMake project to get the desktop demo:
+Build desktop examples using CMake:
 
-```sh
-cd /path/to/ccap_repo
-mkdir -p build && cd build
-cmake ..
+```bash
+cd ccap
+mkdir build && cd build
+cmake .. -DCCAP_BUILD_EXAMPLES=ON
 cmake --build .
 ```
 
-## iOS
+## iOS Example
 
-The `examples` directory contains a standard iOS project with CocoaPods support.
+Build iOS example using CocoaPods:
 
-Simply run `pod install` in the `examples` directory, then open the workspace file:
-
-```sh
-brew install cocoapods # Install cocoapods for iOS demo
-cd /path/to/ccap_repo
-cd examples
+```bash
+cd ccap/examples
 pod install
-open *.xcworkspace # Then use Xcode to build and run
+open *.xcworkspace
 ```
 
-## Android
-
-WIP...
+Build and run using Xcode.

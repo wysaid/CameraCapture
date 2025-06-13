@@ -15,12 +15,15 @@ if(CCAP_IS_ROOT_PROJECT)
     set(CMAKE_FETCHCONTENT_BASE_DIR "${CMAKE_SOURCE_DIR}/build" CACHE PATH "FetchContent base dir" FORCE)
 endif()
 
-project(ccap LANGUAGES CXX)
+project(ccap VERSION 1.0.0 LANGUAGES CXX)
 
 # Currently only Windows and macOS are supported; other platforms are not supported yet
 if(NOT WIN32 AND NOT APPLE)
     message(FATAL_ERROR "ccap: Unsupported platform, only Windows and macOS are supported by now.")
 endif()
+
+# Installation options
+option(CCAP_INSTALL "Generate installation target" ${CCAP_IS_ROOT_PROJECT})
 
 if(NOT DEFINED CMAKE_BUILD_TYPE AND NOT MSVC)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
@@ -66,7 +69,20 @@ if(CCAP_SUPPORTS_AVX2)
 endif()
 
 add_library(ccap ${LIB_SOURCE})
-target_include_directories(ccap PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+# Set library output name with debug suffix for MSVC
+if(MSVC)
+    set_target_properties(ccap PROPERTIES
+        OUTPUT_NAME "ccap"
+        OUTPUT_NAME_DEBUG "ccapd"
+        DEBUG_POSTFIX "d"
+    )
+endif()
+
+target_include_directories(ccap PUBLIC 
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
 target_compile_definitions(ccap PUBLIC
     $<$<NOT:$<CONFIG:Debug>>:NDEBUG=1>
     $<$<CONFIG:Debug>:DEBUG=1>
@@ -88,6 +104,12 @@ if(APPLE)
         "-framework CoreVideo"
         "-framework CoreMedia"
         "-framework Accelerate")
+    
+    # Set pkg-config private libs for macOS
+    set(PKG_CONFIG_LIBS_PRIVATE "Libs.private: -framework Foundation -framework AVFoundation -framework CoreVideo -framework CoreMedia -framework Accelerate")
+else()
+    # Windows or other platforms
+    set(PKG_CONFIG_LIBS_PRIVATE "")
 endif()
 
 if(MSVC)
@@ -122,4 +144,77 @@ if(CCAP_BUILD_TESTS)
     target_compile_definitions(ccap PUBLIC CCAP_BUILD_TESTS=1)
     enable_testing()
     add_subdirectory(tests)
+endif()
+
+# ############### Installation ################
+if(CCAP_INSTALL)
+    message(STATUS "ccap: Installing enabled")
+    
+    # Include necessary modules for installation
+    include(GNUInstallDirs)
+    include(CMakePackageConfigHelpers)
+    
+    # Set installation directories
+    set(CCAP_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
+    set(CCAP_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
+    set(CCAP_INSTALL_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/ccap)
+    
+    # Install the library
+    install(TARGETS ccap
+        EXPORT ccapTargets
+        LIBRARY DESTINATION ${CCAP_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CCAP_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CCAP_INSTALL_INCLUDEDIR}
+    )
+    
+    # Install header files
+    install(DIRECTORY include/
+        DESTINATION ${CCAP_INSTALL_INCLUDEDIR}
+        FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
+    )
+    
+    # Create and install package configuration files
+    configure_package_config_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/ccapConfig.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/ccapConfig.cmake"
+        INSTALL_DESTINATION ${CCAP_INSTALL_CMAKEDIR}
+        PATH_VARS CCAP_INSTALL_INCLUDEDIR CCAP_INSTALL_LIBDIR
+    )
+    
+    write_basic_package_version_file(
+        "${CMAKE_CURRENT_BINARY_DIR}/ccapConfigVersion.cmake"
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion
+    )
+    
+    # Install the configuration files
+    install(FILES 
+        "${CMAKE_CURRENT_BINARY_DIR}/ccapConfig.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/ccapConfigVersion.cmake"
+        DESTINATION ${CCAP_INSTALL_CMAKEDIR}
+    )
+    
+    # Install the targets file
+    install(EXPORT ccapTargets
+        FILE ccapTargets.cmake
+        NAMESPACE ccap::
+        DESTINATION ${CCAP_INSTALL_CMAKEDIR}
+    )
+    
+    # Generate pkg-config file
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/ccap.pc.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/ccap.pc"
+        @ONLY
+    )
+    
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/ccap.pc"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
+    )
+    
+    message(STATUS "ccap: Installation paths:")
+    message(STATUS "  Libraries: ${CMAKE_INSTALL_PREFIX}/${CCAP_INSTALL_LIBDIR}")
+    message(STATUS "  Headers: ${CMAKE_INSTALL_PREFIX}/${CCAP_INSTALL_INCLUDEDIR}")
+    message(STATUS "  CMake: ${CMAKE_INSTALL_PREFIX}/${CCAP_INSTALL_CMAKEDIR}")
 endif()

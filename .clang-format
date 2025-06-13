@@ -32,7 +32,7 @@ BreakBeforeTernaryOperators: false
 BreakConstructorInitializers: AfterColon
 BreakAfterJavaFieldAnnotations: true
 BreakStringLiterals: false
-ColumnLimit: 140
+ColumnLimit: 0
 CommentPragmas: '^ IWYU pragma:'
 CompactNamespaces: true
 ConstructorInitializerAllOnOneLineOrOnePerLine: true

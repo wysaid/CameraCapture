@@ -1,112 +1,271 @@
-# CameraCapture - 一个 C++ 轻量相机库
+# ccap (CameraCapture)
 
-[![windows Build](https://github.com/wysaid/CameraCapture/actions/workflows/windows-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/windows-build.yml) [![macos Build](https://github.com/wysaid/CameraCapture/actions/workflows/macos-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/macos-build.yml)
+[![Windows Build](https://github.com/wysaid/CameraCapture/actions/workflows/windows-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/windows-build.yml)
+[![macOS Build](https://github.com/wysaid/CameraCapture/actions/workflows/macos-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/macos-build.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![C++17](https://img.shields.io/badge/C++-17-blue.svg)](https://isocpp.org/)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20iOS-brightgreen)](https://github.com/wysaid/CameraCapture)
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
-## 概要
+高性能、轻量级的跨平台 C++ 相机捕获库，支持硬件加速的像素格式转换。
 
-ccap `(C)amera(CAP)ture` 是一个高效的、易用的、轻量级的 C++ 相机捕获库，旨在简化相机图像捕获和处理的过程。支持 Windows、MacOS、iOS 平台,
-除了系统自带的底层库之外, 不依赖 OpenCV 或者 FFmpeg 等任何其他大小第三方库。它提供了简单易用的 API，适合需要快速实现相机捕获功能的开发者。
+## 目录
 
-## 编译
+- [特性](#特性)
+- [快速开始](#快速开始)
+- [系统要求](#系统要求)
+- [示例代码](#示例代码)
+- [API 参考](#api-参考)
+- [测试](#测试)
+- [构建与安装](#构建与安装)
+- [许可证](#许可证)
 
-- Windows/MacOS:
-  - 支持 C++17 或更高版本的编译器 (MSVC 2019+/GCC 7.1+/Clang 5.0+)
-  - CMake 3.14 或更高版本
-  - 系统依赖:
-    - Windows: DirectShow (对于相机设备兼容性略好于 MSMF) / MSMF (后续版本提供)
-    - MacOS 10.13+: Foundation, AVFoundation, CoreVideo, CoreMedia, Accelerate
-- iOS:
-  - 最新版本的 XCode.
-  - 系统支持: iOS 13.0+
-- Android:
-  - 开发中...
+## 特性
 
-> [更多编译步骤](./examples/README.md)
+- **高性能**：硬件加速的像素格式转换，提升高达 10 倍性能（AVX2、Apple Accelerate）
+- **轻量级**：零外部依赖，仅使用系统框架
+- **跨平台**：Windows（DirectShow）、macOS/iOS（AVFoundation）
+- **多种格式**：RGB、BGR、YUV（NV12/I420）及自动转换
+- **生产就绪**：完整测试套件，95%+ 精度验证
+- **虚拟相机支持**：兼容 OBS Virtual Camera 等工具
 
-## 兼容性
+## 快速开始
 
-- 测试通过: Windows、macOS 两个平台的部分主流笔记本以及外接摄像头。
-- 测试通过: Windows、macOS 两个平台的 `OBS Virtual Camera`
-- 测试通过: 主流 iPhone 上的前后置主摄.
+### 安装
 
-> TODO: 支持 Android.
+```bash
+git clone https://github.com/wysaid/CameraCapture.git
+cd CameraCapture
+./scripts/build_and_install.sh
+```
 
-> 如果发现不支持的情况, 欢迎提供 PR 进行修复。
+### CMake 集成
 
-## 如何使用
+```cmake
+find_package(ccap REQUIRED)
+target_link_libraries(your_app ccap::ccap)
+```
 
-使用非常简单, 本项目提供一个头文件和一个静态库, 直接添加到你的项目中即可。
-也可以直接将本项目源码添加至你的项目
+### 基本用法
 
-本项目内置数个 Example, 可以直接参考:
+```cpp
+#include <ccap.h>
 
-1. [打印相机设备](./examples/desktop/0-print_camera.cpp)
-2. [抓取一帧的简单Example](./examples/desktop/1-minimal_example.cpp)
-3. [持续主动抓取帧的Example](./examples/desktop/2-capture_grab.cpp)
-4. [通过回调获取帧的Example](./examples/desktop/3-capture_callback.cpp)
-5. [基于 glfw 的 Gui Example](./examples/desktop/4-example_with_glfw.cpp)
-
-下面是使用代码参考:
-
-1. 启动相机， 并获取一帧数据:
-
-    ```cpp
-    ccap::Provider cameraProvider(""); // Pass empty string to open the default camera
-
-    if (cameraProvider.isStarted())
-    {
-        auto frame = cameraProvider.grab(true);
-        if (frame)
-        {
-            printf("VideoFrame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height, frame->sizeInBytes);
+int main() {
+    ccap::Provider provider;
+    
+    // 列出可用相机
+    auto devices = provider.findDeviceNames();
+    for (size_t i = 0; i < devices.size(); ++i) {
+        printf("[%zu] %s\n", i, devices[i].c_str());
+    }
+    
+    // 打开并启动相机
+    if (provider.open("", true)) {  // 空字符串 = 默认相机
+        auto frame = provider.grab(3000);  // 3 秒超时
+        if (frame) {
+            printf("捕获: %dx%d, %s 格式\n", 
+                   frame->width, frame->height,
+                   ccap::pixelFormatToString(frame->pixelFormat).data());
         }
     }
-    ```
+    return 0;
+}
+```
 
-2. 列举当前可用的相机设备名, 并打印出来
+## 系统要求
 
-    ```cpp
-    ccap::Provider cameraProvider;
-    if (auto deviceNames = cameraProvider.findDeviceNames(); !deviceNames.empty())
-    {
-        printf("## Found %zu video capture device: \n", deviceNames.size());
-        int deviceIndex = 0;
-        for (const auto& name : deviceNames)
-        {
-            printf("    %d: %s\n", deviceIndex++, name.c_str());
-        }
-    }
-    ```
+| 平台 | 编译器 | 系统要求 |
+|------|--------|----------|
+| **Windows** | MSVC 2019+ | DirectShow |
+| **macOS** | Xcode 11+ | macOS 10.13+ |
+| **iOS** | Xcode 11+ | iOS 13.0+ |
 
-## ccap::VideoFrame 和其他知名库一起使用
+**构建要求**：CMake 3.14+，C++17
 
-1. [OpenCV](include/ccap_opencv.h)
+## 示例代码
 
-## 常见问题 (FAQ)
+| 示例 | 描述 | 平台 |
+|------|------|------|
+| [0-print_camera](./examples/desktop/0-print_camera.cpp) | 列出可用相机 | 桌面端 |
+| [1-minimal_example](./examples/desktop/1-minimal_example.cpp) | 基本帧捕获 | 桌面端 |
+| [2-capture_grab](./examples/desktop/2-capture_grab.cpp) | 连续捕获 | 桌面端 |
+| [3-capture_callback](./examples/desktop/3-capture_callback.cpp) | 回调式捕获 | 桌面端 |
+| [4-example_with_glfw](./examples/desktop/4-example_with_glfw.cpp) | OpenGL 渲染 | 桌面端 |
+| [iOS Demo](./examples/ios/) | iOS 应用程序 | iOS |
 
-1. 如何选择 PixelFormat
+### 构建和运行示例
 
-    - 在 Windows 上， 不设置的情况下会默认选择 `BGR24`, 它一般来说会被支持. 如果要手动选择 YUV 格式, 那么 `NV12`、`I420` 这两者都可以.  
-    如果是虚拟相机 (比如 `Obs Virtual Camera`), 可能会跟虚拟相机所设置的输出格式有关。  
-    如果选择的格式不被支持, 那么底层会尝试进行格式转换, 会有一定的开销. 转换会尝试使用 AVX2 等方式加速, 如果加速不可用, 会使用纯 CPU 代码直接转换.
+```bash
+mkdir build && cd build
+cmake .. -DCCAP_BUILD_EXAMPLES=ON
+cmake --build .
 
-   - 在 Mac 上, 不设置的情况下会默认选择 `BGRA32`, 它一般来说会被支持. 如果要手动选择 YUV 格式, 那么 `NV12`、`NV12f`(Full-Range) 这两者都可以.  
-    如果是虚拟相机 (比如 `Obs Virtual Camera`), 可能会跟虚拟相机所设置的输出格式有关。  
-    如果选择的格式不被支持, 会使用 Accelerate Framework 进行转换.
+# 运行示例
+./0-print_camera
+./1-minimal_example
+```
 
-   > 当转换不被支持时, 会输出实际的格式, 可以从 `frame->pixelFormat` 获得.
+## API 参考
 
-2. 如何选择不同的相机设备
+### 核心类
 
-   创建了 `ccap::Provider` 之后, 可以通过 `findDeviceNames` 来获取可用的所有相机设备。
+#### ccap::Provider
 
-3. 如何运行时禁用所有的日志, 包括错误日志?
+```cpp
+class Provider {
+public:
+    // 构造函数
+    Provider();
+    Provider(std::string_view deviceName, std::string_view extraInfo = "");
+    Provider(int deviceIndex, std::string_view extraInfo = "");
+    
+    // 设备发现
+    std::vector<std::string> findDeviceNames();
+    
+    // 相机生命周期
+    bool open(std::string_view deviceName = "", bool autoStart = true);  
+    bool open(int deviceIndex, bool autoStart = true);
+    bool isOpened() const;
+    void close(); 
+    
+    // 捕获控制
+    bool start();
+    void stop();
+    bool isStarted() const;
+    
+    // 帧捕获
+    std::shared_ptr<VideoFrame> grab(uint32_t timeoutInMs = 0xffffffff);
+    void setNewFrameCallback(std::function<bool(const std::shared_ptr<VideoFrame>&)> callback);
+    
+    // 属性配置
+    bool set(PropertyName prop, double value);
+    template<class T> bool set(PropertyName prop, T value);
+    double get(PropertyName prop);
+    
+    // 设备信息和高级配置
+    std::optional<DeviceInfo> getDeviceInfo() const;
+    void setFrameAllocator(std::function<std::shared_ptr<Allocator>()> allocatorFactory);
+    void setMaxAvailableFrameSize(uint32_t size);
+    void setMaxCacheFrameSize(uint32_t size);
+};
+```
 
-   代码: `ccap::setLogLevel(ccap::LogLevel::None);`
+#### ccap::VideoFrame
 
-4. 如何在编译阶段去掉所有日志以减少包体积?
+```cpp
+struct VideoFrame {
+    
+    // 帧数据
+    uint8_t* data[3] = {};                  // 原始像素数据平面
+    uint32_t stride[3] = {};                // 每个平面的步长
+    
+    // 帧属性
+    PixelFormat pixelFormat = PixelFormat::Unknown;  // 像素格式
+    uint32_t width = 0;                     // 帧宽度（像素）
+    uint32_t height = 0;                    // 帧高度（像素）
+    uint32_t sizeInBytes = 0;               // 帧数据总大小
+    uint64_t timestamp = 0;                 // 帧时间戳（纳秒）
+    uint64_t frameIndex = 0;                // 唯一递增帧索引
+    FrameOrientation orientation = FrameOrientation::Default;  // 帧方向
+    
+    // 内存管理和平台特性
+    std::shared_ptr<Allocator> allocator;   // 内存分配器
+    void* nativeHandle = nullptr;           // 平台特定句柄
+};
+```
 
-   - 如果是编译本项目, 给 CMake 传入参数 `-DCCAP_NO_LOG=ON` 即可.
-   - 如果是引用源码, 编译时加上全局宏定义 `CCAP_NO_LOG=1` 即可.
+#### 配置选项
+
+```cpp
+enum class PropertyName {
+    Width, Height, FrameRate,
+    PixelFormatInternal,        // 相机内部格式
+    PixelFormatOutput,          // 输出格式（带转换）
+    FrameOrientation
+};
+
+enum class PixelFormat : uint32_t {
+    Unknown = 0,
+    NV12, NV12f,               // YUV 4:2:0 半平面
+    I420, I420f,               // YUV 4:2:0 平面
+    RGB24, BGR24,              // 24位 RGB/BGR
+    RGBA32, BGRA32             // 32位 RGBA/BGRA
+};
+```
+
+### 工具函数
+
+```cpp
+namespace ccap {
+    // 硬件能力检测
+    bool hasAVX2();
+    bool hasAppleAccelerate();
+    
+    // 后端管理
+    ConvertBackend getConvertBackend();
+    bool setConvertBackend(ConvertBackend backend);
+    
+    // 格式工具
+    std::string_view pixelFormatToString(PixelFormat format);
+    
+    // 文件操作
+    std::string dumpFrameToFile(VideoFrame* frame, std::string_view filename);
+    
+    // 日志
+    enum class LogLevel { None, Error, Warning, Info, Verbose };
+    void setLogLevel(LogLevel level);
+}
+```
+
+### OpenCV 集成
+
+```cpp
+#include <ccap_opencv.h>
+
+auto frame = provider.grab();
+cv::Mat mat = ccap::convertRgbFrameToMat(*frame);
+```
+
+### 精细配置
+
+```cpp
+// 设置特定分辨率
+provider.set(ccap::PropertyName::Width, 1920);
+provider.set(ccap::PropertyName::Height, 1080);
+
+// 设置相机内部实际使用的格式 (有助于明确行为以及优化性能)
+provider.set(ccap::PropertyName::PixelFormatInternal, 
+             static_cast<double>(ccap::PixelFormat::NV12));
+
+// 设置相机输出的实际格式
+provider.set(ccap::PropertyName::PixelFormatOutput, 
+             static_cast<double>(ccap::PixelFormat::BGR24));
+```
+
+## 测试
+
+完整的测试套件包含 50 个测试用例，覆盖所有功能：
+
+- 多后端测试（CPU、AVX2、Apple Accelerate）
+- 性能基准测试和精度验证
+- 像素格式转换 95%+ 精度保证
+
+```bash
+./scripts/run_tests.sh
+```
+
+## 构建与安装
+
+详细说明请参见 [BUILD_AND_INSTALL.md](./BUILD_AND_INSTALL.md)。
+
+```bash
+git clone https://github.com/wysaid/CameraCapture.git
+cd CameraCapture
+./scripts/build_and_install.sh
+```
+
+## 许可证
+
+MIT 许可证。详情请参见 [LICENSE](./LICENSE) 文件。

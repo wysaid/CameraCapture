@@ -5,13 +5,13 @@
 
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <memory>
 #include <random>
 #include <vector>
-#include <chrono>
 
 namespace ccap_test {
 
@@ -75,6 +75,8 @@ public:
     int height() const { return height_; }
     int y_stride() const { return y_stride_; }
     int uv_stride() const { return uv_stride_; }
+    int u_stride() const { return isNV12_ ? 0 : u_plane_.stride(); }  // For I420
+    int v_stride() const { return isNV12_ ? 0 : v_plane_.stride(); }  // For I420
 
     bool isNV12() const { return isNV12_; }
 
@@ -112,9 +114,6 @@ public:
     // Calculate PSNR between two images
     static double calculatePSNR(const uint8_t* img1, const uint8_t* img2, int width, int height, int channels, int stride1, int stride2);
 
-    // Verify RGB values are in valid range
-    static bool isValidRGB(int r, int g, int b);
-
     // Reference YUV to RGB conversion for testing
     static void yuv2rgbReference(int y, int u, int v, int& r, int& g, int& b, bool isBT709 = false, bool isFullRange = false);
 
@@ -139,12 +138,12 @@ public:
 
     /**
      * @brief Save debug images when a comparison fails
-     * @param img1 First image (e.g., AVX2 result)
-     * @param img2 Second image (e.g., CPU result)
+     * @param base_result First image (e.g., AVX2 result)
+     * @param test_result Second image (e.g., CPU result)
      * @param test_name Name of the test for filename generation
      * @param tolerance Tolerance used in comparison
      */
-    static void saveDebugImagesOnFailure(const TestImage& img1, const TestImage& img2, const std::string& test_name, int tolerance = 0);
+    static void saveDebugImagesOnFailure(const TestImage& base_result, const TestImage& test_result, const std::string& test_name, int tolerance = 0);
 };
 
 /**

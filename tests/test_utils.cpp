@@ -334,8 +334,6 @@ double PixelTestUtils::calculatePSNR(const uint8_t* img1, const uint8_t* img2, i
     return 20.0 * std::log10(max_pixel_value / std::sqrt(mse));
 }
 
-bool PixelTestUtils::isValidRGB(int r, int g, int b) { return r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255; }
-
 void PixelTestUtils::yuv2rgbReference(int y, int u, int v, int& r, int& g, int& b, bool isBT709, bool isFullRange) {
     // Reference implementation for comparison
     if (!isFullRange) {
@@ -522,21 +520,42 @@ void PixelTestUtils::saveDebugImagesOnFailure(const TestImage& img1, const TestI
 
     std::cout << "[DEBUG] Saving debug images for failed test: " << test_name << std::endl;
 
+    // Extract backend names from test_name if it contains comparison info
+    std::string img1_suffix, img2_suffix;
+    if (test_name.find("_CPU_vs_") != std::string::npos) {
+        // This is a CPU baseline comparison, img1=backend, img2=CPU
+        size_t vs_pos = test_name.find("_CPU_vs_");
+        std::string backend_name = test_name.substr(vs_pos + 8); // Extract backend name after "_CPU_vs_"
+        
+        // Clean up backend name for filename (replace spaces with underscores, remove duplicates)
+        std::replace(backend_name.begin(), backend_name.end(), ' ', '_');
+        
+        // Convert to lowercase for simpler filenames
+        std::transform(backend_name.begin(), backend_name.end(), backend_name.begin(), ::tolower);
+        
+        img1_suffix = backend_name + "_result";
+        img2_suffix = "cpu_result";
+    } else {
+        // Fallback to generic naming
+        img1_suffix = "expected";
+        img2_suffix = "error_result";
+    }
+
     // Save both original images
-    std::string img1_filename = "debug_" + safe_test_name + "_avx2_result";
-    std::string img2_filename = "debug_" + safe_test_name + "_cpu_result";
+    std::string img1_filename = "debug_" + safe_test_name + "_" + img1_suffix;
+    std::string img2_filename = "debug_" + safe_test_name + "_" + img2_suffix;
     std::string diff_filename = "debug_" + safe_test_name + "_difference";
 
     if (saveImageForDebug(img1, img1_filename)) {
-        std::cout << "[DEBUG] Saved AVX2 result: " << img1_filename << ".bmp" << std::endl;
+        std::cout << "[DEBUG] Saved " << img1_suffix << ": " << img1_filename << ".bmp" << std::endl;
     } else {
-        std::cout << "[ERROR] Failed to save AVX2 result image" << std::endl;
+        std::cout << "[ERROR] Failed to save " << img1_suffix << " image" << std::endl;
     }
 
     if (saveImageForDebug(img2, img2_filename)) {
-        std::cout << "[DEBUG] Saved CPU result: " << img2_filename << ".bmp" << std::endl;
+        std::cout << "[DEBUG] Saved " << img2_suffix << ": " << img2_filename << ".bmp" << std::endl;
     } else {
-        std::cout << "[ERROR] Failed to save CPU result image" << std::endl;
+        std::cout << "[ERROR] Failed to save " << img2_suffix << " image" << std::endl;
     }
 
     // Create and save difference image

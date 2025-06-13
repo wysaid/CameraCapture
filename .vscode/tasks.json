@@ -247,6 +247,22 @@
             "problemMatcher": "$gcc"
         },
         {
+            "label": "Run Functional Tests (Fast)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "run_tests.sh",
+                "--functional",
+                "--exit-when-failed",
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/scripts"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc"
+        },
+        {
             "label": "Run Performance Tests",
             "type": "shell",
             "command": "bash",
