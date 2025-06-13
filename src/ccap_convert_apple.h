@@ -10,36 +10,71 @@
 #if !defined(CCAP_CONVERT_APPLE_H) && defined(__APPLE__)
 #define CCAP_CONVERT_APPLE_H
 
+#include "ccap_convert.h"
+
 #include <cstdint>
 
-/// Apple's vImage does not support passing negative stride or height for vertical flipping,
-/// so the parameters are defined as uint32_t.
-
 namespace ccap {
+
 template <int inputChannels, int outputChannels, bool swapRB>
-void colorShuffle_apple(const uint8_t* src, uint32_t srcStride, uint8_t* dst, uint32_t dstStride, uint32_t width, uint32_t height);
+void colorShuffle_apple(const uint8_t* src, int srcStride,
+                        uint8_t* dst, int dstStride,
+                        int width, int height);
 
-void verticalFlip_apple(const uint8_t* src, uint32_t srcStride, uint8_t* dst, uint32_t dstStride, uint32_t width, uint32_t height);
-
-/**
- * @brief NV12 to BGRA8888.
- *
- * @tparam isFullRange true 表示 Full Range, false 表示 Video Range
- * @tparam isBT601 true 表示 BT.601, false 表示 BT.709
- */
-template <bool isFullRange, bool isBT601>
-void nv12ToBgra32_apple(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride, int width,
+/// @brief Vertical flip the image. Never pass negative height, it's nonsense here.
+void verticalFlip_apple(const uint8_t* src, int srcStride,
+                        uint8_t* dst, int dstStride,
                         int height);
 
 /**
- * @brief I420 to BGRA8888.
- *
- * @tparam isFullRange true 表示 Full Range, false 表示 Video Range
- * @tparam isBT601 true 表示 BT.601, false 表示 BT.709
+ * @brief NV12 to BGRA8888.
  */
-template <bool isFullRange, bool isBT601>
-void i420ToBgra32_apple(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
-                        uint8_t* dst, int dstStride, int width, int height);
+void nv12ToBgra32_apple(const uint8_t* srcY, int srcYStride,
+                        const uint8_t* srcUV, int srcUVStride,
+                        uint8_t* dst, int dstStride,
+                        int width, int height, ConvertFlag flag);
+
+void nv12ToRgba32_apple(const uint8_t* srcY, int srcYStride,
+                        const uint8_t* srcUV, int srcUVStride,
+                        uint8_t* dst, int dstStride,
+                        int width, int height, ConvertFlag flag);
+
+void nv12ToBgr24_apple(const uint8_t* srcY, int srcYStride,
+                       const uint8_t* srcUV, int srcUVStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height, ConvertFlag flag);
+
+void nv12ToRgb24_apple(const uint8_t* srcY, int srcYStride,
+                       const uint8_t* srcUV, int srcUVStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height, ConvertFlag flag);
+
+/**
+ * @brief I420 to BGRA8888.
+ */
+void i420ToBgra32_apple(const uint8_t* srcY, int srcYStride,
+                        const uint8_t* srcU, int srcUStride,
+                        const uint8_t* srcV, int srcVStride,
+                        uint8_t* dst, int dstStride,
+                        int width, int height, ConvertFlag flag);
+
+void i420ToRgba32_apple(const uint8_t* srcY, int srcYStride,
+                        const uint8_t* srcU, int srcUStride,
+                        const uint8_t* srcV, int srcVStride,
+                        uint8_t* dst, int dstStride,
+                        int width, int height, ConvertFlag flag);
+
+void i420ToBgr24_apple(const uint8_t* srcY, int srcYStride,
+                       const uint8_t* srcU, int srcUStride,
+                       const uint8_t* srcV, int srcVStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height, ConvertFlag flag);
+
+void i420ToRgb24_apple(const uint8_t* srcY, int srcYStride,
+                       const uint8_t* srcU, int srcUStride,
+                       const uint8_t* srcV, int srcVStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height, ConvertFlag flag);
 
 } // namespace ccap
 

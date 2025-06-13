@@ -40,9 +40,9 @@ void DefaultAllocator::resize(size_t size) {
 
     if (m_data) ALIGNED_FREE(m_data);
 
-    // 64字节对齐，size必须是对齐的倍数
-    size_t alignedSize = (size + 63) & ~size_t(63);
-    m_data = static_cast<uint8_t*>(ALIGNED_ALLOC(64, alignedSize));
+    // 32字节对齐，满足主流SIMD指令集需求(AVX)
+    size_t alignedSize = (size + 31) & ~size_t(31);
+    m_data = static_cast<uint8_t*>(ALIGNED_ALLOC(32, alignedSize));
     m_size = alignedSize;
     CCAP_LOG_V("ccap: Allocated %zu bytes of memory at %p\n", m_size, m_data);
 }
@@ -63,20 +63,23 @@ ProviderImp* createProvider(std::string_view extraInfo) {
     return nullptr;
 }
 
-Provider::Provider() : m_imp(createProvider("")) {}
+Provider::Provider() :
+    m_imp(createProvider("")) {}
 
 Provider::~Provider() {
     CCAP_LOG_V("ccap: Provider::~Provider() called, this=%p, imp=%p\n", this, m_imp);
     delete m_imp;
 }
 
-Provider::Provider(std::string_view deviceName, std::string_view extraInfo) : m_imp(createProvider(extraInfo)) {
+Provider::Provider(std::string_view deviceName, std::string_view extraInfo) :
+    m_imp(createProvider(extraInfo)) {
     if (m_imp) {
         open(deviceName);
     }
 }
 
-Provider::Provider(int deviceIndex, std::string_view extraInfo) : m_imp(createProvider(extraInfo)) {
+Provider::Provider(int deviceIndex, std::string_view extraInfo) :
+    m_imp(createProvider(extraInfo)) {
     if (m_imp) {
         open(deviceIndex);
     }

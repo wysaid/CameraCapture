@@ -117,7 +117,8 @@ protected:
 /// A lightweight class used to call the deleter function in the destructor of Frame
 class FakeFrame : std::enable_shared_from_this<FakeFrame> {
 public:
-    explicit FakeFrame(std::function<void()> deleter) : m_deleter(std::move(deleter)) {}
+    explicit FakeFrame(std::function<void()> deleter) :
+        m_deleter(std::move(deleter)) {}
     ~FakeFrame() {
         if (m_deleter) m_deleter();
     }

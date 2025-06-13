@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <memory>
 
 /**
  * @note All pixel conversion functions support writing with vertical flip when height is less than 0.
@@ -19,15 +20,60 @@
  *
  */
 
-namespace ccap
-{
+namespace ccap {
 // Check if AVX2 is available. If available, use AVX2 acceleration.
-bool hasAVX2();
-void disableAVX2(bool disable); // Disable AVX2 implementation, useful for testing
+bool hasAVX2(); // Check if AVX2 is supported by the CPU (hardware related)
+
+bool canUseAVX2(); // Check if AVX2 is enabled, useful for testing
+
+/**
+ * @brief Enable or disable AVX2 implementation.
+ * @param enable true to enable AVX2, false to disable.
+ * @return true if AVX2 is available and enabled, false otherwise.
+ */
+bool enableAVX2(bool enable); // Disable AVX2 implementation, useful for testing
+
+/// Check if Apple Accelerate is available. If available, use Apple Accelerate acceleration.
+bool hasAppleAccelerate();
+/// Check if Apple Accelerate is enabled, useful for testing
+bool canUseAppleAccelerate();
+/**
+ * @brief Enable or disable Apple Accelerate implementation.
+ *
+ * @param enable true to enable Apple Accelerate, false to disable.
+ * @return true if Apple Accelerate is available and enabled, false otherwise.
+ */
+bool enableAppleAccelerate(bool enable);
+
+enum class ConvertBackend : uint32_t {
+    AUTO,            ///< Automatically choose the best available backend
+    AVX2,            ///< AVX2 implementation
+    AppleAccelerate, ///< Apple Accelerate implementation
+    CPU,             ///< CPU implementation
+};
+
+/**
+ * @brief Check the current conversion backend that will be used.
+ *  If Apple Accelerate is available and enabled, returns AppleAccelerate.
+ *  If AVX2 is available and enabled, returns AVX2.
+ *  Otherwise returns CPU.
+ *
+ * @return ConvertBackend
+ */
+ConvertBackend getConvertBackend();
+
+/**
+ * @brief Set the Convert Backend.
+ *
+ * @param backend
+ * @return true if the backend was set successfully.
+ * @return false if the backend is not supported or the operation failed.
+ * Note: When setting ConvertBackend::AVX2, Apple Accelerate will be automatically disabled.
+ */
+bool setConvertBackend(ConvertBackend backend);
 
 /// @brief YUV 601 video-range to RGB (包含 video range 预处理)
-inline void yuv2rgb601v(int y, int u, int v, int& r, int& g, int& b)
-{
+inline void yuv2rgb601v(int y, int u, int v, int& r, int& g, int& b) {
     y = y - 16;  // video range Y 预处理
     u = u - 128; // 中心化 U
     v = v - 128; // 中心化 V
@@ -41,8 +87,7 @@ inline void yuv2rgb601v(int y, int u, int v, int& r, int& g, int& b)
 }
 
 /// @brief YUV 709 video-range to RGB (包含 video range 预处理)
-inline void yuv2rgb709v(int y, int u, int v, int& r, int& g, int& b)
-{
+inline void yuv2rgb709v(int y, int u, int v, int& r, int& g, int& b) {
     y = y - 16;  // video range Y 预处理
     u = u - 128; // 中心化 U
     v = v - 128; // 中心化 V
@@ -56,8 +101,7 @@ inline void yuv2rgb709v(int y, int u, int v, int& r, int& g, int& b)
 }
 
 /// @brief YUV 601 full-range to RGB (包含 full range 预处理)
-inline void yuv2rgb601f(int y, int u, int v, int& r, int& g, int& b)
-{
+inline void yuv2rgb601f(int y, int u, int v, int& r, int& g, int& b) {
     // full range: Y 不需要减 16
     u = u - 128; // 中心化 U
     v = v - 128; // 中心化 V
@@ -71,8 +115,7 @@ inline void yuv2rgb601f(int y, int u, int v, int& r, int& g, int& b)
 }
 
 /// @brief YUV 709 full-range to RGB (包含 full range 预处理)
-inline void yuv2rgb709f(int y, int u, int v, int& r, int& g, int& b)
-{
+inline void yuv2rgb709f(int y, int u, int v, int& r, int& g, int& b) {
     // full range: Y 不需要减 16
     u = u - 128; // 中心化 U
     v = v - 128; // 中心化 V
@@ -85,8 +128,7 @@ inline void yuv2rgb709f(int y, int u, int v, int& r, int& g, int& b)
     b = std::clamp(b, 0, 255);
 }
 
-enum class ConvertFlag
-{
+enum class ConvertFlag {
     BT601 = 0x1,                  ///< Use BT.601 color space
     BT709 = 0x2,                  ///< Use BT.709 color space
     FullRange = 0x10,             ///< Use full range color space
@@ -94,30 +136,22 @@ enum class ConvertFlag
     Default = BT601 | VideoRange, ///< Default conversion: BT.601 full range
 };
 
-inline bool operator&(ConvertFlag lhs, ConvertFlag rhs)
-{
-    return static_cast<bool>(static_cast<int>(lhs) & static_cast<int>(rhs));
-}
+inline bool operator&(ConvertFlag lhs, ConvertFlag rhs) { return static_cast<bool>(static_cast<int>(lhs) & static_cast<int>(rhs)); }
 
-inline ConvertFlag operator|(ConvertFlag lhs, ConvertFlag rhs)
-{
+inline ConvertFlag operator|(ConvertFlag lhs, ConvertFlag rhs) {
     return static_cast<ConvertFlag>(static_cast<int>(lhs) | static_cast<int>(rhs));
 }
 
 // 定义YUV到RGB转换函数指针类型
 typedef void (*YuvToRgbFunc)(int y, int u, int v, int& r, int& g, int& b);
 
-inline YuvToRgbFunc getYuvToRgbFunc(bool is601, bool isFullRange)
-{
-    if (is601)
-    {
+inline YuvToRgbFunc getYuvToRgbFunc(bool is601, bool isFullRange) {
+    if (is601) {
         if (isFullRange)
             return yuv2rgb601f;
         else
             return yuv2rgb601v;
-    }
-    else
-    {
+    } else {
         if (isFullRange)
             return yuv2rgb709f;
         else
@@ -129,63 +163,43 @@ inline YuvToRgbFunc getYuvToRgbFunc(bool is601, bool isFullRange)
 
 // swapRB indicates whether to swap Red and Blue channels
 template <int inputChannels, int outputChannels, int swapRB>
-void colorShuffle(const uint8_t* src, int srcStride,
-                  uint8_t* dst, int dstStride,
-                  int width, int height);
+void colorShuffle(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height);
 
-inline void rgbaToBgra(const uint8_t* src, int srcStride,
-                       uint8_t* dst, int dstStride,
-                       int width, int height)
-{
+inline void rgbaToBgra(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height) {
     colorShuffle<4, 4, true>(src, srcStride, dst, dstStride, width, height);
 }
 
 constexpr auto bgraToRgba = rgbaToBgra; // function alias
 
 // swap R and B, G not change, remove A
-inline void rgbaToBgr(const uint8_t* src, int srcStride,
-                      uint8_t* dst, int dstStride,
-                      int width, int height)
-{
+inline void rgbaToBgr(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height) {
     colorShuffle<4, 3, true>(src, srcStride, dst, dstStride, width, height);
 }
 
 constexpr auto bgraToRgb = rgbaToBgr;
 
 /// remove last channel
-inline void rgbaToRgb(const uint8_t* src, int srcStride,
-                      uint8_t* dst, int dstStride,
-                      int width, int height)
-{
+inline void rgbaToRgb(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height) {
     colorShuffle<4, 3, false>(src, srcStride, dst, dstStride, width, height);
 }
 
 constexpr auto bgra2bgr = rgbaToRgb;
 
 /// swap R and B, then add A(0xff)
-inline void rgbToBgra(const uint8_t* src, int srcStride,
-                      uint8_t* dst, int dstStride,
-                      int width, int height)
-{
+inline void rgbToBgra(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height) {
     colorShuffle<3, 4, true>(src, srcStride, dst, dstStride, width, height);
 }
 
 constexpr auto bgrToRgba = rgbToBgra;
 
 /// just add A(0xff)
-inline void rgbToRgba(const uint8_t* src, int srcStride,
-                      uint8_t* dst, int dstStride,
-                      int width, int height)
-{
+inline void rgbToRgba(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height) {
     colorShuffle<3, 4, false>(src, srcStride, dst, dstStride, width, height);
 }
 
 constexpr auto bgrToBgra = rgbToRgba;
 
-inline void rgbToBgr(const uint8_t* src, int srcStride,
-                     uint8_t* dst, int dstStride,
-                     int width, int height)
-{
+inline void rgbToBgr(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height) {
     colorShuffle<3, 3, true>(src, srcStride, dst, dstStride, width, height);
 }
 
@@ -237,6 +251,13 @@ void i420ToRgba32(const uint8_t* srcY, int srcYStride,
                   uint8_t* dst, int dstStride,
                   int width, int height, ConvertFlag flag = ConvertFlag::Default);
 
+class Allocator;
+/// @brief Used to store some intermediate results, avoiding repeated memory allocation.
+/// If no shared memory allocator is set externally, use the default allocator.
+/// @return A shared pointer to the current shared memory allocator. (Will not be nullptr)
+std::shared_ptr<ccap::Allocator> getSharedAllocator();
+/// @brief Release the shared memory allocator.
+void resetSharedAllocator();
 } // namespace ccap
 
 #endif // CCAP_CONVERT_H

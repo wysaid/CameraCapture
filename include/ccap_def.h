@@ -41,8 +41,9 @@ namespace ccap
 {
 enum PixelFormatConstants : uint32_t
 {
-    /// `kPixelFormatRGBBit` and `kPixelFormatBGRBit` are used to distinguish the order of R-G-B channels
+    /// `kPixelFormatRGBBit` indicates that the pixel format is RGB or RGBA.
     kPixelFormatRGBBit = 1 << 3,
+    /// `kPixelFormatRGBBit` indicates that the pixel format is BGR or BGRA.
     kPixelFormatBGRBit = 1 << 4,
 
     /// Color Bit Mask
@@ -50,10 +51,12 @@ enum PixelFormatConstants : uint32_t
     kPixelFormatFullRangeBit = 1 << 17,
     kPixelFormatYUVColorFullRangeBit = kPixelFormatFullRangeBit | kPixelFormatYUVColorBit,
 
-    /// `kPixelFormatRGBColorBit` is used to indicate whether it is an RGB or RGBA format
+    /// `kPixelFormatRGBColorBit` indicates that the pixel format is RGB/RGBA/BGR/BGRA. 
+    /// Which means it has RGB or RGBA color channels, and is not a YUV format.
     kPixelFormatRGBColorBit = 1 << 18,
 
     /// `kPixelFormatAlphaColorBit` is used to indicate whether there is an Alpha channel
+    /// Which means the pixel format is RGBA or BGRA.
     kPixelFormatAlphaColorBit = 1 << 19,
     kPixelFormatRGBAColorBit = kPixelFormatRGBColorBit | kPixelFormatAlphaColorBit,
 };

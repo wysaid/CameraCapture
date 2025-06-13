@@ -53,9 +53,9 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
 
     if (hasAlpha) {
         // 32bpp, BITMAPV4HEADER
-        unsigned char info[108] = { 108,  0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    1,    0,
-                                    32,   0,    3,    0,    0,    0,    0,    0,    0,    0,    0x13, 0x0B, 0,    0,
-                                    0x13, 0x0B, 0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0x00, 0x00,
+        unsigned char info[108] = { 108, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+                                    32, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0x13, 0x0B, 0, 0,
+                                    0x13, 0x0B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x00, 0x00,
                                     0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF };
         auto sizeData = lineSize * h;
         (uint32_t&)file[2] = sizeof(file) + sizeof(info) + sizeData;
@@ -101,8 +101,8 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
         }
     } else {
         // 24bpp, BITMAPINFOHEADER
-        unsigned char info[40] = { 40, 0, 0, 0, 0,    0,    0, 0, 0,    0,    0, 0, 1, 0, 24, 0, 0, 0, 0, 0,
-                                   0,  0, 0, 0, 0x13, 0x0B, 0, 0, 0x13, 0x0B, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0 };
+        unsigned char info[40] = { 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 24, 0, 0, 0, 0, 0,
+                                   0, 0, 0, 0, 0x13, 0x0B, 0, 0, 0x13, 0x0B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
         auto sizeData = lineSize * h;
         (uint32_t&)file[2] = sizeof(file) + sizeof(info) + sizeData;

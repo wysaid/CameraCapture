@@ -12,13 +12,17 @@
 #include <cmath>
 
 namespace ccap {
+void resetSharedAllocator();
+
 uint8_t* DefaultAllocator::data() { return m_data; }
 
 size_t DefaultAllocator::size() { return m_size; }
 
 ProviderImp::ProviderImp() {}
 
-ProviderImp::~ProviderImp() = default;
+ProviderImp::~ProviderImp() {
+    ccap::resetSharedAllocator();
+}
 
 bool ProviderImp::set(PropertyName prop, double value) {
     auto lastProp = m_frameProp;
