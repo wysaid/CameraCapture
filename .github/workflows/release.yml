@@ -1,0 +1,304 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'        # 正式版本 (v1.0.0)
+      - 'v*.*.*-beta*'  # Beta 版本 (v1.0.0-beta.1)
+      - 'v*.*.*-alpha*' # Alpha 版本 (v1.0.0-alpha.1)
+      - 'v*.*.*-rc*'    # Release Candidate (v1.0.0-rc.1)
+  
+  # 添加手动触发选项用于测试
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号 (例如: v1.0.0-test)'
+        required: true
+        default: 'v0.1.0-test'
+      create_release:
+        description: '是否创建 GitHub Release'
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            name: macOS
+            artifact_name: ccap-macos-universal
+            build_type: Release
+            
+          - os: windows-latest
+            name: Windows
+            artifact_name: ccap-msvc-x86_64
+            
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+        
+    - name: Setup Visual Studio (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: microsoft/setup-msbuild@v1.1
+      
+    - name: Configure CMake
+      shell: bash
+      run: |
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          # Windows: 使用多配置生成器 (Visual Studio)
+          cmake -B build -G "Visual Studio 17 2022" -A x64 -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF
+        else
+          # 其他平台: 使用单配置生成器
+          cmake -B build -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64' -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF
+        fi
+        
+    - name: Build project
+      shell: bash
+      run: |
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          # Windows: 构建 Debug 和 Release 两个版本
+          cmake --build build --config Debug --parallel
+          cmake --build build --config Release --parallel
+        else
+          # 其他平台: 构建指定版本
+          cmake --build build --config ${{ matrix.build_type }} --parallel
+        fi
+        
+    - name: List build outputs (Windows Debug)
+      if: matrix.os == 'windows-latest'
+      shell: bash
+      run: |
+        echo "=== Debug build outputs ==="
+        find build/Debug -name "*.lib" -o -name "*.dll" -o -name "*.exe" | head -20
+        echo "=== Release build outputs ==="
+        find build/Release -name "*.lib" -o -name "*.dll" -o -name "*.exe" | head -20
+        
+    - name: Prepare package directory
+      shell: bash
+      run: |
+        mkdir -p package/lib
+        mkdir -p package/include
+        mkdir -p package/examples
+        mkdir -p package/cmake
+        
+    - name: Copy libraries (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: bash
+      run: |
+        # 复制 Debug 版本库文件（通过 DEBUG_POSTFIX "d" 生成的 ccapd.lib）
+        cp build/Debug/ccapd.lib package/lib/ccapd.lib || echo "Debug static library not found"
+        
+        # 复制 Release 版本库文件，保持 ccap.lib 名称
+        cp build/Release/ccap.lib package/lib/ccap.lib || echo "Release static library not found"
+        
+        # 复制动态库（如果存在）
+        cp build/Debug/ccapd.dll package/lib/ccapd.dll || echo "Debug dynamic library not found"
+        cp build/Release/ccap.dll package/lib/ccap.dll || echo "Release dynamic library not found"
+        
+        # 复制示例程序（两个版本都放在 examples 目录）
+        mkdir -p package/examples/Debug
+        mkdir -p package/examples/Release
+        cp build/Debug/*.exe package/examples/Debug/ || echo "Debug examples not found"
+        cp build/Release/*.exe package/examples/Release/ || echo "Release examples not found"
+        
+    - name: Copy libraries (macOS)
+      if: matrix.os == 'macos-latest'
+      shell: bash
+      run: |
+        # 复制静态库
+        cp build/libccap.a package/lib/ || echo "Static library not found"
+        
+        # 复制动态库（如果存在）
+        cp build/libccap.dylib package/lib/ || echo "Dynamic library not found"
+        
+        # 复制示例程序
+        find build -name "*-print_camera" -exec cp {} package/examples/ \; || echo "Examples not found"
+        find build -name "*-minimal_example" -exec cp {} package/examples/ \; || echo "Examples not found"
+        find build -name "*-capture_grab" -exec cp {} package/examples/ \; || echo "Examples not found"
+        find build -name "*-capture_callback" -exec cp {} package/examples/ \; || echo "Examples not found"
+        find build -name "*-example_with_glfw" -exec cp {} package/examples/ \; || echo "Examples not found"
+        
+    - name: Copy headers and other files
+      shell: bash
+      run: |
+        # 复制头文件
+        cp -r include/* package/include/
+        
+        # 复制 CMake 配置文件
+        cp build/ccap*.cmake package/cmake/ || echo "CMake config files not found"
+        cp build/ccap.pc package/ || echo "pkg-config file not found"
+        
+        # 复制文档
+        cp README.md package/ || echo "README not found"
+        cp README.zh-CN.md package/ || echo "Chinese README not found"
+        cp LICENSE package/ || echo "LICENSE not found"
+        cp BUILD_AND_INSTALL.md package/ || echo "Build instructions not found"
+        cp PACKAGE_USAGE.md package/ || echo "Package usage guide not found"
+        
+        # 复制示例源码
+        cp examples/desktop/*.cpp package/examples/ || echo "Example source files not found"
+        
+    - name: Verify package contents (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: bash
+      run: |
+        echo "=== Package contents ==="
+        find package -name "*.lib" -o -name "*.dll" -o -name "*.exe" | sort
+        echo "=== lib directory ==="
+        ls -la package/lib/ || echo "lib directory not found"
+        
+    - name: Create archive
+      shell: bash
+      run: |
+        cd package
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          # Windows: 创建 ZIP 文件
+          7z a ../${{ matrix.artifact_name }}.zip ./*
+        else
+          # macOS: 创建 tar.gz 文件
+          tar -czf ../${{ matrix.artifact_name }}.tar.gz .
+        fi
+        cd ..
+        
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: ${{ matrix.artifact_name }}.*
+        retention-days: 5
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      
+    - name: List downloaded files
+      shell: bash
+      run: |
+        echo "Downloaded artifacts:"
+        find . -name "ccap-*" -type f
+        
+    - name: Determine release type
+      id: release_type
+      shell: bash
+      run: |
+        # 获取版本号（从标签或手动输入）
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          TAG_NAME="${{ github.event.inputs.version }}"
+          echo "Manual trigger with version: $TAG_NAME"
+        else
+          TAG_NAME="${{ github.ref_name }}"
+          echo "Tag trigger with version: $TAG_NAME"
+        fi
+        
+        echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+        
+        if [[ "$TAG_NAME" =~ -beta ]]; then
+          echo "prerelease=true" >> $GITHUB_OUTPUT
+          echo "release_name=Beta Release $TAG_NAME" >> $GITHUB_OUTPUT
+        elif [[ "$TAG_NAME" =~ -alpha ]]; then
+          echo "prerelease=true" >> $GITHUB_OUTPUT
+          echo "release_name=Alpha Release $TAG_NAME" >> $GITHUB_OUTPUT
+        elif [[ "$TAG_NAME" =~ -rc ]]; then
+          echo "prerelease=true" >> $GITHUB_OUTPUT
+          echo "release_name=Release Candidate $TAG_NAME" >> $GITHUB_OUTPUT
+        elif [[ "$TAG_NAME" =~ -test ]]; then
+          echo "prerelease=true" >> $GITHUB_OUTPUT
+          echo "release_name=Test Build $TAG_NAME" >> $GITHUB_OUTPUT
+        else
+          echo "prerelease=false" >> $GITHUB_OUTPUT
+          echo "release_name=Release $TAG_NAME" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Generate release notes
+      id: release_notes
+      shell: bash
+      run: |
+        cat > release_notes.md << 'EOF'
+        ## 🚀 ccap ${{ steps.release_type.outputs.tag_name }}
+        
+        ### 📦 下载
+        
+        **支持的平台：**
+        - **macOS** (Universal Binary - 支持 Intel & Apple Silicon): `ccap-macos-universal.tar.gz`
+        - **Windows** (MSVC x64 - 包含 Debug 和 Release 版本): `ccap-msvc-x86_64.zip`
+        
+        ### 📁 包含内容
+        
+        - **库文件**: 静态库文件用于链接
+          - Windows: `lib/ccap.lib` (Release 版本) 和 `lib/ccapd.lib` (Debug 版本)
+          - macOS: `lib/libccap.a` (Universal Binary)
+        - **头文件**: 完整的 C++ API 头文件
+        - **示例程序**: 5个完整的使用示例
+          - Windows: `examples/Release/` 和 `examples/Debug/` 目录分别包含对应版本
+          - macOS: `examples/` 目录包含可执行文件
+        - **示例源码**: 可以直接编译的示例代码
+        - **文档**: README 和构建说明
+        - **CMake 配置**: 便于集成到其他 CMake 项目
+        
+        ### 🔧 使用方法
+        
+        1. 下载对应平台的压缩包
+        2. 解压到项目目录
+        3. 将 `include` 目录添加到编译器的包含路径
+        4. 链接对应版本的库文件：
+           - **Windows Debug**: 链接 `lib/ccapd.lib`
+           - **Windows Release**: 链接 `lib/ccap.lib`
+           - **macOS**: 链接 `lib/libccap.a`
+        5. 参考 `examples` 目录中的示例代码
+        
+        ### 📋 系统要求
+        
+        - **macOS**: 10.13 或更高版本
+        - **Windows**: Windows 10 或更高版本 (需要 Visual C++ Redistributable)
+        
+        ---
+        
+        完整的更新日志请查看下方的自动生成内容。
+        EOF
+        
+    - name: Create GitHub Release
+      # 只有在标签触发或者手动触发且选择创建 Release 时才执行
+      if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.release_type.outputs.tag_name }}
+        name: ${{ steps.release_type.outputs.release_name }}
+        body_path: release_notes.md
+        files: |
+          */ccap-*.zip
+          */ccap-*.tar.gz
+        draft: false
+        prerelease: ${{ steps.release_type.outputs.prerelease }}
+        generate_release_notes: true
+        make_latest: ${{ steps.release_type.outputs.prerelease == 'false' }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Summary
+      shell: bash
+      run: |
+        echo "## 🎉 Release Created Successfully!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Release**: ${{ steps.release_type.outputs.release_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Tag**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Prerelease**: ${{ steps.release_type.outputs.prerelease }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📦 包含的文件:" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-macos-universal.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-msvc-x86_64.zip (包含 Debug 和 Release 版本)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "发布页面: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY

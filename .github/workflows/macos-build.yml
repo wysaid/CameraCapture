@@ -14,7 +14,6 @@ jobs:
     strategy:
       matrix:
         config: [Debug, Release]
-        no_log: [OFF, ON]
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
@@ -22,14 +21,13 @@ jobs:
       run: |
         mkdir -p build/${{ matrix.config }}
         cd build/${{ matrix.config }}
-        cmake ../.. -DCMAKE_BUILD_TYPE=${{ matrix.config }} -DCCAP_NO_LOG=${{ matrix.no_log }} -DCCAP_BUILD_TESTS=ON
+        cmake ../.. -DCMAKE_BUILD_TYPE=${{ matrix.config }} -DCCAP_BUILD_TESTS=ON
     - name: Build
       run: |
         cd build/${{ matrix.config }}
         cmake --build . --config ${{ matrix.config }} --parallel
       
     - name: Run Unit Tests
-      if: matrix.no_log == 'OFF'
       run: |
         cd scripts
         if [ "${{ matrix.config }}" == "Debug" ]; then
@@ -41,9 +39,9 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ccap-macOS-${{ matrix.config }}-NO_LOG_${{ matrix.no_log }}
+        name: ccap-macOS-${{ matrix.config }}
         path: |
-          build/${{ matrix.config }}/libCameraCapture.a
+          build/${{ matrix.config }}/libccap.a
           build/${{ matrix.config }}/0-print_camera
           build/${{ matrix.config }}/1-minimal_example
           build/${{ matrix.config }}/2-capture_grab

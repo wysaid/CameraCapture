@@ -74,7 +74,6 @@ add_library(ccap ${LIB_SOURCE})
 if(MSVC)
     set_target_properties(ccap PROPERTIES
         OUTPUT_NAME "ccap"
-        OUTPUT_NAME_DEBUG "ccapd"
         DEBUG_POSTFIX "d"
     )
 endif()
