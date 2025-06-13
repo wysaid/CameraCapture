@@ -28,44 +28,66 @@
 namespace ccap {
 bool hasAVX2();
 
-void disableAVX2(bool disable); // Disable AVX2 implementation, useful for testing
+bool enableAVX2(bool enable); // Disable AVX2 implementation, useful for testing
 
 #if ENABLE_AVX2_IMP
 
 template <int inputChannels, int outputChannels, int swapRB>
-void colorShuffle_avx2(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height);
+void colorShuffle_avx2(const uint8_t* src, int srcStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height);
 
 // NV12 to BGRA32, AVX2 accelerated
-void nv12ToBgra32_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride, int width,
-                       int height, ConvertFlag flag);
+void nv12ToBgra32_avx2(const uint8_t* srcY, int srcYStride,
+                       const uint8_t* srcUV, int srcUVStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height, ConvertFlag flag);
 
 // NV12 to RGBA32, AVX2 accelerated
-void nv12ToRgba32_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride, int width,
-                       int height, ConvertFlag flag);
+void nv12ToRgba32_avx2(const uint8_t* srcY, int srcYStride,
+                       const uint8_t* srcUV, int srcUVStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height, ConvertFlag flag);
 
 // NV12 to BGR24, AVX2 accelerated
-void nv12ToBgr24_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride, int width,
-                      int height, ConvertFlag flag);
+void nv12ToBgr24_avx2(const uint8_t* srcY, int srcYStride,
+                      const uint8_t* srcUV, int srcUVStride,
+                      uint8_t* dst, int dstStride,
+                      int width, int height, ConvertFlag flag);
 
 // NV12 to RGB24, AVX2 accelerated
-void nv12ToRgb24_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride, int width,
-                      int height, ConvertFlag flag);
+void nv12ToRgb24_avx2(const uint8_t* srcY, int srcYStride,
+                      const uint8_t* srcUV, int srcUVStride,
+                      uint8_t* dst, int dstStride,
+                      int width, int height, ConvertFlag flag);
 
 // I420 to BGRA32, AVX2 accelerated
-void i420ToBgra32_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
-                       uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag);
+void i420ToBgra32_avx2(const uint8_t* srcY, int srcYStride,
+                       const uint8_t* srcU, int srcUStride,
+                       const uint8_t* srcV, int srcVStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height, ConvertFlag flag);
 
 // I420 to RGBA32, AVX2 accelerated
-void i420ToRgba32_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
-                       uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag);
+void i420ToRgba32_avx2(const uint8_t* srcY, int srcYStride,
+                       const uint8_t* srcU, int srcUStride,
+                       const uint8_t* srcV, int srcVStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height, ConvertFlag flag);
 
 // I420 to BGR24, AVX2 accelerated
-void i420ToBgr24_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
-                      uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag);
+void i420ToBgr24_avx2(const uint8_t* srcY, int srcYStride,
+                      const uint8_t* srcU, int srcUStride,
+                      const uint8_t* srcV, int srcVStride,
+                      uint8_t* dst, int dstStride,
+                      int width, int height, ConvertFlag flag);
 
 // I420 to RGB24, AVX2 accelerated
-void i420ToRgb24_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
-                      uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag);
+void i420ToRgb24_avx2(const uint8_t* srcY, int srcYStride,
+                      const uint8_t* srcU, int srcUStride,
+                      const uint8_t* srcV, int srcVStride,
+                      uint8_t* dst, int dstStride,
+                      int width, int height, ConvertFlag flag);
 #else
 
 #define nv12ToBgr24_avx2(...) assert(0 && "AVX2 not supported")

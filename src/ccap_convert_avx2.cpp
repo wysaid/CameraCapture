@@ -58,16 +58,24 @@ inline bool hasAVX2_() { return false; }
 namespace ccap {
 bool sEnableAVX2 = true;
 
-void disableAVX2(bool disable) { sEnableAVX2 = !disable; }
+bool enableAVX2(bool enable) {
+    sEnableAVX2 = enable;
+    return hasAVX2(); // 重新检查 AVX2 支持
+}
 
 bool hasAVX2() {
 #if ENABLE_AVX2_IMP
     static bool s_hasAVX2 = hasAVX2_();
-    return s_hasAVX2 && sEnableAVX2;
+    return s_hasAVX2;
 #else
     return false;
 #endif
 }
+
+bool canUseAVX2() {
+    return hasAVX2() && sEnableAVX2;
+}
+
 #if ENABLE_AVX2_IMP
 
 template <int inputChannels, int outputChannels, int swapRB>
@@ -168,8 +176,8 @@ void colorShuffle_avx2(const uint8_t* src, int srcStride, uint8_t* dst, int dstS
 
                 _mm_storeu_si128((__m128i*)(dstRow + x * outputChannels), result_lo); // 写入了 16 字节，但实际上只有前 12 字节有用
                 alignas(16) uint8_t remainBuffer[16];
-                _mm_store_si128((__m128i*)remainBuffer, result_hi);         // 暂存一下, 16 字节
-                memcpy(dstRow + x * outputChannels + 12, remainBuffer, 12); // 手动补齐, 覆盖多余的 4 字节， 补齐剩下 12 字节, 刚好 24 字节
+                _mm_store_si128((__m128i*)remainBuffer, result_hi);           // 暂存一下, 16 字节
+                memcpy(dstRow + x * outputChannels + 12, remainBuffer, 12);   // 手动补齐, 覆盖多余的 4 字节， 补齐剩下 12 字节, 刚好 24 字节
             } else if constexpr (inputChannels == 3 && outputChannels == 3) { // 3 -> 3
                 /// 拆分成 15 + 15, 每次读取 30 字节
                 __m128i pixels_lo = _mm_loadu_si128((__m128i*)(srcRow + x * inputChannels));
@@ -225,7 +233,7 @@ inline void getYuvToRgbCoefficients(bool isBT601, bool isFullRange, int& cy, int
             cgv = 45;
             cb = 111;
         } else { // BT.601 Video Range: 298, 409, 100, 208, 516 (divided by 4)
-            cy = 74;
+            cy = 75;
             cr = 102;
             cgu = 25;
             cgv = 52;
@@ -239,7 +247,7 @@ inline void getYuvToRgbCoefficients(bool isBT601, bool isFullRange, int& cy, int
             cgv = 30;
             cb = 119;
         } else { // BT.709 Video Range: 298, 459, 55, 136, 541 (divided by 4)
-            cy = 74;
+            cy = 75;
             cr = 115;
             cgu = 14;
             cgv = 34;
@@ -248,17 +256,14 @@ inline void getYuvToRgbCoefficients(bool isBT601, bool isFullRange, int& cy, int
     }
 }
 
-template <bool isBGRA>
+template <bool isBGRA, bool isFullRange>
 void nv12ToRgbaColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride,
-                              int width, int height, ConvertFlag flag) {
+                              int width, int height, bool is601) {
     if (height < 0) {
         height = -height;
         dst = dst + (height - 1) * dstStride;
         dstStride = -dstStride;
     }
-
-    bool is601 = (flag & ConvertFlag::BT601) != 0;
-    bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
 
     // 根据标志选择系数
     int cy, cr, cgu, cgv, cb;
@@ -311,7 +316,7 @@ void nv12ToRgbaColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t
             v_16 = _mm256_sub_epi16(v_16, c128);
 
             // Y 偏移取决于范围类型
-            if (!isFullRange) { // Video Range: Y - 16
+            if constexpr (!isFullRange) { // Video Range: Y - 16
                 y_16 = _mm256_sub_epi16(y_16, _mm256_set1_epi16(16));
             }
 
@@ -382,7 +387,7 @@ void nv12ToRgbaColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t
         }
 
         for (; x < width; x += 2) {
-            int y0 = yRow[x + 0];
+            int y0 = yRow[x];
             int y1 = yRow[x + 1];
             int u = uvRow[x];
             int v = uvRow[x + 1];
@@ -392,20 +397,20 @@ void nv12ToRgbaColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t
             convertFunc(y1, u, v, r1, g1, b1);
 
             if constexpr (isBGRA) {
-                dstRow[(x + 0) * 4 + 0] = b0;
-                dstRow[(x + 0) * 4 + 1] = g0;
-                dstRow[(x + 0) * 4 + 2] = r0;
-                dstRow[(x + 0) * 4 + 3] = 255;
+                dstRow[x * 4 + 0] = b0;
+                dstRow[x * 4 + 1] = g0;
+                dstRow[x * 4 + 2] = r0;
+                dstRow[x * 4 + 3] = 255;
 
                 dstRow[(x + 1) * 4 + 0] = b1;
                 dstRow[(x + 1) * 4 + 1] = g1;
                 dstRow[(x + 1) * 4 + 2] = r1;
                 dstRow[(x + 1) * 4 + 3] = 255;
             } else {
-                dstRow[(x + 0) * 4 + 0] = r0;
-                dstRow[(x + 0) * 4 + 1] = g0;
-                dstRow[(x + 0) * 4 + 2] = b0;
-                dstRow[(x + 0) * 4 + 3] = 255;
+                dstRow[x * 4 + 0] = r0;
+                dstRow[x * 4 + 1] = g0;
+                dstRow[x * 4 + 2] = b0;
+                dstRow[x * 4 + 3] = 255;
 
                 dstRow[(x + 1) * 4 + 0] = r1;
                 dstRow[(x + 1) * 4 + 1] = g1;
@@ -416,17 +421,14 @@ void nv12ToRgbaColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t
     }
 }
 
-template <bool isBGR>
+template <bool isBGR, bool isFullRange>
 void _nv12ToRgbColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride,
-                              int width, int height, ConvertFlag flag) {
+                              int width, int height, bool is601) {
     if (height < 0) {
         height = -height;
         dst = dst + (height - 1) * dstStride;
         dstStride = -dstStride;
     }
-
-    bool is601 = (flag & ConvertFlag::BT601) != 0;
-    bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
 
     // 根据标志选择系数
     int cy, cr, cgu, cgv, cb;
@@ -478,7 +480,7 @@ void _nv12ToRgbColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t
             v_16 = _mm256_sub_epi16(v_16, c128);
 
             // Y 偏移取决于范围类型
-            if (!isFullRange) { // Video Range: Y - 16
+            if constexpr (!isFullRange) { // Video Range: Y - 16
                 y_16 = _mm256_sub_epi16(y_16, _mm256_set1_epi16(16));
             }
             // Full Range: Y 不变
@@ -558,18 +560,15 @@ void _nv12ToRgbColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t
     }
 }
 
-template <bool isBGRA>
+template <bool isBGRA, bool isFullRange>
 void _i420ToRgba_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
-                          uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+                          uint8_t* dst, int dstStride, int width, int height, bool is601) {
     // 如果 height < 0，则反向写入 dst，src 顺序读取
     if (height < 0) {
         height = -height;
         dst = dst + (height - 1) * dstStride;
         dstStride = -dstStride;
     }
-
-    bool is601 = (flag & ConvertFlag::BT601) != 0;
-    bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
 
     // 根据标志选择系数
     int cy, cr, cgu, cgv, cb;
@@ -615,7 +614,7 @@ void _i420ToRgba_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* sr
             v_16 = _mm256_sub_epi16(v_16, _mm256_set1_epi16(128));
 
             // Y 偏移取决于范围类型
-            if (!isFullRange) { // Video Range: Y - 16
+            if constexpr (!isFullRange) { // Video Range: Y - 16
                 y_16 = _mm256_sub_epi16(y_16, _mm256_set1_epi16(16));
             }
             // Full Range: Y 不变
@@ -694,20 +693,20 @@ void _i420ToRgba_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* sr
             convertFunc(y1, u, v, r1, g1, b1);
 
             if constexpr (isBGRA) {
-                dstRow[(x + 0) * 4 + 0] = b0;
-                dstRow[(x + 0) * 4 + 1] = g0;
-                dstRow[(x + 0) * 4 + 2] = r0;
-                dstRow[(x + 0) * 4 + 3] = 255;
+                dstRow[x * 4 + 0] = b0;
+                dstRow[x * 4 + 1] = g0;
+                dstRow[x * 4 + 2] = r0;
+                dstRow[x * 4 + 3] = 255;
 
                 dstRow[(x + 1) * 4 + 0] = b1;
                 dstRow[(x + 1) * 4 + 1] = g1;
                 dstRow[(x + 1) * 4 + 2] = r1;
                 dstRow[(x + 1) * 4 + 3] = 255;
             } else {
-                dstRow[(x + 0) * 4 + 0] = r0;
-                dstRow[(x + 0) * 4 + 1] = g0;
-                dstRow[(x + 0) * 4 + 2] = b0;
-                dstRow[(x + 0) * 4 + 3] = 255;
+                dstRow[x * 4 + 0] = r0;
+                dstRow[x * 4 + 1] = g0;
+                dstRow[x * 4 + 2] = b0;
+                dstRow[x * 4 + 3] = 255;
 
                 dstRow[(x + 1) * 4 + 0] = r1;
                 dstRow[(x + 1) * 4 + 1] = g1;
@@ -718,18 +717,15 @@ void _i420ToRgba_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* sr
     }
 }
 
-template <bool isBGR>
+template <bool isBGR, bool isFullRange>
 void _i420ToRgb_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
-                         uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+                         uint8_t* dst, int dstStride, int width, int height, bool is601) {
     // 如果 height < 0，则反向写入 dst，src 顺序读取
     if (height < 0) {
         height = -height;
         dst = dst + (height - 1) * dstStride;
         dstStride = -dstStride;
     }
-
-    bool is601 = (flag & ConvertFlag::BT601) != 0;
-    bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
 
     // 根据标志选择系数
     int cy, cr, cgu, cgv, cb;
@@ -775,7 +771,7 @@ void _i420ToRgb_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* src
             v_16 = _mm256_sub_epi16(v_16, c128);
 
             // Y 偏移取决于范围类型
-            if (!isFullRange) {
+            if constexpr (!isFullRange) {
                 // Video Range: Y - 16
                 y_16 = _mm256_sub_epi16(y_16, _mm256_set1_epi16(16));
             }
@@ -826,16 +822,8 @@ void _i420ToRgb_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* src
         for (; x < width; x += 2) {
             int y0 = yRow[x + 0];
             int y1 = yRow[x + 1];
-
-            if (!isFullRange) {
-                // Video Range: Y - 16
-                y0 -= 16;
-                y1 -= 16;
-            }
-            // Full Range: Y 不变
-
-            int u = uRow[x / 2] - 128;
-            int v = vRow[x / 2] - 128;
+            int u = uRow[x / 2];
+            int v = vRow[x / 2];
 
             int r0, g0, b0, r1, g1, b1;
 
@@ -844,17 +832,17 @@ void _i420ToRgb_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* src
             convertFunc(y1, u, v, r1, g1, b1);
 
             if constexpr (isBGR) {
-                dstRow[(x + 0) * 3 + 0] = b0;
-                dstRow[(x + 0) * 3 + 1] = g0;
-                dstRow[(x + 0) * 3 + 2] = r0;
+                dstRow[x * 3 + 0] = b0;
+                dstRow[x * 3 + 1] = g0;
+                dstRow[x * 3 + 2] = r0;
 
                 dstRow[(x + 1) * 3 + 0] = b1;
                 dstRow[(x + 1) * 3 + 1] = g1;
                 dstRow[(x + 1) * 3 + 2] = r1;
             } else {
-                dstRow[(x + 0) * 3 + 0] = r0;
-                dstRow[(x + 0) * 3 + 1] = g0;
-                dstRow[(x + 0) * 3 + 2] = b0;
+                dstRow[x * 3 + 0] = r0;
+                dstRow[x * 3 + 1] = g0;
+                dstRow[x * 3 + 2] = b0;
 
                 dstRow[(x + 1) * 3 + 0] = r1;
                 dstRow[(x + 1) * 3 + 1] = g1;
@@ -867,42 +855,98 @@ void _i420ToRgb_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* src
 // 基于 AVX2 加速
 void nv12ToBgra32_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride, int width,
                        int height, ConvertFlag flag) {
-    nv12ToRgbaColor_avx2_imp<true>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, flag);
+    const bool is601 = (flag & ConvertFlag::BT601) != 0;
+    const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
+
+    if (isFullRange) {
+        nv12ToRgbaColor_avx2_imp<true, true>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, is601);
+    } else {
+        nv12ToRgbaColor_avx2_imp<true, false>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, is601);
+    }
 }
 
 void nv12ToRgba32_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride, int width,
                        int height, ConvertFlag flag) {
-    nv12ToRgbaColor_avx2_imp<false>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, flag);
+    const bool is601 = (flag & ConvertFlag::BT601) != 0;
+    const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
+
+    if (isFullRange) {
+        nv12ToRgbaColor_avx2_imp<false, true>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, is601);
+    } else {
+        nv12ToRgbaColor_avx2_imp<false, false>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, is601);
+    }
 }
 
 void nv12ToBgr24_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride, int width,
                       int height, ConvertFlag flag) {
-    _nv12ToRgbColor_avx2_imp<true>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, flag);
+    const bool is601 = (flag & ConvertFlag::BT601) != 0;
+    const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
+
+    if (isFullRange) {
+        _nv12ToRgbColor_avx2_imp<true, true>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, is601);
+    } else {
+        _nv12ToRgbColor_avx2_imp<true, false>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, is601);
+    }
 }
 
 void nv12ToRgb24_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride, int width,
                       int height, ConvertFlag flag) {
-    _nv12ToRgbColor_avx2_imp<false>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, flag);
+    const bool is601 = (flag & ConvertFlag::BT601) != 0;
+    const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
+
+    if (isFullRange) {
+        _nv12ToRgbColor_avx2_imp<false, true>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, is601);
+    } else {
+        _nv12ToRgbColor_avx2_imp<false, false>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, is601);
+    }
 }
 
 void i420ToBgra32_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
                        uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
-    _i420ToRgba_avx2_imp<true>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, flag);
+    const bool is601 = (flag & ConvertFlag::BT601) != 0;
+    const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
+
+    if (isFullRange) {
+        _i420ToRgba_avx2_imp<true, true>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, is601);
+    } else {
+        _i420ToRgba_avx2_imp<true, false>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, is601);
+    }
 }
 
 void i420ToRgba32_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
                        uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
-    _i420ToRgba_avx2_imp<false>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, flag);
+    const bool is601 = (flag & ConvertFlag::BT601) != 0;
+    const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
+
+    if (isFullRange) {
+        _i420ToRgba_avx2_imp<false, true>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, is601);
+    } else {
+        _i420ToRgba_avx2_imp<false, false>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, is601);
+    }
 }
 
 void i420ToBgr24_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
                       uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
-    _i420ToRgb_avx2_imp<true>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, flag);
+    const bool is601 = (flag & ConvertFlag::BT601) != 0;
+    const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
+
+    if (isFullRange) {
+        _i420ToRgb_avx2_imp<true, true>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, is601);
+    } else {
+        _i420ToRgb_avx2_imp<true, false>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, is601);
+    }
 }
 
 void i420ToRgb24_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
                       uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
-    _i420ToRgb_avx2_imp<false>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, flag);
+    const bool is601 = (flag & ConvertFlag::BT601) != 0;
+    const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
+
+    if (isFullRange) {
+        _i420ToRgb_avx2_imp<false, true>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, is601);
+    } else {
+        _i420ToRgb_avx2_imp<false, false>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, is601);
+    }
 }
 
 #endif // ENABLE_AVX2_IMP
