@@ -94,7 +94,10 @@
             "request": "launch",
             "program": "${workspaceFolder}/build/Debug/4-example_with_glfw",
             "cwd": "${fileDirname}",
-            "preLaunchTask": "Build Project (Debug)"
+            "preLaunchTask": "Build Project (Debug)",
+            "osx": {
+                "MIMode": "lldb"
+            }
         },
     ]
 }

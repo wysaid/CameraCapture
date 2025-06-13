@@ -26,10 +26,10 @@ function isWindows() {
 }
 
 function detectCores() {
-    if isWindows; then
-        echo "${NUMBER_OF_PROCESSORS:-4}"
+    if [[ -n "$NUMBER_OF_PROCESSORS" ]]; then
+        echo $NUMBER_OF_PROCESSORS
     else
-        nproc
+        getconf _NPROCESSORS_ONLN || nproc || echo 1
     fi
 }
 
@@ -54,6 +54,8 @@ fi
 RUN_FUNCTIONAL=true
 RUN_PERFORMANCE=true
 SKIP_BUILD=false
+EXIT_WHEN_FAILED=false
+GTEST_FAIL_FAST_PARAM=""
 FILTER=""
 
 while [[ $# -gt 0 ]]; do
@@ -78,6 +80,11 @@ while [[ $# -gt 0 ]]; do
         SKIP_BUILD=true
         shift
         ;;
+    --exit-when-failed)
+        EXIT_WHEN_FAILED=true
+        GTEST_FAIL_FAST_PARAM="--gtest_fail_fast"
+        shift
+        ;;
     --help)
         echo "CCAP Unit Tests Runner"
         echo ""
@@ -87,6 +94,7 @@ while [[ $# -gt 0 ]]; do
         echo "  $0 --performance      # Run only performance tests (Release mode)"
         echo "  $0 --avx2             # Run only AVX2 performance tests (Release mode)"
         echo "  $0 --skip-build       # Skip build step, run tests only"
+        echo "  $0 --exit-when-failed # Stop at first test failure (gtest fail fast mode)"
         echo "  $0 --help             # Show this help"
         echo ""
         echo "Note: Performance tests are automatically run in Release mode for accurate results"
@@ -224,26 +232,37 @@ if [ "$RUN_FUNCTIONAL" = true ]; then
     echo "==============================================="
     echo -e "${GREEN}Running Functional Tests (Debug)${NC}"
     echo "===============================================" # Determine test executable path based on platform
+
+    pushd ./build
+
     if isWindows; then
-        TEST_EXECUTABLE="./build/tests/Debug/ccap_convert_test.exe"
+        TEST_EXECUTABLE="./tests/Debug/ccap_convert_test.exe"
     else
-        TEST_EXECUTABLE="./build/Debug/tests/ccap_convert_test"
+        TEST_EXECUTABLE="./Debug/tests/ccap_convert_test"
     fi
 
     if [ -f "$TEST_EXECUTABLE" ]; then
         echo -e "${YELLOW}Running functional tests in Debug mode...${NC}"
-        "$TEST_EXECUTABLE" --gtest_output=xml:build/test_results_debug.xml
+
+        "$TEST_EXECUTABLE" $GTEST_FAIL_FAST_PARAM --gtest_output=xml:build/test_results_debug.xml
+
         TEST_RESULT=$?
 
         if [ $TEST_RESULT -eq 0 ]; then
             echo -e "${GREEN}✓ Functional tests PASSED${NC}"
         else
             echo -e "${RED}✗ Functional tests FAILED${NC}"
+            if [ "$EXIT_WHEN_FAILED" = true ]; then
+                echo -e "${RED}❌ Exiting due to --exit-when-failed flag${NC}"
+                exit 1
+            fi
         fi
     else
         echo -e "${RED}Error: ccap_convert_test executable not found at $TEST_EXECUTABLE${NC}"
         TEST_RESULT=1
     fi
+
+    popd
 fi
 
 # Run performance tests in Release mode
@@ -259,22 +278,33 @@ if [ "$RUN_PERFORMANCE" = true ]; then
     fi
 
     if [ -f "$PERF_EXECUTABLE" ]; then
-        echo -e "${YELLOW}Running performance benchmarks in Release mode...${NC}" echo -e "${BLUE}Note: Release mode provides accurate performance measurements${NC}"
+        echo -e "${YELLOW}Running performance benchmarks in Release mode...${NC}"
+        echo -e "${BLUE}Note: Release mode provides accurate performance measurements${NC}"
+
         if [ -n "$FILTER" ]; then
             echo -e "${BLUE}Filter: $FILTER${NC}"
-            "$PERF_EXECUTABLE" $FILTER --gtest_output=xml:build/performance_results_release.xml
+            "$PERF_EXECUTABLE" $FILTER $GTEST_FAIL_FAST_PARAM --gtest_output=xml:build/performance_results_release.xml
         else
-            "$PERF_EXECUTABLE" --gtest_output=xml:build/performance_results_release.xml
+            "$PERF_EXECUTABLE" $GTEST_FAIL_FAST_PARAM --gtest_output=xml:build/performance_results_release.xml
         fi
+
         PERF_RESULT=$?
 
         if [ $PERF_RESULT -eq 0 ]; then
             echo -e "${GREEN}✓ Performance tests PASSED${NC}"
         else
             echo -e "${RED}✗ Performance tests FAILED${NC}"
+            if [ "$EXIT_WHEN_FAILED" = true ]; then
+                echo -e "${RED}❌ Exiting due to --exit-when-failed flag${NC}"
+                exit 1
+            fi
         fi
     else
         echo -e "${RED}Error: ccap_performance_test executable not found at $PERF_EXECUTABLE${NC}"
+        if [ "$EXIT_WHEN_FAILED" = true ]; then
+            echo -e "${RED}❌ Exiting due to --exit-when-failed flag${NC}"
+            exit 1
+        fi
         PERF_RESULT=1
     fi
 fi

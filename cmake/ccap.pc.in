@@ -1,0 +1,14 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=${prefix}
+libdir=@CMAKE_INSTALL_PREFIX@/@CCAP_INSTALL_LIBDIR@
+includedir=@CMAKE_INSTALL_PREFIX@/@CCAP_INSTALL_INCLUDEDIR@
+
+Name: ccap
+Description: Cross-platform camera capture library
+Version: @PROJECT_VERSION@
+URL: https://github.com/wysaid/CameraCapture
+Cflags: -I${includedir}
+Libs: -L${libdir} -lccap
+
+# Platform-specific libraries
+@PKG_CONFIG_LIBS_PRIVATE@
