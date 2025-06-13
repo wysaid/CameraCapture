@@ -93,7 +93,7 @@ int main() {
 | [2-capture_grab](./examples/desktop/2-capture_grab.cpp) | Continuous capture | Desktop |
 | [3-capture_callback](./examples/desktop/3-capture_callback.cpp) | Callback-based capture | Desktop |
 | [4-example_with_glfw](./examples/desktop/4-example_with_glfw.cpp) | OpenGL rendering | Desktop |
-| [iOS Demo](./examples/ios/) | iOS application | iOS |
+| [iOS Demo](./examples/) | iOS application | iOS |
 
 ### Build and Run Examples
 

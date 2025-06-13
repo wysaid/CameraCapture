@@ -93,7 +93,7 @@ int main() {
 | [2-capture_grab](./examples/desktop/2-capture_grab.cpp) | 连续捕获 | 桌面端 |
 | [3-capture_callback](./examples/desktop/3-capture_callback.cpp) | 回调式捕获 | 桌面端 |
 | [4-example_with_glfw](./examples/desktop/4-example_with_glfw.cpp) | OpenGL 渲染 | 桌面端 |
-| [iOS Demo](./examples/ios/) | iOS 应用程序 | iOS |
+| [iOS Demo](./examples/) | iOS 应用程序 | iOS |
 
 ### 构建和运行示例
 
