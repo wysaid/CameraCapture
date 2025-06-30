@@ -34,18 +34,47 @@
 
 ### 安装
 
-```bash
-git clone https://github.com/wysaid/CameraCapture.git
-cd CameraCapture
-./scripts/build_and_install.sh
-```
+1. 从源码编译并安装 (在 Windows 下需要 git-bash 执行)
 
-### CMake 集成
+    ```bash
+    git clone https://github.com/wysaid/CameraCapture.git
+    cd CameraCapture
+    ./scripts/build_and_install.sh
+    ```
 
-```cmake
-find_package(ccap REQUIRED)
-target_link_libraries(your_app ccap::ccap)
-```
+2. 使用 CMake FetchContent 直接集成
+
+    在你的 `CMakeLists.txt` 中添加如下内容：
+
+    ```cmake
+    include(FetchContent)
+    FetchContent_Declare(
+        ccap
+        GIT_REPOSITORY https://github.com/wysaid/CameraCapture.git
+        GIT_TAG        main
+    )
+    FetchContent_MakeAvailable(ccap)
+
+    target_link_libraries(your_app PRIVATE ccap::ccap)
+    ```
+
+    然后即可在你的项目中直接使用 ccap 的头文件和功能。
+
+3. 在 macOS 下使用 Homebrew 安装并使用
+
+    - 首先使用 homebrew 安装二进制:
+
+        ```bash
+        brew tap wysaid/ccap
+        brew install ccap
+        ```
+
+    - 之后可以直接在 cmake 中使用
+
+        ```cmake
+        find_package(ccap REQUIRED)
+        target_link_libraries(your_app ccap::ccap)
+        ```
 
 ### 基本用法
 

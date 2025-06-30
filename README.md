@@ -34,18 +34,47 @@ A high-performance, lightweight cross-platform C++ camera capture library with h
 
 ### Installation
 
-```bash
-git clone https://github.com/wysaid/CameraCapture.git
-cd CameraCapture
-./scripts/build_and_install.sh
-```
+1. Build and install from source (on Windows, use git-bash):
 
-### CMake Integration
+    ```bash
+    git clone https://github.com/wysaid/CameraCapture.git
+    cd CameraCapture
+    ./scripts/build_and_install.sh
+    ```
 
-```cmake
-find_package(ccap REQUIRED)
-target_link_libraries(your_app ccap::ccap)
-```
+2. Integrate directly using CMake FetchContent:
+
+    Add the following to your `CMakeLists.txt`:
+
+    ```cmake
+    include(FetchContent)
+    FetchContent_Declare(
+        ccap
+        GIT_REPOSITORY https://github.com/wysaid/CameraCapture.git
+        GIT_TAG        main
+    )
+    FetchContent_MakeAvailable(ccap)
+
+    target_link_libraries(your_app PRIVATE ccap::ccap)
+    ```
+
+    You can then use ccap headers and features directly in your project.
+
+3. Install and use via Homebrew on macOS:
+
+    - First, install the binary with Homebrew:
+
+        ```bash
+        brew tap wysaid/ccap
+        brew install ccap
+        ```
+
+    - Then, use it in CMake:
+
+        ```cmake
+        find_package(ccap REQUIRED)
+        target_link_libraries(your_app ccap::ccap)
+        ```
 
 ### Basic Usage
 
