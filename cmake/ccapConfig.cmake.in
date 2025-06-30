@@ -4,18 +4,6 @@
 
 include(CMakeFindDependencyMacro)
 
-# Find required dependencies
-if(WIN32)
-    # No additional dependencies needed on Windows
-elseif(APPLE)
-    # Find required Apple frameworks
-    find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
-    find_library(AVFOUNDATION_FRAMEWORK AVFoundation REQUIRED)
-    find_library(COREVIDEO_FRAMEWORK CoreVideo REQUIRED)
-    find_library(COREMEDIA_FRAMEWORK CoreMedia REQUIRED)
-    find_library(ACCELERATE_FRAMEWORK Accelerate REQUIRED)
-endif()
-
 # Include the target definitions
 include("${CMAKE_CURRENT_LIST_DIR}/ccapTargets.cmake")
 
