@@ -125,9 +125,9 @@ endif()
 if(MSVC)
     target_compile_options(ccap PUBLIC
         /MP
-        /std:c++17
-        /Zc:__cplusplus
-        /Zc:preprocessor
+        $<$<COMPILE_LANGUAGE:CXX>:/std:c++17>
+        $<$<COMPILE_LANGUAGE:CXX>:/Zc:__cplusplus>
+        $<$<COMPILE_LANGUAGE:CXX>:/Zc:preprocessor>
     )
 
     if(CCAP_IS_ROOT_PROJECT)
@@ -137,7 +137,7 @@ if(MSVC)
     endif()
 
 else()
-    target_compile_options(ccap PUBLIC -std=c++17)
+    target_compile_options(ccap PUBLIC $<$<COMPILE_LANGUAGE:CXX>:-std=c++17>)
 endif()
 
 # ############### Examples ################

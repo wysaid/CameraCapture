@@ -8,7 +8,6 @@
 #include "ccap_c.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 // Callback function for new frames
 bool frame_callback(const CcapVideoFrame* frame, void* userData) {
@@ -99,7 +98,7 @@ int main() {
     // Capture frames for 5 seconds using both callback and grab methods
     for (int i = 0; i < 10; i++) {
         // Try to grab a frame (synchronous method)
-        CcapVideoFrame* frame = ccap_provider_grab(provider, 1000); // 1 second timeout
+        CcapVideoFrame* frame = ccap_provider_grab(provider, 5000); // 1 second timeout
         if (frame) {
             CcapVideoFrameInfo frameInfo;
             if (ccap_video_frame_get_info(frame, &frameInfo)) {
@@ -112,9 +111,6 @@ int main() {
         } else {
             printf("Failed to grab frame or timeout\n");
         }
-        
-        // Wait a bit
-        usleep(500000); // 0.5 seconds
     }
     
     // Stop capturing
