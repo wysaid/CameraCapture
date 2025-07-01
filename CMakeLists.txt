@@ -15,7 +15,7 @@ if(CCAP_IS_ROOT_PROJECT)
     set(CMAKE_FETCHCONTENT_BASE_DIR "${CMAKE_SOURCE_DIR}/build" CACHE PATH "FetchContent base dir" FORCE)
 endif()
 
-project(ccap VERSION 1.0.0 LANGUAGES CXX)
+project(ccap VERSION 1.1.0 LANGUAGES C CXX)
 
 # Currently only Windows and macOS are supported; other platforms are not supported yet
 if(NOT WIN32 AND NOT APPLE)
