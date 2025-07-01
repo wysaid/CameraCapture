@@ -15,7 +15,7 @@ file(GLOB EXAMPLE_SOURCE ${DESKTOP_EXAMPLES_DIR}/*.cpp ${DESKTOP_EXAMPLES_DIR}/*
 
 foreach(EXAMPLE ${EXAMPLE_SOURCE})
     get_filename_component(EXAMPLE_NAME ${EXAMPLE} NAME)
-    string(REPLACE ".cpp" "" EXAMPLE_NAME ${EXAMPLE_NAME})
+    string(REGEX REPLACE "\\.(cpp|c)$" "" EXAMPLE_NAME ${EXAMPLE_NAME})
 
     add_executable(${EXAMPLE_NAME} ${EXAMPLE})
     target_link_libraries(${EXAMPLE_NAME} PRIVATE ccap)
