@@ -8,7 +8,7 @@
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
-高性能、轻量级的跨平台 C++ 相机捕获库，支持硬件加速的像素格式转换。
+高性能、轻量级的跨平台相机捕获库，支持硬件加速的像素格式转换，提供完整的 C++ 和纯 C 语言接口。
 
 ## 目录
 
@@ -17,9 +17,6 @@
 - [系统要求](#系统要求)
 - [示例代码](#示例代码)
 - [API 参考](#api-参考)
-- [测试](#测试)
-- [构建与安装](#构建与安装)
-- [许可证](#许可证)
 
 ## 特性
 
@@ -27,6 +24,7 @@
 - **轻量级**：零外部依赖，仅使用系统框架
 - **跨平台**：Windows（DirectShow）、macOS/iOS（AVFoundation）
 - **多种格式**：RGB、BGR、YUV（NV12/I420）及自动转换
+- **双语言接口**：✨ **新增完整纯 C 接口**，同时提供现代化 C++ API 和传统 C99 接口，支持各种项目集成和语言绑定
 - **生产就绪**：完整测试套件，95%+ 精度验证
 - **虚拟相机支持**：兼容 OBS Virtual Camera 等工具
 
@@ -78,6 +76,13 @@
 
 ### 基本用法
 
+ccap 同时提供了完整的 **C++** 和 **纯 C 语言**接口，满足不同项目和开发需求：
+
+- **C++ 接口**：现代化的 C++ API，支持智能指针、lambda 回调等特性
+- **纯 C 接口**：完全兼容 C99 标准，支持其他语言绑定和传统 C 项目集成
+
+#### C++ 接口
+
 ```cpp
 #include <ccap.h>
 
@@ -103,6 +108,56 @@ int main() {
 }
 ```
 
+#### 纯 C 接口
+
+```c
+#include <ccap_c.h>
+
+int main() {
+    // 创建 provider
+    CcapProvider* provider = ccap_provider_create();
+    if (!provider) return -1;
+    
+    // 查找可用设备
+    char** deviceNames;
+    size_t deviceCount;
+    if (ccap_provider_find_device_names(provider, &deviceNames, &deviceCount)) {
+        printf("找到 %zu 个摄像头设备:\n", deviceCount);
+        for (size_t i = 0; i < deviceCount; i++) {
+            printf("  %zu: %s\n", i, deviceNames[i]);
+        }
+        ccap_provider_free_device_names(deviceNames, deviceCount);
+    }
+    
+    // 打开默认相机
+    if (ccap_provider_open(provider, NULL, false)) {
+        // 设置输出格式
+        ccap_provider_set_property(provider, CCAP_PROPERTY_PIXEL_FORMAT_OUTPUT, 
+                                   CCAP_PIXEL_FORMAT_BGR24);
+        
+        // 开始捕获
+        if (ccap_provider_start(provider)) {
+            // 抓取一帧
+            CcapVideoFrame* frame = ccap_provider_grab(provider, 3000);
+            if (frame) {
+                CcapVideoFrameInfo frameInfo;
+                if (ccap_video_frame_get_info(frame, &frameInfo)) {
+                    printf("捕获: %dx%d, 格式=%d\n", 
+                           frameInfo.width, frameInfo.height, frameInfo.pixelFormat);
+                }
+                ccap_video_frame_release(frame);
+            }
+        }
+        
+        ccap_provider_stop(provider);
+        ccap_provider_close(provider);
+    }
+    
+    ccap_provider_destroy(provider);
+    return 0;
+}
+```
+
 ## 系统要求
 
 | 平台 | 编译器 | 系统要求 |
@@ -115,14 +170,15 @@ int main() {
 
 ## 示例代码
 
-| 示例 | 描述 | 平台 |
-|------|------|------|
-| [0-print_camera](./examples/desktop/0-print_camera.cpp) | 列出可用相机 | 桌面端 |
-| [1-minimal_example](./examples/desktop/1-minimal_example.cpp) | 基本帧捕获 | 桌面端 |
-| [2-capture_grab](./examples/desktop/2-capture_grab.cpp) | 连续捕获 | 桌面端 |
-| [3-capture_callback](./examples/desktop/3-capture_callback.cpp) | 回调式捕获 | 桌面端 |
-| [4-example_with_glfw](./examples/desktop/4-example_with_glfw.cpp) | OpenGL 渲染 | 桌面端 |
-| [iOS Demo](./examples/) | iOS 应用程序 | iOS |
+| 示例 | 描述 | 语言 | 平台 |
+|------|------|------|------|
+| [0-print_camera](./examples/desktop/0-print_camera.cpp) | 列出可用相机 | C++ | 桌面端 |
+| [0-print_camera_c](./examples/desktop/0-print_camera_c.c) | 列出可用相机 | C | 桌面端 |
+| [1-minimal_example](./examples/desktop/1-minimal_example.cpp) | 基本帧捕获 | C++ | 桌面端 |
+| [2-capture_grab](./examples/desktop/2-capture_grab.cpp) | 连续捕获 | C++ | 桌面端 |
+| [3-capture_callback](./examples/desktop/3-capture_callback.cpp) | 回调式捕获 | C++ | 桌面端 |
+| [4-example_with_glfw](./examples/desktop/4-example_with_glfw.cpp) | OpenGL 渲染 | C++ | 桌面端 |
+| [iOS Demo](./examples/) | iOS 应用程序 | Objective-C++ | iOS |
 
 ### 构建和运行示例
 
@@ -138,7 +194,9 @@ cmake --build .
 
 ## API 参考
 
-### 核心类
+ccap 提供完整的 C++ 和纯 C 语言接口，满足不同项目的需求。
+
+### C++ 核心类
 
 #### ccap::Provider
 
@@ -273,28 +331,120 @@ provider.set(ccap::PropertyName::PixelFormatOutput,
              static_cast<double>(ccap::PixelFormat::BGR24));
 ```
 
-## 测试
+### C 语言接口
 
-完整的测试套件包含 50 个测试用例，覆盖所有功能：
+ccap 提供完整的纯 C 语言接口，方便 C 项目或需要与其他语言绑定的场景使用。
 
-- 多后端测试（CPU、AVX2、Apple Accelerate）
-- 性能基准测试和精度验证
-- 像素格式转换 95%+ 精度保证
+#### 核心 API
 
-```bash
-./scripts/run_tests.sh
+##### Provider 生命周期
+
+```c
+// 创建和销毁 Provider
+CcapProvider* ccap_provider_create(void);
+void ccap_provider_destroy(CcapProvider* provider);
+
+// 设备发现
+bool ccap_provider_find_device_names(CcapProvider* provider, 
+                                     char*** deviceNames, size_t* count);
+void ccap_provider_free_device_names(char** deviceNames, size_t count);
+
+// 设备管理
+bool ccap_provider_open(CcapProvider* provider, const char* deviceName, bool autoStart);
+bool ccap_provider_open_by_index(CcapProvider* provider, int deviceIndex, bool autoStart);
+void ccap_provider_close(CcapProvider* provider);
+bool ccap_provider_is_opened(CcapProvider* provider);
+
+// 捕获控制
+bool ccap_provider_start(CcapProvider* provider);
+void ccap_provider_stop(CcapProvider* provider);
+bool ccap_provider_is_started(CcapProvider* provider);
 ```
 
-## 构建与安装
+##### 帧捕获和处理
 
-详细说明请参见 [BUILD_AND_INSTALL.md](./BUILD_AND_INSTALL.md)。
+```c
+// 同步帧捕获
+CcapVideoFrame* ccap_provider_grab(CcapProvider* provider, uint32_t timeoutMs);
+void ccap_video_frame_release(CcapVideoFrame* frame);
 
-```bash
-git clone https://github.com/wysaid/CameraCapture.git
-cd CameraCapture
-./scripts/build_and_install.sh
+// 异步回调
+typedef bool (*CcapNewFrameCallback)(const CcapVideoFrame* frame, void* userData);
+void ccap_provider_set_new_frame_callback(CcapProvider* provider, 
+                                          CcapNewFrameCallback callback, void* userData);
+
+// 帧信息
+typedef struct {
+    uint8_t* data[3];           // 像素数据平面
+    uint32_t stride[3];         // 每个平面的步长
+    uint32_t width;             // 宽度
+    uint32_t height;            // 高度
+    uint32_t sizeInBytes;       // 总字节数
+    uint64_t timestamp;         // 时间戳
+    uint64_t frameIndex;        // 帧索引
+    CcapPixelFormat pixelFormat; // 像素格式
+    CcapFrameOrientation orientation; // 方向
+} CcapVideoFrameInfo;
+
+bool ccap_video_frame_get_info(const CcapVideoFrame* frame, CcapVideoFrameInfo* info);
 ```
 
-## 许可证
+##### 属性配置
 
-MIT 许可证。详情请参见 [LICENSE](./LICENSE) 文件。
+```c
+// 属性设置和获取
+bool ccap_provider_set_property(CcapProvider* provider, CcapPropertyName prop, double value);
+double ccap_provider_get_property(CcapProvider* provider, CcapPropertyName prop);
+
+// 主要属性
+typedef enum {
+    CCAP_PROPERTY_WIDTH = 0x10001,
+    CCAP_PROPERTY_HEIGHT = 0x10002,
+    CCAP_PROPERTY_FRAME_RATE = 0x20000,
+    CCAP_PROPERTY_PIXEL_FORMAT_OUTPUT = 0x30002,
+    CCAP_PROPERTY_FRAME_ORIENTATION = 0x40000
+} CcapPropertyName;
+
+// 像素格式
+typedef enum {
+    CCAP_PIXEL_FORMAT_UNKNOWN = 0,
+    CCAP_PIXEL_FORMAT_NV12 = 1 | (1 << 16),
+    CCAP_PIXEL_FORMAT_NV12F = CCAP_PIXEL_FORMAT_NV12 | (1 << 17),
+    CCAP_PIXEL_FORMAT_RGB24 = (1 << 3) | (1 << 18),
+    CCAP_PIXEL_FORMAT_BGR24 = (1 << 4) | (1 << 18),
+    CCAP_PIXEL_FORMAT_RGBA32 = CCAP_PIXEL_FORMAT_RGB24 | (1 << 19),
+    CCAP_PIXEL_FORMAT_BGRA32 = CCAP_PIXEL_FORMAT_BGR24 | (1 << 19)
+} CcapPixelFormat;
+```
+
+#### 编译和链接
+
+##### macOS
+
+```bash
+gcc -std=c99 your_code.c -o your_app \
+    -I/path/to/ccap/include \
+    -L/path/to/ccap/lib -lccap \
+    -framework Foundation -framework AVFoundation \
+    -framework CoreMedia -framework CoreVideo
+```
+
+##### Windows (MSVC)
+
+```cmd
+cl your_code.c /I"path\to\ccap\include" \
+   /link "path\to\ccap\lib\ccap.lib" strmiids.lib ole32.lib oleaut32.lib uuid.lib
+```
+
+##### Linux
+
+```bash
+gcc -std=c99 your_code.c -o your_app \
+    -I/path/to/ccap/include \
+    -L/path/to/ccap/lib -lccap \
+    -lpthread
+```
+
+#### 完整文档
+
+C 接口的详细使用说明和示例请参见：[C 接口文档](./docs/C_Interface.md)

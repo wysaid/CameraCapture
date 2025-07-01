@@ -8,7 +8,7 @@
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
-A high-performance, lightweight cross-platform C++ camera capture library with hardware-accelerated pixel format conversion.
+A high-performance, lightweight cross-platform camera capture library with hardware-accelerated pixel format conversion, providing complete C++ and pure C language interfaces.
 
 ## Table of Contents
 
@@ -27,6 +27,7 @@ A high-performance, lightweight cross-platform C++ camera capture library with h
 - **Lightweight**: Zero external dependencies - uses only system frameworks
 - **Cross Platform**: Windows (DirectShow), macOS/iOS (AVFoundation)
 - **Multiple Formats**: RGB, BGR, YUV (NV12/I420) with automatic conversion
+- **Dual Language APIs**: ✨ **New Complete Pure C Interface** - Both modern C++ API and traditional C99 interface for various project integration and language bindings
 - **Production Ready**: Comprehensive test suite with 95%+ accuracy validation
 - **Virtual Camera Support**: Compatible with OBS Virtual Camera and similar tools
 
@@ -78,6 +79,13 @@ A high-performance, lightweight cross-platform C++ camera capture library with h
 
 ### Basic Usage
 
+ccap provides both complete **C++** and **pure C language** interfaces to meet different project and development requirements:
+
+- **C++ Interface**: Modern C++ API with smart pointers, lambda callbacks, and other advanced features
+- **Pure C Interface**: Fully compatible with C99 standard, supporting language bindings and traditional C project integration
+
+#### C++ Interface
+
 ```cpp
 #include <ccap.h>
 
@@ -103,6 +111,56 @@ int main() {
 }
 ```
 
+#### Pure C Interface
+
+```c
+#include <ccap_c.h>
+
+int main() {
+    // Create provider
+    CcapProvider* provider = ccap_provider_create();
+    if (!provider) return -1;
+    
+    // Find available devices
+    char** deviceNames;
+    size_t deviceCount;
+    if (ccap_provider_find_device_names(provider, &deviceNames, &deviceCount)) {
+        printf("Found %zu camera device(s):\n", deviceCount);
+        for (size_t i = 0; i < deviceCount; i++) {
+            printf("  %zu: %s\n", i, deviceNames[i]);
+        }
+        ccap_provider_free_device_names(deviceNames, deviceCount);
+    }
+    
+    // Open default camera
+    if (ccap_provider_open(provider, NULL, false)) {
+        // Set output format
+        ccap_provider_set_property(provider, CCAP_PROPERTY_PIXEL_FORMAT_OUTPUT, 
+                                   CCAP_PIXEL_FORMAT_BGR24);
+        
+        // Start capture
+        if (ccap_provider_start(provider)) {
+            // Grab a frame
+            CcapVideoFrame* frame = ccap_provider_grab(provider, 3000);
+            if (frame) {
+                CcapVideoFrameInfo frameInfo;
+                if (ccap_video_frame_get_info(frame, &frameInfo)) {
+                    printf("Captured: %dx%d, format=%d\n", 
+                           frameInfo.width, frameInfo.height, frameInfo.pixelFormat);
+                }
+                ccap_video_frame_release(frame);
+            }
+        }
+        
+        ccap_provider_stop(provider);
+        ccap_provider_close(provider);
+    }
+    
+    ccap_provider_destroy(provider);
+    return 0;
+}
+```
+
 ## System Requirements
 
 | Platform | Compiler | System Requirements |
@@ -115,14 +173,15 @@ int main() {
 
 ## Examples
 
-| Example | Description | Platform |
-|---------|-------------|----------|
-| [0-print_camera](./examples/desktop/0-print_camera.cpp) | List available cameras | Desktop |
-| [1-minimal_example](./examples/desktop/1-minimal_example.cpp) | Basic frame capture | Desktop |
-| [2-capture_grab](./examples/desktop/2-capture_grab.cpp) | Continuous capture | Desktop |
-| [3-capture_callback](./examples/desktop/3-capture_callback.cpp) | Callback-based capture | Desktop |
-| [4-example_with_glfw](./examples/desktop/4-example_with_glfw.cpp) | OpenGL rendering | Desktop |
-| [iOS Demo](./examples/) | iOS application | iOS |
+| Example | Description | Language | Platform |
+|---------|-------------|----------|----------|
+| [0-print_camera](./examples/desktop/0-print_camera.cpp) | List available cameras | C++ | Desktop |
+| [0-print_camera_c](./examples/desktop/0-print_camera_c.c) | List available cameras | C | Desktop |
+| [1-minimal_example](./examples/desktop/1-minimal_example.cpp) | Basic frame capture | C++ | Desktop |
+| [2-capture_grab](./examples/desktop/2-capture_grab.cpp) | Continuous capture | C++ | Desktop |
+| [3-capture_callback](./examples/desktop/3-capture_callback.cpp) | Callback-based capture | C++ | Desktop |
+| [4-example_with_glfw](./examples/desktop/4-example_with_glfw.cpp) | OpenGL rendering | C++ | Desktop |
+| [iOS Demo](./examples/) | iOS application | Objective-C++ | iOS |
 
 ### Build and Run Examples
 
@@ -137,6 +196,8 @@ cmake --build .
 ```
 
 ## API Reference
+
+ccap provides both complete C++ and pure C interfaces to meet different project requirements.
 
 ### Core Classes
 
@@ -298,3 +359,121 @@ cd CameraCapture
 ## License
 
 MIT License. See [LICENSE](./LICENSE) for details.
+
+### C Language Interface
+
+ccap provides a complete pure C language interface for C projects or scenarios requiring language bindings.
+
+#### Core API
+
+##### Provider Lifecycle
+
+```c
+// Create and destroy Provider
+CcapProvider* ccap_provider_create(void);
+void ccap_provider_destroy(CcapProvider* provider);
+
+// Device discovery
+bool ccap_provider_find_device_names(CcapProvider* provider, 
+                                     char*** deviceNames, size_t* count);
+void ccap_provider_free_device_names(char** deviceNames, size_t count);
+
+// Device management
+bool ccap_provider_open(CcapProvider* provider, const char* deviceName, bool autoStart);
+bool ccap_provider_open_by_index(CcapProvider* provider, int deviceIndex, bool autoStart);
+void ccap_provider_close(CcapProvider* provider);
+bool ccap_provider_is_opened(CcapProvider* provider);
+
+// Capture control
+bool ccap_provider_start(CcapProvider* provider);
+void ccap_provider_stop(CcapProvider* provider);
+bool ccap_provider_is_started(CcapProvider* provider);
+```
+
+##### Frame Capture and Processing
+
+```c
+// Synchronous frame capture
+CcapVideoFrame* ccap_provider_grab(CcapProvider* provider, uint32_t timeoutMs);
+void ccap_video_frame_release(CcapVideoFrame* frame);
+
+// Asynchronous callback
+typedef bool (*CcapNewFrameCallback)(const CcapVideoFrame* frame, void* userData);
+void ccap_provider_set_new_frame_callback(CcapProvider* provider, 
+                                          CcapNewFrameCallback callback, void* userData);
+
+// Frame information
+typedef struct {
+    uint8_t* data[3];           // Pixel data planes
+    uint32_t stride[3];         // Stride for each plane
+    uint32_t width;             // Width
+    uint32_t height;            // Height
+    uint32_t sizeInBytes;       // Total bytes
+    uint64_t timestamp;         // Timestamp
+    uint64_t frameIndex;        // Frame index
+    CcapPixelFormat pixelFormat; // Pixel format
+    CcapFrameOrientation orientation; // Orientation
+} CcapVideoFrameInfo;
+
+bool ccap_video_frame_get_info(const CcapVideoFrame* frame, CcapVideoFrameInfo* info);
+```
+
+##### Property Configuration
+
+```c
+// Property setting and getting
+bool ccap_provider_set_property(CcapProvider* provider, CcapPropertyName prop, double value);
+double ccap_provider_get_property(CcapProvider* provider, CcapPropertyName prop);
+
+// Main properties
+typedef enum {
+    CCAP_PROPERTY_WIDTH = 0x10001,
+    CCAP_PROPERTY_HEIGHT = 0x10002,
+    CCAP_PROPERTY_FRAME_RATE = 0x20000,
+    CCAP_PROPERTY_PIXEL_FORMAT_OUTPUT = 0x30002,
+    CCAP_PROPERTY_FRAME_ORIENTATION = 0x40000
+} CcapPropertyName;
+
+// Pixel formats
+typedef enum {
+    CCAP_PIXEL_FORMAT_UNKNOWN = 0,
+    CCAP_PIXEL_FORMAT_NV12 = 1 | (1 << 16),
+    CCAP_PIXEL_FORMAT_NV12F = CCAP_PIXEL_FORMAT_NV12 | (1 << 17),
+    CCAP_PIXEL_FORMAT_RGB24 = (1 << 3) | (1 << 18),
+    CCAP_PIXEL_FORMAT_BGR24 = (1 << 4) | (1 << 18),
+    CCAP_PIXEL_FORMAT_RGBA32 = CCAP_PIXEL_FORMAT_RGB24 | (1 << 19),
+    CCAP_PIXEL_FORMAT_BGRA32 = CCAP_PIXEL_FORMAT_BGR24 | (1 << 19)
+} CcapPixelFormat;
+```
+
+#### Compilation and Linking
+
+##### macOS
+
+```bash
+gcc -std=c99 your_code.c -o your_app \
+    -I/path/to/ccap/include \
+    -L/path/to/ccap/lib -lccap \
+    -framework Foundation -framework AVFoundation \
+    -framework CoreMedia -framework CoreVideo
+```
+
+##### Windows (MSVC)
+
+```cmd
+cl your_code.c /I"path\to\ccap\include" \
+   /link "path\to\ccap\lib\ccap.lib" strmiids.lib ole32.lib oleaut32.lib uuid.lib
+```
+
+##### Linux
+
+```bash
+gcc -std=c99 your_code.c -o your_app \
+    -I/path/to/ccap/include \
+    -L/path/to/ccap/lib -lccap \
+    -lpthread
+```
+
+#### Complete Documentation
+
+For detailed usage instructions and examples of the C interface, see: [C Interface Documentation](./docs/C_Interface.md)
