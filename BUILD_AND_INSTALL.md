@@ -135,6 +135,7 @@ int main() {
 ## Output File Structure
 
 ### Standard Installation (./install)
+
 ```
 install/
 ├── include/              # Header files
@@ -156,6 +157,7 @@ install/
 ```
 
 ### Universal Binary Installation (./build/universal)
+
 ```
 build/universal/          # Contains x86_64 + arm64 universal binary
 ├── include/              # Header files (same as above)
@@ -166,11 +168,13 @@ build/universal/          # Contains x86_64 + arm64 universal binary
 ## Build Options
 
 ### CMake Options
+
 - `CCAP_INSTALL`: Enable install target (default: ON)
 - `CCAP_BUILD_EXAMPLES`: Build examples (default: OFF when used as subproject)
 - `CCAP_BUILD_TESTS`: Build tests (default: OFF when used as subproject)
 
 ### Advanced Usage
+
 ```bash
 # Custom CMake configuration
 mkdir build && cd build
