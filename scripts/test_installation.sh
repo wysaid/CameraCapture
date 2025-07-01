@@ -57,17 +57,21 @@ for header in "${REQUIRED_HEADERS[@]}"; do
         echo "Error: Required header file not found: $header_path"
         exit 1
     fi
-    echo "  ✓ Found: $header"
+    echo "  Found: $header"
 done
 
 # Verify library files exist
 echo "Checking required library files..."
 if [ -f "$INSTALL_DIR/lib/libccap.a" ]; then
-    echo "  ✓ Found: libccap.a (static library)"
+    echo "  Found: libccap.a (static library)"
 elif [ -f "$INSTALL_DIR/lib/libccap.so" ]; then
-    echo "  ✓ Found: libccap.so (shared library)"
+    echo "  Found: libccap.so (shared library)"
 elif [ -f "$INSTALL_DIR/lib/libccap.dylib" ]; then
-    echo "  ✓ Found: libccap.dylib (shared library)"
+    echo "  Found: libccap.dylib (shared library)"
+elif [ -f "$INSTALL_DIR/lib/ccap.lib" ]; then
+    echo "  Found: ccap.lib (Windows static library)"
+elif [ -f "$INSTALL_DIR/lib/ccap.dll" ]; then
+    echo "  Found: ccap.dll (Windows shared library)"
 else
     echo "Error: No ccap library found in $INSTALL_DIR/lib/"
     ls -la "$INSTALL_DIR/lib/" || echo "lib directory does not exist"
@@ -77,7 +81,7 @@ fi
 # Verify CMake configuration files
 echo "Checking CMake configuration..."
 if [ -f "$INSTALL_DIR/lib/cmake/ccap/ccapConfig.cmake" ]; then
-    echo "  ✓ Found: ccapConfig.cmake"
+    echo "  Found: ccapConfig.cmake"
 else
     echo "Warning: ccapConfig.cmake not found, but continuing..."
 fi
@@ -149,7 +153,7 @@ int main() {
         printf("Error: Failed to create camera provider\n");
         return 1;
     }
-    printf("  ✓ Camera provider created successfully\n");
+    printf("  Camera provider created successfully\n");
     
     // Test 2: Device discovery
     printf("\n2. Testing device discovery...\n");
@@ -157,7 +161,7 @@ int main() {
     size_t deviceCount = 0;
     
     if (ccap_provider_find_device_names(provider, &deviceNames, &deviceCount)) {
-        printf("  ✓ Found %zu camera device(s)\n", deviceCount);
+        printf("  Found %zu camera device(s)\n", deviceCount);
         
         // Print device names
         if (deviceCount > 0) {
@@ -169,7 +173,7 @@ int main() {
         
         // Free device names
         ccap_provider_free_device_names(deviceNames, deviceCount);
-        printf("  ✓ Device names freed successfully\n");
+        printf("  Device names freed successfully\n");
     } else {
         printf("  Warning: Failed to enumerate camera devices (this is normal if no cameras are connected)\n");
     }
@@ -209,7 +213,7 @@ int main() {
     printf("  CCAP_PIXEL_FORMAT_BGRA32: %d\n", CCAP_PIXEL_FORMAT_BGRA32);
     printf("  CCAP_PIXEL_FORMAT_NV12: %d\n", CCAP_PIXEL_FORMAT_NV12);
     printf("  CCAP_PIXEL_FORMAT_I420: %d\n", CCAP_PIXEL_FORMAT_I420);
-    printf("  ✓ Pixel format constants accessible\n");
+    printf("  Pixel format constants accessible\n");
     
     // Test 7: Pixel format utility functions
     printf("\n7. Testing pixel format utility functions...\n");
@@ -222,10 +226,10 @@ int main() {
     // Test 8: Advanced configuration functions
     printf("\n8. Testing advanced configuration...\n");
     ccap_provider_set_max_available_frame_size(provider, 5);
-    printf("  ✓ Set max available frame size to 5\n");
+    printf("  Set max available frame size to 5\n");
     
     ccap_provider_set_max_cache_frame_size(provider, 10);
-    printf("  ✓ Set max cache frame size to 10\n");
+    printf("  Set max cache frame size to 10\n");
     
     // Test 9: Frame callback setting (should work without actual camera)
     printf("\n9. Testing frame callback interface...\n");
@@ -240,7 +244,7 @@ int main() {
     printf("\n10. Testing device opening (optional - may fail without camera)...\n");
     bool openResult = ccap_provider_open(provider, NULL, false);
     if (openResult) {
-        printf("  ✓ Successfully opened default camera device\n");
+        printf("  Successfully opened default camera device\n");
         
         // Test device info
         CcapDeviceInfo deviceInfo;
@@ -256,43 +260,43 @@ int main() {
             }
             
             ccap_provider_free_device_info(&deviceInfo);
-            printf("  ✓ Device info retrieved and freed successfully\n");
+            printf("  Device info retrieved and freed successfully\n");
         }
         
         // Try starting capture
         bool startResult = ccap_provider_start(provider);
         if (startResult) {
-            printf("  ✓ Successfully started capture\n");
+            printf("  Successfully started capture\n");
             
             // Try grabbing a frame with timeout
             CcapVideoFrame* frame = ccap_provider_grab(provider, 1000); // 1 second timeout
             if (frame) {
                 CcapVideoFrameInfo frameInfo;
                 if (ccap_video_frame_get_info(frame, &frameInfo)) {
-                    printf("  ✓ Grabbed frame: %dx%d, size=%u bytes\n", 
+                    printf("  Grabbed frame: %dx%d, size=%u bytes\n", 
                            frameInfo.width, frameInfo.height, frameInfo.sizeInBytes);
                 }
                 ccap_video_frame_release(frame);
-                printf("  ✓ Frame released successfully\n");
+                printf("  Frame released successfully\n");
             } else {
                 printf("  Note: No frame captured (timeout or no camera signal)\n");
             }
             
             ccap_provider_stop(provider);
-            printf("  ✓ Capture stopped\n");
+            printf("  Capture stopped\n");
         } else {
             printf("  Note: Failed to start capture (normal without proper camera)\n");
         }
         
         ccap_provider_close(provider);
-        printf("  ✓ Device closed\n");
+        printf("  Device closed\n");
     } else {
         printf("  Note: Failed to open camera device (normal if no camera available)\n");
     }
     
     // Clean up
     ccap_provider_destroy(provider);
-    printf("\n  ✓ Camera provider destroyed successfully\n");
+    printf("\n  Camera provider destroyed successfully\n");
     
     printf("\nccap C interface test completed successfully!\n");
     printf("All C interface functions are working correctly.\n");
@@ -300,6 +304,16 @@ int main() {
     return 0;
 }
 EOF
+
+# 在 Windows - git bash 中使用时，CONVERTED_INSTALL_DIR 需要转换成 Windows 路径格式
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
+    # Convert to Windows path format
+    export FIXED_INSTALL_DIR=$(cygpath -w "$INSTALL_DIR" | tr '\\' '/')
+    echo "Converted install directory for Windows: $FIXED_INSTALL_DIR"
+else
+    export FIXED_INSTALL_DIR="$INSTALL_DIR"
+    echo "Using install directory: $FIXED_INSTALL_DIR"
+fi
 
 # Create CMakeLists.txt for the test
 cat >"$TEST_DIR/CMakeLists.txt" <<EOF
@@ -309,7 +323,7 @@ project(test_ccap)
 set(CMAKE_C_STANDARD 99)
 
 # Find ccap using the installed package
-set(CMAKE_PREFIX_PATH "$INSTALL_DIR")
+set(CMAKE_PREFIX_PATH "$FIXED_INSTALL_DIR")
 find_package(ccap REQUIRED)
 
 # C++ test executable
@@ -365,8 +379,14 @@ cmake --build . --config Release
 
 echo ""
 echo "Running C++ test program..."
-if ./test_ccap_cpp; then
-    echo "  ✓ C++ interface test PASSED"
+
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
+    export EXE_PREFIX="Release/"
+    export EXE_SUFFIX=".exe"
+fi
+
+if "./${EXE_PREFIX}test_ccap_cpp${EXE_SUFFIX}"; then
+    echo "  C++ interface test PASSED"
     CPP_TEST_RESULT="PASSED"
 else
     echo "  ✗ C++ interface test FAILED"
@@ -375,8 +395,8 @@ fi
 
 echo ""
 echo "Running C interface test program..."
-if ./test_ccap_c; then
-    echo "  ✓ C interface test PASSED"
+if "./${EXE_PREFIX}test_ccap_c${EXE_SUFFIX}"; then
+    echo "  C interface test PASSED"
     C_TEST_RESULT="PASSED"
 else
     echo "  ✗ C interface test FAILED"
