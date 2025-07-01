@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstring>
 #include <ctime>
 #include <vector>
 

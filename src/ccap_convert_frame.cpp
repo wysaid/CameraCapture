@@ -12,6 +12,7 @@
 #include "ccap_imp.h"
 
 #include <cassert>
+#include <cstring>
 
 namespace ccap {
 bool inplaceConvertFrameYUV2RGBColor(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip) { /// (NV12/I420) -> (BGR24/BGRA32)
