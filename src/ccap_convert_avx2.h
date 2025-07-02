@@ -20,7 +20,8 @@
 #ifndef ENABLE_AVX2_IMP
 #if ((defined(_MSC_VER) || defined(_WIN32)) && !defined(__arm__) && !defined(__aarch64__) && !defined(_M_ARM) && !defined(_M_ARM64)) || \
     (defined(__APPLE__) && defined(__x86_64__) &&                                                                                       \
-     !((defined(TARGET_OS_IOS) && TARGET_OS_IOS) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)))
+     !((defined(TARGET_OS_IOS) && TARGET_OS_IOS) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE))) || \
+    (defined(__linux__) && defined(__x86_64__))
 #define ENABLE_AVX2_IMP 1
 #else
 #define ENABLE_AVX2_IMP 0
@@ -30,7 +31,12 @@
 namespace ccap {
 bool hasAVX2();
 
+bool canUseAVX2(); // 检查 AVX2 是否可用（硬件支持且未被禁用）
+
 bool enableAVX2(bool enable); // Disable AVX2 implementation, useful for testing
+
+// 获取详细的 AVX2 支持信息（用于调试）
+const char* getAVX2SupportInfo();
 
 #if ENABLE_AVX2_IMP
 
