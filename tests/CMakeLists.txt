@@ -8,6 +8,8 @@ FetchContent_Declare(
     DOWNLOAD_EXTRACT_TIMESTAMP ON
 )
 
+message(STATUS "Fetching Google Test archive...")
+
 # For Windows: Prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
@@ -19,6 +21,8 @@ if(NOT DEFINED LIBYUV_REPO_URL)
         set(LIBYUV_REPO_URL https://github.com/lemenkov/libyuv)
     endif()
 endif()
+
+message(STATUS "Fetching libYUV from repository: ${LIBYUV_REPO_URL}")
 
 # LibYUV for performance comparison
 FetchContent_Declare(

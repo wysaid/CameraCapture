@@ -31,6 +31,7 @@
 namespace ccap {
 ProviderImp* createProviderApple();
 ProviderImp* createProviderDirectShow();
+ProviderImp* createProviderV4L2();
 
 Allocator::~Allocator() { CCAP_LOG_V("ccap: Allocator::~Allocator() called, this=%p\n", this); }
 
@@ -60,6 +61,8 @@ ProviderImp* createProvider(std::string_view extraInfo) {
     return createProviderApple();
 #elif defined(_MSC_VER) || defined(_WIN32)
     return createProviderDirectShow();
+#elif defined(__linux__) || defined(__linux) || defined(linux) || defined(__gnu_linux__)
+    return createProviderV4L2();
 #else
     if (warningLogEnabled()) {
         CCAP_LOG_W("ccap: Unsupported platform!\n");

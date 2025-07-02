@@ -17,13 +17,6 @@ endif()
 
 project(ccap VERSION 1.1.0 LANGUAGES C CXX)
 
-# Currently only Windows and macOS are supported; other platforms are not supported yet
-if(NOT WIN32 AND NOT APPLE)
-    message(WARNING "ccap: Unsupported platform, only Windows and macOS are supported by now.")
-    set(CCAP_BUILD_EXAMPLES OFF CACHE BOOL "Disable examples for unsupported platforms" FORCE)
-    set(CCAP_BUILD_TESTS OFF CACHE BOOL "Disable tests for unsupported platforms" FORCE)
-endif()
-
 # Installation options
 option(CCAP_INSTALL "Generate installation target" ${CCAP_IS_ROOT_PROJECT})
 
@@ -117,6 +110,9 @@ if(APPLE)
 
     # Set pkg-config private libs for macOS
     set(PKG_CONFIG_LIBS_PRIVATE "Libs.private: -framework Foundation -framework AVFoundation -framework CoreVideo -framework CoreMedia -framework Accelerate")
+elseif(UNIX AND NOT APPLE)
+    # Linux - no additional libraries needed for V4L2 as it's part of kernel
+    set(PKG_CONFIG_LIBS_PRIVATE "")
 else()
     # Windows or other platforms
     set(PKG_CONFIG_LIBS_PRIVATE "")
