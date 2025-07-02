@@ -17,12 +17,23 @@
 
 set -e # Exit on any error
 
+cd "$(dirname "$0")/.."
+
 function isWsl() {
     [[ -d "/mnt/c" ]] || command -v wslpath &>/dev/null
 }
 
 function isWindows() {
-    [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]] || isWsl || [[ -n "$WINDIR" ]]
+    if isWsl; then
+        # 当当前路径以 /mnt/ 开头时，认为是 Windows, 否则不是
+        if [[ "$(pwd)" == /mnt/* ]]; then
+            return 0
+        else
+            return 1
+        fi
+    fi
+
+    [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]] || [[ -n "$WINDIR" ]]
 }
 
 function detectCores() {
@@ -33,7 +44,7 @@ function detectCores() {
     fi
 }
 
-if isWsl; then
+if isWindows && isWsl; then
     # Switch to Git Bash when running in WSL
     echo "You're using WSL, but WSL linux is not supported! Tring to run with Git Bash!" >&2
     GIT_BASH_PATH_WIN=$(/mnt/c/Windows/system32/cmd.exe /C "where bash.exe" | grep -i Git | head -n 1 | tr -d '\n\r')
@@ -120,11 +131,9 @@ BLUE='\033[0;34m'
 PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
-cd "$(dirname "$0")/.."
-
 # Check if we're in the right directory
 if [ ! -f "CMakeLists.txt" ] || [ ! -d "tests" ]; then
-    echo -e "${RED}Error: Please run this script from the ccap root directory${NC}"
+    echo -e "${RED}Error: Please run this script from the ccap root directory, cwd: $(pwd)"
     exit 1
 fi
 
