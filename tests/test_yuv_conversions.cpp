@@ -387,6 +387,9 @@ INSTANTIATE_TEST_SUITE_P(
         return info.param.toString();
     });
 
+// Allow uninstantiated parameterized test when only CPU backend is available
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(YUVConversionMultiDimensionalTest);
+
 // ============ Single Pixel YUV to RGB Tests ============
 
 class YUVPixelConversionTest : public BackendTestManager::BackendTestFixture {
