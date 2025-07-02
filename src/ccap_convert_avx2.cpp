@@ -8,6 +8,7 @@
 #include "ccap_convert_avx2.h"
 
 #include <cassert>
+#include <cstring>
 
 #if ENABLE_AVX2_IMP
 /// macOS 上直接使用 Accelerate.framework, 暂时不需要单独实现
@@ -36,26 +37,36 @@ inline bool hasAVX2_() {
     __cpuid(cpuInfo, 7);
     return (cpuInfo[1] & (1 << 5)) != 0;
 }
-#elif defined(__GNUC__) && (defined(_WIN32) || defined(__APPLE__))
+#elif defined(__GNUC__) || defined(__clang__)
 #include <cpuid.h>
 inline bool hasAVX2_() {
     unsigned int eax, ebx, ecx, edx;
-    // 1. 检查 AVX 和 OSXSAVE
+
+    // 1. 检查基本 CPUID 支持
+    if (!__get_cpuid(0, &eax, &ebx, &ecx, &edx)) return false;
+    if (eax < 1) return false; // 需要支持 CPUID function 1
+
+    // 2. 检查 AVX 和 OSXSAVE
     if (!__get_cpuid(1, &eax, &ebx, &ecx, &edx)) return false;
     bool osxsave = (ecx & (1 << 27)) != 0;
     bool avx = (ecx & (1 << 28)) != 0;
     if (!(osxsave && avx)) return false;
-    // 2. 检查 XGETBV
+
+    // 3. 检查 XGETBV，确认 OS 支持 YMM
+    // 只有在 OSXSAVE 为 true 时才能安全调用 XGETBV
     unsigned int xcr0_lo = 0, xcr0_hi = 0;
-#if defined(_XCR_XFEATURE_ENABLED_MASK)
-    asm volatile("xgetbv" : "=a"(xcr0_lo), "=d"(xcr0_hi) : "c"(0));
-#else
-    asm volatile("xgetbv" : "=a"(xcr0_lo), "=d"(xcr0_hi) : "c"(0));
-#endif
-    if ((xcr0_lo & 0x6) != 0x6) return false;
-    // 3. 检查 AVX2
+    asm volatile("xgetbv"
+                 : "=a"(xcr0_lo), "=d"(xcr0_hi)
+                 : "c"(0));
+    if ((xcr0_lo & 0x6) != 0x6) return false; // XMM 和 YMM 状态必须都被保存
+
+    // 4. 检查扩展功能支持
+    if (!__get_cpuid(0, &eax, &ebx, &ecx, &edx)) return false;
+    if (eax < 7) return false; // 需要支持 CPUID function 7
+
+    // 5. 检查 AVX2
     if (!__get_cpuid_count(7, 0, &eax, &ebx, &ecx, &edx)) return false;
-    return (ebx & (1 << 5)) != 0;
+    return (ebx & (1 << 5)) != 0; // AVX2 位
 }
 #else
 inline bool hasAVX2_() { return false; }
@@ -82,6 +93,26 @@ bool hasAVX2() {
 
 bool canUseAVX2() {
     return hasAVX2() && sEnableAVX2;
+}
+
+const char* getAVX2SupportInfo() {
+#if ENABLE_AVX2_IMP
+    static const char* info = nullptr;
+    if (info == nullptr) {
+        if (hasAVX2()) {
+            if (sEnableAVX2) {
+                info = "AVX2: Hardware supported and enabled";
+            } else {
+                info = "AVX2: Hardware supported but disabled by software";
+            }
+        } else {
+            info = "AVX2: Not supported by hardware or OS";
+        }
+    }
+    return info;
+#else
+    return "AVX2: Disabled at compile time";
+#endif
 }
 
 #if ENABLE_AVX2_IMP
@@ -551,19 +582,19 @@ void _nv12ToRgbColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t
             convertFunc(y1, u, v, r1, g1, b1);
 
             if constexpr (isBGR) {
-                dstRow[x * 3] = b0;
+                dstRow[x * 3 + 0] = b0;
                 dstRow[x * 3 + 1] = g0;
                 dstRow[x * 3 + 2] = r0;
 
-                dstRow[(x + 1) * 3] = b1;
+                dstRow[(x + 1) * 3 + 0] = b1;
                 dstRow[(x + 1) * 3 + 1] = g1;
                 dstRow[(x + 1) * 3 + 2] = r1;
             } else {
-                dstRow[x * 3] = r0;
+                dstRow[x * 3 + 0] = r0;
                 dstRow[x * 3 + 1] = g0;
                 dstRow[x * 3 + 2] = b0;
 
-                dstRow[(x + 1) * 3] = r1;
+                dstRow[(x + 1) * 3 + 0] = r1;
                 dstRow[(x + 1) * 3 + 1] = g1;
                 dstRow[(x + 1) * 3 + 2] = b1;
             }
