@@ -14,11 +14,15 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 
 #ifdef _MSC_VER
 #include <malloc.h>
 #define ALIGNED_ALLOC(alignment, size) _aligned_malloc(size, alignment)
 #define ALIGNED_FREE(ptr) _aligned_free(ptr)
+#elif __MINGW32__
+#define ALIGNED_ALLOC __mingw_aligned_malloc
+#define ALIGNED_FREE __mingw_aligned_free
 #else
 #define ALIGNED_ALLOC(alignment, size) std::aligned_alloc(alignment, size)
 #define ALIGNED_FREE(ptr) std::free(ptr)

@@ -22,6 +22,7 @@
 
 #include <cassert>
 #include <chrono>
+#include <cmath>
 #include <guiddef.h>
 #include <immintrin.h> // AVX2
 #include <initguid.h>
@@ -136,8 +137,6 @@ PixelFormtInfo s_pixelInfoList[] = {
     { MEDIASUBTYPE_RGB555, "RGB555", PixelFormat::Unknown },
     { MEDIASUBTYPE_YUYV, "YUYV", PixelFormat::Unknown },
     { MEDIASUBTYPE_YVYU, "YVYU", PixelFormat::Unknown },
-    { MEDIASUBTYPE_NV11, "NV11", PixelFormat::Unknown },
-    { MEDIASUBTYPE_NV24, "NV24", PixelFormat::Unknown },
     { MEDIASUBTYPE_YVU9, "YVU9", PixelFormat::Unknown },
     { MEDIASUBTYPE_Y411, "Y411", PixelFormat::Unknown },
     { MEDIASUBTYPE_Y41P, "Y41P", PixelFormat::Unknown },
@@ -151,7 +150,6 @@ PixelFormtInfo s_pixelInfoList[] = {
     { MEDIASUBTYPE_IMC2, "IMC2", PixelFormat::Unknown },
     { MEDIASUBTYPE_IMC3, "IMC3", PixelFormat::Unknown },
     { MEDIASUBTYPE_IMC4, "IMC4", PixelFormat::Unknown },
-    { MEDIASUBTYPE_420O, "420O", PixelFormat::Unknown },
 };
 
 PixelFormtInfo findPixelFormatInfo(const GUID& subtype) {
