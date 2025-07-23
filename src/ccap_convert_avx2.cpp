@@ -11,6 +11,14 @@
 
 #if ENABLE_AVX2_IMP
 /// macOS 上直接使用 Accelerate.framework, 暂时不需要单独实现
+
+// 为GCC/MinGW添加目标属性支持
+#if defined(__GNUC__) && !defined(__clang__) && !defined(__INTEL_COMPILER)
+#define AVX2_TARGET __attribute__((target("avx2,fma")))
+#else
+#define AVX2_TARGET
+#endif
+
 #include <immintrin.h> // AVX2
 
 #if defined(_MSC_VER)
@@ -79,6 +87,7 @@ bool canUseAVX2() {
 #if ENABLE_AVX2_IMP
 
 template <int inputChannels, int outputChannels, int swapRB>
+AVX2_TARGET
 void colorShuffle_avx2(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width,
                        int height) { // Implement a general colorShuffle, accelerated by AVX2
 
@@ -257,6 +266,7 @@ inline void getYuvToRgbCoefficients(bool isBT601, bool isFullRange, int& cy, int
 }
 
 template <bool isBGRA, bool isFullRange>
+AVX2_TARGET
 void nv12ToRgbaColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride,
                               int width, int height, bool is601) {
     if (height < 0) {
@@ -422,6 +432,7 @@ void nv12ToRgbaColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t
 }
 
 template <bool isBGR, bool isFullRange>
+AVX2_TARGET
 void _nv12ToRgbColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride,
                               int width, int height, bool is601) {
     if (height < 0) {
@@ -561,6 +572,7 @@ void _nv12ToRgbColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t
 }
 
 template <bool isBGRA, bool isFullRange>
+AVX2_TARGET
 void _i420ToRgba_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
                           uint8_t* dst, int dstStride, int width, int height, bool is601) {
     // 如果 height < 0，则反向写入 dst，src 顺序读取
@@ -718,6 +730,7 @@ void _i420ToRgba_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* sr
 }
 
 template <bool isBGR, bool isFullRange>
+AVX2_TARGET
 void _i420ToRgb_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
                          uint8_t* dst, int dstStride, int width, int height, bool is601) {
     // 如果 height < 0，则反向写入 dst，src 顺序读取
@@ -853,6 +866,7 @@ void _i420ToRgb_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* src
 }
 
 // 基于 AVX2 加速
+AVX2_TARGET
 void nv12ToBgra32_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride, int width,
                        int height, ConvertFlag flag) {
     const bool is601 = (flag & ConvertFlag::BT601) != 0;
@@ -865,6 +879,7 @@ void nv12ToBgra32_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV
     }
 }
 
+AVX2_TARGET
 void nv12ToRgba32_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride, int width,
                        int height, ConvertFlag flag) {
     const bool is601 = (flag & ConvertFlag::BT601) != 0;
@@ -877,6 +892,7 @@ void nv12ToRgba32_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV
     }
 }
 
+AVX2_TARGET
 void nv12ToBgr24_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride, int width,
                       int height, ConvertFlag flag) {
     const bool is601 = (flag & ConvertFlag::BT601) != 0;
@@ -889,6 +905,7 @@ void nv12ToBgr24_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV,
     }
 }
 
+AVX2_TARGET
 void nv12ToRgb24_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride, int width,
                       int height, ConvertFlag flag) {
     const bool is601 = (flag & ConvertFlag::BT601) != 0;
@@ -901,6 +918,7 @@ void nv12ToRgb24_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV,
     }
 }
 
+AVX2_TARGET
 void i420ToBgra32_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
                        uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
     const bool is601 = (flag & ConvertFlag::BT601) != 0;
@@ -913,6 +931,7 @@ void i420ToBgra32_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcU,
     }
 }
 
+AVX2_TARGET
 void i420ToRgba32_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
                        uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
     const bool is601 = (flag & ConvertFlag::BT601) != 0;
@@ -925,6 +944,7 @@ void i420ToRgba32_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcU,
     }
 }
 
+AVX2_TARGET
 void i420ToBgr24_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
                       uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
     const bool is601 = (flag & ConvertFlag::BT601) != 0;
@@ -937,6 +957,7 @@ void i420ToBgr24_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, 
     }
 }
 
+AVX2_TARGET
 void i420ToRgb24_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
                       uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
     const bool is601 = (flag & ConvertFlag::BT601) != 0;

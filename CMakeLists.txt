@@ -66,8 +66,17 @@ endif()
 
 if(CCAP_SUPPORTS_AVX2)
     set(CCAP_CONVERT_AVX2_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/ccap_convert_avx2.cpp)
-    set_source_files_properties(${CCAP_CONVERT_AVX2_SRC} PROPERTIES COMPILE_OPTIONS "$<$<CXX_COMPILER_ID:MSVC>:/arch:AVX2>$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-mavx2>")
+    # Set compile options for AVX2 source file
+    if(MSVC)
+        set_source_files_properties(${CCAP_CONVERT_AVX2_SRC} PROPERTIES COMPILE_OPTIONS "/arch:AVX2")
+    else()
+        # GCC/Clang/MinGW need these options to enable AVX2
+        set_source_files_properties(${CCAP_CONVERT_AVX2_SRC} PROPERTIES COMPILE_OPTIONS "-mavx2;-mfma")
+    endif()
     list(APPEND LIB_SOURCE ${CCAP_CONVERT_AVX2_SRC})
+    message(STATUS "ccap: AVX2 support enabled for ${CCAP_CONVERT_AVX2_SRC}")
+else()
+    message(STATUS "ccap: AVX2 support not available")
 endif()
 
 add_library(ccap ${LIB_SOURCE})
