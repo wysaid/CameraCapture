@@ -21,8 +21,8 @@
 #define ALIGNED_ALLOC(alignment, size) _aligned_malloc(size, alignment)
 #define ALIGNED_FREE(ptr) _aligned_free(ptr)
 #elif __MINGW32__
-#define ALIGNED_ALLOC __mingw_aligned_malloc
-#define ALIGNED_FREE __mingw_aligned_free
+#define ALIGNED_ALLOC(alignment, size) __mingw_aligned_malloc(size, alignment)
+#define ALIGNED_FREE(ptr) __mingw_aligned_free(ptr)
 #else
 #define ALIGNED_ALLOC(alignment, size) std::aligned_alloc(alignment, size)
 #define ALIGNED_FREE(ptr) std::free(ptr)
