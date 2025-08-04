@@ -119,6 +119,8 @@ private:
     // Frame management
     std::chrono::steady_clock::time_point m_startTime{};
     uint64_t m_frameIndex{0};
+
+    std::shared_ptr<int> m_lifeHolder; // To keep the provider alive while frames are being processed
     
     // Supported V4L2 formats mapping
     static const std::vector<V4L2Format> s_supportedV4L2Formats;

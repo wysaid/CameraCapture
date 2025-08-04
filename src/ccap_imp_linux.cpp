@@ -45,9 +45,17 @@ const std::vector<ProviderV4L2::V4L2Format> ProviderV4L2::s_supportedV4L2Formats
 
 ProviderV4L2::ProviderV4L2() {
     CCAP_LOG_V("ccap: ProviderV4L2 created\n");
+    m_lifeHolder = std::make_shared<int>(1); // Keep the provider alive while frames are being processed
 }
 
 ProviderV4L2::~ProviderV4L2() {
+    std::weak_ptr<void> holder = m_lifeHolder;
+    m_lifeHolder.reset(); // Release the life holder to allow cleanup
+    while (!holder.expired()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1)); // Wait for cleanup
+        CCAP_LOG_W("ccap: life holder is in use, waiting for cleanup...\n");
+    }
+
     close();
     CCAP_LOG_V("ccap: ProviderV4L2 destroyed\n");
 }
@@ -464,7 +472,6 @@ void ProviderV4L2::captureThread() {
 
 bool ProviderV4L2::readFrame() {
     // Use poll to wait for data
-
     struct pollfd fds[1];
     fds[0].fd = m_fd;
     fds[0].events = POLLIN;
@@ -480,12 +487,14 @@ bool ProviderV4L2::readFrame() {
         return false;
     }
 
+    // Check frame availability before dequeuing buffer
     if (tooManyNewFrames()) {
-        if (m_callback && *m_callback)  {
+        if (m_callback && *m_callback) {
             CCAP_LOG_I("ccap: new frame callback returned false, but grab() was not called or is called less frequently than the camera frame rate.\n");
         } else {
             CCAP_LOG_I("ccap: VideoFrame dropped to avoid memory leak: grab() called less frequently than camera frame rate.\n");
         }
+        return false; // Don't dequeue if we're going to drop the frame anyway
     }
 
     auto frame = getFreeFrame();
@@ -497,25 +506,10 @@ bool ProviderV4L2::readFrame() {
     struct v4l2_buffer buf = {};
     buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     buf.memory = V4L2_MEMORY_MMAP;
-    
 
     if (ioctl(m_fd, VIDIOC_DQBUF, &buf) < 0) {
         if (errno != EAGAIN) {
             CCAP_LOG_E("ccap: VIDIOC_DQBUF failed: %s\n", strerror(errno));
-        }
-        return false;
-    }
-    
-    
-    // Process frame
-    if (tooManyNewFrames()) {
-        bool hasCallback = (m_callback && *m_callback);
-        if (!hasCallback) {
-            CCAP_LOG_I("ccap: Frame dropped to avoid memory leak\n");
-        }
-        // Requeue buffer immediately if frame is dropped
-        if (ioctl(m_fd, VIDIOC_QBUF, &buf) < 0) {
-            CCAP_LOG_E("ccap: VIDIOC_QBUF failed: %s\n", strerror(errno));
         }
         return false;
     } 
@@ -587,8 +581,15 @@ bool ProviderV4L2::readFrame() {
     if(zeroCopy) {
         // Create shared buffer manager to handle V4L2 buffer lifecycle
         auto bufferIndex = buf.index;
-        auto bufferManager = std::make_shared<FakeFrame>([this, bufferIndex, frame]() mutable {
+        std::weak_ptr<void> lifeHolder = m_lifeHolder;
+        auto bufferManager = std::make_shared<FakeFrame>([lifeHolder, this, bufferIndex, frame]() mutable {
             // Requeue the V4L2 buffer when frame is destroyed
+            auto holder = lifeHolder.lock();
+            if (!holder) {
+                CCAP_LOG_W("ccap: Frame life holder expired, not requeuing buffer\n");
+                return;
+            }
+
             if (m_fd >= 0 && m_isStreaming) {
                 struct v4l2_buffer requeueBuf = {};
                 requeueBuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
