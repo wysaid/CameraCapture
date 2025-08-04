@@ -201,6 +201,16 @@ std::string_view pixelFormatToString(PixelFormat format) {
     case PixelFormat::I420f:
         return "I420f";
 
+    case PixelFormat::YUYV:
+        return "YUYV";
+    case PixelFormat::YUYVf:
+        return "YUYVf";
+
+    case PixelFormat::UYVY:
+        return "UYVY";
+    case PixelFormat::UYVYf:
+        return "UYVYf";
+
     case PixelFormat::RGB24:
         return "RGB24";
     case PixelFormat::RGBA32:

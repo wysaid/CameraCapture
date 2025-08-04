@@ -32,8 +32,8 @@ namespace ccap {
 
 // Supported V4L2 pixel formats mapping
 const std::vector<ProviderV4L2::V4L2Format> ProviderV4L2::s_supportedV4L2Formats = {
-    { V4L2_PIX_FMT_YUYV, PixelFormat::Unknown, "YUYV" },
-    { V4L2_PIX_FMT_UYVY, PixelFormat::Unknown, "UYVY" }, 
+    { V4L2_PIX_FMT_YUYV, PixelFormat::YUYV, "YUYV" },
+    { V4L2_PIX_FMT_UYVY, PixelFormat::UYVY, "UYVY" }, 
     { V4L2_PIX_FMT_NV12, PixelFormat::NV12, "NV12" },
     { V4L2_PIX_FMT_YUV420, PixelFormat::I420, "YUV420" },
     { V4L2_PIX_FMT_RGB24, PixelFormat::RGB24, "RGB24" },
@@ -496,6 +496,11 @@ bool ProviderV4L2::readFrame() {
         if (!hasCallback) {
             CCAP_LOG_I("ccap: Frame dropped to avoid memory leak\n");
         }
+        // Requeue buffer immediately if frame is dropped
+        if (ioctl(m_fd, VIDIOC_QBUF, &buf) < 0) {
+            CCAP_LOG_E("ccap: VIDIOC_QBUF failed: %s\n", strerror(errno));
+            return false;
+        }
     } else {
         auto frame = getFreeFrame();
         if (frame) {
@@ -518,6 +523,14 @@ bool ProviderV4L2::readFrame() {
             frame->sizeInBytes = buf.bytesused;
             
             std::memcpy(frame->data[0], m_buffers[buf.index].start, buf.bytesused);
+
+            assert(frame->pixelFormat != PixelFormat::Unknown);
+            
+            // Requeue buffer BEFORE conversion to avoid data corruption
+            if (ioctl(m_fd, VIDIOC_QBUF, &buf) < 0) {
+                CCAP_LOG_E("ccap: VIDIOC_QBUF failed: %s\n", strerror(errno));
+                return false;
+            }
             
             // Handle pixel format conversion if needed
             if (m_frameProp.outputPixelFormat != PixelFormat::Unknown && 
@@ -526,13 +539,13 @@ bool ProviderV4L2::readFrame() {
             }
             
             newFrameAvailable(std::move(frame));
+        } else {
+            // No free frame available, requeue buffer
+            if (ioctl(m_fd, VIDIOC_QBUF, &buf) < 0) {
+                CCAP_LOG_E("ccap: VIDIOC_QBUF failed: %s\n", strerror(errno));
+                return false;
+            }
         }
-    }
-    
-    // Requeue buffer
-    if (ioctl(m_fd, VIDIOC_QBUF, &buf) < 0) {
-        CCAP_LOG_E("ccap: VIDIOC_QBUF failed: %s\n", strerror(errno));
-        return false;
     }
     
     return true;
