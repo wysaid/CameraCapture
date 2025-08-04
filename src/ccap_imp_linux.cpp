@@ -464,10 +464,11 @@ void ProviderV4L2::captureThread() {
 
 bool ProviderV4L2::readFrame() {
     // Use poll to wait for data
+
     struct pollfd fds[1];
     fds[0].fd = m_fd;
     fds[0].events = POLLIN;
-    
+
     int ret = poll(fds, 1, 100); // 100ms timeout
     if (ret < 0) {
         if (errno != EINTR) {
@@ -478,17 +479,33 @@ bool ProviderV4L2::readFrame() {
         // Timeout
         return false;
     }
-    
+
+    if (tooManyNewFrames()) {
+        if (m_callback && *m_callback)  {
+            CCAP_LOG_I("ccap: new frame callback returned false, but grab() was not called or is called less frequently than the camera frame rate.\n");
+        } else {
+            CCAP_LOG_I("ccap: VideoFrame dropped to avoid memory leak: grab() called less frequently than camera frame rate.\n");
+        }
+    }
+
+    auto frame = getFreeFrame();
+    if (!frame) { 
+        CCAP_LOG_W("ccap: VideoFrame pool is full, a new frame skipped...\n");
+        return false;
+    }
+
     struct v4l2_buffer buf = {};
     buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     buf.memory = V4L2_MEMORY_MMAP;
     
+
     if (ioctl(m_fd, VIDIOC_DQBUF, &buf) < 0) {
         if (errno != EAGAIN) {
             CCAP_LOG_E("ccap: VIDIOC_DQBUF failed: %s\n", strerror(errno));
         }
         return false;
     }
+    
     
     // Process frame
     if (tooManyNewFrames()) {
@@ -499,55 +516,104 @@ bool ProviderV4L2::readFrame() {
         // Requeue buffer immediately if frame is dropped
         if (ioctl(m_fd, VIDIOC_QBUF, &buf) < 0) {
             CCAP_LOG_E("ccap: VIDIOC_QBUF failed: %s\n", strerror(errno));
-            return false;
+        }
+        return false;
+    } 
+    
+    // Fill frame metadata
+    frame->width = m_frameProp.width;
+    frame->height = m_frameProp.height;
+    frame->pixelFormat = m_frameProp.cameraPixelFormat;
+    frame->timestamp = (std::chrono::steady_clock::now() - m_startTime).count();
+    frame->frameIndex = m_frameIndex++;
+    frame->orientation = FrameOrientation::TopToBottom;
+    frame->sizeInBytes = buf.bytesused;
+
+    assert(frame->pixelFormat != PixelFormat::Unknown);
+    
+    // Check if we need conversion
+    bool shouldConvert = (m_frameProp.outputPixelFormat != PixelFormat::Unknown && 
+                        m_frameProp.outputPixelFormat != frame->pixelFormat);
+    bool zeroCopy = !shouldConvert;
+    
+    bool isInputYUV = (frame->pixelFormat & kPixelFormatYUVColorBit) != 0;
+    uint8_t* bufferData = static_cast<uint8_t*>(m_buffers[buf.index].start);
+    
+    if (isInputYUV) {
+        // Setup YUV planes for zero-copy
+        frame->data[0] = bufferData;
+        frame->stride[0] = m_frameProp.width;
+        
+        if (pixelFormatInclude(frame->pixelFormat, PixelFormat::NV12)) {
+            // NV12: Y plane + interleaved UV plane
+            frame->data[1] = bufferData + m_frameProp.width * m_frameProp.height;
+            frame->data[2] = nullptr;
+            frame->stride[1] = m_frameProp.width;
+            frame->stride[2] = 0;
+        } else if (pixelFormatInclude(frame->pixelFormat, PixelFormat::I420)) {
+            // I420: Y + U + V planes
+            frame->data[1] = bufferData + m_frameProp.width * m_frameProp.height;
+            frame->data[2] = bufferData + m_frameProp.width * m_frameProp.height * 5 / 4;
+            frame->stride[1] = m_frameProp.width / 2;
+            frame->stride[2] = m_frameProp.width / 2;
+        } else {
+            // YUYV/UYVY: packed format
+            frame->data[1] = nullptr;
+            frame->data[2] = nullptr;
+            frame->stride[0] = m_currentFormat.fmt.pix.bytesperline;
+            frame->stride[1] = 0;
+            frame->stride[2] = 0;
         }
     } else {
-        auto frame = getFreeFrame();
-        if (frame) {
-            // Fill frame data
-            frame->width = m_frameProp.width;
-            frame->height = m_frameProp.height;
-            frame->pixelFormat = m_frameProp.cameraPixelFormat;
-            frame->timestamp = (std::chrono::steady_clock::now() - m_startTime).count();
-            frame->frameIndex = m_frameIndex++;
-            frame->orientation = FrameOrientation::TopToBottom;
-            
-            // Copy frame data
-            if (!frame->allocator) {
-                frame->allocator = m_allocatorFactory ? m_allocatorFactory() : std::make_shared<DefaultAllocator>();
-            }
-            frame->allocator->resize(buf.bytesused);
-            
-            frame->data[0] = frame->allocator->data();
-            frame->stride[0] = m_currentFormat.fmt.pix.bytesperline;
-            frame->sizeInBytes = buf.bytesused;
-            
-            std::memcpy(frame->data[0], m_buffers[buf.index].start, buf.bytesused);
+        // RGB formats: single plane
+        frame->data[0] = bufferData;
+        frame->data[1] = nullptr;
+        frame->data[2] = nullptr;
+        frame->stride[0] = m_currentFormat.fmt.pix.bytesperline;
+        frame->stride[1] = 0;
+        frame->stride[2] = 0;
+    }
 
-            assert(frame->pixelFormat != PixelFormat::Unknown);
-            
-            // Requeue buffer BEFORE conversion to avoid data corruption
-            if (ioctl(m_fd, VIDIOC_QBUF, &buf) < 0) {
-                CCAP_LOG_E("ccap: VIDIOC_QBUF failed: %s\n", strerror(errno));
-                return false;
+    if (!zeroCopy) {
+        // Need conversion: copy data and requeue buffer immediately
+        if (!frame->allocator) {
+            frame->allocator = m_allocatorFactory ? m_allocatorFactory() : std::make_shared<DefaultAllocator>();
+        }
+        
+        // Perform pixel format conversion
+        zeroCopy = !inplaceConvertFrame(frame.get(), m_frameProp.outputPixelFormat, false);
+    }
+
+    if(zeroCopy) {
+        // Create shared buffer manager to handle V4L2 buffer lifecycle
+        auto bufferIndex = buf.index;
+        auto bufferManager = std::make_shared<FakeFrame>([this, bufferIndex, frame]() mutable {
+            // Requeue the V4L2 buffer when frame is destroyed
+            if (m_fd >= 0 && m_isStreaming) {
+                struct v4l2_buffer requeueBuf = {};
+                requeueBuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+                requeueBuf.memory = V4L2_MEMORY_MMAP;
+                requeueBuf.index = bufferIndex;
+                
+                if (ioctl(m_fd, VIDIOC_QBUF, &requeueBuf) < 0) {
+                    CCAP_LOG_E("ccap: VIDIOC_QBUF failed in destructor: %s\n", strerror(errno));
+                }
             }
-            
-            // Handle pixel format conversion if needed
-            if (m_frameProp.outputPixelFormat != PixelFormat::Unknown && 
-                m_frameProp.outputPixelFormat != frame->pixelFormat) {
-                inplaceConvertFrame(frame.get(), m_frameProp.outputPixelFormat, false);
-            }
-            
-            newFrameAvailable(std::move(frame));
-        } else {
-            // No free frame available, requeue buffer
-            if (ioctl(m_fd, VIDIOC_QBUF, &buf) < 0) {
-                CCAP_LOG_E("ccap: VIDIOC_QBUF failed: %s\n", strerror(errno));
-                return false;
-            }
+            frame = nullptr;
+        });
+        
+        // Replace frame with shared_ptr that manages V4L2 buffer lifecycle
+        auto sharedFrame = std::shared_ptr<VideoFrame>(bufferManager, frame.get());
+        frame = sharedFrame;
+    } else {
+        // Requeue buffer immediately after copying data
+        if (ioctl(m_fd, VIDIOC_QBUF, &buf) < 0) {
+            CCAP_LOG_E("ccap: VIDIOC_QBUF failed: %s\n", strerror(errno));
+            return false;
         }
     }
     
+    newFrameAvailable(std::move(frame));   
     return true;
 }
 
