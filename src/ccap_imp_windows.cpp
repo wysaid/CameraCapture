@@ -723,9 +723,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
 
     auto newFrame = getFreeFrame();
     if (!newFrame) {
-        if (!newFrame) {
-            CCAP_LOG_W("ccap: VideoFrame pool is full, a new frame skipped...\n");
-        }
+        CCAP_LOG_W("ccap: VideoFrame pool is full, a new frame skipped...\n");
         return S_OK;
     }
 
@@ -855,7 +853,11 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
         }
 
         newFrame->sizeInBytes = newFrame->stride[0] * newFrame->height + (newFrame->stride[1] + newFrame->stride[2]) * newFrame->height / 2;
-    } else {
+    }
+
+    if (zeroCopy) {
+        // Conversion may fail. If conversion fails, fall back to zero-copy mode. 
+        // In this case, the returned format is the original camera input format.
         newFrame->sizeInBytes = bufferLen;
 
         mediaSample->AddRef(); // Ensure data lifecycle
