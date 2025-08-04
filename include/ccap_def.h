@@ -97,6 +97,25 @@ enum class PixelFormat : uint32_t
 
     I420f = I420 | kPixelFormatYUVColorFullRangeBit,
 
+    /**
+     * @brief YUV 4:2:2 packed format (YUYV/YUY2). 2 bytes per pixel.
+     * @note Common format for many USB cameras and video capture devices.
+     *       This is a packed format where Y, U, and V components are interleaved.
+     */
+    YUYV = 1 << 3 | kPixelFormatYUVColorBit,
+
+    /// @brief FullRange YUV 4:2:2 packed format (YUYV/YUY2)
+    YUYVf = YUYV | kPixelFormatYUVColorFullRangeBit,
+
+    /**
+     * @brief YUV 4:2:2 packed format (UYVY). 2 bytes per pixel.
+     * @note Similar to YUYV but with different component ordering.
+     */
+    UYVY = 1 << 4 | kPixelFormatYUVColorBit,
+
+    /// @brief FullRange YUV 4:2:2 packed format (UYVY)
+    UYVYf = UYVY | kPixelFormatYUVColorFullRangeBit,
+
     /// @brief Not commonly used, likely unsupported, may fall back to BGR24 (Windows) or BGRA32 (MacOS)
     RGB24 = kPixelFormatRGBBit | kPixelFormatRGBColorBit, /// 3 bytes per pixel
 

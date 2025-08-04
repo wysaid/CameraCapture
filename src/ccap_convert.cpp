@@ -390,6 +390,154 @@ void i420ToRgba32(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int 
     i420ToRgb_common<false, true>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, flag);
 }
 
+///////////// YUYV/UYVY to RGB functions /////////////
+
+template <bool isBgrColor, bool hasAlpha>
+void yuyvToRgb_common(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+    // 如果 height < 0，则反向写入 dst，src 顺序读取
+    if (height < 0) {
+        height = -height;
+        dst = dst + (height - 1) * dstStride;
+        dstStride = -dstStride;
+    }
+
+    const bool is601 = (flag & ConvertFlag::BT601) != 0;
+    const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
+    const auto convertFunc = getYuvToRgbFunc(is601, isFullRange);
+    constexpr int channels = hasAlpha ? 4 : 3;
+
+    for (int y = 0; y < height; ++y) {
+        const uint8_t* srcRow = src + y * srcStride;
+        uint8_t* dstRow = dst + y * dstStride;
+
+        for (int x = 0; x < width; x += 2) {
+            // YUYV format: Y0 U0 Y1 V0 (4 bytes for 2 pixels)
+            int baseIdx = (x / 2) * 4;
+            int y0 = srcRow[baseIdx + 0];     // Y0
+            int u  = srcRow[baseIdx + 1];     // U0
+            int y1 = srcRow[baseIdx + 2];     // Y1  
+            int v  = srcRow[baseIdx + 3];     // V0
+
+            int r0, g0, b0, r1, g1, b1;
+            convertFunc(y0, u, v, r0, g0, b0);
+            convertFunc(y1, u, v, r1, g1, b1);
+
+            if constexpr (isBgrColor) {
+                dstRow[x * channels + 0] = b0;
+                dstRow[x * channels + 1] = g0;
+                dstRow[x * channels + 2] = r0;
+
+                dstRow[(x + 1) * channels + 0] = b1;
+                dstRow[(x + 1) * channels + 1] = g1;
+                dstRow[(x + 1) * channels + 2] = r1;
+            } else {
+                dstRow[x * channels + 0] = r0;
+                dstRow[x * channels + 1] = g0;
+                dstRow[x * channels + 2] = b0;
+
+                dstRow[(x + 1) * channels + 0] = r1;
+                dstRow[(x + 1) * channels + 1] = g1;
+                dstRow[(x + 1) * channels + 2] = b1;
+            }
+
+            if constexpr (hasAlpha) {
+                dstRow[x * channels + 3] = 255;
+                dstRow[(x + 1) * channels + 3] = 255;
+            }
+        }
+    }
+}
+
+template <bool isBgrColor, bool hasAlpha>
+void uyvyToRgb_common(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+    // 如果 height < 0，则反向写入 dst，src 顺序读取
+    if (height < 0) {
+        height = -height;
+        dst = dst + (height - 1) * dstStride;
+        dstStride = -dstStride;
+    }
+
+    const bool is601 = (flag & ConvertFlag::BT601) != 0;
+    const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
+    const auto convertFunc = getYuvToRgbFunc(is601, isFullRange);
+    constexpr int channels = hasAlpha ? 4 : 3;
+
+    for (int y = 0; y < height; ++y) {
+        const uint8_t* srcRow = src + y * srcStride;
+        uint8_t* dstRow = dst + y * dstStride;
+
+        for (int x = 0; x < width; x += 2) {
+            // UYVY format: U0 Y0 V0 Y1 (4 bytes for 2 pixels)
+            int baseIdx = (x / 2) * 4;
+            int u  = srcRow[baseIdx + 0];     // U0
+            int y0 = srcRow[baseIdx + 1];     // Y0
+            int v  = srcRow[baseIdx + 2];     // V0
+            int y1 = srcRow[baseIdx + 3];     // Y1
+
+            int r0, g0, b0, r1, g1, b1;
+            convertFunc(y0, u, v, r0, g0, b0);
+            convertFunc(y1, u, v, r1, g1, b1);
+
+            if constexpr (isBgrColor) {
+                dstRow[x * channels + 0] = b0;
+                dstRow[x * channels + 1] = g0;
+                dstRow[x * channels + 2] = r0;
+
+                dstRow[(x + 1) * channels + 0] = b1;
+                dstRow[(x + 1) * channels + 1] = g1;
+                dstRow[(x + 1) * channels + 2] = r1;
+            } else {
+                dstRow[x * channels + 0] = r0;
+                dstRow[x * channels + 1] = g0;
+                dstRow[x * channels + 2] = b0;
+
+                dstRow[(x + 1) * channels + 0] = r1;
+                dstRow[(x + 1) * channels + 1] = g1;
+                dstRow[(x + 1) * channels + 2] = b1;
+            }
+
+            if constexpr (hasAlpha) {
+                dstRow[x * channels + 3] = 255;
+                dstRow[(x + 1) * channels + 3] = 255;
+            }
+        }
+    }
+}
+
+// YUYV conversion functions
+void yuyvToBgr24(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+    yuyvToRgb_common<true, false>(src, srcStride, dst, dstStride, width, height, flag);
+}
+
+void yuyvToRgb24(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+    yuyvToRgb_common<false, false>(src, srcStride, dst, dstStride, width, height, flag);
+}
+
+void yuyvToBgra32(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+    yuyvToRgb_common<true, true>(src, srcStride, dst, dstStride, width, height, flag);
+}
+
+void yuyvToRgba32(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+    yuyvToRgb_common<false, true>(src, srcStride, dst, dstStride, width, height, flag);
+}
+
+// UYVY conversion functions
+void uyvyToBgr24(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+    uyvyToRgb_common<true, false>(src, srcStride, dst, dstStride, width, height, flag);
+}
+
+void uyvyToRgb24(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+    uyvyToRgb_common<false, false>(src, srcStride, dst, dstStride, width, height, flag);
+}
+
+void uyvyToBgra32(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+    uyvyToRgb_common<true, true>(src, srcStride, dst, dstStride, width, height, flag);
+}
+
+void uyvyToRgba32(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+    uyvyToRgb_common<false, true>(src, srcStride, dst, dstStride, width, height, flag);
+}
+
 static thread_local std::shared_ptr<ccap::Allocator> sSharedAllocator, sSharedAllocator2;
 static std::mutex sAllocatorMutex;
 static std::vector<std::pair<std::weak_ptr<ccap::Allocator>, std::shared_ptr<ccap::Allocator>*>> sAllAllocators;

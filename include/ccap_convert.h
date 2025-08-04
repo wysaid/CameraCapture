@@ -251,6 +251,40 @@ void i420ToRgba32(const uint8_t* srcY, int srcYStride,
                   uint8_t* dst, int dstStride,
                   int width, int height, ConvertFlag flag = ConvertFlag::Default);
 
+// YUYV (YUV 4:2:2 packed) conversion functions
+void yuyvToBgr24(const uint8_t* src, int srcStride,
+                 uint8_t* dst, int dstStride,
+                 int width, int height, ConvertFlag flag = ConvertFlag::Default);
+
+void yuyvToRgb24(const uint8_t* src, int srcStride,
+                 uint8_t* dst, int dstStride,
+                 int width, int height, ConvertFlag flag = ConvertFlag::Default);
+
+void yuyvToBgra32(const uint8_t* src, int srcStride,
+                  uint8_t* dst, int dstStride,
+                  int width, int height, ConvertFlag flag = ConvertFlag::Default);
+
+void yuyvToRgba32(const uint8_t* src, int srcStride,
+                  uint8_t* dst, int dstStride,
+                  int width, int height, ConvertFlag flag = ConvertFlag::Default);
+
+// UYVY (YUV 4:2:2 packed) conversion functions  
+void uyvyToBgr24(const uint8_t* src, int srcStride,
+                 uint8_t* dst, int dstStride,
+                 int width, int height, ConvertFlag flag = ConvertFlag::Default);
+
+void uyvyToRgb24(const uint8_t* src, int srcStride,
+                 uint8_t* dst, int dstStride,
+                 int width, int height, ConvertFlag flag = ConvertFlag::Default);
+
+void uyvyToBgra32(const uint8_t* src, int srcStride,
+                  uint8_t* dst, int dstStride,
+                  int width, int height, ConvertFlag flag = ConvertFlag::Default);
+
+void uyvyToRgba32(const uint8_t* src, int srcStride,
+                  uint8_t* dst, int dstStride,
+                  int width, int height, ConvertFlag flag = ConvertFlag::Default);
+
 class Allocator;
 /// @brief Used to store some intermediate results, avoiding repeated memory allocation.
 /// If no shared memory allocator is set externally, use the default allocator.
