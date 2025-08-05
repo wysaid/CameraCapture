@@ -75,6 +75,24 @@ struct YUVConversion {
 };
 
 /**
+ * @brief Packed YUV to RGB conversion configuration for YUYV/UYVY formats
+ */
+struct PackedYUVConversion {
+    std::string name;
+    int dst_channels;
+    bool libyuv_available;
+    std::function<void(const uint8_t*, int, uint8_t*, int, int, int)> ccap_func;
+    std::function<int(const uint8_t*, int, uint8_t*, int, int, int)> libyuv_func;
+    
+    PackedYUVConversion(const std::string& n, int dst_ch,
+                        std::function<void(const uint8_t*, int, uint8_t*, int, int, int)> ccap_f,
+                        std::function<int(const uint8_t*, int, uint8_t*, int, int, int)> libyuv_f,
+                        bool libyuv_avail = true)
+        : name(n), dst_channels(dst_ch), libyuv_available(libyuv_avail), 
+          ccap_func(ccap_f), libyuv_func(libyuv_f) {}
+};
+
+/**
  * @brief Performance measurement result
  */
 struct PerformanceResult {
@@ -375,6 +393,91 @@ protected:
             )
         };
     }
+    
+    /**
+     * @brief Packed YUV (YUYV/UYVY) to RGB conversions
+     */
+    static const std::vector<PackedYUVConversion> getPackedYUVConversions() {
+        return {
+            // YUYV conversions
+            PackedYUVConversion("YUYV to RGB", 3,
+                [](const uint8_t* src, int src_stride, uint8_t* dst, int dst_stride, int w, int h) {
+                    ccap::yuyvToRgb24(src, src_stride, dst, dst_stride, w, h, ccap::ConvertFlag::Default);
+                },
+                [](const uint8_t* src, int src_stride, uint8_t* dst, int dst_stride, int w, int h) -> int {
+                    // LibYUV doesn't have YUY2ToRGB24, use YUY2ToARGB then convert
+                    return -1; // Not directly supported
+                },
+                false // LibYUV RGB24 not available
+            ),
+            PackedYUVConversion("YUYV to BGR", 3,
+                [](const uint8_t* src, int src_stride, uint8_t* dst, int dst_stride, int w, int h) {
+                    ccap::yuyvToBgr24(src, src_stride, dst, dst_stride, w, h, ccap::ConvertFlag::Default);
+                },
+                [](const uint8_t* src, int src_stride, uint8_t* dst, int dst_stride, int w, int h) -> int {
+                    // LibYUV doesn't have YUY2ToBGR24
+                    return -1; // Not directly supported
+                },
+                false // LibYUV BGR24 not available
+            ),
+            PackedYUVConversion("YUYV to RGBA", 4,
+                [](const uint8_t* src, int src_stride, uint8_t* dst, int dst_stride, int w, int h) {
+                    ccap::yuyvToRgba32(src, src_stride, dst, dst_stride, w, h, ccap::ConvertFlag::Default);
+                },
+                [](const uint8_t* src, int src_stride, uint8_t* dst, int dst_stride, int w, int h) -> int {
+                    return libyuv::YUY2ToARGB(src, src_stride, dst, dst_stride, w, h);
+                }
+            ),
+            PackedYUVConversion("YUYV to BGRA", 4,
+                [](const uint8_t* src, int src_stride, uint8_t* dst, int dst_stride, int w, int h) {
+                    ccap::yuyvToBgra32(src, src_stride, dst, dst_stride, w, h, ccap::ConvertFlag::Default);
+                },
+                [](const uint8_t* src, int src_stride, uint8_t* dst, int dst_stride, int w, int h) -> int {
+                    // LibYUV doesn't have YUY2ToBGRA, use YUY2ToARGB as approximation
+                    return libyuv::YUY2ToARGB(src, src_stride, dst, dst_stride, w, h);
+                }
+            ),
+            
+            // UYVY conversions
+            PackedYUVConversion("UYVY to RGB", 3,
+                [](const uint8_t* src, int src_stride, uint8_t* dst, int dst_stride, int w, int h) {
+                    ccap::uyvyToRgb24(src, src_stride, dst, dst_stride, w, h, ccap::ConvertFlag::Default);
+                },
+                [](const uint8_t* src, int src_stride, uint8_t* dst, int dst_stride, int w, int h) -> int {
+                    // LibYUV doesn't have UYVYToRGB24
+                    return -1; // Not directly supported
+                },
+                false // LibYUV RGB24 not available
+            ),
+            PackedYUVConversion("UYVY to BGR", 3,
+                [](const uint8_t* src, int src_stride, uint8_t* dst, int dst_stride, int w, int h) {
+                    ccap::uyvyToBgr24(src, src_stride, dst, dst_stride, w, h, ccap::ConvertFlag::Default);
+                },
+                [](const uint8_t* src, int src_stride, uint8_t* dst, int dst_stride, int w, int h) -> int {
+                    // LibYUV doesn't have UYVYToBGR24
+                    return -1; // Not directly supported
+                },
+                false // LibYUV BGR24 not available
+            ),
+            PackedYUVConversion("UYVY to RGBA", 4,
+                [](const uint8_t* src, int src_stride, uint8_t* dst, int dst_stride, int w, int h) {
+                    ccap::uyvyToRgba32(src, src_stride, dst, dst_stride, w, h, ccap::ConvertFlag::Default);
+                },
+                [](const uint8_t* src, int src_stride, uint8_t* dst, int dst_stride, int w, int h) -> int {
+                    return libyuv::UYVYToARGB(src, src_stride, dst, dst_stride, w, h);
+                }
+            ),
+            PackedYUVConversion("UYVY to BGRA", 4,
+                [](const uint8_t* src, int src_stride, uint8_t* dst, int dst_stride, int w, int h) {
+                    ccap::uyvyToBgra32(src, src_stride, dst, dst_stride, w, h, ccap::ConvertFlag::Default);
+                },
+                [](const uint8_t* src, int src_stride, uint8_t* dst, int dst_stride, int w, int h) -> int {
+                    // LibYUV doesn't have UYVYToBGRA, use UYVYToARGB as approximation
+                    return libyuv::UYVYToARGB(src, src_stride, dst, dst_stride, w, h);
+                }
+            )
+        };
+    }
 protected:
     void SetUp() override {
 #ifdef NDEBUG
@@ -626,6 +729,133 @@ protected:
                           conversion.dst_channels, ccap_func, libyuv_func);
     }
     
+    /**
+     * @brief Parameterized Packed YUV (YUYV/UYVY) conversion benchmark
+     */
+    void benchmarkPackedYUVConversion(const Resolution& resolution, const PackedYUVConversion& conversion) {
+        if (!conversion.libyuv_available) {
+            // LibYUV not available for this conversion, only test CCAP backends
+            benchmarkPackedYUVCCAPOnly(resolution, conversion);
+            return;
+        }
+
+        // For packed formats like YUYV/UYVY, each pixel pair uses 4 bytes (2 pixels = 4 bytes)
+        // YUYV: Y0 U Y1 V (4 bytes for 2 pixels)
+        // UYVY: U Y0 V Y1 (4 bytes for 2 pixels)
+        int packed_stride = ((resolution.width + 1) / 2) * 4; // 2 bytes per pixel, rounded up
+        TestImage packed_src_img(packed_stride / 2, resolution.height, 2); // Treating as 2-channel image
+        TestImage ccap_dst_img(resolution.width, resolution.height, conversion.dst_channels);
+        TestImage libyuv_dst_img(resolution.width, resolution.height, conversion.dst_channels);
+        
+        // Generate packed YUV test data
+        generatePackedYUVData(packed_src_img, resolution.width, resolution.height, conversion.name.find("YUYV") == 0);
+
+        auto ccap_func = [&]() {
+            conversion.ccap_func(packed_src_img.data(), packed_src_img.stride(),
+                                ccap_dst_img.data(), ccap_dst_img.stride(),
+                                resolution.width, resolution.height);
+        };
+
+        auto libyuv_func = [&]() -> int {
+            return conversion.libyuv_func(packed_src_img.data(), packed_src_img.stride(),
+                                         libyuv_dst_img.data(), libyuv_dst_img.stride(),
+                                         resolution.width, resolution.height);
+        };
+
+        std::string test_name = conversion.name + " " + resolution.name;
+        benchmarkComparison(test_name, resolution.width, resolution.height, 
+                          conversion.dst_channels, ccap_func, libyuv_func);
+    }
+
+    /**
+     * @brief CCAP-only benchmark for packed YUV conversions not supported by LibYUV
+     */
+    void benchmarkPackedYUVCCAPOnly(const Resolution& resolution, const PackedYUVConversion& conversion) {
+        std::vector<PerformanceResult> results;
+        auto supported_backends = BackendTestManager::getSupportedBackends();
+        
+        // For packed formats like YUYV/UYVY, each pixel pair uses 4 bytes
+        int packed_stride = ((resolution.width + 1) / 2) * 4; 
+        TestImage packed_src_img(packed_stride / 2, resolution.height, 2);
+        TestImage ccap_dst_img(resolution.width, resolution.height, conversion.dst_channels);
+        
+        // Generate packed YUV test data
+        generatePackedYUVData(packed_src_img, resolution.width, resolution.height, conversion.name.find("YUYV") == 0);
+
+        // Test all CCAP backends
+        for (auto backend : supported_backends) {
+            ccap::setConvertBackend(backend);
+            std::string backend_name = "CCAP-" + BackendTestManager::getBackendName(backend);
+
+            auto ccap_func = [&]() {
+                conversion.ccap_func(packed_src_img.data(), packed_src_img.stride(),
+                                    ccap_dst_img.data(), ccap_dst_img.stride(),
+                                    resolution.width, resolution.height);
+            };
+
+            // Warm up
+            for (int i = 0; i < 3; ++i) {
+                try {
+                    ccap_func();
+                } catch (...) {
+                    break;
+                }
+            }
+
+            // Measure CCAP performance
+            auto start_time = std::chrono::high_resolution_clock::now();
+            bool success = true;
+
+            try {
+                ccap_func();
+            } catch (...) {
+                success = false;
+            }
+
+            auto end_time = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration<double, std::milli>(end_time - start_time);
+
+            results.emplace_back(backend_name, duration.count(), resolution.width, resolution.height, conversion.dst_channels, success);
+        }
+
+        // Print CCAP-only results
+        std::string test_name = conversion.name + " " + resolution.name;
+        printCCAPOnlyResults(results, test_name, resolution.width, resolution.height);
+    }
+
+    /**
+     * @brief Generate packed YUV test data (YUYV/UYVY)
+     */
+    void generatePackedYUVData(TestImage& packed_img, int width, int height, bool is_yuyv) {
+        uint8_t* data = packed_img.data();
+        int stride = packed_img.stride();
+        
+        for (int y = 0; y < height; ++y) {
+            uint8_t* row = data + y * stride;
+            for (int x = 0; x < width; x += 2) {
+                // Generate test pattern - gradient effect
+                uint8_t y0 = (uint8_t)(128 + (x * 127) / width);
+                uint8_t y1 = (uint8_t)(128 + ((x + 1) * 127) / width);
+                uint8_t u = (uint8_t)(64 + (y * 127) / height);
+                uint8_t v = (uint8_t)(192 - (y * 127) / height);
+                
+                if (is_yuyv) {
+                    // YUYV format: Y0 U Y1 V
+                    row[(x / 2) * 4 + 0] = y0;
+                    row[(x / 2) * 4 + 1] = u;
+                    row[(x / 2) * 4 + 2] = y1;
+                    row[(x / 2) * 4 + 3] = v;
+                } else {
+                    // UYVY format: U Y0 V Y1
+                    row[(x / 2) * 4 + 0] = u;
+                    row[(x / 2) * 4 + 1] = y0;
+                    row[(x / 2) * 4 + 2] = v;
+                    row[(x / 2) * 4 + 3] = y1;
+                }
+            }
+        }
+    }
+    
     // ============ Legacy Benchmark Methods (kept for specialized tests) ============
 
     /**
@@ -733,6 +963,58 @@ TEST_F(CCAPvsLibYUVComparisonTest, YUV_Conversions_Comprehensive) {
             const auto& resolution = resolutions[res_idx];
             const auto& conversion = yuv_conversions[conv_idx];
             benchmarkYUVConversion(resolution, conversion);
+        }
+    }
+}
+
+// Parameterized Packed YUV Conversion Tests (YUYV/UYVY)
+TEST_F(CCAPvsLibYUVComparisonTest, PackedYUV_Conversions_Comprehensive) {
+    auto resolutions = getStandardResolutions();
+    auto packed_yuv_conversions = getPackedYUVConversions();
+    
+    // Test key resolution + conversion combinations for Packed YUV conversions
+    std::vector<std::pair<int, int>> key_resolution_indices = {
+        {1, 0}, {1, 1}, {1, 2}, {1, 3}, // 1080p with YUYV conversions
+        {2, 4}, {2, 5}, {2, 6}, {2, 7}, // 4K with UYVY conversions
+        {0, 0}, {0, 4}                  // VGA with YUYV->RGB and UYVY->RGB
+    };
+    
+    for (const auto& [res_idx, conv_idx] : key_resolution_indices) {
+        if (res_idx < resolutions.size() && conv_idx < packed_yuv_conversions.size()) {
+            const auto& resolution = resolutions[res_idx];
+            const auto& conversion = packed_yuv_conversions[conv_idx];
+            benchmarkPackedYUVConversion(resolution, conversion);
+        }
+    }
+}
+
+// Specialized Packed YUV Performance Tests
+TEST_F(CCAPvsLibYUVComparisonTest, Large_8K_YUYV_To_RGBA_Performance) {
+    Resolution large_resolution(7680, 4320, "8K");
+    auto packed_yuv_conversions = getPackedYUVConversions();
+    
+    // Find YUYV to RGBA conversion
+    for (const auto& conversion : packed_yuv_conversions) {
+        if (conversion.name == "YUYV to RGBA") {
+            benchmarkPackedYUVConversion(large_resolution, conversion);
+            break;
+        }
+    }
+}
+
+TEST_F(CCAPvsLibYUVComparisonTest, High_Resolution_UYVY_Performance) {
+    std::vector<Resolution> test_resolutions = {
+        Resolution(1920, 1080, "1080p"),
+        Resolution(3840, 2160, "4K")
+    };
+    auto packed_yuv_conversions = getPackedYUVConversions();
+    
+    // Test UYVY to RGBA conversion at different resolutions
+    for (const auto& resolution : test_resolutions) {
+        for (const auto& conversion : packed_yuv_conversions) {
+            if (conversion.name == "UYVY to RGBA" || conversion.name == "UYVY to BGRA") {
+                benchmarkPackedYUVConversion(resolution, conversion);
+            }
         }
     }
 }
