@@ -180,7 +180,7 @@ bool inplaceConvertFrameRGB(VideoFrame* frame, PixelFormat toFormat, bool vertic
     return true;
 }
 
-bool inplaceConvertFrame(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip) {
+inline bool inplaceConvertFrameImp(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip) {
     if (frame->pixelFormat == toFormat) {
         if (verticalFlip && (toFormat & kPixelFormatRGBColorBit)) { // flip upside down
             int srcStride = (int)frame->stride[0];
@@ -220,6 +220,16 @@ bool inplaceConvertFrame(VideoFrame* frame, PixelFormat toFormat, bool verticalF
     }
 
     return inplaceConvertFrameRGB(frame, toFormat, verticalFlip);
+}
+
+bool inplaceConvertFrame(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip) {
+    auto ret = inplaceConvertFrameImp(frame, toFormat, verticalFlip);
+    if (ret) {
+        assert(frame->pixelFormat == toFormat);
+        assert(frame->allocator != nullptr && frame->data[0] == frame->allocator->data());
+        frame->sizeInBytes = frame->allocator->size();
+    }
+    return ret;
 }
 
 } // namespace ccap
