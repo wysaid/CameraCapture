@@ -1,0 +1,58 @@
+name: Linux Build
+
+on:
+  push:
+    branches: [ main, develop, support_linux ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        build_type: [Debug, Release]
+        compiler: [gcc, clang]
+        include:
+          - compiler: gcc
+            cc: gcc
+            cxx: g++
+          - compiler: clang
+            cc: clang
+            cxx: clang++
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential ${{ matrix.compiler }}
+        
+    - name: Setup compiler
+      run: |
+        echo "CC=${{ matrix.cc }}" >> $GITHUB_ENV
+        echo "CXX=${{ matrix.cxx }}" >> $GITHUB_ENV
+        
+    - name: Configure CMake
+      run: |
+        cmake -B build/${{ matrix.build_type }} \
+              -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+              -DCCAP_BUILD_EXAMPLES=ON \
+              -DCCAP_BUILD_TESTS=ON
+    
+    - name: Build
+      run: cmake --build build/${{ matrix.build_type }} --config ${{ matrix.build_type }} --parallel $(nproc)
+    
+    - name: Test
+      working-directory: build/${{ matrix.build_type }}
+      run: |
+        # List available cameras (may not have any in CI)
+        ./0-print_camera || echo "No cameras available in CI environment"
+        
+    - name: Run Unit Tests
+      if: matrix.build_type == 'Release'
+      run: |
+        cd scripts
+        ./run_tests.sh --functional --exit-when-failed

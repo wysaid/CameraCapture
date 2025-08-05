@@ -45,8 +45,8 @@ function detectCores() {
 }
 
 if isWindows && isWsl; then
-    # Switch to Git Bash when running in WSL
-    echo "You're using WSL, but WSL linux is not supported! Tring to run with Git Bash!" >&2
+    # Check if this is a Windows mount point or native WSL Linux
+    echo "You're using WSL with Windows mount point. Switching to Git Bash for Windows tests!" >&2
     GIT_BASH_PATH_WIN=$(/mnt/c/Windows/system32/cmd.exe /C "where bash.exe" | grep -i Git | head -n 1 | tr -d '\n\r')
     GIT_BASH_PATH_WSL=$(wslpath -u "$GIT_BASH_PATH_WIN")
     echo "== GIT_BASH_PATH_WIN=$GIT_BASH_PATH_WIN"

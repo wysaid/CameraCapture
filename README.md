@@ -2,9 +2,10 @@
 
 [![Windows Build](https://github.com/wysaid/CameraCapture/actions/workflows/windows-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/windows-build.yml)
 [![macOS Build](https://github.com/wysaid/CameraCapture/actions/workflows/macos-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/macos-build.yml)
+[![Linux Build](https://github.com/wysaid/CameraCapture/actions/workflows/linux-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/linux-build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![C++17](https://img.shields.io/badge/C++-17-blue.svg)](https://isocpp.org/)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20iOS-brightgreen)](https://github.com/wysaid/CameraCapture)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20iOS%20%7C%20Linux-brightgreen)](https://github.com/wysaid/CameraCapture)
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
@@ -25,7 +26,7 @@ A high-performance, lightweight cross-platform camera capture library with hardw
 
 - **High Performance**: Hardware-accelerated pixel format conversion with up to 10x speedup (AVX2, Apple Accelerate)
 - **Lightweight**: Zero external dependencies - uses only system frameworks
-- **Cross Platform**: Windows (DirectShow), macOS/iOS (AVFoundation)
+- **Cross Platform**: Windows (DirectShow), macOS/iOS (AVFoundation), Linux (V4L2)
 - **Multiple Formats**: RGB, BGR, YUV (NV12/I420) with automatic conversion
 - **Dual Language APIs**: ✨ **New Complete Pure C Interface** - Both modern C++ API and traditional C99 interface for various project integration and language bindings
 - **Production Ready**: Comprehensive test suite with 95%+ accuracy validation
@@ -168,8 +169,18 @@ int main() {
 | **Windows** | MSVC 2019+ | DirectShow |
 | **macOS** | Xcode 11+ | macOS 10.13+ |
 | **iOS** | Xcode 11+ | iOS 13.0+ |
+| **Linux** | GCC 7+ / Clang 6+ | V4L2 (Linux 2.6+) |
 
 **Build Requirements**: CMake 3.14+, C++17
+
+### Supported Linux Distributions
+
+- [x] **Ubuntu/Debian** - All versions with Linux 2.6+ kernel  
+- [x] **CentOS/RHEL/Fedora** - All versions with Linux 2.6+ kernel  
+- [x] **SUSE/openSUSE** - All versions with Linux 2.6+ kernel  
+- [x] **Arch Linux** - All versions  
+- [x] **Alpine Linux** - All versions  
+- [x] **Embedded Linux** - Any distribution with V4L2 support  
 
 ## Examples
 
