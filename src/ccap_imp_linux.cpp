@@ -14,7 +14,9 @@
 
 #include <cassert>
 #include <chrono>
+#include <cmath>
 #include <cstring>
+#include <deque>
 #include <dirent.h>
 #include <filesystem>
 #include <fstream>
@@ -567,7 +569,36 @@ bool ProviderV4L2::readFrame() {
         }
         
         // Perform pixel format conversion
-        zeroCopy = !inplaceConvertFrame(frame.get(), m_frameProp.outputPixelFormat, false);
+        if (verboseLogEnabled()) {
+#ifdef DEBUG
+            constexpr const char* mode = "(Debug)";
+#else
+            constexpr const char* mode = "(Release)";
+#endif
+
+            std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
+
+            zeroCopy = !inplaceConvertFrame(frame.get(), m_frameProp.outputPixelFormat, false);
+
+            double durInMs = (std::chrono::steady_clock::now() - startTime).count() / 1.e6;
+            static double s_allCostTime = 0;
+            static double s_frames = 0;
+
+            if (s_frames > 60) {
+                s_allCostTime = 0;
+                s_frames = 0;
+            }
+
+            s_allCostTime += durInMs;
+            ++s_frames;
+
+            CCAP_LOG_V(
+                "ccap: inplaceConvertFrame requested pixel format: %s, actual pixel format: %s, flip: %s, cost time %s: (cur %g ms, avg %g ms)\n",
+                pixelFormatToString(m_frameProp.outputPixelFormat).data(), pixelFormatToString(m_frameProp.cameraPixelFormat).data(),
+                "NO", mode, durInMs, s_allCostTime / s_frames);
+        } else {
+            zeroCopy = !inplaceConvertFrame(frame.get(), m_frameProp.outputPixelFormat, false);
+        }
     }
 
     if(zeroCopy) {
@@ -606,6 +637,40 @@ bool ProviderV4L2::readFrame() {
         }
     }
     
+    
+    frame->frameIndex = m_frameIndex++;
+
+    if (verboseLogEnabled()) { // Usually camera interfaces are not called from multiple threads, and verbose log is for debugging, so
+                               // no lock here.
+        static uint64_t s_lastFrameTime;
+        static std::deque<uint64_t> s_durations;
+
+        if (s_lastFrameTime != 0) {
+            auto dur = frame->timestamp - s_lastFrameTime;
+            s_durations.emplace_back(dur);
+        }
+
+        s_lastFrameTime = frame->timestamp;
+
+        // use a window of 30 frames to calculate the fps
+        if (s_durations.size() > 30) {
+            s_durations.pop_front();
+        }
+
+        double fps = 0.0;
+
+        if (!s_durations.empty()) {
+            double sum = 0.0;
+            for (auto& d : s_durations) {
+                sum += d / 1e9f;
+            }
+            fps = std::round(s_durations.size() / sum * 10) / 10.0;
+        }
+
+        CCAP_LOG_V("ccap: New frame available: %ux%u, bytes %u, Data address: %p, fps: %g\n", frame->width, frame->height,
+                   frame->sizeInBytes, frame->data[0], fps);
+    }
+
     newFrameAvailable(std::move(frame));   
     return true;
 }

@@ -856,7 +856,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     }
 
     if (zeroCopy) {
-        // Conversion may fail. If conversion fails, fall back to zero-copy mode. 
+        // Conversion may fail. If conversion fails, fall back to zero-copy mode.
         // In this case, the returned format is the original camera input format.
         newFrame->sizeInBytes = bufferLen;
 
