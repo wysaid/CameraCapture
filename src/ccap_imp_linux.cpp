@@ -514,17 +514,24 @@ bool ProviderV4L2::readFrame() {
     frame->pixelFormat = m_frameProp.cameraPixelFormat;
     frame->timestamp = (std::chrono::steady_clock::now() - m_startTime).count();
     frame->frameIndex = m_frameIndex++;
-    frame->orientation = FrameOrientation::TopToBottom;
     frame->sizeInBytes = buf.bytesused;
 
     assert(frame->pixelFormat != PixelFormat::Unknown);
     
-    // Check if we need conversion
+    // Check input/output format types and orientations
+    bool isInputYUV = (frame->pixelFormat & kPixelFormatYUVColorBit) != 0;
+    bool isOutputYUV = (m_frameProp.outputPixelFormat & kPixelFormatYUVColorBit) != 0;
+    auto inputOrientation = FrameOrientation::TopToBottom; // V4L2 always provides TopToBottom
+    
+    // Set output orientation based on format type
+    frame->orientation = isOutputYUV ? FrameOrientation::TopToBottom : m_frameOrientation;
+    
+    // Check if we need conversion or flipping
+    bool shouldFlip = frame->orientation != inputOrientation && !isOutputYUV;
     bool shouldConvert = (m_frameProp.outputPixelFormat != PixelFormat::Unknown && 
                         m_frameProp.outputPixelFormat != frame->pixelFormat);
-    bool zeroCopy = !shouldConvert;
+    bool zeroCopy = !shouldConvert && !shouldFlip;
     
-    bool isInputYUV = (frame->pixelFormat & kPixelFormatYUVColorBit) != 0;
     uint8_t* bufferData = static_cast<uint8_t*>(m_buffers[buf.index].start);
     
     if (isInputYUV) {
@@ -578,7 +585,7 @@ bool ProviderV4L2::readFrame() {
 
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 
-            zeroCopy = !inplaceConvertFrame(frame.get(), m_frameProp.outputPixelFormat, false);
+            zeroCopy = !inplaceConvertFrame(frame.get(), m_frameProp.outputPixelFormat, shouldFlip);
 
             double durInMs = (std::chrono::steady_clock::now() - startTime).count() / 1.e6;
             static double s_allCostTime = 0;
@@ -595,13 +602,17 @@ bool ProviderV4L2::readFrame() {
             CCAP_LOG_V(
                 "ccap: inplaceConvertFrame requested pixel format: %s, actual pixel format: %s, flip: %s, cost time %s: (cur %g ms, avg %g ms)\n",
                 pixelFormatToString(m_frameProp.outputPixelFormat).data(), pixelFormatToString(m_frameProp.cameraPixelFormat).data(),
-                "NO", mode, durInMs, s_allCostTime / s_frames);
+                shouldFlip ? "YES" : "NO", mode, durInMs, s_allCostTime / s_frames);
         } else {
-            zeroCopy = !inplaceConvertFrame(frame.get(), m_frameProp.outputPixelFormat, false);
+            zeroCopy = !inplaceConvertFrame(frame.get(), m_frameProp.outputPixelFormat, shouldFlip);
         }
     }
 
     if(zeroCopy) {
+        // Conversion may fail. If conversion fails, fall back to zero-copy mode.
+        // In this case, the returned format is the original camera input format.
+        frame->orientation = inputOrientation;
+        
         // Create shared buffer manager to handle V4L2 buffer lifecycle
         auto bufferIndex = buf.index;
         std::weak_ptr<void> lifeHolder = m_lifeHolder;
@@ -630,6 +641,9 @@ bool ProviderV4L2::readFrame() {
         auto sharedFrame = std::shared_ptr<VideoFrame>(bufferManager, frame.get());
         frame = sharedFrame;
     } else {
+        // Update sizeInBytes after conversion
+        frame->sizeInBytes = frame->stride[0] * frame->height + (frame->stride[1] + frame->stride[2]) * frame->height / 2;
+        
         // Requeue buffer immediately after copying data
         if (ioctl(m_fd, VIDIOC_QBUF, &buf) < 0) {
             CCAP_LOG_E("ccap: VIDIOC_QBUF failed: %s\n", strerror(errno));
