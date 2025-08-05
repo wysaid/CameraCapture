@@ -1,12 +1,4 @@
 /**
- * @file ccap_imp_linux.h
- * @author wysaid (this@wysaid.org)
- * @brief Linux implementation of ccap::Provider class.
- * @date 2025-04
- *
- */
-
-/**
  * @file ccap_imp_linux.cpp
  * @author wysaid (this@wysaid.org)
  * @brief Linux implementation of ccap::Provider class using V4L2.
