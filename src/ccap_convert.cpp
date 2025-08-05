@@ -506,35 +506,83 @@ void uyvyToRgb_common(const uint8_t* src, int srcStride, uint8_t* dst, int dstSt
 
 // YUYV conversion functions
 void yuyvToBgr24(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+#if ENABLE_AVX2_IMP
+    if (canUseAVX2()) {
+        yuyvToBgr24_avx2(src, srcStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
     yuyvToRgb_common<true, false>(src, srcStride, dst, dstStride, width, height, flag);
 }
 
 void yuyvToRgb24(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+#if ENABLE_AVX2_IMP
+    if (canUseAVX2()) {
+        yuyvToRgb24_avx2(src, srcStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
     yuyvToRgb_common<false, false>(src, srcStride, dst, dstStride, width, height, flag);
 }
 
 void yuyvToBgra32(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+#if ENABLE_AVX2_IMP
+    if (canUseAVX2()) {
+        yuyvToBgra32_avx2(src, srcStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
     yuyvToRgb_common<true, true>(src, srcStride, dst, dstStride, width, height, flag);
 }
 
 void yuyvToRgba32(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+#if ENABLE_AVX2_IMP
+    if (canUseAVX2()) {
+        yuyvToRgba32_avx2(src, srcStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
     yuyvToRgb_common<false, true>(src, srcStride, dst, dstStride, width, height, flag);
 }
 
 // UYVY conversion functions
 void uyvyToBgr24(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+#if ENABLE_AVX2_IMP
+    if (canUseAVX2()) {
+        uyvyToBgr24_avx2(src, srcStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
     uyvyToRgb_common<true, false>(src, srcStride, dst, dstStride, width, height, flag);
 }
 
 void uyvyToRgb24(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+#if ENABLE_AVX2_IMP
+    if (canUseAVX2()) {
+        uyvyToRgb24_avx2(src, srcStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
     uyvyToRgb_common<false, false>(src, srcStride, dst, dstStride, width, height, flag);
 }
 
 void uyvyToBgra32(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+#if ENABLE_AVX2_IMP
+    if (canUseAVX2()) {
+        uyvyToBgra32_avx2(src, srcStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
     uyvyToRgb_common<true, true>(src, srcStride, dst, dstStride, width, height, flag);
 }
 
 void uyvyToRgba32(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+#if ENABLE_AVX2_IMP
+    if (canUseAVX2()) {
+        uyvyToRgba32_avx2(src, srcStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
     uyvyToRgb_common<false, true>(src, srcStride, dst, dstStride, width, height, flag);
 }
 
