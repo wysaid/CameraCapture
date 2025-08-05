@@ -753,22 +753,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
     bool zeroCopy = ((internalFormat & kPixelFormatYUVColorBit) && (outputFormat & kPixelFormatYUVColorBit)) ||
         (internalFormat == outputFormat && _provider->frameOrientation() == kDefaultFrameOrientation);
 
-    if (zeroCopy) {
-        newFrame->orientation = kDefaultFrameOrientation;
-        CFRetain(imageBuffer);
-        auto manager = std::make_shared<FakeFrame>([imageBuffer, newFrame]() mutable {
-            CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
-            CFRelease(imageBuffer);
-            CCAP_NSLOG_V(@"ccap: recycled frame, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
-
-            newFrame->nativeHandle = nullptr;
-            newFrame = nullptr;
-        });
-
-        auto fakeFrame = std::shared_ptr<VideoFrame>(manager, newFrame.get());
-        newFrame = fakeFrame;
-    } else /// yuv/rgb color -> rgb color
-    {
+    if (!zeroCopy) {
         newFrame->orientation = _provider->frameOrientation();
 
         if (!newFrame->allocator) {
@@ -782,7 +767,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
             startConvertTime = std::chrono::steady_clock::now();
         }
 
-        inplaceConvertFrame(newFrame.get(), outputFormat, (int)(newFrame->orientation != kDefaultFrameOrientation));
+        zeroCopy = !inplaceConvertFrame(newFrame.get(), outputFormat, (int)(newFrame->orientation != kDefaultFrameOrientation));
 
         CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
 
@@ -811,6 +796,22 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
                 pixelFormatToString(_provider->getFrameProperty().cameraPixelFormat).data(),
                 (int)(newFrame->orientation != kDefaultFrameOrientation), mode, durInMs, s_allCostTime / s_frames);
         }
+    }
+
+    if (zeroCopy) {
+        newFrame->orientation = kDefaultFrameOrientation;
+        CFRetain(imageBuffer);
+        auto manager = std::make_shared<FakeFrame>([imageBuffer, newFrame]() mutable {
+            CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+            CFRelease(imageBuffer);
+            CCAP_NSLOG_V(@"ccap: recycled frame, width: %d, height: %d", (int)newFrame->width, (int)newFrame->height);
+
+            newFrame->nativeHandle = nullptr;
+            newFrame = nullptr;
+        });
+
+        auto fakeFrame = std::shared_ptr<VideoFrame>(manager, newFrame.get());
+        newFrame = fakeFrame;
     }
 
     newFrame->frameIndex = _provider->frameIndex()++;
