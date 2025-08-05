@@ -55,7 +55,9 @@ struct YUVConversionTestParams {
  */
 enum class YUVFormat {
     NV12,
-    I420
+    I420,
+    YUYV,
+    UYVY
 };
 
 /**
@@ -91,23 +93,41 @@ public:
         int height = params.resolution.second;
         int channels = (rgb_format == RGBFormat::RGB24 || rgb_format == RGBFormat::BGR24) ? 3 : 4;
 
-        // Create test images
-        bool is_nv12 = (yuv_format == YUVFormat::NV12);
-        TestYUVImage yuv_img(width, height, is_nv12);
+        // Create test images based on format
+        std::unique_ptr<TestYUVImage> yuv_img;
+        std::unique_ptr<TestImage> packed_img; // For YUYV/UYVY packed formats
+        
+        if (yuv_format == YUVFormat::YUYV || yuv_format == YUVFormat::UYVY) {
+            // YUYV/UYVY are packed formats: each pixel pair uses 4 bytes (Y0 U Y1 V or U Y0 V Y1)
+            // Store in a single image with 2 bytes per pixel (width * 2 bytes per row)
+            packed_img = std::make_unique<TestImage>(width * 2, height, 1); // width*2 bytes, 1 channel
+            generatePackedYUVPattern(*packed_img, yuv_format, width, height);
+        } else {
+            // NV12/I420 use planar formats
+            bool is_nv12 = (yuv_format == YUVFormat::NV12);
+            yuv_img = std::make_unique<TestYUVImage>(width, height, is_nv12);
+            yuv_img->generateKnownPattern();
+        }
+
         TestImage cpu_result(width, height, channels);
         TestImage backend_result(width, height, channels);
-
-        // Generate test pattern
-        yuv_img.generateKnownPattern();
 
         // Get CPU result (baseline)
         auto original_backend = ccap::getConvertBackend();
         ccap::setConvertBackend(ccap::ConvertBackend::CPU);
-        performConversion(yuv_img, cpu_result, yuv_format, rgb_format, params.conversion_flags, width, height);
+        if (packed_img) {
+            performPackedConversion(*packed_img, cpu_result, yuv_format, rgb_format, params.conversion_flags, width, height);
+        } else {
+            performConversion(*yuv_img, cpu_result, yuv_format, rgb_format, params.conversion_flags, width, height);
+        }
 
         // Get backend result
         ccap::setConvertBackend(params.backend);
-        performConversion(yuv_img, backend_result, yuv_format, rgb_format, params.conversion_flags, width, height);
+        if (packed_img) {
+            performPackedConversion(*packed_img, backend_result, yuv_format, rgb_format, params.conversion_flags, width, height);
+        } else {
+            performConversion(*yuv_img, backend_result, yuv_format, rgb_format, params.conversion_flags, width, height);
+        }
 
         // Compare results
         bool images_match = PixelTestUtils::compareImages(
@@ -224,6 +244,102 @@ public:
     }
 
 private:
+    /**
+     * @brief Generate packed YUV test pattern for YUYV/UYVY formats
+     */
+    static void generatePackedYUVPattern(TestImage& packed_img, YUVFormat format, int width, int height) {
+        uint8_t* data = packed_img.data();
+        int stride = packed_img.stride();
+        
+        for (int y = 0; y < height; ++y) {
+            uint8_t* row = data + y * stride;
+            for (int x = 0; x < width; x += 2) {
+                // Generate test pattern values
+                uint8_t y0 = (uint8_t)(((x + y * width) * 219 / (width * height)) + 16);     // Video range Y
+                uint8_t y1 = (uint8_t)(((x + 1 + y * width) * 219 / (width * height)) + 16); // Video range Y
+                uint8_t u = (uint8_t)(((x / 2 + y) * 224 / (width / 2 + height)) + 16);      // Video range U/V
+                uint8_t v = (uint8_t)(((x / 2 + y + 100) * 224 / (width / 2 + height)) + 16); // Video range U/V
+                
+                int base_idx = x * 2; // Each pixel pair uses 4 bytes
+                
+                if (format == YUVFormat::YUYV) {
+                    // YUYV format: Y0 U Y1 V
+                    row[base_idx + 0] = y0;
+                    row[base_idx + 1] = u;
+                    row[base_idx + 2] = y1;
+                    row[base_idx + 3] = v;
+                } else { // UYVY
+                    // UYVY format: U Y0 V Y1
+                    row[base_idx + 0] = u;
+                    row[base_idx + 1] = y0;
+                    row[base_idx + 2] = v;
+                    row[base_idx + 3] = y1;
+                }
+            }
+        }
+    }
+    
+    /**
+     * @brief Perform conversion for packed YUV formats (YUYV/UYVY)
+     */
+    static void performPackedConversion(
+        const TestImage& packed_img,
+        TestImage& result,
+        YUVFormat yuv_format,
+        RGBFormat rgb_format,
+        ccap::ConvertFlag flags,
+        int width,
+        int height) {
+        
+        if (yuv_format == YUVFormat::YUYV) {
+            switch (rgb_format) {
+            case RGBFormat::RGB24:
+                ccap::yuyvToRgb24(packed_img.data(), packed_img.stride(),
+                                  result.data(), result.stride(),
+                                  width, height, flags);
+                break;
+            case RGBFormat::RGBA32:
+                ccap::yuyvToRgba32(packed_img.data(), packed_img.stride(),
+                                   result.data(), result.stride(),
+                                   width, height, flags);
+                break;
+            case RGBFormat::BGR24:
+                ccap::yuyvToBgr24(packed_img.data(), packed_img.stride(),
+                                  result.data(), result.stride(),
+                                  width, height, flags);
+                break;
+            case RGBFormat::BGRA32:
+                ccap::yuyvToBgra32(packed_img.data(), packed_img.stride(),
+                                   result.data(), result.stride(),
+                                   width, height, flags);
+                break;
+            }
+        } else if (yuv_format == YUVFormat::UYVY) {
+            switch (rgb_format) {
+            case RGBFormat::RGB24:
+                ccap::uyvyToRgb24(packed_img.data(), packed_img.stride(),
+                                  result.data(), result.stride(),
+                                  width, height, flags);
+                break;
+            case RGBFormat::RGBA32:
+                ccap::uyvyToRgba32(packed_img.data(), packed_img.stride(),
+                                   result.data(), result.stride(),
+                                   width, height, flags);
+                break;
+            case RGBFormat::BGR24:
+                ccap::uyvyToBgr24(packed_img.data(), packed_img.stride(),
+                                  result.data(), result.stride(),
+                                  width, height, flags);
+                break;
+            case RGBFormat::BGRA32:
+                ccap::uyvyToBgra32(packed_img.data(), packed_img.stride(),
+                                   result.data(), result.stride(),
+                                   width, height, flags);
+                break;
+            }
+        }
+    }
+
     static void performConversion(
         const TestYUVImage& yuv_img,
         TestImage& result,
@@ -259,7 +375,7 @@ private:
                                    width, height, flags);
                 break;
             }
-        } else { // I420
+        } else if (yuv_format == YUVFormat::I420) {
             switch (rgb_format) {
             case RGBFormat::RGB24:
                 ccap::i420ToRgb24(yuv_img.y_data(), yuv_img.y_stride(),
@@ -290,11 +406,74 @@ private:
                                    width, height, flags);
                 break;
             }
+        } else if (yuv_format == YUVFormat::YUYV) {
+            // YUYV uses packed format, stored in y_data()
+            switch (rgb_format) {
+            case RGBFormat::RGB24:
+                ccap::yuyvToRgb24(yuv_img.y_data(), yuv_img.y_stride(),
+                                  result.data(), result.stride(),
+                                  width, height, flags);
+                break;
+            case RGBFormat::RGBA32:
+                ccap::yuyvToRgba32(yuv_img.y_data(), yuv_img.y_stride(),
+                                   result.data(), result.stride(),
+                                   width, height, flags);
+                break;
+            case RGBFormat::BGR24:
+                ccap::yuyvToBgr24(yuv_img.y_data(), yuv_img.y_stride(),
+                                  result.data(), result.stride(),
+                                  width, height, flags);
+                break;
+            case RGBFormat::BGRA32:
+                ccap::yuyvToBgra32(yuv_img.y_data(), yuv_img.y_stride(),
+                                   result.data(), result.stride(),
+                                   width, height, flags);
+                break;
+            }
+        } else if (yuv_format == YUVFormat::UYVY) {
+            // UYVY uses packed format, stored in y_data()
+            switch (rgb_format) {
+            case RGBFormat::RGB24:
+                ccap::uyvyToRgb24(yuv_img.y_data(), yuv_img.y_stride(),
+                                  result.data(), result.stride(),
+                                  width, height, flags);
+                break;
+            case RGBFormat::RGBA32:
+                ccap::uyvyToRgba32(yuv_img.y_data(), yuv_img.y_stride(),
+                                   result.data(), result.stride(),
+                                   width, height, flags);
+                break;
+            case RGBFormat::BGR24:
+                ccap::uyvyToBgr24(yuv_img.y_data(), yuv_img.y_stride(),
+                                  result.data(), result.stride(),
+                                  width, height, flags);
+                break;
+            case RGBFormat::BGRA32:
+                ccap::uyvyToBgra32(yuv_img.y_data(), yuv_img.y_stride(),
+                                   result.data(), result.stride(),
+                                   width, height, flags);
+                break;
+            }
         }
     }
 
     static std::string getFormatString(YUVFormat yuv_format, RGBFormat rgb_format) {
-        std::string yuv_str = (yuv_format == YUVFormat::NV12) ? "NV12" : "I420";
+        std::string yuv_str;
+        switch (yuv_format) {
+        case YUVFormat::NV12:
+            yuv_str = "NV12";
+            break;
+        case YUVFormat::I420:
+            yuv_str = "I420";
+            break;
+        case YUVFormat::YUYV:
+            yuv_str = "YUYV";
+            break;
+        case YUVFormat::UYVY:
+            yuv_str = "UYVY";
+            break;
+        }
+        
         std::string rgb_str;
         switch (rgb_format) {
         case RGBFormat::RGB24:
@@ -376,6 +555,42 @@ TEST_P(YUVConversionMultiDimensionalTest, I420_To_BGR24) {
 
 TEST_P(YUVConversionMultiDimensionalTest, I420_To_BGRA32) {
     YUVConversionTestHelper::testYUVConversion(GetParam(), YUVFormat::I420, RGBFormat::BGRA32);
+}
+
+// ============ YUYV Conversion Tests ============
+
+TEST_P(YUVConversionMultiDimensionalTest, YUYV_To_RGB24) {
+    YUVConversionTestHelper::testYUVConversion(GetParam(), YUVFormat::YUYV, RGBFormat::RGB24);
+}
+
+TEST_P(YUVConversionMultiDimensionalTest, YUYV_To_RGBA32) {
+    YUVConversionTestHelper::testYUVConversion(GetParam(), YUVFormat::YUYV, RGBFormat::RGBA32);
+}
+
+TEST_P(YUVConversionMultiDimensionalTest, YUYV_To_BGR24) {
+    YUVConversionTestHelper::testYUVConversion(GetParam(), YUVFormat::YUYV, RGBFormat::BGR24);
+}
+
+TEST_P(YUVConversionMultiDimensionalTest, YUYV_To_BGRA32) {
+    YUVConversionTestHelper::testYUVConversion(GetParam(), YUVFormat::YUYV, RGBFormat::BGRA32);
+}
+
+// ============ UYVY Conversion Tests ============
+
+TEST_P(YUVConversionMultiDimensionalTest, UYVY_To_RGB24) {
+    YUVConversionTestHelper::testYUVConversion(GetParam(), YUVFormat::UYVY, RGBFormat::RGB24);
+}
+
+TEST_P(YUVConversionMultiDimensionalTest, UYVY_To_RGBA32) {
+    YUVConversionTestHelper::testYUVConversion(GetParam(), YUVFormat::UYVY, RGBFormat::RGBA32);
+}
+
+TEST_P(YUVConversionMultiDimensionalTest, UYVY_To_BGR24) {
+    YUVConversionTestHelper::testYUVConversion(GetParam(), YUVFormat::UYVY, RGBFormat::BGR24);
+}
+
+TEST_P(YUVConversionMultiDimensionalTest, UYVY_To_BGRA32) {
+    YUVConversionTestHelper::testYUVConversion(GetParam(), YUVFormat::UYVY, RGBFormat::BGRA32);
 }
 
 // Instantiate the multi-dimensional parameterized tests
@@ -466,6 +681,243 @@ TEST_F(YUVPixelConversionTest, GetYuvToRgbFunc_ReturnsCorrectFunctions) {
     EXPECT_EQ(r1, r2) << "Function pointer should produce same result as direct call";
     EXPECT_EQ(g1, g2) << "Function pointer should produce same result as direct call";
     EXPECT_EQ(b1, b2) << "Function pointer should produce same result as direct call";
+}
+
+// ============ YUYV/UYVY Packed Format Tests ============
+
+/**
+ * @brief Test class for YUYV/UYVY packed format conversions
+ */
+class PackedYUVConversionTest : public BackendTestManager::BackendTestFixture {
+protected:
+    void SetUp() override {
+        BackendTestFixture::SetUp();
+        setBackend(ccap::ConvertBackend::CPU); // Start with CPU for baseline tests
+    }
+    
+    /**
+     * @brief Create a simple test pattern for YUYV/UYVY formats
+     */
+    void createTestPattern(TestImage& packed_img, YUVFormat format, int width, int height) {
+        uint8_t* data = packed_img.data();
+        int stride = packed_img.stride();
+        
+        // Create a simple gradient pattern
+        for (int y = 0; y < height; ++y) {
+            uint8_t* row = data + y * stride;
+            for (int x = 0; x < width; x += 2) {
+                // Simple test values
+                uint8_t y0 = 80 + (x * 100 / width);     // Y values 80-180
+                uint8_t y1 = 80 + ((x+1) * 100 / width); // Y values 80-180  
+                uint8_t u = 100 + (y * 50 / height);     // U values 100-150
+                uint8_t v = 140 - (y * 50 / height);     // V values 140-90
+                
+                int base_idx = x * 2;
+                
+                if (format == YUVFormat::YUYV) {
+                    // YUYV: Y0 U Y1 V
+                    row[base_idx + 0] = y0;
+                    row[base_idx + 1] = u;
+                    row[base_idx + 2] = y1;
+                    row[base_idx + 3] = v;
+                } else { // UYVY
+                    // UYVY: U Y0 V Y1
+                    row[base_idx + 0] = u;
+                    row[base_idx + 1] = y0;
+                    row[base_idx + 2] = v;
+                    row[base_idx + 3] = y1;
+                }
+            }
+        }
+    }
+};
+
+TEST_F(PackedYUVConversionTest, YUYV_BasicConversion_SmallImage) {
+    const int width = 8, height = 4;
+    TestImage yuyv_img(width * 2, height, 1); // YUYV needs width*2 bytes per row
+    TestImage result_rgb(width, height, 3);
+    TestImage result_rgba(width, height, 4);
+    
+    createTestPattern(yuyv_img, YUVFormat::YUYV, width, height);
+    
+    // Test RGB24 conversion
+    ccap::yuyvToRgb24(yuyv_img.data(), yuyv_img.stride(),
+                      result_rgb.data(), result_rgb.stride(),
+                      width, height, ccap::ConvertFlag::Default);
+    
+    // Test RGBA32 conversion
+    ccap::yuyvToRgba32(yuyv_img.data(), yuyv_img.stride(),
+                       result_rgba.data(), result_rgba.stride(),
+                       width, height, ccap::ConvertFlag::Default);
+    
+    // Basic sanity checks - RGB values should be in valid range
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            uint8_t r = result_rgb.data()[y * result_rgb.stride() + x * 3 + 0];
+            uint8_t g = result_rgb.data()[y * result_rgb.stride() + x * 3 + 1];
+            uint8_t b = result_rgb.data()[y * result_rgb.stride() + x * 3 + 2];
+            
+            // RGB values should be in valid range
+            EXPECT_LE(r, 255) << "Red value out of range at (" << x << "," << y << ")";
+            EXPECT_LE(g, 255) << "Green value out of range at (" << x << "," << y << ")";
+            EXPECT_LE(b, 255) << "Blue value out of range at (" << x << "," << y << ")";
+            
+            // RGBA should have alpha = 255
+            uint8_t a = result_rgba.data()[y * result_rgba.stride() + x * 4 + 3];
+            EXPECT_EQ(a, 255) << "Alpha should be 255 at (" << x << "," << y << ")";
+        }
+    }
+}
+
+TEST_F(PackedYUVConversionTest, UYVY_BasicConversion_SmallImage) {
+    const int width = 8, height = 4;
+    TestImage uyvy_img(width * 2, height, 1); // UYVY needs width*2 bytes per row
+    TestImage result_bgr(width, height, 3);
+    TestImage result_bgra(width, height, 4);
+    
+    createTestPattern(uyvy_img, YUVFormat::UYVY, width, height);
+    
+    // Test BGR24 conversion
+    ccap::uyvyToBgr24(uyvy_img.data(), uyvy_img.stride(),
+                      result_bgr.data(), result_bgr.stride(),
+                      width, height, ccap::ConvertFlag::Default);
+    
+    // Test BGRA32 conversion
+    ccap::uyvyToBgra32(uyvy_img.data(), uyvy_img.stride(),
+                       result_bgra.data(), result_bgra.stride(),
+                       width, height, ccap::ConvertFlag::Default);
+    
+    // Basic sanity checks - RGB values should be in valid range
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            uint8_t b = result_bgr.data()[y * result_bgr.stride() + x * 3 + 0];
+            uint8_t g = result_bgr.data()[y * result_bgr.stride() + x * 3 + 1];
+            uint8_t r = result_bgr.data()[y * result_bgr.stride() + x * 3 + 2];
+            
+            // RGB values should be in valid range
+            EXPECT_LE(r, 255) << "Red value out of range at (" << x << "," << y << ")";
+            EXPECT_LE(g, 255) << "Green value out of range at (" << x << "," << y << ")";
+            EXPECT_LE(b, 255) << "Blue value out of range at (" << x << "," << y << ")";
+            
+            // BGRA should have alpha = 255
+            uint8_t a = result_bgra.data()[y * result_bgra.stride() + x * 4 + 3];
+            EXPECT_EQ(a, 255) << "Alpha should be 255 at (" << x << "," << y << ")";
+        }
+    }
+}
+
+/**
+ * @brief Test CPU vs AVX2 backend consistency for YUYV/UYVY conversions
+ */
+TEST_F(PackedYUVConversionTest, YUYV_CPU_vs_AVX2_Consistency) {
+    // Skip if AVX2 is not supported
+    if (!ccap::hasAVX2()) {
+        GTEST_SKIP() << "AVX2 not supported on this platform";
+    }
+    
+    const int width = 64, height = 32; // Size suitable for AVX2 optimization
+    TestImage yuyv_img(width * 2, height, 1);
+    TestImage cpu_result(width, height, 4);
+    TestImage avx2_result(width, height, 4);
+    
+    createTestPattern(yuyv_img, YUVFormat::YUYV, width, height);
+    
+    // Get CPU result
+    ccap::setConvertBackend(ccap::ConvertBackend::CPU);
+    ccap::yuyvToRgba32(yuyv_img.data(), yuyv_img.stride(),
+                       cpu_result.data(), cpu_result.stride(),
+                       width, height, ccap::ConvertFlag::Default);
+    
+    // Get AVX2 result
+    ccap::setConvertBackend(ccap::ConvertBackend::AVX2);
+    ccap::yuyvToRgba32(yuyv_img.data(), yuyv_img.stride(),
+                       avx2_result.data(), avx2_result.stride(),
+                       width, height, ccap::ConvertFlag::Default);
+    
+    // Compare results
+    bool images_match = PixelTestUtils::compareImages(
+        cpu_result.data(), avx2_result.data(),
+        width, height, 4,
+        cpu_result.stride(), avx2_result.stride(), 1);
+    
+    EXPECT_TRUE(images_match) << "YUYV conversion results differ between CPU and AVX2 backends";
+}
+
+TEST_F(PackedYUVConversionTest, UYVY_CPU_vs_AVX2_Consistency) {
+    // Skip if AVX2 is not supported
+    if (!ccap::hasAVX2()) {
+        GTEST_SKIP() << "AVX2 not supported on this platform";
+    }
+    
+    const int width = 64, height = 32; // Size suitable for AVX2 optimization
+    TestImage uyvy_img(width * 2, height, 1);
+    TestImage cpu_result(width, height, 4);
+    TestImage avx2_result(width, height, 4);
+    
+    createTestPattern(uyvy_img, YUVFormat::UYVY, width, height);
+    
+    // Get CPU result
+    ccap::setConvertBackend(ccap::ConvertBackend::CPU);
+    ccap::uyvyToBgra32(uyvy_img.data(), uyvy_img.stride(),
+                       cpu_result.data(), cpu_result.stride(),
+                       width, height, ccap::ConvertFlag::Default);
+    
+    // Get AVX2 result
+    ccap::setConvertBackend(ccap::ConvertBackend::AVX2);
+    ccap::uyvyToBgra32(uyvy_img.data(), uyvy_img.stride(),
+                       avx2_result.data(), avx2_result.stride(),
+                       width, height, ccap::ConvertFlag::Default);
+    
+    // Compare results
+    bool images_match = PixelTestUtils::compareImages(
+        cpu_result.data(), avx2_result.data(),
+        width, height, 4,
+        cpu_result.stride(), avx2_result.stride(), 1);
+    
+    EXPECT_TRUE(images_match) << "UYVY conversion results differ between CPU and AVX2 backends";
+}
+
+TEST_F(PackedYUVConversionTest, PackedYUV_ColorSpaceFlags_Consistency) {
+    const int width = 32, height = 16;
+    TestImage yuyv_img(width * 2, height, 1);
+    TestImage result_601v(width, height, 3);
+    TestImage result_601f(width, height, 3);
+    TestImage result_709v(width, height, 3);
+    TestImage result_709f(width, height, 3);
+    
+    createTestPattern(yuyv_img, YUVFormat::YUYV, width, height);
+    
+    // Test different color space conversions
+    ccap::yuyvToRgb24(yuyv_img.data(), yuyv_img.stride(),
+                      result_601v.data(), result_601v.stride(),
+                      width, height, ccap::ConvertFlag::BT601 | ccap::ConvertFlag::VideoRange);
+    
+    ccap::yuyvToRgb24(yuyv_img.data(), yuyv_img.stride(),
+                      result_601f.data(), result_601f.stride(),
+                      width, height, ccap::ConvertFlag::BT601 | ccap::ConvertFlag::FullRange);
+    
+    ccap::yuyvToRgb24(yuyv_img.data(), yuyv_img.stride(),
+                      result_709v.data(), result_709v.stride(),
+                      width, height, ccap::ConvertFlag::BT709 | ccap::ConvertFlag::VideoRange);
+    
+    ccap::yuyvToRgb24(yuyv_img.data(), yuyv_img.stride(),
+                      result_709f.data(), result_709f.stride(),
+                      width, height, ccap::ConvertFlag::BT709 | ccap::ConvertFlag::FullRange);
+    
+    // Results should be different between different color space conversions
+    bool same_601v_601f = PixelTestUtils::compareImages(
+        result_601v.data(), result_601f.data(),
+        width, height, 3,
+        result_601v.stride(), result_601f.stride(), 0);
+    
+    bool same_601v_709v = PixelTestUtils::compareImages(
+        result_601v.data(), result_709v.data(),
+        width, height, 3,
+        result_601v.stride(), result_709v.stride(), 0);
+    
+    // Different color space settings should produce different results
+    EXPECT_FALSE(same_601v_601f) << "BT601 VideoRange and FullRange should produce different results";
+    EXPECT_FALSE(same_601v_709v) << "BT601 and BT709 should produce different results";
 }
 
 // ============ Additional Edge Case Tests (Special scenarios not covered by multi-dimensional tests) ============
