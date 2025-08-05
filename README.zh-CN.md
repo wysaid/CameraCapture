@@ -2,9 +2,10 @@
 
 [![Windows Build](https://github.com/wysaid/CameraCapture/actions/workflows/windows-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/windows-build.yml)
 [![macOS Build](https://github.com/wysaid/CameraCapture/actions/workflows/macos-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/macos-build.yml)
+[![Linux Build](https://github.com/wysaid/CameraCapture/actions/workflows/linux-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/linux-build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![C++17](https://img.shields.io/badge/C++-17-blue.svg)](https://isocpp.org/)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20iOS-brightgreen)](https://github.com/wysaid/CameraCapture)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20iOS%20%7C%20Linux-brightgreen)](https://github.com/wysaid/CameraCapture)
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
@@ -22,7 +23,7 @@
 
 - **高性能**：硬件加速的像素格式转换，提升高达 10 倍性能（AVX2、Apple Accelerate）
 - **轻量级**：零外部依赖，仅使用系统框架
-- **跨平台**：Windows（DirectShow）、macOS/iOS（AVFoundation）
+- **跨平台**：Windows（DirectShow）、macOS/iOS（AVFoundation）、Linux（V4L2）
 - **多种格式**：RGB、BGR、YUV（NV12/I420）及自动转换
 - **双语言接口**：✨ **新增完整纯 C 接口**，同时提供现代化 C++ API 和传统 C99 接口，支持各种项目集成和语言绑定
 - **生产就绪**：完整测试套件，95%+ 精度验证
@@ -165,8 +166,18 @@ int main() {
 | **Windows** | MSVC 2019+ | DirectShow |
 | **macOS** | Xcode 11+ | macOS 10.13+ |
 | **iOS** | Xcode 11+ | iOS 13.0+ |
+| **Linux** | GCC 7+ / Clang 6+ | V4L2 (Linux 2.6+) |
 
 **构建要求**：CMake 3.14+，C++17
+
+### 支持的 Linux 发行版
+
+- [x] **Ubuntu/Debian** - 所有带有 Linux 2.6+ 内核的版本  
+- [x] **CentOS/RHEL/Fedora** - 所有带有 Linux 2.6+ 内核的版本  
+- [x] **SUSE/openSUSE** - 所有版本  
+- [x] **Arch Linux** - 所有版本  
+- [x] **Alpine Linux** - 所有版本  
+- [x] **嵌入式 Linux** - 任何支持 V4L2 的发行版  
 
 ## 示例代码
 
