@@ -1028,8 +1028,162 @@ AVX2_TARGET void yuyvToRgb_avx2_imp(const uint8_t* src, int srcStride, uint8_t* 
         uint8_t* dstRow = dst + y * dstStride;
         int x = 0;
 
-        // 暂时回退到CPU实现以确保正确性，待后续优化
-        // AVX2 实现存在精度问题，需要进一步调试
+        // AVX2 优化处理，每次处理16个像素（32字节YUYV数据）
+        for (; x + vectorWidth <= width; x += vectorWidth) {
+            // 1. 加载32字节YUYV数据 (16个像素 = 32字节)
+            __m256i yuyv_data = _mm256_loadu_si256((const __m256i*)(srcRow + x * 2));
+            
+            // 2. 分离YUYV分量
+            // YUYV格式: Y0 U0 Y1 V0 Y2 U1 Y3 V1 ...
+            // 需要重新排列数据来分离各分量
+            
+            // 使用更直接的方法分离YUYV数据
+            // YUYV格式: Y0 U0 Y1 V0 Y2 U1 Y3 V1 ...
+            // 我们需要分别提取Y、U、V分量
+            
+            // 分离低128位和高128位，分别处理
+            __m128i yuyv_lo = _mm256_castsi256_si128(yuyv_data);         // 低128位：Y0U0Y1V0...Y7V3
+            __m128i yuyv_hi = _mm256_extracti128_si256(yuyv_data, 1);   // 高128位：Y8U4Y9V4...Y15V7
+            
+            // 使用16位掩码来分离奇偶字节
+            __m128i mask_low = _mm_set1_epi16(0x00FF);  // 提取低字节
+            __m128i mask_high = _mm_set1_epi16(0xFF00); // 提取高字节
+            
+            // 分离Y和UV分量（低128位）
+            __m128i y_uv_lo_low = _mm_and_si128(yuyv_lo, mask_low);    // Y0, U0, Y2, U1, ...
+            __m128i y_uv_lo_high = _mm_and_si128(yuyv_lo, mask_high);  // 0, V0, 0, V1, ...
+            
+            // 分离Y和UV分量（高128位）
+            __m128i y_uv_hi_low = _mm_and_si128(yuyv_hi, mask_low);    // Y8, U4, Y10, U5, ...
+            __m128i y_uv_hi_high = _mm_and_si128(yuyv_hi, mask_high);  // 0, V4, 0, V5, ...
+            
+            // 打包成8位数据，充分利用两个128位数据
+            __m128i packed_low_lo = _mm_packus_epi16(y_uv_lo_low, y_uv_hi_low);        // Y0,U0,Y2,U1,Y4,U2,Y6,U3,Y8,U4,Y10,U5,Y12,U6,Y14,U7
+            __m128i packed_high_lo = _mm_packus_epi16(_mm_srli_epi16(y_uv_lo_high, 8), _mm_srli_epi16(y_uv_hi_high, 8)); // Y1,V0,Y3,V1,Y5,V2,Y7,V3,Y9,V4,Y11,V5,Y13,V6,Y15,V7
+            
+            // 使用shuffle来分离Y, U, V分量
+            // 创建shuffle掩码来重新排列数据
+            __m256i shuffle_y = _mm256_setr_epi8(
+                0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30,
+                0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30
+            );
+            
+            __m256i shuffle_u = _mm256_setr_epi8(
+                1, 1, 5, 5, 9, 9, 13, 13, 17, 17, 21, 21, 25, 25, 29, 29,
+                1, 1, 5, 5, 9, 9, 13, 13, 17, 17, 21, 21, 25, 25, 29, 29
+            );
+            
+            __m256i shuffle_v = _mm256_setr_epi8(
+                3, 3, 7, 7, 11, 11, 15, 15, 19, 19, 23, 23, 27, 27, 31, 31,
+                3, 3, 7, 7, 11, 11, 15, 15, 19, 19, 23, 23, 27, 27, 31, 31
+            );
+            
+            __m256i y_vals = _mm256_shuffle_epi8(yuyv_data, shuffle_y);
+            __m256i u_vals = _mm256_shuffle_epi8(yuyv_data, shuffle_u);
+            __m256i v_vals = _mm256_shuffle_epi8(yuyv_data, shuffle_v);
+            
+            // 取低128位并转换为16位
+            __m128i y_8 = _mm256_castsi256_si128(y_vals);
+            __m128i u_8 = _mm256_castsi256_si128(u_vals);
+            __m128i v_8 = _mm256_castsi256_si128(v_vals);
+            
+            __m256i y_16 = _mm256_cvtepu8_epi16(y_8);
+            __m256i u_16 = _mm256_cvtepu8_epi16(u_8);
+            __m256i v_16 = _mm256_cvtepu8_epi16(v_8);
+            
+            // 3. YUV偏移处理
+            u_16 = _mm256_sub_epi16(u_16, c128);
+            v_16 = _mm256_sub_epi16(v_16, c128);
+            
+            if constexpr (!isFullRange) {
+                y_16 = _mm256_sub_epi16(y_16, _mm256_set1_epi16(16));
+            }
+            
+            // 4. YUV到RGB转换
+            __m256i y_scaled = _mm256_mullo_epi16(y_16, c_y);
+            
+            __m256i r = _mm256_add_epi16(y_scaled, _mm256_mullo_epi16(v_16, c_r));
+            r = _mm256_add_epi16(r, _mm256_set1_epi16(32));
+            r = _mm256_srai_epi16(r, 6);
+            
+            __m256i g = _mm256_sub_epi16(y_scaled, _mm256_mullo_epi16(u_16, c_gu));
+            g = _mm256_sub_epi16(g, _mm256_mullo_epi16(v_16, c_gv));
+            g = _mm256_add_epi16(g, _mm256_set1_epi16(32));
+            g = _mm256_srai_epi16(g, 6);
+            
+            __m256i b = _mm256_add_epi16(y_scaled, _mm256_mullo_epi16(u_16, c_b));
+            b = _mm256_add_epi16(b, _mm256_set1_epi16(32));
+            b = _mm256_srai_epi16(b, 6);
+            
+            // 5. 钳制到0-255范围
+            __m256i zero = _mm256_setzero_si256();
+            __m256i maxv = _mm256_set1_epi16(255);
+            r = _mm256_max_epi16(zero, _mm256_min_epi16(r, maxv));
+            g = _mm256_max_epi16(zero, _mm256_min_epi16(g, maxv));
+            b = _mm256_max_epi16(zero, _mm256_min_epi16(b, maxv));
+            
+            // 6. 转换为8位并打包输出
+            __m128i r8 = _mm_packus_epi16(_mm256_castsi256_si128(r), _mm256_extracti128_si256(r, 1));
+            __m128i g8 = _mm_packus_epi16(_mm256_castsi256_si128(g), _mm256_extracti128_si256(g, 1));
+            __m128i b8 = _mm_packus_epi16(_mm256_castsi256_si128(b), _mm256_extracti128_si256(b, 1));
+            
+            // 7. 根据输出格式存储
+            if constexpr (hasAlpha) {
+                if constexpr (isBgrColor) {
+                    // BGRA格式
+                    __m128i bg0 = _mm_unpacklo_epi8(b8, g8);
+                    __m128i ra0 = _mm_unpacklo_epi8(r8, a8);
+                    __m128i bgra0 = _mm_unpacklo_epi16(bg0, ra0);
+                    __m128i bgra1 = _mm_unpackhi_epi16(bg0, ra0);
+                    
+                    __m128i bg1 = _mm_unpackhi_epi8(b8, g8);
+                    __m128i ra1 = _mm_unpackhi_epi8(r8, a8);
+                    __m128i bgra2 = _mm_unpacklo_epi16(bg1, ra1);
+                    __m128i bgra3 = _mm_unpackhi_epi16(bg1, ra1);
+                    
+                    _mm_storeu_si128((__m128i*)(dstRow + x * 4), bgra0);
+                    _mm_storeu_si128((__m128i*)(dstRow + x * 4 + 16), bgra1);
+                    _mm_storeu_si128((__m128i*)(dstRow + x * 4 + 32), bgra2);
+                    _mm_storeu_si128((__m128i*)(dstRow + x * 4 + 48), bgra3);
+                } else {
+                    // RGBA格式
+                    __m128i rg0 = _mm_unpacklo_epi8(r8, g8);
+                    __m128i ba0 = _mm_unpacklo_epi8(b8, a8);
+                    __m128i rgba0 = _mm_unpacklo_epi16(rg0, ba0);
+                    __m128i rgba1 = _mm_unpackhi_epi16(rg0, ba0);
+                    
+                    __m128i rg1 = _mm_unpackhi_epi8(r8, g8);
+                    __m128i ba1 = _mm_unpackhi_epi8(b8, a8);
+                    __m128i rgba2 = _mm_unpacklo_epi16(rg1, ba1);
+                    __m128i rgba3 = _mm_unpackhi_epi16(rg1, ba1);
+                    
+                    _mm_storeu_si128((__m128i*)(dstRow + x * 4), rgba0);
+                    _mm_storeu_si128((__m128i*)(dstRow + x * 4 + 16), rgba1);
+                    _mm_storeu_si128((__m128i*)(dstRow + x * 4 + 32), rgba2);
+                    _mm_storeu_si128((__m128i*)(dstRow + x * 4 + 48), rgba3);
+                }
+            } else {
+                // RGB24或BGR24格式 - 使用标量存储避免复杂的3字节打包
+                uint8_t r_vals[16], g_vals[16], b_vals[16];
+                _mm_storeu_si128((__m128i*)r_vals, r8);
+                _mm_storeu_si128((__m128i*)g_vals, g8);
+                _mm_storeu_si128((__m128i*)b_vals, b8);
+                
+                for (int i = 0; i < 16 && (x + i) < width; ++i) {
+                    if constexpr (isBgrColor) {
+                        dstRow[(x + i) * 3 + 0] = b_vals[i];
+                        dstRow[(x + i) * 3 + 1] = g_vals[i];
+                        dstRow[(x + i) * 3 + 2] = r_vals[i];
+                    } else {
+                        dstRow[(x + i) * 3 + 0] = r_vals[i];
+                        dstRow[(x + i) * 3 + 1] = g_vals[i];
+                        dstRow[(x + i) * 3 + 2] = b_vals[i];
+                    }
+                }
+            }
+        }
+        
+        // 处理剩余像素（标量实现）
         YuvToRgbFunc convertFunc = getYuvToRgbFunc(is601, isFullRange);
         for (; x < width; x += 2) {
             if (x + 1 >= width) break; // YUYV需要成对处理
