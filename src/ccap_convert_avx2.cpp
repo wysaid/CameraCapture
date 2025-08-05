@@ -118,9 +118,8 @@ const char* getAVX2SupportInfo() {
 #if ENABLE_AVX2_IMP
 
 template <int inputChannels, int outputChannels, int swapRB>
-AVX2_TARGET
-void colorShuffle_avx2(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width,
-                       int height) { // Implement a general colorShuffle, accelerated by AVX2
+AVX2_TARGET void colorShuffle_avx2(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width,
+                                   int height) { // Implement a general colorShuffle, accelerated by AVX2
 
     static_assert((inputChannels == 3 || inputChannels == 4) && (outputChannels == 3 || outputChannels == 4),
                   "inputChannels and outputChannels must be 3 or 4");
@@ -297,9 +296,8 @@ inline void getYuvToRgbCoefficients(bool isBT601, bool isFullRange, int& cy, int
 }
 
 template <bool isBGRA, bool isFullRange>
-AVX2_TARGET
-void nv12ToRgbaColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride,
-                              int width, int height, bool is601) {
+AVX2_TARGET void nv12ToRgbaColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride,
+                                          int width, int height, bool is601) {
     if (height < 0) {
         height = -height;
         dst = dst + (height - 1) * dstStride;
@@ -463,9 +461,8 @@ void nv12ToRgbaColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t
 }
 
 template <bool isBGR, bool isFullRange>
-AVX2_TARGET
-void _nv12ToRgbColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride,
-                              int width, int height, bool is601) {
+AVX2_TARGET void _nv12ToRgbColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride,
+                                          int width, int height, bool is601) {
     if (height < 0) {
         height = -height;
         dst = dst + (height - 1) * dstStride;
@@ -603,9 +600,8 @@ void _nv12ToRgbColor_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t
 }
 
 template <bool isBGRA, bool isFullRange>
-AVX2_TARGET
-void _i420ToRgba_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
-                          uint8_t* dst, int dstStride, int width, int height, bool is601) {
+AVX2_TARGET void _i420ToRgba_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
+                                      uint8_t* dst, int dstStride, int width, int height, bool is601) {
     // 如果 height < 0，则反向写入 dst，src 顺序读取
     if (height < 0) {
         height = -height;
@@ -761,9 +757,8 @@ void _i420ToRgba_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* sr
 }
 
 template <bool isBGR, bool isFullRange>
-AVX2_TARGET
-void _i420ToRgb_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
-                         uint8_t* dst, int dstStride, int width, int height, bool is601) {
+AVX2_TARGET void _i420ToRgb_avx2_imp(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride,
+                                     uint8_t* dst, int dstStride, int width, int height, bool is601) {
     // 如果 height < 0，则反向写入 dst，src 顺序读取
     if (height < 0) {
         height = -height;
@@ -998,6 +993,445 @@ void i420ToRgb24_avx2(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, 
         _i420ToRgb_avx2_imp<false, true>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, is601);
     } else {
         _i420ToRgb_avx2_imp<false, false>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, is601);
+    }
+}
+
+///////////// YUYV/UYVY to RGB functions /////////////
+
+template <bool isBgrColor, bool hasAlpha, bool isFullRange>
+AVX2_TARGET void yuyvToRgb_avx2_imp(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, bool is601) {
+    // 如果 height < 0，则反向写入 dst，src 顺序读取
+    if (height < 0) {
+        height = -height;
+        dst = dst + (height - 1) * dstStride;
+        dstStride = -dstStride;
+    }
+
+    // 根据标志选择系数
+    int cy, cr, cgu, cgv, cb;
+    getYuvToRgbCoefficients(is601, isFullRange, cy, cr, cgu, cgv, cb);
+
+    __m256i c_y = _mm256_set1_epi16(cy);
+    __m256i c_r = _mm256_set1_epi16(cr);
+    __m256i c_gu = _mm256_set1_epi16(cgu);
+    __m256i c_gv = _mm256_set1_epi16(cgv);
+    __m256i c_b = _mm256_set1_epi16(cb);
+
+    __m256i c128 = _mm256_set1_epi16(128);
+    __m128i a8 = _mm_set1_epi8((char)255);
+
+    constexpr int channels = hasAlpha ? 4 : 3;
+    const int vectorWidth = 16; // 处理16个像素(32字节YUYV数据)
+
+    for (int y = 0; y < height; ++y) {
+        const uint8_t* srcRow = src + y * srcStride;
+        uint8_t* dstRow = dst + y * dstStride;
+        int x = 0;
+
+        // AVX2 vectorized processing - 每次处理16个像素
+        for (; x + vectorWidth <= width && hasAlpha; x += vectorWidth) {
+            // 加载32字节的YUYV数据 (16个像素)
+            __m256i yuyv_data = _mm256_loadu_si256((__m256i*)(srcRow + x * 2));
+
+            // 由于YUYV格式复杂，对于RGB24格式暂时使用标量处理
+            // 只对RGBA32/BGRA32格式使用AVX2优化
+
+            // 提取Y, U, V分量的简化实现
+            // 使用查找表方式重新排列数据
+            alignas(32) uint8_t y_data[32], u_data[32], v_data[32];
+
+            // 标量方式提取YUYV数据
+            for (int i = 0; i < 16; i += 2) {
+                int baseIdx = i * 2;
+                y_data[i] = ((uint8_t*)&yuyv_data)[baseIdx + 0];                 // Y0
+                u_data[i] = u_data[i + 1] = ((uint8_t*)&yuyv_data)[baseIdx + 1]; // U0 for both pixels
+                y_data[i + 1] = ((uint8_t*)&yuyv_data)[baseIdx + 2];             // Y1
+                v_data[i] = v_data[i + 1] = ((uint8_t*)&yuyv_data)[baseIdx + 3]; // V0 for both pixels
+            }
+
+            // 加载为256位向量
+            __m256i y_vec = _mm256_loadu_si256((__m256i*)y_data);
+            __m256i u_vec = _mm256_loadu_si256((__m256i*)u_data);
+            __m256i v_vec = _mm256_loadu_si256((__m256i*)v_data);
+
+            // 转换为16位进行计算
+            __m256i y_lo = _mm256_unpacklo_epi8(y_vec, _mm256_setzero_si256());
+            __m256i y_hi = _mm256_unpackhi_epi8(y_vec, _mm256_setzero_si256());
+            __m256i u_lo = _mm256_unpacklo_epi8(u_vec, _mm256_setzero_si256());
+            __m256i u_hi = _mm256_unpackhi_epi8(u_vec, _mm256_setzero_si256());
+            __m256i v_lo = _mm256_unpacklo_epi8(v_vec, _mm256_setzero_si256());
+            __m256i v_hi = _mm256_unpackhi_epi8(v_vec, _mm256_setzero_si256());
+
+            // 色彩空间转换
+            // 预处理
+            if constexpr (!isFullRange) {
+                y_lo = _mm256_subs_epi16(y_lo, _mm256_set1_epi16(16));
+                y_hi = _mm256_subs_epi16(y_hi, _mm256_set1_epi16(16));
+            }
+            u_lo = _mm256_subs_epi16(u_lo, c128);
+            u_hi = _mm256_subs_epi16(u_hi, c128);
+            v_lo = _mm256_subs_epi16(v_lo, c128);
+            v_hi = _mm256_subs_epi16(v_hi, c128);
+
+            // RGB计算 - 需要调整系数使用
+            // 使用正确的乘法和位移
+            __m256i y_scaled_lo = _mm256_mullo_epi16(y_lo, c_y);
+            __m256i y_scaled_hi = _mm256_mullo_epi16(y_hi, c_y);
+            __m256i v_scaled_lo = _mm256_mullo_epi16(v_lo, c_r);
+            __m256i v_scaled_hi = _mm256_mullo_epi16(v_hi, c_r);
+            __m256i u_scaled_gu_lo = _mm256_mullo_epi16(u_lo, c_gu);
+            __m256i u_scaled_gu_hi = _mm256_mullo_epi16(u_hi, c_gu);
+            __m256i v_scaled_gv_lo = _mm256_mullo_epi16(v_lo, c_gv);
+            __m256i v_scaled_gv_hi = _mm256_mullo_epi16(v_hi, c_gv);
+            __m256i u_scaled_b_lo = _mm256_mullo_epi16(u_lo, c_b);
+            __m256i u_scaled_b_hi = _mm256_mullo_epi16(u_hi, c_b);
+
+            // 计算RGB值，加上128进行四舍五入，然后右移8位
+            __m256i r_lo = _mm256_srai_epi16(_mm256_add_epi16(_mm256_add_epi16(y_scaled_lo, v_scaled_lo), _mm256_set1_epi16(128)), 8);
+            __m256i r_hi = _mm256_srai_epi16(_mm256_add_epi16(_mm256_add_epi16(y_scaled_hi, v_scaled_hi), _mm256_set1_epi16(128)), 8);
+            __m256i g_lo = _mm256_srai_epi16(_mm256_add_epi16(_mm256_sub_epi16(y_scaled_lo, _mm256_add_epi16(u_scaled_gu_lo, v_scaled_gv_lo)), _mm256_set1_epi16(128)), 8);
+            __m256i g_hi = _mm256_srai_epi16(_mm256_add_epi16(_mm256_sub_epi16(y_scaled_hi, _mm256_add_epi16(u_scaled_gu_hi, v_scaled_gv_hi)), _mm256_set1_epi16(128)), 8);
+            __m256i b_lo = _mm256_srai_epi16(_mm256_add_epi16(_mm256_add_epi16(y_scaled_lo, u_scaled_b_lo), _mm256_set1_epi16(128)), 8);
+            __m256i b_hi = _mm256_srai_epi16(_mm256_add_epi16(_mm256_add_epi16(y_scaled_hi, u_scaled_b_hi), _mm256_set1_epi16(128)), 8);
+
+            // 打包为8位并限制范围
+            __m256i r_packed = _mm256_packus_epi16(r_lo, r_hi);
+            __m256i g_packed = _mm256_packus_epi16(g_lo, g_hi);
+            __m256i b_packed = _mm256_packus_epi16(b_lo, b_hi);
+
+            // 交错存储RGBA数据
+            __m256i alpha = _mm256_set1_epi8((char)255);
+            if constexpr (isBgrColor) {
+                // BGRA格式 - 使用更简单的交错方式
+                for (int i = 0; i < 16; ++i) {
+                    dstRow[(x + i) * 4 + 0] = ((uint8_t*)&b_packed)[i];
+                    dstRow[(x + i) * 4 + 1] = ((uint8_t*)&g_packed)[i];
+                    dstRow[(x + i) * 4 + 2] = ((uint8_t*)&r_packed)[i];
+                    dstRow[(x + i) * 4 + 3] = 255;
+                }
+            } else {
+                // RGBA格式
+                for (int i = 0; i < 16; ++i) {
+                    dstRow[(x + i) * 4 + 0] = ((uint8_t*)&r_packed)[i];
+                    dstRow[(x + i) * 4 + 1] = ((uint8_t*)&g_packed)[i];
+                    dstRow[(x + i) * 4 + 2] = ((uint8_t*)&b_packed)[i];
+                    dstRow[(x + i) * 4 + 3] = 255;
+                }
+            }
+        }
+
+        // 处理剩余像素 (标量处理)
+        YuvToRgbFunc convertFunc = getYuvToRgbFunc(is601, isFullRange);
+        for (; x < width; x += 2) {
+            if (x + 1 >= width) break; // YUYV需要成对处理
+
+            // YUYV format: Y0 U0 Y1 V0 (4 bytes for 2 pixels)
+            int baseIdx = (x / 2) * 4;
+            int y0 = srcRow[baseIdx + 0]; // Y0
+            int u = srcRow[baseIdx + 1];  // U0
+            int y1 = srcRow[baseIdx + 2]; // Y1
+            int v = srcRow[baseIdx + 3];  // V0
+
+            int r0, g0, b0, r1, g1, b1;
+            convertFunc(y0, u, v, r0, g0, b0);
+            convertFunc(y1, u, v, r1, g1, b1);
+
+            if constexpr (isBgrColor) {
+                dstRow[x * channels + 0] = b0;
+                dstRow[x * channels + 1] = g0;
+                dstRow[x * channels + 2] = r0;
+
+                if (x + 1 < width) {
+                    dstRow[(x + 1) * channels + 0] = b1;
+                    dstRow[(x + 1) * channels + 1] = g1;
+                    dstRow[(x + 1) * channels + 2] = r1;
+                }
+            } else {
+                dstRow[x * channels + 0] = r0;
+                dstRow[x * channels + 1] = g0;
+                dstRow[x * channels + 2] = b0;
+
+                if (x + 1 < width) {
+                    dstRow[(x + 1) * channels + 0] = r1;
+                    dstRow[(x + 1) * channels + 1] = g1;
+                    dstRow[(x + 1) * channels + 2] = b1;
+                }
+            }
+
+            if constexpr (hasAlpha) {
+                dstRow[x * channels + 3] = 255;
+                if (x + 1 < width) {
+                    dstRow[(x + 1) * channels + 3] = 255;
+                }
+            }
+        }
+    }
+}
+
+template <bool isBgrColor, bool hasAlpha, bool isFullRange>
+AVX2_TARGET void uyvyToRgb_avx2_imp(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, bool is601) {
+    // 如果 height < 0，则反向写入 dst，src 顺序读取
+    if (height < 0) {
+        height = -height;
+        dst = dst + (height - 1) * dstStride;
+        dstStride = -dstStride;
+    }
+
+    // 根据标志选择系数
+    int cy, cr, cgu, cgv, cb;
+    getYuvToRgbCoefficients(is601, isFullRange, cy, cr, cgu, cgv, cb);
+
+    __m256i c_y = _mm256_set1_epi16(cy);
+    __m256i c_r = _mm256_set1_epi16(cr);
+    __m256i c_gu = _mm256_set1_epi16(cgu);
+    __m256i c_gv = _mm256_set1_epi16(cgv);
+    __m256i c_b = _mm256_set1_epi16(cb);
+
+    __m256i c128 = _mm256_set1_epi16(128);
+    __m128i a8 = _mm_set1_epi8((char)255);
+
+    constexpr int channels = hasAlpha ? 4 : 3;
+    const int vectorWidth = 16; // 处理16个像素(32字节UYVY数据)
+
+    for (int y = 0; y < height; ++y) {
+        const uint8_t* srcRow = src + y * srcStride;
+        uint8_t* dstRow = dst + y * dstStride;
+        int x = 0;
+
+        // AVX2 vectorized processing - 每次处理16个像素
+        for (; x + vectorWidth <= width && hasAlpha; x += vectorWidth) {
+            // 加载32字节的UYVY数据 (16个像素)
+            __m256i uyvy_data = _mm256_loadu_si256((__m256i*)(srcRow + x * 2));
+
+            // 由于UYVY格式复杂，对于RGB24格式暂时使用标量处理
+            // 只对RGBA32/BGRA32格式使用AVX2优化
+
+            // 提取Y, U, V分量的简化实现
+            // 使用查找表方式重新排列数据
+            alignas(32) uint8_t y_data[32], u_data[32], v_data[32];
+
+            // 标量方式提取UYVY数据
+            for (int i = 0; i < 16; i += 2) {
+                int baseIdx = i * 2;
+                u_data[i] = u_data[i + 1] = ((uint8_t*)&uyvy_data)[baseIdx + 0]; // U0 for both pixels
+                y_data[i] = ((uint8_t*)&uyvy_data)[baseIdx + 1];                 // Y0
+                v_data[i] = v_data[i + 1] = ((uint8_t*)&uyvy_data)[baseIdx + 2]; // V0 for both pixels
+                y_data[i + 1] = ((uint8_t*)&uyvy_data)[baseIdx + 3];             // Y1
+            }
+
+            // 加载为256位向量
+            __m256i y_vec = _mm256_loadu_si256((__m256i*)y_data);
+            __m256i u_vec = _mm256_loadu_si256((__m256i*)u_data);
+            __m256i v_vec = _mm256_loadu_si256((__m256i*)v_data);
+
+            // 转换为16位进行计算
+            __m256i y_lo = _mm256_unpacklo_epi8(y_vec, _mm256_setzero_si256());
+            __m256i y_hi = _mm256_unpackhi_epi8(y_vec, _mm256_setzero_si256());
+            __m256i u_lo = _mm256_unpacklo_epi8(u_vec, _mm256_setzero_si256());
+            __m256i u_hi = _mm256_unpackhi_epi8(u_vec, _mm256_setzero_si256());
+            __m256i v_lo = _mm256_unpacklo_epi8(v_vec, _mm256_setzero_si256());
+            __m256i v_hi = _mm256_unpackhi_epi8(v_vec, _mm256_setzero_si256());
+
+            // 色彩空间转换 (与YUYV相同)
+            // 预处理
+            if constexpr (!isFullRange) {
+                y_lo = _mm256_subs_epi16(y_lo, _mm256_set1_epi16(16));
+                y_hi = _mm256_subs_epi16(y_hi, _mm256_set1_epi16(16));
+            }
+            u_lo = _mm256_subs_epi16(u_lo, c128);
+            u_hi = _mm256_subs_epi16(u_hi, c128);
+            v_lo = _mm256_subs_epi16(v_lo, c128);
+            v_hi = _mm256_subs_epi16(v_hi, c128);
+
+            // RGB计算 - 需要调整系数使用
+            // 使用正确的乘法和位移
+            __m256i y_scaled_lo = _mm256_mullo_epi16(y_lo, c_y);
+            __m256i y_scaled_hi = _mm256_mullo_epi16(y_hi, c_y);
+            __m256i v_scaled_lo = _mm256_mullo_epi16(v_lo, c_r);
+            __m256i v_scaled_hi = _mm256_mullo_epi16(v_hi, c_r);
+            __m256i u_scaled_gu_lo = _mm256_mullo_epi16(u_lo, c_gu);
+            __m256i u_scaled_gu_hi = _mm256_mullo_epi16(u_hi, c_gu);
+            __m256i v_scaled_gv_lo = _mm256_mullo_epi16(v_lo, c_gv);
+            __m256i v_scaled_gv_hi = _mm256_mullo_epi16(v_hi, c_gv);
+            __m256i u_scaled_b_lo = _mm256_mullo_epi16(u_lo, c_b);
+            __m256i u_scaled_b_hi = _mm256_mullo_epi16(u_hi, c_b);
+
+            // 计算RGB值，加上128进行四舍五入，然后右移8位
+            __m256i r_lo = _mm256_srai_epi16(_mm256_add_epi16(_mm256_add_epi16(y_scaled_lo, v_scaled_lo), _mm256_set1_epi16(128)), 8);
+            __m256i r_hi = _mm256_srai_epi16(_mm256_add_epi16(_mm256_add_epi16(y_scaled_hi, v_scaled_hi), _mm256_set1_epi16(128)), 8);
+            __m256i g_lo = _mm256_srai_epi16(_mm256_add_epi16(_mm256_sub_epi16(y_scaled_lo, _mm256_add_epi16(u_scaled_gu_lo, v_scaled_gv_lo)), _mm256_set1_epi16(128)), 8);
+            __m256i g_hi = _mm256_srai_epi16(_mm256_add_epi16(_mm256_sub_epi16(y_scaled_hi, _mm256_add_epi16(u_scaled_gu_hi, v_scaled_gv_hi)), _mm256_set1_epi16(128)), 8);
+            __m256i b_lo = _mm256_srai_epi16(_mm256_add_epi16(_mm256_add_epi16(y_scaled_lo, u_scaled_b_lo), _mm256_set1_epi16(128)), 8);
+            __m256i b_hi = _mm256_srai_epi16(_mm256_add_epi16(_mm256_add_epi16(y_scaled_hi, u_scaled_b_hi), _mm256_set1_epi16(128)), 8);
+
+            // 打包为8位并限制范围
+            __m256i r_packed = _mm256_packus_epi16(r_lo, r_hi);
+            __m256i g_packed = _mm256_packus_epi16(g_lo, g_hi);
+            __m256i b_packed = _mm256_packus_epi16(b_lo, b_hi);
+
+            // 交错存储RGBA数据 (与YUYV相同)
+            if constexpr (isBgrColor) {
+                // BGRA格式 - 使用更简单的交错方式
+                for (int i = 0; i < 16; ++i) {
+                    dstRow[(x + i) * 4 + 0] = ((uint8_t*)&b_packed)[i];
+                    dstRow[(x + i) * 4 + 1] = ((uint8_t*)&g_packed)[i];
+                    dstRow[(x + i) * 4 + 2] = ((uint8_t*)&r_packed)[i];
+                    dstRow[(x + i) * 4 + 3] = 255;
+                }
+            } else {
+                // RGBA格式
+                for (int i = 0; i < 16; ++i) {
+                    dstRow[(x + i) * 4 + 0] = ((uint8_t*)&r_packed)[i];
+                    dstRow[(x + i) * 4 + 1] = ((uint8_t*)&g_packed)[i];
+                    dstRow[(x + i) * 4 + 2] = ((uint8_t*)&b_packed)[i];
+                    dstRow[(x + i) * 4 + 3] = 255;
+                }
+            }
+        }
+
+        // 处理剩余像素 (标量处理)
+        YuvToRgbFunc convertFunc = getYuvToRgbFunc(is601, isFullRange);
+        for (; x < width; x += 2) {
+            if (x + 1 >= width) break; // UYVY需要成对处理
+
+            // UYVY format: U0 Y0 V0 Y1 (4 bytes for 2 pixels)
+            int baseIdx = (x / 2) * 4;
+            int u = srcRow[baseIdx + 0];  // U0
+            int y0 = srcRow[baseIdx + 1]; // Y0
+            int v = srcRow[baseIdx + 2];  // V0
+            int y1 = srcRow[baseIdx + 3]; // Y1
+
+            int r0, g0, b0, r1, g1, b1;
+            convertFunc(y0, u, v, r0, g0, b0);
+            convertFunc(y1, u, v, r1, g1, b1);
+
+            if constexpr (isBgrColor) {
+                dstRow[x * channels + 0] = b0;
+                dstRow[x * channels + 1] = g0;
+                dstRow[x * channels + 2] = r0;
+
+                if (x + 1 < width) {
+                    dstRow[(x + 1) * channels + 0] = b1;
+                    dstRow[(x + 1) * channels + 1] = g1;
+                    dstRow[(x + 1) * channels + 2] = r1;
+                }
+            } else {
+                dstRow[x * channels + 0] = r0;
+                dstRow[x * channels + 1] = g0;
+                dstRow[x * channels + 2] = b0;
+
+                if (x + 1 < width) {
+                    dstRow[(x + 1) * channels + 0] = r1;
+                    dstRow[(x + 1) * channels + 1] = g1;
+                    dstRow[(x + 1) * channels + 2] = b1;
+                }
+            }
+
+            if constexpr (hasAlpha) {
+                dstRow[x * channels + 3] = 255;
+                if (x + 1 < width) {
+                    dstRow[(x + 1) * channels + 3] = 255;
+                }
+            }
+        }
+    }
+}
+
+// YUYV conversion functions
+AVX2_TARGET
+void yuyvToBgr24_avx2(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+    const bool is601 = (flag & ConvertFlag::BT601) != 0;
+    const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
+
+    if (isFullRange) {
+        yuyvToRgb_avx2_imp<true, false, true>(src, srcStride, dst, dstStride, width, height, is601);
+    } else {
+        yuyvToRgb_avx2_imp<true, false, false>(src, srcStride, dst, dstStride, width, height, is601);
+    }
+}
+
+AVX2_TARGET
+void yuyvToRgb24_avx2(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+    const bool is601 = (flag & ConvertFlag::BT601) != 0;
+    const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
+
+    if (isFullRange) {
+        yuyvToRgb_avx2_imp<false, false, true>(src, srcStride, dst, dstStride, width, height, is601);
+    } else {
+        yuyvToRgb_avx2_imp<false, false, false>(src, srcStride, dst, dstStride, width, height, is601);
+    }
+}
+
+AVX2_TARGET
+void yuyvToBgra32_avx2(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+    const bool is601 = (flag & ConvertFlag::BT601) != 0;
+    const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
+
+    if (isFullRange) {
+        yuyvToRgb_avx2_imp<true, true, true>(src, srcStride, dst, dstStride, width, height, is601);
+    } else {
+        yuyvToRgb_avx2_imp<true, true, false>(src, srcStride, dst, dstStride, width, height, is601);
+    }
+}
+
+AVX2_TARGET
+void yuyvToRgba32_avx2(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+    const bool is601 = (flag & ConvertFlag::BT601) != 0;
+    const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
+
+    if (isFullRange) {
+        yuyvToRgb_avx2_imp<false, true, true>(src, srcStride, dst, dstStride, width, height, is601);
+    } else {
+        yuyvToRgb_avx2_imp<false, true, false>(src, srcStride, dst, dstStride, width, height, is601);
+    }
+}
+
+// UYVY conversion functions
+AVX2_TARGET
+void uyvyToBgr24_avx2(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+    const bool is601 = (flag & ConvertFlag::BT601) != 0;
+    const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
+
+    if (isFullRange) {
+        uyvyToRgb_avx2_imp<true, false, true>(src, srcStride, dst, dstStride, width, height, is601);
+    } else {
+        uyvyToRgb_avx2_imp<true, false, false>(src, srcStride, dst, dstStride, width, height, is601);
+    }
+}
+
+AVX2_TARGET
+void uyvyToRgb24_avx2(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+    const bool is601 = (flag & ConvertFlag::BT601) != 0;
+    const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
+
+    if (isFullRange) {
+        uyvyToRgb_avx2_imp<false, false, true>(src, srcStride, dst, dstStride, width, height, is601);
+    } else {
+        uyvyToRgb_avx2_imp<false, false, false>(src, srcStride, dst, dstStride, width, height, is601);
+    }
+}
+
+AVX2_TARGET
+void uyvyToBgra32_avx2(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+    const bool is601 = (flag & ConvertFlag::BT601) != 0;
+    const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
+
+    if (isFullRange) {
+        uyvyToRgb_avx2_imp<true, true, true>(src, srcStride, dst, dstStride, width, height, is601);
+    } else {
+        uyvyToRgb_avx2_imp<true, true, false>(src, srcStride, dst, dstStride, width, height, is601);
+    }
+}
+
+AVX2_TARGET
+void uyvyToRgba32_avx2(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
+    const bool is601 = (flag & ConvertFlag::BT601) != 0;
+    const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
+
+    if (isFullRange) {
+        uyvyToRgb_avx2_imp<false, true, true>(src, srcStride, dst, dstStride, width, height, is601);
+    } else {
+        uyvyToRgb_avx2_imp<false, true, false>(src, srcStride, dst, dstStride, width, height, is601);
     }
 }
 

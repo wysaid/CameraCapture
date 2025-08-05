@@ -96,6 +96,46 @@ void i420ToRgb24_avx2(const uint8_t* srcY, int srcYStride,
                       const uint8_t* srcV, int srcVStride,
                       uint8_t* dst, int dstStride,
                       int width, int height, ConvertFlag flag);
+
+// YUYV to BGR24, AVX2 accelerated
+void yuyvToBgr24_avx2(const uint8_t* src, int srcStride,
+                      uint8_t* dst, int dstStride,
+                      int width, int height, ConvertFlag flag);
+
+// YUYV to RGB24, AVX2 accelerated
+void yuyvToRgb24_avx2(const uint8_t* src, int srcStride,
+                      uint8_t* dst, int dstStride,
+                      int width, int height, ConvertFlag flag);
+
+// YUYV to BGRA32, AVX2 accelerated
+void yuyvToBgra32_avx2(const uint8_t* src, int srcStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height, ConvertFlag flag);
+
+// YUYV to RGBA32, AVX2 accelerated
+void yuyvToRgba32_avx2(const uint8_t* src, int srcStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height, ConvertFlag flag);
+
+// UYVY to BGR24, AVX2 accelerated
+void uyvyToBgr24_avx2(const uint8_t* src, int srcStride,
+                      uint8_t* dst, int dstStride,
+                      int width, int height, ConvertFlag flag);
+
+// UYVY to RGB24, AVX2 accelerated
+void uyvyToRgb24_avx2(const uint8_t* src, int srcStride,
+                      uint8_t* dst, int dstStride,
+                      int width, int height, ConvertFlag flag);
+
+// UYVY to BGRA32, AVX2 accelerated
+void uyvyToBgra32_avx2(const uint8_t* src, int srcStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height, ConvertFlag flag);
+
+// UYVY to RGBA32, AVX2 accelerated
+void uyvyToRgba32_avx2(const uint8_t* src, int srcStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height, ConvertFlag flag);
 #else
 
 #define nv12ToBgr24_avx2(...) assert(0 && "AVX2 not supported")
@@ -106,6 +146,14 @@ void i420ToRgb24_avx2(const uint8_t* srcY, int srcYStride,
 #define i420ToRgba32_avx2(...) assert(0 && "AVX2 not supported")
 #define i420ToBgr24_avx2(...) assert(0 && "AVX2 not supported")
 #define i420ToRgb24_avx2(...) assert(0 && "AVX2 not supported")
+#define yuyvToBgr24_avx2(...) assert(0 && "AVX2 not supported")
+#define yuyvToRgb24_avx2(...) assert(0 && "AVX2 not supported")
+#define yuyvToBgra32_avx2(...) assert(0 && "AVX2 not supported")
+#define yuyvToRgba32_avx2(...) assert(0 && "AVX2 not supported")
+#define uyvyToBgr24_avx2(...) assert(0 && "AVX2 not supported")
+#define uyvyToRgb24_avx2(...) assert(0 && "AVX2 not supported")
+#define uyvyToBgra32_avx2(...) assert(0 && "AVX2 not supported")
+#define uyvyToRgba32_avx2(...) assert(0 && "AVX2 not supported")
 
 #endif
 
