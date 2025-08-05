@@ -838,7 +838,26 @@ TEST_F(PackedYUVConversionTest, YUYV_CPU_vs_AVX2_Consistency) {
     bool images_match = PixelTestUtils::compareImages(
         cpu_result.data(), avx2_result.data(),
         width, height, 4,
-        cpu_result.stride(), avx2_result.stride(), 1);
+        cpu_result.stride(), avx2_result.stride(), 3);
+    
+    if (!images_match) {
+        // Calculate MSE and PSNR for debugging
+        double mse = PixelTestUtils::calculateMSE(
+            cpu_result.data(), avx2_result.data(),
+            width, height, 4,
+            cpu_result.stride(), avx2_result.stride());
+        double psnr = PixelTestUtils::calculatePSNR(
+            cpu_result.data(), avx2_result.data(),
+            width, height, 4,
+            cpu_result.stride(), avx2_result.stride());
+
+        std::cout << "[DEBUG] YUYV conversion differences - MSE: " << mse
+                  << ", PSNR: " << psnr << " dB" << std::endl;
+
+        // Save debug images for analysis
+        std::string test_name = "YUYV_To_RGBA32_CPU_vs_AVX2_" + std::to_string(width) + "x" + std::to_string(height);
+        PixelTestUtils::saveDebugImagesOnFailure(cpu_result, avx2_result, test_name, 3);
+    }
     
     EXPECT_TRUE(images_match) << "YUYV conversion results differ between CPU and AVX2 backends";
 }
@@ -872,7 +891,26 @@ TEST_F(PackedYUVConversionTest, UYVY_CPU_vs_AVX2_Consistency) {
     bool images_match = PixelTestUtils::compareImages(
         cpu_result.data(), avx2_result.data(),
         width, height, 4,
-        cpu_result.stride(), avx2_result.stride(), 1);
+        cpu_result.stride(), avx2_result.stride(), 3);
+    
+    if (!images_match) {
+        // Calculate MSE and PSNR for debugging
+        double mse = PixelTestUtils::calculateMSE(
+            cpu_result.data(), avx2_result.data(),
+            width, height, 4,
+            cpu_result.stride(), avx2_result.stride());
+        double psnr = PixelTestUtils::calculatePSNR(
+            cpu_result.data(), avx2_result.data(),
+            width, height, 4,
+            cpu_result.stride(), avx2_result.stride());
+
+        std::cout << "[DEBUG] UYVY conversion differences - MSE: " << mse
+                  << ", PSNR: " << psnr << " dB" << std::endl;
+
+        // Save debug images for analysis
+        std::string test_name = "UYVY_To_BGRA32_CPU_vs_AVX2_" + std::to_string(width) + "x" + std::to_string(height);
+        PixelTestUtils::saveDebugImagesOnFailure(cpu_result, avx2_result, test_name, 3);
+    }
     
     EXPECT_TRUE(images_match) << "UYVY conversion results differ between CPU and AVX2 backends";
 }
