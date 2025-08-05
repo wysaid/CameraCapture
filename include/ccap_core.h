@@ -20,11 +20,9 @@
 #include <vector>
 
 // ccap is short for (C)amera(CAP)ture
-namespace ccap
-{
+namespace ccap {
 /// A default allocator
-class DefaultAllocator : public Allocator
-{
+class DefaultAllocator : public Allocator {
 public:
     ~DefaultAllocator() override;
     void resize(size_t size) override;
@@ -36,8 +34,7 @@ private:
     size_t m_size = 0;
 };
 
-enum
-{
+enum {
     /// @brief The default maximum number of frames that can be cached.
     DEFAULT_MAX_CACHE_FRAME_SIZE = 15,
 
@@ -53,8 +50,7 @@ class ProviderImp;
  * @note This class is not thread-safe. It is recommended to use it in a single thread.
  *       If you need to use it in multiple threads, consider using a mutex or other synchronization methods.
  */
-class Provider final
-{
+class Provider final {
 public:
     /// @brief Default constructor. The camera device is not opened yet.
     ///        You can use the `open` method to open a camera device later.
@@ -149,8 +145,7 @@ public:
     bool set(PropertyName prop, double value);
 
     template <class T>
-    bool set(PropertyName prop, T value)
-    {
+    bool set(PropertyName prop, T value) {
         return set(prop, static_cast<double>(value));
     }
 

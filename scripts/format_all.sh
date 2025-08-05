@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 
 # 对 src、tests、examples 目录执行 clang-format
 # 排除 examples/desktop/glfw 和 examples/desktop/glad 目录
-find src tests examples \
+find src examples \
     -type f \
     \( -name "*.c" -o -name "*.cpp" -o -name "*.cc" -o -name "*.cxx" -o -name "*.h" -o -name "*.hpp" -o -name "*.hxx" \) \
     -not -path "examples/desktop/glfw/*" \

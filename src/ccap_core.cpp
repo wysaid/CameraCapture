@@ -15,6 +15,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 #ifdef _MSC_VER
 #include <malloc.h>
@@ -55,6 +56,35 @@ void DefaultAllocator::resize(size_t size) {
 
 VideoFrame::VideoFrame() = default;
 VideoFrame::~VideoFrame() { CCAP_LOG_V("ccap: VideoFrame::VideoFrameFrame() called, this=%p\n", this); }
+
+void VideoFrame::detach() {
+    if (!allocator || data[0] != allocator->data()) {
+        if (!allocator) {
+            allocator = std::make_shared<DefaultAllocator>();
+        }
+
+        allocator->resize(sizeInBytes);
+        // Copy data to allocator
+        std::memcpy(allocator->data(), data[0], sizeInBytes);
+
+        // Update data pointers
+        data[0] = allocator->data();
+        if (stride[1] > 0) {
+            data[1] = data[0] + stride[0] * height;
+            if (stride[2] > 0) {
+                // 目前只有 I420 需要用到 data[2]
+                data[2] = data[1] + stride[1] * height / 2;
+            } else {
+                data[2] = nullptr;
+            }
+        } else {
+            data[1] = nullptr;
+            data[2] = nullptr;
+        }
+
+        nativeHandle = nullptr; // Detach native handle
+    }
+}
 
 ProviderImp* createProvider(std::string_view extraInfo) {
 #if __APPLE__

@@ -37,10 +37,8 @@
 #include <vector>
 
 // ccap is short for (C)amera(CAP)ture
-namespace ccap
-{
-enum PixelFormatConstants : uint32_t
-{
+namespace ccap {
+enum PixelFormatConstants : uint32_t {
     /// `kPixelFormatRGBBit` indicates that the pixel format is RGB or RGBA.
     kPixelFormatRGBBit = 1 << 3,
     /// `kPixelFormatRGBBit` indicates that the pixel format is BGR or BGRA.
@@ -51,7 +49,7 @@ enum PixelFormatConstants : uint32_t
     kPixelFormatFullRangeBit = 1 << 17,
     kPixelFormatYUVColorFullRangeBit = kPixelFormatFullRangeBit | kPixelFormatYUVColorBit,
 
-    /// `kPixelFormatRGBColorBit` indicates that the pixel format is RGB/RGBA/BGR/BGRA. 
+    /// `kPixelFormatRGBColorBit` indicates that the pixel format is RGB/RGBA/BGR/BGRA.
     /// Which means it has RGB or RGBA color channels, and is not a YUV format.
     kPixelFormatRGBColorBit = 1 << 18,
 
@@ -69,8 +67,7 @@ enum PixelFormatConstants : uint32_t
  *       For better performance, consider using the NV12v or NV12f formats. These two formats are
  *       often referred to as YUV formats and are supported by almost all platforms.
  */
-enum class PixelFormat : uint32_t
-{
+enum class PixelFormat : uint32_t {
     Unknown = 0,
 
     /**
@@ -135,8 +132,7 @@ enum class PixelFormat : uint32_t
     BGRA32 = BGR24 | kPixelFormatRGBAColorBit,
 };
 
-enum class FrameOrientation
-{
+enum class FrameOrientation {
     /**
      * @brief The frame is laid out in a top-to-bottom format.
      *     The first row of data corresponds to the first row of the image.
@@ -159,18 +155,15 @@ enum class FrameOrientation
 };
 
 /// check if the pixel format `lhs` includes all bits of the pixel format `rhs`.
-inline bool pixelFormatInclude(PixelFormat lhs, PixelFormatConstants rhs)
-{
+inline bool pixelFormatInclude(PixelFormat lhs, PixelFormatConstants rhs) {
     return (static_cast<uint32_t>(lhs) & rhs) == rhs;
 }
 
-inline bool pixelFormatInclude(PixelFormat lhs, PixelFormat rhs)
-{
+inline bool pixelFormatInclude(PixelFormat lhs, PixelFormat rhs) {
     return (static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs)) == static_cast<uint32_t>(rhs);
 }
 
-enum class PropertyName
-{
+enum class PropertyName {
     /**
      * @brief The width of the frame.
      * @note When used to set the capture resolution, the closest available resolution will be chosen.
@@ -224,8 +217,7 @@ enum class PropertyName
  * @brief Interface for memory allocation, primarily used to allocate the `data` field in `ccap::Frame`.
  * @note If you want to implement your own Allocator, you need to ensure that the allocated memory is 32-byte aligned to enable SIMD instruction set acceleration.
  */
-class Allocator
-{
+class Allocator {
 public:
     virtual ~Allocator() = 0;
 
@@ -241,8 +233,7 @@ public:
     virtual size_t size() = 0;
 };
 
-struct VideoFrame
-{
+struct VideoFrame {
     VideoFrame();
     ~VideoFrame();
     VideoFrame(const VideoFrame&) = delete;
@@ -297,15 +288,29 @@ struct VideoFrame
      * @note Currently defined as follows:
      *     - Windows: When the backend is DirectShow, the actual type of nativeHandle is `IMediaSample*`
      *     - macOS/iOS: The actual type of nativeHandle is `CMSampleBufferRef`
+     *     - Linux: The actual type is uint32_t, stands for `v4l2_buffer::index`.
      */
     void* nativeHandle = nullptr; ///< Native handle for the frame, used for platform-specific operations
+
+    /**
+     * @brief 当满足 (allocator == nullptr || data[0] != allocator->data()) 时，表示数据存储于硬件缓冲区中。
+     *    使用者如果长期持有多个 VideoFrame 对象，可能导致相机硬件缓存无法复用, 从而影响性能或者导致相机停止工作。
+     *    因此，当使用者需要长期持有 VideoFrame 对象时，应该调用 `detach()` 方法来释放 nativeHandle。
+     *    在 `data[0] == allocator->data()` 的情况下, 调用 `detach()` 方法没有额外开销。
+     *    在 `data[0] != allocator->data()` 的情况下, 调用 `detach()` 方法会导致数据拷贝到 allocator 中。
+     *    调用 detach 之后, nativeHandle 会被设置为 nullptr, 并且 data[0] 会指向 allocator->data()。
+     *
+     * @note 最佳实践建议: 如果使用者需要跨线程传递 std::shared_ptr<VideoFrame> 对象，或者跨帧持有 std::shared_ptr<VideoFrame> 对象,
+     *    应该在获取到 std::shared_ptr<VideoFrame> 对象后，立即调用 `detach()` 方法。
+     *
+     */
+    void detach();
 };
 
 /**
  * @brief Device information structure. This structure contains some information about the device.
  */
-struct DeviceInfo
-{
+struct DeviceInfo {
     std::string deviceName;
 
     /**
@@ -313,8 +318,7 @@ struct DeviceInfo
      */
     std::vector<PixelFormat> supportedPixelFormats;
 
-    struct Resolution
-    {
+    struct Resolution {
         uint32_t width;
         uint32_t height;
     };
