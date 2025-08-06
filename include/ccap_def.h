@@ -293,15 +293,16 @@ struct VideoFrame {
     void* nativeHandle = nullptr; ///< Native handle for the frame, used for platform-specific operations
 
     /**
-     * @brief 当满足 (allocator == nullptr || data[0] != allocator->data()) 时，表示数据存储于硬件缓冲区中。
-     *    使用者如果长期持有多个 VideoFrame 对象，可能导致相机硬件缓存无法复用, 从而影响性能或者导致相机停止工作。
-     *    因此，当使用者需要长期持有 VideoFrame 对象时，应该调用 `detach()` 方法来释放 nativeHandle。
-     *    在 `data[0] == allocator->data()` 的情况下, 调用 `detach()` 方法没有额外开销。
-     *    在 `data[0] != allocator->data()` 的情况下, 调用 `detach()` 方法会导致数据拷贝到 allocator 中。
-     *    调用 detach 之后, nativeHandle 会被设置为 nullptr, 并且 data[0] 会指向 allocator->data()。
+     * @brief When (allocator == nullptr || data[0] != allocator->data()), the data is stored in a hardware buffer.
+     *    If you hold multiple VideoFrame objects for a long time, it may prevent the camera hardware buffer from being reused,
+     *    affecting performance or causing the camera to stop working.
+     *    Therefore, if you need to hold a VideoFrame object for a long time, you should call the `detach()` method to release nativeHandle.
+     *    If data[0] == allocator->data(), calling `detach()` has no extra cost.
+     *    If data[0] != allocator->data(), calling `detach()` will copy the data into the allocator.
+     *    After calling detach, nativeHandle will be set to nullptr, and data[0] will point to allocator->data().
      *
-     * @note 最佳实践建议: 如果使用者需要跨线程传递 std::shared_ptr<VideoFrame> 对象，或者跨帧持有 std::shared_ptr<VideoFrame> 对象,
-     *    应该在获取到 std::shared_ptr<VideoFrame> 对象后，立即调用 `detach()` 方法。
+     * @note Best practice: If you need to pass a std::shared_ptr<VideoFrame> object across threads or hold it across frames,
+     *    you should call `detach()` immediately after obtaining the std::shared_ptr<VideoFrame> object.
      *
      */
     void detach();
