@@ -110,11 +110,15 @@ if(APPLE)
 
     # Set pkg-config private libs for macOS
     set(PKG_CONFIG_LIBS_PRIVATE "Libs.private: -framework Foundation -framework AVFoundation -framework CoreVideo -framework CoreMedia -framework Accelerate")
-elseif(UNIX AND NOT APPLE)
-    # Linux - no additional libraries needed for V4L2 as it's part of kernel
-    set(PKG_CONFIG_LIBS_PRIVATE "")
+elseif(UNIX AND NOT APPLE AND NOT WIN32)
+    # Linux – link pthread for std::thread support
+    find_package(Threads REQUIRED)
+    target_link_libraries(ccap PUBLIC Threads::Threads)
+
+    # Propagate to pkg-config for consumers
+    set(PKG_CONFIG_LIBS_PRIVATE "Libs.private: -lpthread")
 else()
-    # Windows or other platforms
+    # Windows (including MinGW) or other platforms
     set(PKG_CONFIG_LIBS_PRIVATE "")
 endif()
 
