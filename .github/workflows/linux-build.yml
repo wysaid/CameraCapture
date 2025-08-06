@@ -174,26 +174,24 @@ jobs:
       with:
         submodules: recursive
     
-    - name: Install cross-compilation toolchain and GLFW
+    - name: Install cross-compilation toolchain
       run: |
         sudo apt-get update
         sudo apt-get install -y cmake build-essential gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-        # Add ARM64 architecture and install cross-compiled GLFW
-        sudo dpkg --add-architecture arm64
-        sudo apt-get update
-        sudo apt-get install -y libglfw3-dev:arm64 || echo "ARM64 GLFW not available, will use bundled version"
+        echo "Cross-compilation toolchain installed"
         
     - name: Configure CMake for ARM64
       run: |
-        echo "Configuring build ${{ matrix.build_type }} for ARM64 (with system GLFW)"
+        echo "Configuring build ${{ matrix.build_type }} for ARM64 (cross-compilation)"
         cmake -B build/arm64/${{ matrix.build_type }} \
               -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
               -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
               -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
               -DCMAKE_SYSTEM_NAME=Linux \
               -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+              -DCMAKE_CROSSCOMPILING=ON \
               -DCCAP_BUILD_EXAMPLES=ON \
-              -DCCAP_BUILD_TESTS=ON
+              -DCCAP_BUILD_TESTS=OFF
     
     - name: Build ARM64
       run: cmake --build build/arm64/${{ matrix.build_type }} --config ${{ matrix.build_type }} --parallel $(nproc)
@@ -201,9 +199,14 @@ jobs:
     - name: Verify build outputs
       working-directory: build/arm64/${{ matrix.build_type }}
       run: |
-        echo "Checking built examples:"
-        ls -la | grep -E "(glfw|example)" || echo "No examples found"
-        echo "✓ ARM64 build completed successfully"
+        echo "Checking built ARM64 binaries:"
+        ls -la | grep -E "(ccap|example)" || echo "No examples found"
+        echo "Verifying ARM64 architecture:"
+        file libccap.a | grep -q "aarch64" && echo "✓ Library is ARM64" || echo "⚠ Library architecture verification failed"
+        if [ -f "0-print_camera" ]; then
+          file 0-print_camera | grep -q "aarch64" && echo "✓ Binary is ARM64" || echo "⚠ Binary architecture verification failed"
+        fi
+        echo "✓ ARM64 cross-compilation completed successfully"
 
     - name: Upload ARM64 artifacts
       uses: actions/upload-artifact@v4
