@@ -24,7 +24,7 @@ endif()
 FetchContent_Declare(
     libyuv
     GIT_REPOSITORY ${LIBYUV_REPO_URL}
-    GIT_TAG main
+    GIT_TAG b7d97d5f3f8f897b88872b6935e4c996b955bc1f
 )
 
 # Set libyuv options to minimize dependencies
