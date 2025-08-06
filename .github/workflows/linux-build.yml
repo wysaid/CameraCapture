@@ -201,14 +201,18 @@ jobs:
         build_type: [Debug, Release]
     
     steps:
+    - name: Install Git first
+      run: |
+        dnf update -y
+        dnf install -y git
+        
     - uses: actions/checkout@v4
       with:
         submodules: recursive
     
     - name: Install dependencies
       run: |
-        dnf update -y
-        dnf install -y cmake gcc-c++ make git
+        dnf install -y cmake gcc-c++ make
         
     - name: Configure CMake
       run: |
