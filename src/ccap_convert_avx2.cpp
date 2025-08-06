@@ -1022,6 +1022,7 @@ AVX2_TARGET void yuyvToRgb_avx2_imp(const uint8_t* src, int srcStride, uint8_t* 
 
     constexpr int channels = hasAlpha ? 4 : 3;
     const int vectorWidth = 16; // 处理16个像素(32字节YUYV数据)
+    YuvToRgbFunc convertFunc = getYuvToRgbFunc(is601, isFullRange);
 
     for (int y = 0; y < height; ++y) {
         const uint8_t* srcRow = src + y * srcStride;
@@ -1177,12 +1178,11 @@ AVX2_TARGET void yuyvToRgb_avx2_imp(const uint8_t* src, int srcStride, uint8_t* 
         }
 
         // 处理剩余像素（标量实现）
-        YuvToRgbFunc convertFunc = getYuvToRgbFunc(is601, isFullRange);
         for (; x < width; x += 2) {
             if (x + 1 >= width) break; // YUYV需要成对处理
 
             // YUYV format: Y0 U0 Y1 V0 (4 bytes for 2 pixels)
-            int baseIdx = (x / 2) * 4;
+            int baseIdx = x * 2;
             int y0 = srcRow[baseIdx + 0]; // Y0
             int u = srcRow[baseIdx + 1];  // U0
             int y1 = srcRow[baseIdx + 2]; // Y1
@@ -1409,7 +1409,7 @@ AVX2_TARGET void uyvyToRgb_avx2_imp(const uint8_t* src, int srcStride, uint8_t* 
             if (x + 1 >= width) break; // UYVY需要成对处理
 
             // UYVY format: U0 Y0 V0 Y1 (4 bytes for 2 pixels)
-            int baseIdx = (x / 2) * 4;
+            int baseIdx = x * 2;
             int u = srcRow[baseIdx + 0];  // U0
             int y0 = srcRow[baseIdx + 1]; // Y0
             int v = srcRow[baseIdx + 2];  // V0
