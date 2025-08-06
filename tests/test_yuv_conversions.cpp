@@ -99,8 +99,8 @@ public:
         
         if (yuv_format == YUVFormat::YUYV || yuv_format == YUVFormat::UYVY) {
             // YUYV/UYVY are packed formats: each pixel pair uses 4 bytes (Y0 U Y1 V or U Y0 V Y1)
-            // Store in a single image with 2 bytes per pixel (width * 2 bytes per row)
-            packed_img = std::make_unique<TestImage>(width * 2, height, 1); // width*2 bytes, 1 channel
+            // Create TestImage with width*2 to accommodate packed stride (2 bytes per pixel)
+            packed_img = std::make_unique<TestImage>(width * 2, height, 1); // stride=width*2, single channel
             generatePackedYUVPattern(*packed_img, yuv_format, width, height);
         } else {
             // NV12/I420 use planar formats
@@ -280,6 +280,76 @@ private:
     }
     
     /**
+     * @brief Shared helper for packed YUV format (YUYV/UYVY) conversions
+     * @param yuv_data Pointer to the packed YUV data
+     * @param yuv_stride Stride of the packed YUV data
+     * @param result Output RGB/BGR image
+     * @param yuv_format YUV format (should be YUYV or UYVY)
+     * @param rgb_format RGB output format
+     * @param flags Conversion flags
+     * @param width Image width
+     * @param height Image height
+     */
+    static void performPackedYUVConversion(
+        const uint8_t* yuv_data,
+        int yuv_stride,
+        TestImage& result,
+        YUVFormat yuv_format,
+        RGBFormat rgb_format,
+        ccap::ConvertFlag flags,
+        int width,
+        int height) {
+        
+        if (yuv_format == YUVFormat::YUYV) {
+            switch (rgb_format) {
+            case RGBFormat::RGB24:
+                ccap::yuyvToRgb24(yuv_data, yuv_stride,
+                                  result.data(), result.stride(),
+                                  width, height, flags);
+                break;
+            case RGBFormat::RGBA32:
+                ccap::yuyvToRgba32(yuv_data, yuv_stride,
+                                   result.data(), result.stride(),
+                                   width, height, flags);
+                break;
+            case RGBFormat::BGR24:
+                ccap::yuyvToBgr24(yuv_data, yuv_stride,
+                                  result.data(), result.stride(),
+                                  width, height, flags);
+                break;
+            case RGBFormat::BGRA32:
+                ccap::yuyvToBgra32(yuv_data, yuv_stride,
+                                   result.data(), result.stride(),
+                                   width, height, flags);
+                break;
+            }
+        } else if (yuv_format == YUVFormat::UYVY) {
+            switch (rgb_format) {
+            case RGBFormat::RGB24:
+                ccap::uyvyToRgb24(yuv_data, yuv_stride,
+                                  result.data(), result.stride(),
+                                  width, height, flags);
+                break;
+            case RGBFormat::RGBA32:
+                ccap::uyvyToRgba32(yuv_data, yuv_stride,
+                                   result.data(), result.stride(),
+                                   width, height, flags);
+                break;
+            case RGBFormat::BGR24:
+                ccap::uyvyToBgr24(yuv_data, yuv_stride,
+                                  result.data(), result.stride(),
+                                  width, height, flags);
+                break;
+            case RGBFormat::BGRA32:
+                ccap::uyvyToBgra32(yuv_data, yuv_stride,
+                                   result.data(), result.stride(),
+                                   width, height, flags);
+                break;
+            }
+        }
+    }
+    
+    /**
      * @brief Perform conversion for packed YUV formats (YUYV/UYVY)
      */
     static void performPackedConversion(
@@ -291,53 +361,8 @@ private:
         int width,
         int height) {
         
-        if (yuv_format == YUVFormat::YUYV) {
-            switch (rgb_format) {
-            case RGBFormat::RGB24:
-                ccap::yuyvToRgb24(packed_img.data(), packed_img.stride(),
-                                  result.data(), result.stride(),
-                                  width, height, flags);
-                break;
-            case RGBFormat::RGBA32:
-                ccap::yuyvToRgba32(packed_img.data(), packed_img.stride(),
-                                   result.data(), result.stride(),
-                                   width, height, flags);
-                break;
-            case RGBFormat::BGR24:
-                ccap::yuyvToBgr24(packed_img.data(), packed_img.stride(),
-                                  result.data(), result.stride(),
-                                  width, height, flags);
-                break;
-            case RGBFormat::BGRA32:
-                ccap::yuyvToBgra32(packed_img.data(), packed_img.stride(),
-                                   result.data(), result.stride(),
-                                   width, height, flags);
-                break;
-            }
-        } else if (yuv_format == YUVFormat::UYVY) {
-            switch (rgb_format) {
-            case RGBFormat::RGB24:
-                ccap::uyvyToRgb24(packed_img.data(), packed_img.stride(),
-                                  result.data(), result.stride(),
-                                  width, height, flags);
-                break;
-            case RGBFormat::RGBA32:
-                ccap::uyvyToRgba32(packed_img.data(), packed_img.stride(),
-                                   result.data(), result.stride(),
-                                   width, height, flags);
-                break;
-            case RGBFormat::BGR24:
-                ccap::uyvyToBgr24(packed_img.data(), packed_img.stride(),
-                                  result.data(), result.stride(),
-                                  width, height, flags);
-                break;
-            case RGBFormat::BGRA32:
-                ccap::uyvyToBgra32(packed_img.data(), packed_img.stride(),
-                                   result.data(), result.stride(),
-                                   width, height, flags);
-                break;
-            }
-        }
+        performPackedYUVConversion(packed_img.data(), packed_img.stride(),
+                                   result, yuv_format, rgb_format, flags, width, height);
     }
 
     static void performConversion(
@@ -406,54 +431,10 @@ private:
                                    width, height, flags);
                 break;
             }
-        } else if (yuv_format == YUVFormat::YUYV) {
-            // YUYV uses packed format, stored in y_data()
-            switch (rgb_format) {
-            case RGBFormat::RGB24:
-                ccap::yuyvToRgb24(yuv_img.y_data(), yuv_img.y_stride(),
-                                  result.data(), result.stride(),
-                                  width, height, flags);
-                break;
-            case RGBFormat::RGBA32:
-                ccap::yuyvToRgba32(yuv_img.y_data(), yuv_img.y_stride(),
-                                   result.data(), result.stride(),
-                                   width, height, flags);
-                break;
-            case RGBFormat::BGR24:
-                ccap::yuyvToBgr24(yuv_img.y_data(), yuv_img.y_stride(),
-                                  result.data(), result.stride(),
-                                  width, height, flags);
-                break;
-            case RGBFormat::BGRA32:
-                ccap::yuyvToBgra32(yuv_img.y_data(), yuv_img.y_stride(),
-                                   result.data(), result.stride(),
-                                   width, height, flags);
-                break;
-            }
-        } else if (yuv_format == YUVFormat::UYVY) {
-            // UYVY uses packed format, stored in y_data()
-            switch (rgb_format) {
-            case RGBFormat::RGB24:
-                ccap::uyvyToRgb24(yuv_img.y_data(), yuv_img.y_stride(),
-                                  result.data(), result.stride(),
-                                  width, height, flags);
-                break;
-            case RGBFormat::RGBA32:
-                ccap::uyvyToRgba32(yuv_img.y_data(), yuv_img.y_stride(),
-                                   result.data(), result.stride(),
-                                   width, height, flags);
-                break;
-            case RGBFormat::BGR24:
-                ccap::uyvyToBgr24(yuv_img.y_data(), yuv_img.y_stride(),
-                                  result.data(), result.stride(),
-                                  width, height, flags);
-                break;
-            case RGBFormat::BGRA32:
-                ccap::uyvyToBgra32(yuv_img.y_data(), yuv_img.y_stride(),
-                                   result.data(), result.stride(),
-                                   width, height, flags);
-                break;
-            }
+        } else if (yuv_format == YUVFormat::YUYV || yuv_format == YUVFormat::UYVY) {
+            // YUYV/UYVY use packed format, stored in y_data()
+            performPackedYUVConversion(yuv_img.y_data(), yuv_img.y_stride(),
+                                       result, yuv_format, rgb_format, flags, width, height);
         }
     }
 
