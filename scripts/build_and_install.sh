@@ -32,7 +32,7 @@ if isWsl; then
         echo "== GIT_BASH_PATH_WSL=$GIT_BASH_PATH_WSL"
         if [[ -f "$GIT_BASH_PATH_WSL" ]]; then
             THIS_BASE_NAME=$(basename "$0")
-            "$GIT_BASH_PATH_WSL" "$THIS_BASE_NAME" $@
+            "$GIT_BASH_PATH_WSL" "$THIS_BASE_NAME" "$@"
             exit $?
         else
             echo "Git Bash not found, please install Git Bash!" >&2
@@ -78,7 +78,7 @@ build_and_install_config() {
 
     # Build
     echo "Building $config..."
-    cmake --build . --config "$config" --parallel $(detectCores 2>/dev/null)
+    cmake --build . --config "$config" --parallel "$(detectCores 2>/dev/null)"
 
     # Install
     echo "Installing $config..."
