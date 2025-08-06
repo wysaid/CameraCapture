@@ -35,6 +35,11 @@ jobs:
             name: Windows
             artifact_name: ccap-msvc-x86_64
             
+          - os: ubuntu-latest
+            name: Linux
+            artifact_name: ccap-linux-x86_64
+            build_type: Release
+            
     runs-on: ${{ matrix.os }}
     
     steps:
@@ -51,8 +56,11 @@ jobs:
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           # Windows: Use multi-config generator (Visual Studio)
           cmake -B build -G "Visual Studio 17 2022" -A x64 -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF
+        elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          # Linux: Use single-config generator
+          cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF
         else
-          # Other platforms: Use single-config generator
+          # macOS: Use single-config generator with universal binary
           cmake -B build -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64' -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF
         fi
         
@@ -122,6 +130,23 @@ jobs:
         find build -name "*-capture_callback" -exec cp {} package/examples/ \; || echo "Examples not found"
         find build -name "*-example_with_glfw" -exec cp {} package/examples/ \; || echo "Examples not found"
         
+    - name: Copy libraries (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      shell: bash
+      run: |
+        # Copy static library
+        cp build/libccap.a package/lib/ || echo "Static library not found"
+        
+        # Copy dynamic library (if exists)
+        cp build/libccap.so package/lib/ || echo "Dynamic library not found"
+        
+        # Copy example programs
+        find build -name "0-print_camera" -exec cp {} package/examples/ \; || echo "Examples not found"
+        find build -name "1-minimal_example" -exec cp {} package/examples/ \; || echo "Examples not found"
+        find build -name "2-capture_grab" -exec cp {} package/examples/ \; || echo "Examples not found"
+        find build -name "3-capture_callback" -exec cp {} package/examples/ \; || echo "Examples not found"
+        find build -name "4-example_with_glfw" -exec cp {} package/examples/ \; || echo "Examples not found"
+        
     - name: Copy headers and other files
       shell: bash
       run: |
@@ -159,7 +184,7 @@ jobs:
           # Windows: Create ZIP file
           7z a ../${{ matrix.artifact_name }}.zip ./*
         else
-          # macOS: Create tar.gz file
+          # macOS and Linux: Create tar.gz file
           tar -czf ../${{ matrix.artifact_name }}.tar.gz .
         fi
         cd ..
@@ -235,16 +260,19 @@ jobs:
         **Supported Platforms:**
         - **macOS** (Universal Binary - supports Intel & Apple Silicon): `ccap-macos-universal.tar.gz`
         - **Windows** (MSVC x64 - includes Debug and Release versions): `ccap-msvc-x86_64.zip`
+        - **Linux** (x86_64 - compatible with most distributions): `ccap-linux-x86_64.tar.gz`
         
         ### 📁 Package Contents
         
         - **Library Files**: Static library files for linking
           - Windows: `lib/ccap.lib` (Release version) and `lib/ccapd.lib` (Debug version)
           - macOS: `lib/libccap.a` (Universal Binary)
+          - Linux: `lib/libccap.a` (x86_64)
         - **Header Files**: Complete C++ API header files
         - **Example Programs**: 5 complete usage examples
           - Windows: `examples/Release/` and `examples/Debug/` directories contain corresponding versions
           - macOS: `examples/` directory contains executable files
+          - Linux: `examples/` directory contains executable files
         - **Example Source Code**: Ready-to-compile example code
         - **Documentation**: README and build instructions
         - **CMake Configuration**: Easy integration with other CMake projects
@@ -258,12 +286,14 @@ jobs:
            - **Windows Debug**: Link `lib/ccapd.lib`
            - **Windows Release**: Link `lib/ccap.lib`
            - **macOS**: Link `lib/libccap.a`
+           - **Linux**: Link `lib/libccap.a`
         5. Refer to example code in the `examples` directory
         
         ### 📋 System Requirements
         
         - **macOS**: 10.13 or higher
         - **Windows**: Windows 10 or higher (requires Visual C++ Redistributable)
+        - **Linux**: Modern Linux distribution with kernel 2.6+ (supports V4L2)
         
         ---
         
@@ -300,5 +330,6 @@ jobs:
         echo "### 📦 Included Files:" >> $GITHUB_STEP_SUMMARY
         echo "- ccap-macos-universal.tar.gz" >> $GITHUB_STEP_SUMMARY
         echo "- ccap-msvc-x86_64.zip (includes Debug and Release versions)" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-linux-x86_64.tar.gz" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "Release page: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
