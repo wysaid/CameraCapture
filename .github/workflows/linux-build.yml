@@ -8,20 +8,12 @@ on:
 
 jobs:
   build-ubuntu:
-    name: "Build (${{ matrix.build_type }}-gcc-${{ matrix.glfw_desc }})"
+    name: "Build (${{ matrix.build_type }}-gcc)"
     runs-on: ubuntu-latest
     
     strategy:
       matrix:
         build_type: [Debug, Release]
-        glfw_mode: [with_glfw, without_glfw]
-        include:
-          - glfw_mode: with_glfw
-            glfw_install: true
-            glfw_desc: "with system GLFW"
-          - glfw_mode: without_glfw
-            glfw_install: false
-            glfw_desc: "without system GLFW (bundled)"
     
     steps:
     - uses: actions/checkout@v4
@@ -33,8 +25,8 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y cmake build-essential gcc
         
-    - name: Install GLFW (conditional)
-      if: matrix.glfw_install == true
+    - name: Install GLFW (for Release builds only)
+      if: matrix.build_type == 'Release'
       run: |
         sudo apt-get install -y libglfw3-dev
         echo "GLFW_INSTALLED=true" >> $GITHUB_ENV
@@ -46,7 +38,7 @@ jobs:
         
     - name: Configure CMake
       run: |
-        echo "Configuring build ${{ matrix.build_type }} with gcc ${{ matrix.glfw_desc }}"
+        echo "Configuring build ${{ matrix.build_type }} with gcc"
         cmake -B build/${{ matrix.build_type }} \
               -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
               -DCCAP_BUILD_EXAMPLES=ON \
@@ -61,8 +53,8 @@ jobs:
         echo "Checking built examples:"
         ls -la | grep -E "(glfw|example)" || echo "No GLFW examples found"
         
-        if [ "${{ matrix.glfw_install }}" = "true" ]; then
-          echo "With system GLFW - checking if GLFW examples were built:"
+        if [ "${{ matrix.build_type }}" = "Release" ]; then
+          echo "Release build - checking if GLFW examples were built with system GLFW:"
           if [ -f "4-example_with_glfw" ]; then
             echo "✓ GLFW example successfully built with system GLFW"
           else
@@ -70,7 +62,7 @@ jobs:
             exit 1
           fi
         else
-          echo "Without system GLFW - checking if bundled GLFW was used:"
+          echo "Debug build - checking if bundled GLFW was used:"
           if [ -f "4-example_with_glfw" ]; then
             echo "✓ GLFW example successfully built with bundled GLFW"
           else
@@ -87,7 +79,7 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ccap-linux-gcc-${{ matrix.build_type }}-${{ matrix.glfw_mode }}
+        name: ccap-linux-gcc-${{ matrix.build_type }}
         path: |
           build/${{ matrix.build_type }}/libccap.a
           build/${{ matrix.build_type }}/0-print_camera
