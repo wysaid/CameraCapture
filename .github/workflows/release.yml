@@ -40,11 +40,24 @@ jobs:
             artifact_name: ccap-linux-x86_64
             build_type: Release
             
+          - os: ubuntu-latest
+            name: Linux ARM64
+            artifact_name: ccap-linux-arm64
+            build_type: Release
+            arch: arm64
+            
     runs-on: ${{ matrix.os }}
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+        
+    - name: Setup cross-compilation for ARM64
+      if: matrix.arch == 'arm64'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
         
     - name: Setup Visual Studio (Windows)
       if: matrix.os == 'windows-latest'
@@ -58,7 +71,18 @@ jobs:
           cmake -B build -G "Visual Studio 17 2022" -A x64 -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF
         elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
           # Linux: Use single-config generator
-          cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            # ARM64 cross-compilation
+            cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+              -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+              -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+              -DCMAKE_SYSTEM_NAME=Linux \
+              -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+              -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF
+          else
+            # Regular Linux x86_64
+            cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF
+          fi
         else
           # macOS: Use single-config generator with universal binary
           cmake -B build -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64' -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF
@@ -131,7 +155,7 @@ jobs:
         find build -name "*-example_with_glfw" -exec cp {} package/examples/ \; || echo "Examples not found"
         
     - name: Copy libraries (Linux)
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.os == 'ubuntu-latest' && matrix.arch != 'arm64'
       shell: bash
       run: |
         # Copy static library
@@ -141,6 +165,23 @@ jobs:
         cp build/libccap.so package/lib/ || echo "Dynamic library not found"
         
         # Copy example programs
+        find build -name "0-print_camera" -exec cp {} package/examples/ \; || echo "Examples not found"
+        find build -name "1-minimal_example" -exec cp {} package/examples/ \; || echo "Examples not found"
+        find build -name "2-capture_grab" -exec cp {} package/examples/ \; || echo "Examples not found"
+        find build -name "3-capture_callback" -exec cp {} package/examples/ \; || echo "Examples not found"
+        find build -name "4-example_with_glfw" -exec cp {} package/examples/ \; || echo "Examples not found"
+        
+    - name: Copy libraries (Linux ARM64)
+      if: matrix.os == 'ubuntu-latest' && matrix.arch == 'arm64'
+      shell: bash
+      run: |
+        # Copy static library
+        cp build/libccap.a package/lib/ || echo "Static library not found"
+        
+        # Copy dynamic library (if exists)
+        cp build/libccap.so package/lib/ || echo "Dynamic library not found"
+        
+        # Copy example programs (ARM64 cross-compiled)
         find build -name "0-print_camera" -exec cp {} package/examples/ \; || echo "Examples not found"
         find build -name "1-minimal_example" -exec cp {} package/examples/ \; || echo "Examples not found"
         find build -name "2-capture_grab" -exec cp {} package/examples/ \; || echo "Examples not found"
@@ -260,19 +301,22 @@ jobs:
         **Supported Platforms:**
         - **macOS** (Universal Binary - supports Intel & Apple Silicon): `ccap-macos-universal.tar.gz`
         - **Windows** (MSVC x64 - includes Debug and Release versions): `ccap-msvc-x86_64.zip`
-        - **Linux** (x86_64 - compatible with most distributions): `ccap-linux-x86_64.tar.gz`
+        - **Linux x86_64** (compatible with most distributions): `ccap-linux-x86_64.tar.gz`
+        - **Linux ARM64** (compatible with Raspberry Pi, ARM servers, and other ARM64 boards): `ccap-linux-arm64.tar.gz`
         
         ### 📁 Package Contents
         
         - **Library Files**: Static library files for linking
           - Windows: `lib/ccap.lib` (Release version) and `lib/ccapd.lib` (Debug version)
           - macOS: `lib/libccap.a` (Universal Binary)
-          - Linux: `lib/libccap.a` (x86_64)
+          - Linux x86_64: `lib/libccap.a` (x86_64)
+          - Linux ARM64: `lib/libccap.a` (ARM64)
         - **Header Files**: Complete C++ API header files
         - **Example Programs**: 5 complete usage examples
           - Windows: `examples/Release/` and `examples/Debug/` directories contain corresponding versions
           - macOS: `examples/` directory contains executable files
-          - Linux: `examples/` directory contains executable files
+          - Linux x86_64: `examples/` directory contains executable files
+          - Linux ARM64: `examples/` directory contains executable files
         - **Example Source Code**: Ready-to-compile example code
         - **Documentation**: README and build instructions
         - **CMake Configuration**: Easy integration with other CMake projects
@@ -286,7 +330,8 @@ jobs:
            - **Windows Debug**: Link `lib/ccapd.lib`
            - **Windows Release**: Link `lib/ccap.lib`
            - **macOS**: Link `lib/libccap.a`
-           - **Linux**: Link `lib/libccap.a`
+           - **Linux x86_64**: Link `lib/libccap.a`
+           - **Linux ARM64**: Link `lib/libccap.a`
         5. Refer to example code in the `examples` directory
         
         ### 📋 System Requirements
@@ -331,5 +376,6 @@ jobs:
         echo "- ccap-macos-universal.tar.gz" >> $GITHUB_STEP_SUMMARY
         echo "- ccap-msvc-x86_64.zip (includes Debug and Release versions)" >> $GITHUB_STEP_SUMMARY
         echo "- ccap-linux-x86_64.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-linux-arm64.tar.gz" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "Release page: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
