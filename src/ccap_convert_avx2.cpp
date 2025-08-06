@@ -1258,95 +1258,95 @@ AVX2_TARGET void uyvyToRgb_avx2_imp(const uint8_t* src, int srcStride, uint8_t* 
         for (; x + vectorWidth <= width; x += vectorWidth) {
             // 1. 加载32字节UYVY数据 (16个像素 = 32字节)
             __m256i uyvy_data = _mm256_loadu_si256((const __m256i*)(srcRow + x * 2));
-            
+
             // 2. 直接使用shuffle分离UYVY分量
             // UYVY格式: U0 Y0 V0 Y1 U1 Y2 V1 Y3 ...
             // 使用正确的shuffle掩码，考虑AVX2的lane限制
-            
+
             // 创建正确的shuffle掩码（每个lane独立工作，索引范围0-15）
             // 对于UYVY，Y在位置1,3,5,7...
             __m256i shuffle_y = _mm256_setr_epi8(
-                1, 3, 5, 7, 9, 11, 13, 15,   // Lane 0: 提取Y0,Y1,Y2,Y3,Y4,Y5,Y6,Y7
+                1, 3, 5, 7, 9, 11, 13, 15,      // Lane 0: 提取Y0,Y1,Y2,Y3,Y4,Y5,Y6,Y7
                 -1, -1, -1, -1, -1, -1, -1, -1, // Lane 0: 填充区域
-                1, 3, 5, 7, 9, 11, 13, 15,   // Lane 1: 提取Y8,Y9,Y10,Y11,Y12,Y13,Y14,Y15
+                1, 3, 5, 7, 9, 11, 13, 15,      // Lane 1: 提取Y8,Y9,Y10,Y11,Y12,Y13,Y14,Y15
                 -1, -1, -1, -1, -1, -1, -1, -1  // Lane 1: 填充区域
             );
-            
+
             // U分量：在位置0,4,8,12...，每个U对应两个Y（4:2:2子采样）
             __m256i shuffle_u = _mm256_setr_epi8(
-                0, 0, 4, 4, 8, 8, 12, 12,    // Lane 0: U0,U0,U1,U1,U2,U2,U3,U3
+                0, 0, 4, 4, 8, 8, 12, 12,       // Lane 0: U0,U0,U1,U1,U2,U2,U3,U3
                 -1, -1, -1, -1, -1, -1, -1, -1, // Lane 0: 填充区域
-                0, 0, 4, 4, 8, 8, 12, 12,    // Lane 1: U4,U4,U5,U5,U6,U6,U7,U7
+                0, 0, 4, 4, 8, 8, 12, 12,       // Lane 1: U4,U4,U5,U5,U6,U6,U7,U7
                 -1, -1, -1, -1, -1, -1, -1, -1  // Lane 1: 填充区域
             );
-            
+
             // V分量：在位置2,6,10,14...，每个V对应两个Y（4:2:2子采样）
             __m256i shuffle_v = _mm256_setr_epi8(
-                2, 2, 6, 6, 10, 10, 14, 14,  // Lane 0: V0,V0,V1,V1,V2,V2,V3,V3
+                2, 2, 6, 6, 10, 10, 14, 14,     // Lane 0: V0,V0,V1,V1,V2,V2,V3,V3
                 -1, -1, -1, -1, -1, -1, -1, -1, // Lane 0: 填充区域
-                2, 2, 6, 6, 10, 10, 14, 14,  // Lane 1: V4,V4,V5,V5,V6,V6,V7,V7
+                2, 2, 6, 6, 10, 10, 14, 14,     // Lane 1: V4,V4,V5,V5,V6,V6,V7,V7
                 -1, -1, -1, -1, -1, -1, -1, -1  // Lane 1: 填充区域
             );
-            
+
             // 执行shuffle分离
             __m256i y_shuffled = _mm256_shuffle_epi8(uyvy_data, shuffle_y);
             __m256i u_shuffled = _mm256_shuffle_epi8(uyvy_data, shuffle_u);
             __m256i v_shuffled = _mm256_shuffle_epi8(uyvy_data, shuffle_v);
-            
+
             // 提取有效数据（低64位包含真实数据，高64位是填充的-1）
-            __m128i y_lo = _mm256_castsi256_si128(y_shuffled);         // Lane 0的Y值
-            __m128i y_hi = _mm256_extracti128_si256(y_shuffled, 1);    // Lane 1的Y值
-            __m128i u_lo = _mm256_castsi256_si128(u_shuffled);         // Lane 0的U值
-            __m128i u_hi = _mm256_extracti128_si256(u_shuffled, 1);    // Lane 1的U值
-            __m128i v_lo = _mm256_castsi256_si128(v_shuffled);         // Lane 0的V值
-            __m128i v_hi = _mm256_extracti128_si256(v_shuffled, 1);    // Lane 1的V值
-            
+            __m128i y_lo = _mm256_castsi256_si128(y_shuffled);      // Lane 0的Y值
+            __m128i y_hi = _mm256_extracti128_si256(y_shuffled, 1); // Lane 1的Y值
+            __m128i u_lo = _mm256_castsi256_si128(u_shuffled);      // Lane 0的U值
+            __m128i u_hi = _mm256_extracti128_si256(u_shuffled, 1); // Lane 1的U值
+            __m128i v_lo = _mm256_castsi256_si128(v_shuffled);      // Lane 0的V值
+            __m128i v_hi = _mm256_extracti128_si256(v_shuffled, 1); // Lane 1的V值
+
             // 合并两个lane的数据，只取有效的前8字节
-            __m128i y_final = _mm_unpacklo_epi64(y_lo, y_hi);         // Y0-Y7 + Y8-Y15
-            __m128i u_final = _mm_unpacklo_epi64(u_lo, u_hi);         // U0,U0,U1,U1...U3,U3 + U4,U4,U5,U5...U7,U7
-            __m128i v_final = _mm_unpacklo_epi64(v_lo, v_hi);         // V0,V0,V1,V1...V3,V3 + V4,V4,V5,V5...V7,V7
-            
+            __m128i y_final = _mm_unpacklo_epi64(y_lo, y_hi); // Y0-Y7 + Y8-Y15
+            __m128i u_final = _mm_unpacklo_epi64(u_lo, u_hi); // U0,U0,U1,U1...U3,U3 + U4,U4,U5,U5...U7,U7
+            __m128i v_final = _mm_unpacklo_epi64(v_lo, v_hi); // V0,V0,V1,V1...V3,V3 + V4,V4,V5,V5...V7,V7
+
             // 转换为16位整数
             __m256i y_16 = _mm256_cvtepu8_epi16(y_final);
             __m256i u_16 = _mm256_cvtepu8_epi16(u_final);
             __m256i v_16 = _mm256_cvtepu8_epi16(v_final);
-            
+
             // 3. YUV偏移处理
             u_16 = _mm256_sub_epi16(u_16, c128);
             v_16 = _mm256_sub_epi16(v_16, c128);
-            
+
             if constexpr (!isFullRange) {
                 y_16 = _mm256_sub_epi16(y_16, _mm256_set1_epi16(16));
             }
-            
+
             // 4. YUV到RGB转换
             __m256i y_scaled = _mm256_mullo_epi16(y_16, c_y);
-            
+
             __m256i r = _mm256_add_epi16(y_scaled, _mm256_mullo_epi16(v_16, c_r));
             r = _mm256_add_epi16(r, _mm256_set1_epi16(32));
             r = _mm256_srai_epi16(r, 6);
-            
+
             __m256i g = _mm256_sub_epi16(y_scaled, _mm256_mullo_epi16(u_16, c_gu));
             g = _mm256_sub_epi16(g, _mm256_mullo_epi16(v_16, c_gv));
             g = _mm256_add_epi16(g, _mm256_set1_epi16(32));
             g = _mm256_srai_epi16(g, 6);
-            
+
             __m256i b = _mm256_add_epi16(y_scaled, _mm256_mullo_epi16(u_16, c_b));
             b = _mm256_add_epi16(b, _mm256_set1_epi16(32));
             b = _mm256_srai_epi16(b, 6);
-            
+
             // 5. 钳制到0-255范围
             __m256i zero = _mm256_setzero_si256();
             __m256i maxv = _mm256_set1_epi16(255);
             r = _mm256_max_epi16(zero, _mm256_min_epi16(r, maxv));
             g = _mm256_max_epi16(zero, _mm256_min_epi16(g, maxv));
             b = _mm256_max_epi16(zero, _mm256_min_epi16(b, maxv));
-            
+
             // 6. 转换为8位并打包输出
             __m128i r8 = _mm_packus_epi16(_mm256_castsi256_si128(r), _mm256_extracti128_si256(r, 1));
             __m128i g8 = _mm_packus_epi16(_mm256_castsi256_si128(g), _mm256_extracti128_si256(g, 1));
             __m128i b8 = _mm_packus_epi16(_mm256_castsi256_si128(b), _mm256_extracti128_si256(b, 1));
-            
+
             // 7. 根据输出格式存储
             if constexpr (hasAlpha) {
                 if constexpr (isBgrColor) {
@@ -1355,12 +1355,12 @@ AVX2_TARGET void uyvyToRgb_avx2_imp(const uint8_t* src, int srcStride, uint8_t* 
                     __m128i ra0 = _mm_unpacklo_epi8(r8, a8);
                     __m128i bgra0 = _mm_unpacklo_epi16(bg0, ra0);
                     __m128i bgra1 = _mm_unpackhi_epi16(bg0, ra0);
-                    
+
                     __m128i bg1 = _mm_unpackhi_epi8(b8, g8);
                     __m128i ra1 = _mm_unpackhi_epi8(r8, a8);
                     __m128i bgra2 = _mm_unpacklo_epi16(bg1, ra1);
                     __m128i bgra3 = _mm_unpackhi_epi16(bg1, ra1);
-                    
+
                     _mm_storeu_si128((__m128i*)(dstRow + x * 4), bgra0);
                     _mm_storeu_si128((__m128i*)(dstRow + x * 4 + 16), bgra1);
                     _mm_storeu_si128((__m128i*)(dstRow + x * 4 + 32), bgra2);
@@ -1371,12 +1371,12 @@ AVX2_TARGET void uyvyToRgb_avx2_imp(const uint8_t* src, int srcStride, uint8_t* 
                     __m128i ba0 = _mm_unpacklo_epi8(b8, a8);
                     __m128i rgba0 = _mm_unpacklo_epi16(rg0, ba0);
                     __m128i rgba1 = _mm_unpackhi_epi16(rg0, ba0);
-                    
+
                     __m128i rg1 = _mm_unpackhi_epi8(r8, g8);
                     __m128i ba1 = _mm_unpackhi_epi8(b8, a8);
                     __m128i rgba2 = _mm_unpacklo_epi16(rg1, ba1);
                     __m128i rgba3 = _mm_unpackhi_epi16(rg1, ba1);
-                    
+
                     _mm_storeu_si128((__m128i*)(dstRow + x * 4), rgba0);
                     _mm_storeu_si128((__m128i*)(dstRow + x * 4 + 16), rgba1);
                     _mm_storeu_si128((__m128i*)(dstRow + x * 4 + 32), rgba2);
@@ -1388,7 +1388,7 @@ AVX2_TARGET void uyvyToRgb_avx2_imp(const uint8_t* src, int srcStride, uint8_t* 
                 _mm_storeu_si128((__m128i*)r_vals, r8);
                 _mm_storeu_si128((__m128i*)g_vals, g8);
                 _mm_storeu_si128((__m128i*)b_vals, b8);
-                
+
                 for (int i = 0; i < 16 && (x + i) < width; ++i) {
                     if constexpr (isBgrColor) {
                         dstRow[(x + i) * 3 + 0] = b_vals[i];
@@ -1402,7 +1402,7 @@ AVX2_TARGET void uyvyToRgb_avx2_imp(const uint8_t* src, int srcStride, uint8_t* 
                 }
             }
         }
-        
+
         // 处理剩余像素（标量实现）
         YuvToRgbFunc convertFunc = getYuvToRgbFunc(is601, isFullRange);
         for (; x < width; x += 2) {

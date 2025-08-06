@@ -7,13 +7,14 @@
  */
 
 #include "ccap_c.h"
+
 #include "ccap.h"
 
+#include <cmath>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <vector>
-#include <functional>
-#include <cmath>
 
 extern "C" {
 
@@ -60,8 +61,9 @@ char* allocate_c_string(const std::string& str) {
 struct CallbackWrapper {
     CcapNewFrameCallback callback;
     void* userData;
-    
-    CallbackWrapper(CcapNewFrameCallback cb, void* data) : callback(cb), userData(data) {}
+
+    CallbackWrapper(CcapNewFrameCallback cb, void* data) :
+        callback(cb), userData(data) {}
 };
 
 } // anonymous namespace
@@ -105,20 +107,20 @@ void ccap_provider_destroy(CcapProvider* provider) {
 
 bool ccap_provider_find_device_names(CcapProvider* provider, char*** deviceNames, size_t* count) {
     if (!provider || !deviceNames || !count) return false;
-    
+
     try {
         auto* cppProvider = reinterpret_cast<ccap::Provider*>(provider);
         auto devices = cppProvider->findDeviceNames();
-        
+
         *count = devices.size();
         if (*count == 0) {
             *deviceNames = nullptr;
             return true;
         }
-        
+
         char** names = static_cast<char**>(malloc(*count * sizeof(char*)));
         if (!names) return false;
-        
+
         for (size_t i = 0; i < *count; ++i) {
             names[i] = allocate_c_string(devices[i]);
             if (!names[i]) {
@@ -130,7 +132,7 @@ bool ccap_provider_find_device_names(CcapProvider* provider, char*** deviceNames
                 return false;
             }
         }
-        
+
         *deviceNames = names;
         return true;
     } catch (...) {
@@ -151,7 +153,7 @@ void ccap_provider_free_device_names(char** deviceNames, size_t count) {
 
 bool ccap_provider_open(CcapProvider* provider, const char* deviceName, bool autoStart) {
     if (!provider) return false;
-    
+
     try {
         auto* cppProvider = reinterpret_cast<ccap::Provider*>(provider);
         std::string_view deviceNameView = deviceName ? deviceName : "";
@@ -163,7 +165,7 @@ bool ccap_provider_open(CcapProvider* provider, const char* deviceName, bool aut
 
 bool ccap_provider_open_by_index(CcapProvider* provider, int deviceIndex, bool autoStart) {
     if (!provider) return false;
-    
+
     try {
         auto* cppProvider = reinterpret_cast<ccap::Provider*>(provider);
         return cppProvider->open(deviceIndex, autoStart);
@@ -174,7 +176,7 @@ bool ccap_provider_open_by_index(CcapProvider* provider, int deviceIndex, bool a
 
 bool ccap_provider_is_opened(const CcapProvider* provider) {
     if (!provider) return false;
-    
+
     try {
         auto* cppProvider = reinterpret_cast<const ccap::Provider*>(provider);
         return cppProvider->isOpened();
@@ -185,40 +187,40 @@ bool ccap_provider_is_opened(const CcapProvider* provider) {
 
 bool ccap_provider_get_device_info(const CcapProvider* provider, CcapDeviceInfo* deviceInfo) {
     if (!provider || !deviceInfo) return false;
-    
+
     try {
         auto* cppProvider = reinterpret_cast<const ccap::Provider*>(provider);
         auto infoOpt = cppProvider->getDeviceInfo();
-        
+
         if (!infoOpt.has_value()) return false;
-        
+
         const auto& info = infoOpt.value();
-        
+
         // Initialize structure
         memset(deviceInfo, 0, sizeof(CcapDeviceInfo));
-        
+
         // Copy device name
         deviceInfo->deviceName = allocate_c_string(info.deviceName);
-        
+
         // Copy supported pixel formats
         deviceInfo->pixelFormatCount = info.supportedPixelFormats.size();
         if (deviceInfo->pixelFormatCount > 0) {
             deviceInfo->supportedPixelFormats = static_cast<CcapPixelFormat*>(
                 malloc(deviceInfo->pixelFormatCount * sizeof(CcapPixelFormat)));
-            
+
             if (deviceInfo->supportedPixelFormats) {
                 for (size_t i = 0; i < deviceInfo->pixelFormatCount; ++i) {
                     deviceInfo->supportedPixelFormats[i] = convert_pixel_format_to_c(info.supportedPixelFormats[i]);
                 }
             }
         }
-        
+
         // Copy supported resolutions
         deviceInfo->resolutionCount = info.supportedResolutions.size();
         if (deviceInfo->resolutionCount > 0) {
             deviceInfo->supportedResolutions = static_cast<CcapResolution*>(
                 malloc(deviceInfo->resolutionCount * sizeof(CcapResolution)));
-            
+
             if (deviceInfo->supportedResolutions) {
                 for (size_t i = 0; i < deviceInfo->resolutionCount; ++i) {
                     deviceInfo->supportedResolutions[i].width = info.supportedResolutions[i].width;
@@ -226,7 +228,7 @@ bool ccap_provider_get_device_info(const CcapProvider* provider, CcapDeviceInfo*
                 }
             }
         }
-        
+
         return true;
     } catch (...) {
         return false;
@@ -257,7 +259,7 @@ void ccap_provider_close(CcapProvider* provider) {
 
 bool ccap_provider_start(CcapProvider* provider) {
     if (!provider) return false;
-    
+
     try {
         auto* cppProvider = reinterpret_cast<ccap::Provider*>(provider);
         return cppProvider->start();
@@ -279,7 +281,7 @@ void ccap_provider_stop(CcapProvider* provider) {
 
 bool ccap_provider_is_started(const CcapProvider* provider) {
     if (!provider) return false;
-    
+
     try {
         auto* cppProvider = reinterpret_cast<const ccap::Provider*>(provider);
         return cppProvider->isStarted();
@@ -292,7 +294,7 @@ bool ccap_provider_is_started(const CcapProvider* provider) {
 
 bool ccap_provider_set_property(CcapProvider* provider, CcapPropertyName prop, double value) {
     if (!provider) return false;
-    
+
     try {
         auto* cppProvider = reinterpret_cast<ccap::Provider*>(provider);
         return cppProvider->set(convert_property_name_from_c(prop), value);
@@ -303,7 +305,7 @@ bool ccap_provider_set_property(CcapProvider* provider, CcapPropertyName prop, d
 
 double ccap_provider_get_property(CcapProvider* provider, CcapPropertyName prop) {
     if (!provider) return NAN;
-    
+
     try {
         auto* cppProvider = reinterpret_cast<ccap::Provider*>(provider);
         return cppProvider->get(convert_property_name_from_c(prop));
@@ -316,13 +318,13 @@ double ccap_provider_get_property(CcapProvider* provider, CcapPropertyName prop)
 
 CcapVideoFrame* ccap_provider_grab(CcapProvider* provider, uint32_t timeoutMs) {
     if (!provider) return nullptr;
-    
+
     try {
         auto* cppProvider = reinterpret_cast<ccap::Provider*>(provider);
         auto frame = cppProvider->grab(timeoutMs);
-        
+
         if (!frame) return nullptr;
-        
+
         // Transfer ownership to a heap-allocated shared_ptr
         auto* framePtr = new std::shared_ptr<ccap::VideoFrame>(std::move(frame));
         return reinterpret_cast<CcapVideoFrame*>(framePtr);
@@ -333,25 +335,25 @@ CcapVideoFrame* ccap_provider_grab(CcapProvider* provider, uint32_t timeoutMs) {
 
 bool ccap_provider_set_new_frame_callback(CcapProvider* provider, CcapNewFrameCallback callback, void* userData) {
     if (!provider) return false;
-    
+
     try {
         auto* cppProvider = reinterpret_cast<ccap::Provider*>(provider);
-        
+
         if (callback) {
             // Create wrapper for the C callback
             auto wrapper = std::make_shared<CallbackWrapper>(callback, userData);
-            
+
             cppProvider->setNewFrameCallback([wrapper](const std::shared_ptr<ccap::VideoFrame>& frame) -> bool {
                 if (wrapper->callback) {
                     // Transfer ownership to a heap-allocated shared_ptr for the callback
                     auto* framePtr = new std::shared_ptr<ccap::VideoFrame>(frame);
                     bool result = wrapper->callback(reinterpret_cast<CcapVideoFrame*>(framePtr), wrapper->userData);
-                    
+
                     // Clean up the frame if the callback returned true (indicating it consumed the frame)
                     if (result) {
                         delete framePtr;
                     }
-                    
+
                     return result;
                 }
                 return false;
@@ -360,7 +362,7 @@ bool ccap_provider_set_new_frame_callback(CcapProvider* provider, CcapNewFrameCa
             // Remove callback
             cppProvider->setNewFrameCallback(nullptr);
         }
-        
+
         return true;
     } catch (...) {
         return false;
@@ -371,17 +373,17 @@ bool ccap_provider_set_new_frame_callback(CcapProvider* provider, CcapNewFrameCa
 
 bool ccap_video_frame_get_info(const CcapVideoFrame* frame, CcapVideoFrameInfo* frameInfo) {
     if (!frame || !frameInfo) return false;
-    
+
     try {
         auto* framePtr = reinterpret_cast<const std::shared_ptr<ccap::VideoFrame>*>(frame);
         const auto& cppFrame = **framePtr;
-        
+
         // Copy frame information
         for (int i = 0; i < 3; ++i) {
             frameInfo->data[i] = cppFrame.data[i];
             frameInfo->stride[i] = cppFrame.stride[i];
         }
-        
+
         frameInfo->pixelFormat = convert_pixel_format_to_c(cppFrame.pixelFormat);
         frameInfo->width = cppFrame.width;
         frameInfo->height = cppFrame.height;
@@ -390,7 +392,7 @@ bool ccap_video_frame_get_info(const CcapVideoFrame* frame, CcapVideoFrameInfo* 
         frameInfo->frameIndex = cppFrame.frameIndex;
         frameInfo->orientation = convert_frame_orientation_to_c(cppFrame.orientation);
         frameInfo->nativeHandle = cppFrame.nativeHandle;
-        
+
         return true;
     } catch (...) {
         return false;
