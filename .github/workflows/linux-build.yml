@@ -7,33 +7,208 @@ on:
     branches: [ main, develop ]
 
 jobs:
-  build:
+  build-ubuntu:
+    name: "Build (${{ matrix.build_type }}-gcc-${{ matrix.glfw_desc }})"
     runs-on: ubuntu-latest
     
     strategy:
       matrix:
         build_type: [Debug, Release]
-        compiler: [gcc, clang]
+        glfw_mode: [with_glfw, without_glfw]
         include:
-          - compiler: gcc
-            cc: gcc
-            cxx: g++
-          - compiler: clang
-            cc: clang
-            cxx: clang++
+          - glfw_mode: with_glfw
+            glfw_install: true
+            glfw_desc: "with system GLFW"
+          - glfw_mode: without_glfw
+            glfw_install: false
+            glfw_desc: "without system GLFW (bundled)"
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: recursive
     
-    - name: Install dependencies
+    - name: Install base dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake build-essential ${{ matrix.compiler }}
+        sudo apt-get install -y cmake build-essential gcc
+        
+    - name: Install GLFW (conditional)
+      if: matrix.glfw_install == true
+      run: |
+        sudo apt-get install -y libglfw3-dev
+        echo "GLFW_INSTALLED=true" >> $GITHUB_ENV
         
     - name: Setup compiler
       run: |
-        echo "CC=${{ matrix.cc }}" >> $GITHUB_ENV
-        echo "CXX=${{ matrix.cxx }}" >> $GITHUB_ENV
+        echo "CC=gcc" >> $GITHUB_ENV
+        echo "CXX=g++" >> $GITHUB_ENV
+        
+    - name: Configure CMake
+      run: |
+        echo "Configuring build ${{ matrix.build_type }} with gcc ${{ matrix.glfw_desc }}"
+        cmake -B build/${{ matrix.build_type }} \
+              -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+              -DCCAP_BUILD_EXAMPLES=ON \
+              -DCCAP_BUILD_TESTS=ON
+    
+    - name: Build
+      run: cmake --build build/${{ matrix.build_type }} --config ${{ matrix.build_type }} --parallel $(nproc)
+    
+    - name: Verify GLFW examples build status
+      working-directory: build/${{ matrix.build_type }}
+      run: |
+        echo "Checking built examples:"
+        ls -la | grep -E "(glfw|example)" || echo "No GLFW examples found"
+        
+        if [ "${{ matrix.glfw_install }}" = "true" ]; then
+          echo "With system GLFW - checking if GLFW examples were built:"
+          if [ -f "4-example_with_glfw" ]; then
+            echo "✓ GLFW example successfully built with system GLFW"
+          else
+            echo "✗ GLFW example not found - this might indicate a build issue"
+            exit 1
+          fi
+        else
+          echo "Without system GLFW - checking if bundled GLFW was used:"
+          if [ -f "4-example_with_glfw" ]; then
+            echo "✓ GLFW example successfully built with bundled GLFW"
+          else
+            echo "ℹ GLFW example not built - using bundled GLFW or GLFW disabled"
+          fi
+        fi
+    
+    - name: Run Unit Tests
+      if: matrix.build_type == 'Release'
+      run: |
+        cd scripts
+        ./run_tests.sh --functional --exit-when-failed
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ccap-linux-gcc-${{ matrix.build_type }}-${{ matrix.glfw_mode }}
+        path: |
+          build/${{ matrix.build_type }}/libccap.a
+          build/${{ matrix.build_type }}/0-print_camera
+          build/${{ matrix.build_type }}/1-minimal_example
+          build/${{ matrix.build_type }}/2-capture_grab
+          build/${{ matrix.build_type }}/3-capture_callback
+          build/${{ matrix.build_type }}/4-example_with_glfw
+          build/${{ matrix.build_type }}/*_results.xml
+        if-no-files-found: warn
+
+  build-ubuntu-clang:
+    name: "Build (${{ matrix.build_type }}-clang-${{ matrix.glfw_desc }})"
+    runs-on: ubuntu-latest
+    # Only run clang builds on push to main branch
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    strategy:
+      matrix:
+        build_type: [Debug, Release]
+        glfw_mode: [with_glfw, without_glfw]
+        include:
+          - glfw_mode: with_glfw
+            glfw_install: true
+            glfw_desc: "with system GLFW"
+          - glfw_mode: without_glfw
+            glfw_install: false
+            glfw_desc: "without system GLFW (bundled)"
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install base dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential clang
+        
+    - name: Install GLFW (conditional)
+      if: matrix.glfw_install == true
+      run: |
+        sudo apt-get install -y libglfw3-dev
+        echo "GLFW_INSTALLED=true" >> $GITHUB_ENV
+        
+    - name: Setup compiler
+      run: |
+        echo "CC=clang" >> $GITHUB_ENV
+        echo "CXX=clang++" >> $GITHUB_ENV
+        
+    - name: Configure CMake
+      run: |
+        echo "Configuring build ${{ matrix.build_type }} with clang ${{ matrix.glfw_desc }}"
+        cmake -B build/${{ matrix.build_type }} \
+              -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+              -DCCAP_BUILD_EXAMPLES=ON \
+              -DCCAP_BUILD_TESTS=ON
+    
+    - name: Build
+      run: cmake --build build/${{ matrix.build_type }} --config ${{ matrix.build_type }} --parallel $(nproc)
+    
+    - name: Verify GLFW examples build status
+      working-directory: build/${{ matrix.build_type }}
+      run: |
+        echo "Checking built examples:"
+        ls -la | grep -E "(glfw|example)" || echo "No GLFW examples found"
+        
+        if [ "${{ matrix.glfw_install }}" = "true" ]; then
+          echo "With system GLFW - checking if GLFW examples were built:"
+          if [ -f "4-example_with_glfw" ]; then
+            echo "✓ GLFW example successfully built with system GLFW"
+          else
+            echo "✗ GLFW example not found - this might indicate a build issue"
+            exit 1
+          fi
+        else
+          echo "Without system GLFW - checking if bundled GLFW was used:"
+          if [ -f "4-example_with_glfw" ]; then
+            echo "✓ GLFW example successfully built with bundled GLFW"
+          else
+            echo "ℹ GLFW example not built - using bundled GLFW or GLFW disabled"
+          fi
+        fi
+    
+    - name: Run Unit Tests
+      if: matrix.build_type == 'Release'
+      run: |
+        cd scripts
+        ./run_tests.sh --functional --exit-when-failed
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ccap-linux-clang-${{ matrix.build_type }}-${{ matrix.glfw_mode }}
+        path: |
+          build/${{ matrix.build_type }}/libccap.a
+          build/${{ matrix.build_type }}/0-print_camera
+          build/${{ matrix.build_type }}/1-minimal_example
+          build/${{ matrix.build_type }}/2-capture_grab
+          build/${{ matrix.build_type }}/3-capture_callback
+          build/${{ matrix.build_type }}/4-example_with_glfw
+          build/${{ matrix.build_type }}/*_results.xml
+        if-no-files-found: warn
+
+  build-fedora:
+    name: "Build Fedora (${{ matrix.build_type }})"
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    
+    strategy:
+      matrix:
+        build_type: [Debug, Release]
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install dependencies
+      run: |
+        dnf update -y
+        dnf install -y cmake gcc-c++ make git
         
     - name: Configure CMake
       run: |
@@ -45,14 +220,21 @@ jobs:
     - name: Build
       run: cmake --build build/${{ matrix.build_type }} --config ${{ matrix.build_type }} --parallel $(nproc)
     
-    - name: Test
-      working-directory: build/${{ matrix.build_type }}
-      run: |
-        # List available cameras (may not have any in CI)
-        ./0-print_camera || echo "No cameras available in CI environment"
-        
     - name: Run Unit Tests
       if: matrix.build_type == 'Release'
       run: |
         cd scripts
         ./run_tests.sh --functional --exit-when-failed
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ccap-fedora-${{ matrix.build_type }}
+        path: |
+          build/${{ matrix.build_type }}/libccap.a
+          build/${{ matrix.build_type }}/0-print_camera
+          build/${{ matrix.build_type }}/1-minimal_example
+          build/${{ matrix.build_type }}/2-capture_grab
+          build/${{ matrix.build_type }}/3-capture_callback
+          build/${{ matrix.build_type }}/*_results.xml
+        if-no-files-found: warn
