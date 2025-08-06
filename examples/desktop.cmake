@@ -5,17 +5,15 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(DESKTOP_EXAMPLES_DIR ${CMAKE_CURRENT_LIST_DIR}/desktop)
 
 # GLFW detection and setup
-set(GLFW_AVAILABLE FALSE)
+set(GLFW_AVAILABLE OFF)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     if(NOT GLFW_AVAILABLE)
         find_package(glfw3 QUIET)
 
         if(glfw3_FOUND)
-            find_package(OpenGL REQUIRED)
-            set(GLFW_AVAILABLE TRUE)
+            set(GLFW_AVAILABLE ON)
             set(GLFW_TARGET glfw)
-            message(STATUS "ccap: Using system-installed GLFW via CMake")
         endif()
     endif()
 
@@ -31,21 +29,23 @@ else()
     set(GLFW_INSTALL OFF CACHE BOOL "Generate installation target" FORCE)
 
     add_subdirectory(${DESKTOP_EXAMPLES_DIR}/glfw)
-    set(GLFW_AVAILABLE TRUE)
+    set(GLFW_AVAILABLE ON)
     set(GLFW_TARGET glfw)
     message(STATUS "ccap: Using bundled GLFW")
 endif()
 
+message(STATUS "ccap: GLFW available: ${GLFW_AVAILABLE}")
+
 file(GLOB EXAMPLE_SOURCE ${DESKTOP_EXAMPLES_DIR}/*.cpp ${DESKTOP_EXAMPLES_DIR}/*.c)
 
 foreach(EXAMPLE ${EXAMPLE_SOURCE})
+    get_filename_component(EXAMPLE_NAME ${EXAMPLE} NAME)
+    string(REGEX REPLACE "\\.(cpp|c)$" "" EXAMPLE_NAME ${EXAMPLE_NAME})
+
     if(${EXAMPLE_NAME} MATCHES "glfw" AND NOT GLFW_AVAILABLE)
         # Skip GLFW examples if GLFW is not available
         continue()
     endif()
-
-    get_filename_component(EXAMPLE_NAME ${EXAMPLE} NAME)
-    string(REGEX REPLACE "\\.(cpp|c)$" "" EXAMPLE_NAME ${EXAMPLE_NAME})
 
     add_executable(${EXAMPLE_NAME} ${EXAMPLE})
     target_link_libraries(${EXAMPLE_NAME} PRIVATE ccap)
@@ -56,32 +56,22 @@ foreach(EXAMPLE ${EXAMPLE_SOURCE})
         )
     endif()
 
-    # If NAME contains glfw, link glfw3 and OpenGL, etc.
+    # If NAME contains glfw, link glfw3 and optionally OpenGL
     if(${EXAMPLE_NAME} MATCHES "glfw")
-        target_link_libraries(${EXAMPLE_NAME} PRIVATE
-            ${GLFW_TARGET}
-        )
+        target_link_libraries(${EXAMPLE_NAME} PRIVATE ${GLFW_TARGET})
 
-        if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-            # On Linux, link OpenGL libraries
-            target_link_libraries(${EXAMPLE_NAME} PRIVATE
-                OpenGL::GL
-            )
-        else()
+        # On Linux, OpenGL functions are loaded dynamically via GLAD
+        # GLAD uses function pointers provided by GLFW (glfwGetProcAddress)
+        # No additional libraries needed for dynamic loading
+        if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
             if(APPLE)
-                target_link_libraries(${EXAMPLE_NAME} PRIVATE
-                    "-framework OpenGL"
-                )
+                target_link_libraries(${EXAMPLE_NAME} PRIVATE "-framework OpenGL")
             endif()
 
-            target_include_directories(${EXAMPLE_NAME} PUBLIC
-                ${DESKTOP_EXAMPLES_DIR}/glfw/include
-            )
+            target_include_directories(${EXAMPLE_NAME} PUBLIC ${DESKTOP_EXAMPLES_DIR}/glfw/include)
         endif()
 
-        target_include_directories(${EXAMPLE_NAME} PUBLIC
-            ${DESKTOP_EXAMPLES_DIR}
-        )
+        target_include_directories(${EXAMPLE_NAME} PUBLIC ${DESKTOP_EXAMPLES_DIR})
 
         message(STATUS "ccap: Add example: ${EXAMPLE_NAME} with GLFW")
     else()
