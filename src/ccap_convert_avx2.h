@@ -20,7 +20,7 @@
 #ifndef ENABLE_AVX2_IMP
 #if ((defined(_MSC_VER) || defined(_WIN32)) && !defined(__arm__) && !defined(__aarch64__) && !defined(_M_ARM) && !defined(_M_ARM64)) || \
     (defined(__APPLE__) && defined(__x86_64__) &&                                                                                       \
-     !((defined(TARGET_OS_IOS) && TARGET_OS_IOS) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE))) || \
+     !((defined(TARGET_OS_IOS) && TARGET_OS_IOS) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE))) ||                                \
     (defined(__linux__) && defined(__x86_64__))
 #define ENABLE_AVX2_IMP 1
 #else
