@@ -72,7 +72,7 @@ void VideoFrame::detach() {
         if (stride[1] > 0) {
             data[1] = data[0] + stride[0] * height;
             if (stride[2] > 0) {
-                // 目前只有 I420 需要用到 data[2]
+                // Currently, only I420 needs to use data[2]
                 data[2] = data[1] + stride[1] * height / 2;
             } else {
                 data[2] = nullptr;
