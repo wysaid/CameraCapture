@@ -288,10 +288,9 @@ bool ccap_provider_set_new_frame_callback(CcapProvider* provider, CcapNewFrameCa
                 auto* framePtr = new std::shared_ptr<ccap::VideoFrame>(frame);
                 bool result = wrapper->callback(reinterpret_cast<CcapVideoFrame*>(framePtr), wrapper->userData);
 
-                // Clean up the frame if the callback returned true (indicating it consumed the frame)
-                if (result) {
-                    delete framePtr;
-                }
+                // Always clean up the frame pointer regardless of callback result
+                // The callback result only determines whether the frame should be consumed by the underlying system
+                delete framePtr;
 
                 return result;
             }
