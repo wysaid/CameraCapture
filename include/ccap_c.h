@@ -4,7 +4,9 @@
  * @brief Pure C interface header file for ccap, supports calling from pure C language.
  * @date 2025-05
  * 
- * @note For pixel conversion functions in C, also include ccap_convert_c.h
+ * @note For additional utility functions in C, also include:
+ *       - ccap_convert_c.h (pixel conversion functions)
+ *       - ccap_utils_c.h (file I/O and string utilities)
  *
  */
 
