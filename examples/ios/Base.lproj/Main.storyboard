@@ -94,6 +94,7 @@
                     </view>
                     <connections>
                         <outlet property="backBtn" destination="C7c-pn-0Ow" id="zNr-qZ-IEi"/>
+                        <outlet property="scrollView" destination="76a-e1-6Lp" id="SSc-O0-Ol4"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="Zpy-SH-paq" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
