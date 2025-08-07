@@ -3,7 +3,7 @@
  * @author wysaid (this@wysaid.org)
  * @brief pixel convert functions for ccap.
  * @date 2025-05
- * 
+ *
  * @note For C language, use ccap_convert_c.h instead of this header.
  *
  */
@@ -51,17 +51,31 @@ bool canUseAppleAccelerate();
  */
 bool enableAppleAccelerate(bool enable);
 
+/// Check if NEON is available. If available, use NEON acceleration.
+bool hasNEON();
+/// Check if NEON is enabled, useful for testing
+bool canUseNEON();
+/**
+ * @brief Enable or disable NEON implementation.
+ *
+ * @param enable true to enable NEON, false to disable.
+ * @return true if NEON is available and enabled, false otherwise.
+ */
+bool enableNEON(bool enable);
+
 enum class ConvertBackend : uint32_t {
     AUTO,            ///< Automatically choose the best available backend
+    CPU,             ///< CPU implementation
     AVX2,            ///< AVX2 implementation
     AppleAccelerate, ///< Apple Accelerate implementation
-    CPU,             ///< CPU implementation
+    NEON,            ///< NEON implementation
 };
 
 /**
  * @brief Check the current conversion backend that will be used.
  *  If Apple Accelerate is available and enabled, returns AppleAccelerate.
  *  If AVX2 is available and enabled, returns AVX2.
+ *  If NEON is available and enabled, returns NEON.
  *  Otherwise returns CPU.
  *
  * @return ConvertBackend
@@ -75,6 +89,7 @@ ConvertBackend getConvertBackend();
  * @return true if the backend was set successfully.
  * @return false if the backend is not supported or the operation failed.
  * Note: When setting ConvertBackend::AVX2, Apple Accelerate will be automatically disabled.
+ * Note: When setting ConvertBackend::NEON, Apple Accelerate and AVX2 will be automatically disabled.
  */
 bool setConvertBackend(ConvertBackend backend);
 
@@ -274,7 +289,7 @@ void yuyvToRgba32(const uint8_t* src, int srcStride,
                   uint8_t* dst, int dstStride,
                   int width, int height, ConvertFlag flag = ConvertFlag::Default);
 
-// UYVY (YUV 4:2:2 packed) conversion functions  
+// UYVY (YUV 4:2:2 packed) conversion functions
 void uyvyToBgr24(const uint8_t* src, int srcStride,
                  uint8_t* dst, int dstStride,
                  int width, int height, ConvertFlag flag = ConvertFlag::Default);

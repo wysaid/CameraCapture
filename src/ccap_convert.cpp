@@ -20,6 +20,7 @@
 
 namespace ccap {
 static bool sEnableAppleAccelerate = true;
+static bool sEnableNEON = true;
 
 bool canUseAppleAccelerate() {
     return sEnableAppleAccelerate && hasAppleAccelerate();
@@ -38,11 +39,22 @@ bool enableAppleAccelerate(bool enable) {
     return hasAppleAccelerate() && sEnableAppleAccelerate;
 }
 
+bool canUseNEON() {
+    return sEnableNEON && hasNEON();
+}
+
+bool enableNEON(bool enable) {
+    sEnableNEON = enable;
+    return hasNEON() && sEnableNEON;
+}
+
 ConvertBackend getConvertBackend() {
     if (canUseAppleAccelerate()) {
         return ConvertBackend::AppleAccelerate;
     } else if (canUseAVX2()) {
         return ConvertBackend::AVX2;
+    } else if (canUseNEON()) {
+        return ConvertBackend::NEON;
     } else {
         return ConvertBackend::CPU;
     }
@@ -53,16 +65,24 @@ bool setConvertBackend(ConvertBackend backend) {
     case ConvertBackend::AUTO:
         enableAppleAccelerate(true);
         enableAVX2(true);
+        enableNEON(true);
         return true;
     case ConvertBackend::AVX2:
         enableAppleAccelerate(false);
+        enableNEON(false);
         return enableAVX2(true);
     case ConvertBackend::AppleAccelerate:
         enableAVX2(false);
+        enableNEON(false);
         return enableAppleAccelerate(true);
+    case ConvertBackend::NEON:
+        enableAppleAccelerate(false);
+        enableAVX2(false);
+        return enableNEON(true);
     case ConvertBackend::CPU:
         enableAppleAccelerate(false);
         enableAVX2(false);
+        enableNEON(false);
         return true; // CPU implementation is always available
     default:
         assert(false && "Unsupported ConvertBackend");
