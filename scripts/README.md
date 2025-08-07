@@ -9,6 +9,7 @@
 ### 构建脚本
 
 - **`build.sh`** - 通用构建脚本，支持多种架构
+
   ```bash
   # 构建原生架构版本（推荐）
   /path/to/ccap/scripts/build.sh native Debug
@@ -24,11 +25,13 @@
   ```
 
 - **`build_arm64.sh`** - 专门构建ARM64版本
+
   ```bash
   /path/to/ccap/scripts/build_arm64.sh Debug
   ```
 
 - **`build_x86_64.sh`** - 专门构建x86_64版本
+
   ```bash
   /path/to/ccap/scripts/build_x86_64.sh Debug
   ```
@@ -36,9 +39,11 @@
 ### 测试脚本
 
 - **`test_arch.sh`** - 架构检测测试
+
   ```bash
   /path/to/ccap/scripts/test_arch.sh
   ```
+
 # 构建脚本说明
 
 这个目录包含了 ccap 项目的各种构建和测试脚本。

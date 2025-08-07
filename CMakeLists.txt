@@ -36,7 +36,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version")
 
-# 统一的 ARM64 强制编译选项，支持 macOS 和 Windows
+# Unified ARM64 force compilation option, supports both macOS and Windows
 option(CCAP_FORCE_ARM64 "Force ARM64 architecture compilation" OFF)
 
 if(CCAP_FORCE_ARM64)
