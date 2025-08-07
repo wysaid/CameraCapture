@@ -1248,6 +1248,7 @@ AVX2_TARGET void uyvyToRgb_avx2_imp(const uint8_t* src, int srcStride, uint8_t* 
 
     constexpr int channels = hasAlpha ? 4 : 3;
     const int vectorWidth = 16; // Process 16 pixels (32 bytes UYVY data)
+    YuvToRgbFunc convertFunc = getYuvToRgbFunc(is601, isFullRange);
 
     for (int y = 0; y < height; ++y) {
         const uint8_t* srcRow = src + y * srcStride;
@@ -1404,7 +1405,6 @@ AVX2_TARGET void uyvyToRgb_avx2_imp(const uint8_t* src, int srcStride, uint8_t* 
         }
 
         // Handle remaining pixels (scalar implementation)
-        YuvToRgbFunc convertFunc = getYuvToRgbFunc(is601, isFullRange);
         for (; x < width; x += 2) {
             if (x + 1 >= width) break; // UYVY requires paired processing
 
