@@ -30,12 +30,11 @@
 
 namespace ccap {
 bool hasAVX2();
+bool canUseAVX2(); // Check if AVX2 is available (hardware supported and not disabled)
 
-bool canUseAVX2(); // 检查 AVX2 是否可用（硬件支持且未被禁用）
+bool enableAVX2(bool enable); // Enable or disable AVX2 implementation, useful for testing
 
-bool enableAVX2(bool enable); // Disable AVX2 implementation, useful for testing
-
-// 获取详细的 AVX2 支持信息（用于调试）
+// Get detailed AVX2 support information (for debugging)
 const char* getAVX2SupportInfo();
 
 #if ENABLE_AVX2_IMP
