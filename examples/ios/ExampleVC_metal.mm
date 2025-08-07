@@ -13,6 +13,52 @@
 
 #pragma GCC diagnostic ignored "-Wimplicit-retain-self"
 
+// Resolution presets
+enum class ResolutionPreset {
+    Resolution360p,  // 640x360
+    Resolution480p,  // 640x480
+    Resolution540p,  // 960x540
+    Resolution720p,  // 1280x720
+    Resolution1080p, // 1920x1080
+    Resolution4K     // 3840x2160
+};
+
+// Frame rate presets
+enum class FrameRatePreset {
+    FrameRate10fps, // 10 fps
+    FrameRate15fps, // 15 fps
+    FrameRate30fps, // 30 fps
+    FrameRate60fps, // 60 fps
+    FrameRate120fps // 120 fps
+};
+
+struct ResolutionInfo {
+    int width;
+    int height;
+    const char* name;
+};
+
+struct FrameRateInfo {
+    int fps;
+    const char* name;
+};
+
+static const ResolutionInfo kResolutions[] = {
+    { 640, 360, "360p" },
+    { 960, 540, "540p" },
+    { 1280, 720, "720p" },
+    { 1920, 1080, "1080p" },
+    { 3840, 2160, "4K" }
+};
+
+static const FrameRateInfo kFrameRates[] = {
+    { 10, "10fps" },
+    { 15, "15fps" },
+    { 30, "30fps" },
+    { 60, "60fps" },
+    { 120, "120fps" }
+};
+
 constexpr static const char* kMetalShaderSource = R"(
 #include <metal_stdlib>
 using namespace metal;
@@ -95,6 +141,10 @@ struct alignas(16) VertexShaderUniforms
 @property (nonatomic, strong) id<MTLDevice> device;
 
 @property (weak, nonatomic) IBOutlet UIButton* backBtn;
+@property (weak, nonatomic) IBOutlet UIScrollView *scrollView;
+
+@property (strong, nonatomic) UIButton* resolutionBtn;
+@property (strong, nonatomic) UIButton* frameRateBtn;
 @end
 
 @implementation ExampleVC_metal
@@ -114,6 +164,76 @@ struct alignas(16) VertexShaderUniforms
 
     VertexShaderUniforms _uniforms;
     float _progress;
+
+    ResolutionPreset _currentResolution;
+    FrameRatePreset _currentFrameRate;
+}
+
+- (BOOL)configureProvider:(ccap::Provider&)provider
+           withResolution:(ResolutionPreset)resolution
+                frameRate:(FrameRatePreset)frameRate {
+    const ResolutionInfo& resInfo = kResolutions[(int)resolution];
+    const FrameRateInfo& fpsInfo = kFrameRates[(int)frameRate];
+
+    provider.set(ccap::PropertyName::PixelFormatInternal, ccap::PixelFormat::NV12f);
+    provider.set(ccap::PropertyName::PixelFormatOutput, ccap::PixelFormat::NV12f);
+    provider.set(ccap::PropertyName::Width, resInfo.width);
+    provider.set(ccap::PropertyName::Height, resInfo.height);
+
+    // Set frame rate
+    provider.set(ccap::PropertyName::FrameRate, fpsInfo.fps);
+
+    NSLog(@"Configured provider for %s (%dx%d) at %s",
+          resInfo.name, resInfo.width, resInfo.height, fpsInfo.name);
+
+    return YES;
+}
+
+- (BOOL)openCamera:(int)cameraIndex withResolution:(ResolutionPreset)resolution frameRate:(FrameRatePreset)frameRate {
+    [self configureProvider:_provider withResolution:resolution frameRate:frameRate];
+
+    // Try to open with desired resolution and frame rate
+    if (_provider.open(cameraIndex, true)) {
+        return YES;
+    }
+
+    return NO;
+}
+
+- (void)updateResolutionButtonTitle {
+    [self updateResolutionButtonTitle:NO];
+}
+
+- (void)updateResolutionButtonTitle:(BOOL)showError {
+    if (_resolutionBtn) {
+        const ResolutionInfo& resInfo = kResolutions[(int)_currentResolution];
+        NSString* title = [NSString stringWithFormat:@"%s", resInfo.name];
+
+        // 根据传入的参数决定是否显示错误状态
+        if (showError) {
+            title = [NSString stringWithFormat:@"❌%s", resInfo.name];
+        }
+
+        [_resolutionBtn setTitle:title forState:UIControlStateNormal];
+    }
+}
+
+- (void)updateFrameRateButtonTitle {
+    [self updateFrameRateButtonTitle:NO];
+}
+
+- (void)updateFrameRateButtonTitle:(BOOL)showError {
+    if (_frameRateBtn) {
+        const FrameRateInfo& fpsInfo = kFrameRates[(int)_currentFrameRate];
+        NSString* title = [NSString stringWithFormat:@"%s", fpsInfo.name];
+
+        // 根据传入的参数决定是否显示错误状态
+        if (showError) {
+            title = [NSString stringWithFormat:@"❌%s", fpsInfo.name];
+        }
+
+        [_frameRateBtn setTitle:title forState:UIControlStateNormal];
+    }
 }
 
 - (void)viewDidLoad
@@ -131,11 +251,14 @@ struct alignas(16) VertexShaderUniforms
     [self setupMetal];
 
     _cameraIndex = 0;
+    _currentResolution = ResolutionPreset::Resolution1080p;
+    _currentFrameRate = FrameRatePreset::FrameRate30fps;
 
-    _provider.set(ccap::PropertyName::PixelFormatInternal, ccap::PixelFormat::NV12f);
-    _provider.set(ccap::PropertyName::PixelFormatOutput, ccap::PixelFormat::NV12f);
-    _provider.set(ccap::PropertyName::Width, 1920);
-    _provider.set(ccap::PropertyName::Height, 1080);
+    // Setup resolution button
+    [self setupResolutionButton];
+
+    // Setup frame rate button
+    [self setupFrameRateButton];
 
     __weak __typeof(self) weakSelf = self;
     _provider.setNewFrameCallback([=](const std::shared_ptr<ccap::VideoFrame>& newFrame) {
@@ -146,13 +269,23 @@ struct alignas(16) VertexShaderUniforms
         return false;
     });
 
-    if (!_provider.open(_cameraIndex, true))
-    {
-        _provider.close();
-        _provider.set(ccap::PropertyName::Width, 1280);
-        _provider.set(ccap::PropertyName::Height, 720);
-        _provider.open(_cameraIndex, true);
+    // Open camera with configured resolution and frame rate
+    BOOL cameraOpenSuccess = NO;
+    if ([self openCamera:_cameraIndex withResolution:_currentResolution frameRate:_currentFrameRate]) {
+        cameraOpenSuccess = YES;
+    } else {
+        // 如果初始设置失败，尝试 720p@30fps 作为默认
+        _currentResolution = ResolutionPreset::Resolution720p;
+        _currentFrameRate = FrameRatePreset::FrameRate30fps;
+        if ([self openCamera:_cameraIndex withResolution:_currentResolution frameRate:_currentFrameRate]) {
+            cameraOpenSuccess = YES;
+        } else {
+            NSLog(@"Failed to open camera with any resolution and frame rate");
+        }
     }
+    // 更新按钮标题以反映实际状态
+    [self updateResolutionButtonTitle:!cameraOpenSuccess];
+    [self updateFrameRateButtonTitle:!cameraOpenSuccess];
 }
 
 - (void)setupMetal
@@ -231,6 +364,50 @@ struct alignas(16) VertexShaderUniforms
     [self.view insertSubview:_mtkView atIndex:0];
 }
 
+- (void)setupResolutionButton {
+    // Create resolution button programmatically
+    _resolutionBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+    _resolutionBtn.translatesAutoresizingMaskIntoConstraints = NO;
+    [_resolutionBtn setTitle:@"1080p" forState:UIControlStateNormal];
+    [_resolutionBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+    _resolutionBtn.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.5];
+    _resolutionBtn.layer.cornerRadius = 8;
+    _resolutionBtn.titleLabel.font = [UIFont boldSystemFontOfSize:16];
+    [_resolutionBtn addTarget:self action:@selector(switchResolution:) forControlEvents:UIControlEventTouchUpInside];
+
+    [self.scrollView addSubview:_resolutionBtn];
+
+    // 先临时设置一个简单的位置，稍后在 viewDidLayoutSubviews 中更新
+    [NSLayoutConstraint activateConstraints:@[
+        [_resolutionBtn.leadingAnchor constraintEqualToAnchor:self.scrollView.leadingAnchor constant:20],
+        [_resolutionBtn.topAnchor constraintEqualToAnchor:self.scrollView.topAnchor constant:20],
+        [_resolutionBtn.widthAnchor constraintEqualToConstant:80],
+        [_resolutionBtn.heightAnchor constraintEqualToConstant:40]
+    ]];
+}
+
+- (void)setupFrameRateButton {
+    // Create frame rate button programmatically
+    _frameRateBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+    _frameRateBtn.translatesAutoresizingMaskIntoConstraints = NO;
+    [_frameRateBtn setTitle:@"30fps" forState:UIControlStateNormal];
+    [_frameRateBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+    _frameRateBtn.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.5];
+    _frameRateBtn.layer.cornerRadius = 8;
+    _frameRateBtn.titleLabel.font = [UIFont boldSystemFontOfSize:16];
+    [_frameRateBtn addTarget:self action:@selector(switchFrameRate:) forControlEvents:UIControlEventTouchUpInside];
+
+    [self.scrollView addSubview:_frameRateBtn];
+
+    // 先临时设置一个简单的位置，稍后在 viewDidLayoutSubviews 中更新
+    [NSLayoutConstraint activateConstraints:@[
+        [_frameRateBtn.leadingAnchor constraintEqualToAnchor:self.scrollView.leadingAnchor constant:110], // 在分辨率按钮右边
+        [_frameRateBtn.topAnchor constraintEqualToAnchor:self.scrollView.topAnchor constant:20],
+        [_frameRateBtn.widthAnchor constraintEqualToConstant:80],
+        [_frameRateBtn.heightAnchor constraintEqualToConstant:40]
+    ]];
+}
+
 - (IBAction)backClicked:(id)sender
 {
     [self clear];
@@ -242,17 +419,33 @@ struct alignas(16) VertexShaderUniforms
     if (_allCameraNames.size() <= 1)
         return;
 
+    // 保存当前状态，以便失败时回退
+    int previousCameraIndex = _cameraIndex;
+    ResolutionPreset previousResolution = _currentResolution;
+
     _cameraIndex = (_cameraIndex + 1) % _allCameraNames.size();
     _provider.close();
 
     auto name = _allCameraNames[_cameraIndex];
-    if (!_provider.open(name, true))
-    {
-        _provider.close();
-        _provider.set(ccap::PropertyName::Width, 1280);
-        _provider.set(ccap::PropertyName::Height, 720);
-        _provider.open(name, true);
+    if (![self openCamera:_cameraIndex withResolution:_currentResolution frameRate:_currentFrameRate]) {
+        // 切换失败，尝试回退到之前的摄像头
+        _cameraIndex = previousCameraIndex;
+        if (![self openCamera:_cameraIndex withResolution:_currentResolution frameRate:_currentFrameRate]) {
+            // 连之前的摄像头都无法打开
+            [self updateResolutionButtonTitle:YES]; // 显示错误状态，表示切换失败
+            [self updateFrameRateButtonTitle:YES];
+            NSLog(@"Failed to switch camera and failed to revert to previous camera");
+            return;
+        }
+        [self updateResolutionButtonTitle:YES];
+        [self updateFrameRateButtonTitle:YES];
+        NSLog(@"Failed to switch to camera: %s, reverted to previous camera", name.c_str());
+        return;
     }
+
+    // 成功切换，更新按钮标题
+    [self updateResolutionButtonTitle:NO]; // 正常状态
+    [self updateFrameRateButtonTitle:NO]; // 正常状态
 
     // name 里面包含 back 或者 fron 代表前后摄像头 (忽略大小写比较)
     std::transform(name.begin(), name.end(), name.begin(), ::tolower);
@@ -267,6 +460,94 @@ struct alignas(16) VertexShaderUniforms
         _uniforms.rotation = M_PI_2;
     }
     NSLog(@"Switched to camera: %s", name.c_str());
+}
+
+- (IBAction)switchResolution:(id)sender {
+    // 保存当前状态，以便失败时回退
+    ResolutionPreset previousResolution = _currentResolution;
+
+    // Cycle through resolutions
+    int currentIndex = (int)_currentResolution;
+    int nextIndex = (currentIndex + 1) % (sizeof(kResolutions) / sizeof(kResolutions[0]));
+    ResolutionPreset newResolution = (ResolutionPreset)nextIndex;
+
+    // Close current provider
+    _provider.close();
+
+    // Try to open with new resolution
+    if ([self openCamera:_cameraIndex withResolution:newResolution frameRate:_currentFrameRate]) {
+        _currentResolution = newResolution;
+        [self updateResolutionButtonTitle:NO]; // 成功切换，正常状态
+
+        const ResolutionInfo& resInfo = kResolutions[(int)_currentResolution];
+        NSLog(@"Switched to resolution: %s (%dx%d)", resInfo.name, resInfo.width, resInfo.height);
+
+        // Reset texture objects to accommodate new resolution
+        if (_yTexture != nil) {
+            _yTexture = nil;
+            _uvTexture = nil;
+            _textureWidth = 0;
+            _textureHeight = 0;
+        }
+    } else {
+        // 切换失败，回退到之前的分辨率
+        _currentResolution = previousResolution;
+        if ([self openCamera:_cameraIndex withResolution:_currentResolution frameRate:_currentFrameRate]) {
+            // 成功恢复到之前的分辨率，但显示错误状态表示切换失败
+            [self updateResolutionButtonTitle:YES];
+            const ResolutionInfo& failedResInfo = kResolutions[(int)newResolution];
+            const ResolutionInfo& currentResInfo = kResolutions[(int)_currentResolution];
+            NSLog(@"Failed to switch to %s, reverted to %s", failedResInfo.name, currentResInfo.name);
+        } else {
+            // 连之前的分辨率都无法打开，显示错误状态
+            [self updateResolutionButtonTitle:YES];
+            NSLog(@"Failed to switch resolution and failed to revert to previous setting");
+        }
+    }
+}
+
+- (IBAction)switchFrameRate:(id)sender {
+    // 保存当前状态，以便失败时回退
+    FrameRatePreset previousFrameRate = _currentFrameRate;
+
+    // Cycle through frame rates
+    int currentIndex = (int)_currentFrameRate;
+    int nextIndex = (currentIndex + 1) % (sizeof(kFrameRates) / sizeof(kFrameRates[0]));
+    FrameRatePreset newFrameRate = (FrameRatePreset)nextIndex;
+
+    // Close current provider
+    _provider.close();
+
+    // Try to open with new frame rate
+    if ([self openCamera:_cameraIndex withResolution:_currentResolution frameRate:newFrameRate]) {
+        _currentFrameRate = newFrameRate;
+        [self updateFrameRateButtonTitle:NO]; // 成功切换，正常状态
+
+        const FrameRateInfo& frameRateInfo = kFrameRates[(int)_currentFrameRate];
+        NSLog(@"Switched to frame rate: %s (%d fps)", frameRateInfo.name, frameRateInfo.fps);
+
+        // Reset texture objects to accommodate new frame rate
+        if (_yTexture != nil) {
+            _yTexture = nil;
+            _uvTexture = nil;
+            _textureWidth = 0;
+            _textureHeight = 0;
+        }
+    } else {
+        // 切换失败，回退到之前的帧率
+        _currentFrameRate = previousFrameRate;
+        if ([self openCamera:_cameraIndex withResolution:_currentResolution frameRate:_currentFrameRate]) {
+            // 成功恢复到之前的帧率，但显示错误状态表示切换失败
+            [self updateFrameRateButtonTitle:YES];
+            const FrameRateInfo& failedFrameRateInfo = kFrameRates[(int)newFrameRate];
+            const FrameRateInfo& currentFrameRateInfo = kFrameRates[(int)_currentFrameRate];
+            NSLog(@"Failed to switch to %s, reverted to %s", failedFrameRateInfo.name, currentFrameRateInfo.name);
+        } else {
+            // 连之前的帧率都无法打开，显示错误状态
+            [self updateFrameRateButtonTitle:YES];
+            NSLog(@"Failed to switch frame rate and failed to revert to previous setting");
+        }
+    }
 }
 
 - (void)clear
@@ -294,6 +575,17 @@ struct alignas(16) VertexShaderUniforms
         [_mtkView setDelegate:nil];
         [_mtkView removeFromSuperview];
         _mtkView = nil;
+    }
+
+    // 清理按钮
+    if (_resolutionBtn) {
+        [_resolutionBtn removeFromSuperview];
+        _resolutionBtn = nil;
+    }
+    
+    if (_frameRateBtn) {
+        [_frameRateBtn removeFromSuperview];
+        _frameRateBtn = nil;
     }
 
     _device = nil;
@@ -398,7 +690,7 @@ struct alignas(16) VertexShaderUniforms
     auto srcHeight = _textureHeight;
 #endif
 
-    CGFloat scaling = std::min(drawableSize.width / srcWidth, drawableSize.height / srcHeight);
+    float scaling = std::max(drawableSize.width / srcWidth, drawableSize.height / srcHeight);
 
     int viewportWidth = scaling * srcWidth;
     int viewportHeight = scaling * srcHeight;
@@ -406,10 +698,10 @@ struct alignas(16) VertexShaderUniforms
     id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
     id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
 
-    // 设置视口
+    // 设置视口 - 居中并填满屏幕
     MTLViewport viewport = {
-        .originX = 0.0,
-        .originY = 0.0,
+        .originX = (drawableSize.width - viewportWidth) / 2.0,
+        .originY = (drawableSize.height - viewportHeight) / 2.0,
         .width = (double)viewportWidth,
         .height = (double)viewportHeight,
         .znear = 0.0,
@@ -449,5 +741,26 @@ struct alignas(16) VertexShaderUniforms
 {
     [super viewDidLayoutSubviews];
     [self fixViewSize];
+
+    // Update scrollView contentSize and button positions after layout
+    if (self.scrollView && _resolutionBtn && _frameRateBtn) {
+        CGSize scrollViewSize = self.scrollView.bounds.size;
+        NSLog(@"ScrollView size: %@", NSStringFromCGSize(scrollViewSize));
+
+        if (scrollViewSize.width > 0 && scrollViewSize.height > 0) {
+            // 设置 contentSize，留出足够的空间容纳两个按钮
+            self.scrollView.contentSize = CGSizeMake(200, scrollViewSize.height);
+
+            // 设置分辨率按钮和帧率按钮位置
+            _resolutionBtn.frame = CGRectMake(10, 0, 80, scrollViewSize.height);
+            _resolutionBtn.translatesAutoresizingMaskIntoConstraints = YES;
+            
+            _frameRateBtn.frame = CGRectMake(100, 0, 80, scrollViewSize.height);
+            _frameRateBtn.translatesAutoresizingMaskIntoConstraints = YES;
+
+            NSLog(@"Resolution button frame: %@", NSStringFromCGRect(_resolutionBtn.frame));
+            NSLog(@"Frame rate button frame: %@", NSStringFromCGRect(_frameRateBtn.frame));
+        }
+    }
 }
 @end
