@@ -66,7 +66,7 @@
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
                             <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="C7c-pn-0Ow">
-                                <rect key="frame" x="16" y="50" width="79" height="35"/>
+                                <rect key="frame" x="5" y="50" width="80" height="35"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <state key="normal" title="Button"/>
                                 <buttonConfiguration key="configuration" style="plain" title="Back"/>
@@ -75,7 +75,7 @@
                                 </connections>
                             </button>
                             <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="fwC-Pr-6J7">
-                                <rect key="frame" x="103" y="50" width="90" height="35"/>
+                                <rect key="frame" x="90" y="50" width="80" height="35"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <state key="normal" title="Button"/>
                                 <buttonConfiguration key="configuration" style="plain" title="Switch"/>
@@ -83,6 +83,12 @@
                                     <action selector="switchCamera:" destination="xfm-Z9-Pmh" eventType="touchUpInside" id="slz-Pb-TAH"/>
                                 </connections>
                             </button>
+                            <scrollView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="76a-e1-6Lp">
+                                <rect key="frame" x="0.0" y="738" width="375" height="40"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
+                                <viewLayoutGuide key="contentLayoutGuide" id="LJc-Ww-6gT"/>
+                                <viewLayoutGuide key="frameLayoutGuide" id="Ndd-U3-bkG"/>
+                            </scrollView>
                         </subviews>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                     </view>
@@ -124,11 +130,18 @@
                                     <action selector="switchCamera:" destination="aKa-LN-RmU" eventType="touchUpInside" id="xVo-3P-7xL"/>
                                 </connections>
                             </button>
+                            <scrollView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="jHR-Tc-5Tm">
+                                <rect key="frame" x="0.0" y="738" width="375" height="40"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
+                                <viewLayoutGuide key="contentLayoutGuide" id="crI-Sw-yuo"/>
+                                <viewLayoutGuide key="frameLayoutGuide" id="nqJ-Ss-fRp"/>
+                            </scrollView>
                         </subviews>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                     </view>
                     <connections>
                         <outlet property="backBtn" destination="D7b-1f-Y0M" id="jgq-WR-eA4"/>
+                        <outlet property="scrollView" destination="jHR-Tc-5Tm" id="yJ1-T8-H55"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="NYz-lg-0XO" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
