@@ -3,8 +3,14 @@
  * @author wysaid (this@wysaid.org)
  * @brief pixel convert functions for ccap.
  * @date 2025-05
+ * 
+ * @note For C language, use ccap_convert_c.h instead of this header.
  *
  */
+
+#ifndef __cplusplus
+#error "ccap_convert.h is for C++ only. For C language, please use ccap_convert_c.h instead."
+#endif
 
 #pragma once
 #ifndef CCAP_CONVERT_H
@@ -72,11 +78,11 @@ ConvertBackend getConvertBackend();
  */
 bool setConvertBackend(ConvertBackend backend);
 
-/// @brief YUV 601 video-range to RGB (包含 video range 预处理)
+/// @brief YUV 601 video-range to RGB (includes video range preprocessing)
 inline void yuv2rgb601v(int y, int u, int v, int& r, int& g, int& b) {
-    y = y - 16;  // video range Y 预处理
-    u = u - 128; // 中心化 U
-    v = v - 128; // 中心化 V
+    y = y - 16;  // video range Y preprocessing
+    u = u - 128; // center U
+    v = v - 128; // center V
 
     r = (298 * y + 409 * v + 128) >> 8;
     g = (298 * y - 100 * u - 208 * v + 128) >> 8;
@@ -86,11 +92,11 @@ inline void yuv2rgb601v(int y, int u, int v, int& r, int& g, int& b) {
     b = std::clamp(b, 0, 255);
 }
 
-/// @brief YUV 709 video-range to RGB (包含 video range 预处理)
+/// @brief YUV 709 video-range to RGB (includes video range preprocessing)
 inline void yuv2rgb709v(int y, int u, int v, int& r, int& g, int& b) {
-    y = y - 16;  // video range Y 预处理
-    u = u - 128; // 中心化 U
-    v = v - 128; // 中心化 V
+    y = y - 16;  // video range Y preprocessing
+    u = u - 128; // center U
+    v = v - 128; // center V
 
     r = (298 * y + 459 * v + 128) >> 8;
     g = (298 * y - 55 * u - 136 * v + 128) >> 8;
@@ -100,11 +106,11 @@ inline void yuv2rgb709v(int y, int u, int v, int& r, int& g, int& b) {
     b = std::clamp(b, 0, 255);
 }
 
-/// @brief YUV 601 full-range to RGB (包含 full range 预处理)
+/// @brief YUV 601 full-range to RGB (includes full range preprocessing)
 inline void yuv2rgb601f(int y, int u, int v, int& r, int& g, int& b) {
-    // full range: Y 不需要减 16
-    u = u - 128; // 中心化 U
-    v = v - 128; // 中心化 V
+    // full range: Y does not need to subtract 16
+    u = u - 128; // center U
+    v = v - 128; // center V
 
     r = (256 * y + 351 * v + 128) >> 8;
     g = (256 * y - 86 * u - 179 * v + 128) >> 8;
@@ -114,11 +120,11 @@ inline void yuv2rgb601f(int y, int u, int v, int& r, int& g, int& b) {
     b = std::clamp(b, 0, 255);
 }
 
-/// @brief YUV 709 full-range to RGB (包含 full range 预处理)
+/// @brief YUV 709 full-range to RGB (includes full range preprocessing)
 inline void yuv2rgb709f(int y, int u, int v, int& r, int& g, int& b) {
-    // full range: Y 不需要减 16
-    u = u - 128; // 中心化 U
-    v = v - 128; // 中心化 V
+    // full range: Y does not need to subtract 16
+    u = u - 128; // center U
+    v = v - 128; // center V
 
     r = (256 * y + 403 * v + 128) >> 8;
     g = (256 * y - 48 * u - 120 * v + 128) >> 8;

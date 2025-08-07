@@ -3,6 +3,8 @@
  * @author wysaid (this@wysaid.org)
  * @brief Pure C interface header file for ccap, supports calling from pure C language.
  * @date 2025-05
+ * 
+ * @note For pixel conversion functions in C, also include ccap_convert_c.h
  *
  */
 

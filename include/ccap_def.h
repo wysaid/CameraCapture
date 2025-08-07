@@ -3,8 +3,14 @@
  * @author wysaid (this@wysaid.org)
  * @brief Some basic type definitions
  * @date 2025-05
+ * 
+ * @note For C language, use ccap_c.h instead of this header.
  *
  */
+
+#ifndef __cplusplus
+#error "ccap_def.h is for C++ only. For C language, please use ccap_c.h instead."
+#endif
 
 #pragma once
 #ifndef CCAP_DEF_H

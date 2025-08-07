@@ -2,6 +2,10 @@
 // Created by wysaid on 2025/5/19.
 //
 
+#ifndef __cplusplus
+#error "ccap_opencv.h is for C++ only. For C language, please use ccap_c.h instead."
+#endif
+
 #pragma once
 #ifndef CCAP_OPENCV_H
 #define CCAP_OPENCV_H
