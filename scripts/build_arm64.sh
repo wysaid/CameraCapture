@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# 脚本用于在任何Mac设备上编译ARM64版本的ccap
+# Script for building ARM64 version of ccap on any Mac device
 
-# 获取脚本所在的真实目录路径
+# Get the real directory path of the script
 cd "$(dirname $0)"
 SCRIPT_DIR="$(pwd)"
 cd ..
@@ -12,21 +12,21 @@ BUILD_TYPE=${1:-Debug}
 echo "Building ARM64 version with build type: $BUILD_TYPE"
 echo "Project root: $PROJECT_ROOT"
 
-# 进入项目根目录
+# Enter the project root directory
 cd "$PROJECT_ROOT"
 
-# 创建ARM64专用的构建目录
+# Create a dedicated build directory for ARM64
 mkdir -p build/arm64-$BUILD_TYPE
 cd build/arm64-$BUILD_TYPE
 
-# 配置CMake以强制使用ARM64架构
+# Configure CMake to force ARM64 architecture
 cmake ../.. \
     -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
     -DCMAKE_OSX_ARCHITECTURES=arm64 \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
     -DCCAP_FORCE_ARM64=ON
 
-# 编译
+# Build
 cmake --build . --config $BUILD_TYPE --parallel $(sysctl -n hw.ncpu)
 
 echo "ARM64 build completed in $PROJECT_ROOT/build/arm64-$BUILD_TYPE"
