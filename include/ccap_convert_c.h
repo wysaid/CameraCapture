@@ -11,8 +11,8 @@
 #ifndef CCAP_CONVERT_C_H
 #define CCAP_CONVERT_C_H
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,18 +22,19 @@ extern "C" {
 
 /** @brief Conversion backend enumeration */
 typedef enum {
-    CCAP_CONVERT_BACKEND_AUTO = 0,            /**< Automatically choose the best available backend */
-    CCAP_CONVERT_BACKEND_AVX2 = 1,            /**< AVX2 implementation */
-    CCAP_CONVERT_BACKEND_APPLE_ACCELERATE = 2, /**< Apple Accelerate implementation */
-    CCAP_CONVERT_BACKEND_CPU = 3              /**< CPU implementation */
+    CCAP_CONVERT_BACKEND_AUTO = 0,             /**< Automatically choose the best available backend */
+    CCAP_CONVERT_BACKEND_CPU = 1,              /**< CPU implementation */
+    CCAP_CONVERT_BACKEND_AVX2 = 2,             /**< AVX2 implementation */
+    CCAP_CONVERT_BACKEND_APPLE_ACCELERATE = 3, /**< Apple Accelerate implementation */
+    CCAP_CONVERT_BACKEND_NEON = 4,             /**< ARM NEON implementation */
 } CcapConvertBackend;
 
 /** @brief Conversion flags for color space and range */
 typedef enum {
-    CCAP_CONVERT_FLAG_BT601 = 0x1,                      /**< Use BT.601 color space */
-    CCAP_CONVERT_FLAG_BT709 = 0x2,                      /**< Use BT.709 color space */
-    CCAP_CONVERT_FLAG_FULL_RANGE = 0x10,                /**< Use full range color space */
-    CCAP_CONVERT_FLAG_VIDEO_RANGE = 0x20,               /**< Use video range color space */
+    CCAP_CONVERT_FLAG_BT601 = 0x1,                                                      /**< Use BT.601 color space */
+    CCAP_CONVERT_FLAG_BT709 = 0x2,                                                      /**< Use BT.709 color space */
+    CCAP_CONVERT_FLAG_FULL_RANGE = 0x10,                                                /**< Use full range color space */
+    CCAP_CONVERT_FLAG_VIDEO_RANGE = 0x20,                                               /**< Use video range color space */
     CCAP_CONVERT_FLAG_DEFAULT = CCAP_CONVERT_FLAG_BT601 | CCAP_CONVERT_FLAG_VIDEO_RANGE /**< Default: BT.601 video range */
 } CcapConvertFlag;
 
@@ -76,6 +77,25 @@ bool ccap_convert_can_use_apple_accelerate(void);
 bool ccap_convert_enable_apple_accelerate(bool enable);
 
 /**
+ * @brief Check if ARM NEON is supported by the CPU
+ * @return true if ARM NEON is available, false otherwise
+ */
+bool ccap_convert_has_neon(void);
+
+/**
+ * @brief Check if ARM NEON is currently enabled
+ * @return true if ARM NEON is enabled, false otherwise
+ */
+bool ccap_convert_can_use_neon(void);
+
+/**
+ * @brief Enable or disable ARM NEON implementation
+ * @param enable true to enable ARM NEON, false to disable
+ * @return true if ARM NEON is available and enabled, false otherwise
+ */
+bool ccap_convert_enable_neon(bool enable);
+
+/**
  * @brief Get the current conversion backend that will be used
  * @return Current conversion backend
  */
@@ -93,7 +113,7 @@ bool ccap_convert_set_backend(CcapConvertBackend backend);
 /**
  * @brief Convert single YUV pixel to RGB using BT.601 video range
  * @param y Y component
- * @param u U component  
+ * @param u U component
  * @param v V component
  * @param r Output R component (0-255)
  * @param g Output G component (0-255)
@@ -145,8 +165,8 @@ void ccap_convert_yuv_to_rgb_709f(int y, int u, int v, int* r, int* g, int* b);
  * @param width Image width in pixels
  * @param height Image height in pixels (negative for vertical flip)
  */
-void ccap_convert_rgba_to_bgra(const uint8_t* src, int src_stride, 
-                               uint8_t* dst, int dst_stride, 
+void ccap_convert_rgba_to_bgra(const uint8_t* src, int src_stride,
+                               uint8_t* dst, int dst_stride,
                                int width, int height);
 
 /**

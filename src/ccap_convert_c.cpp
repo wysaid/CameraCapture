@@ -7,6 +7,7 @@
  */
 
 #include "ccap_convert_c.h"
+
 #include "ccap_convert.h"
 
 #include <cstring>
@@ -39,39 +40,56 @@ bool ccap_convert_enable_apple_accelerate(bool enable) {
     return ccap::enableAppleAccelerate(enable);
 }
 
+bool ccap_convert_has_neon(void) {
+    return ccap::hasNEON();
+}
+
+bool ccap_convert_can_use_neon(void) {
+    return ccap::canUseNEON();
+}
+
+bool ccap_convert_enable_neon(bool enable) {
+    return ccap::enableNEON(enable);
+}
+
 CcapConvertBackend ccap_convert_get_backend(void) {
     ccap::ConvertBackend backend = ccap::getConvertBackend();
     switch (backend) {
-        case ccap::ConvertBackend::AUTO:
-            return CCAP_CONVERT_BACKEND_AUTO;
-        case ccap::ConvertBackend::AVX2:
-            return CCAP_CONVERT_BACKEND_AVX2;
-        case ccap::ConvertBackend::AppleAccelerate:
-            return CCAP_CONVERT_BACKEND_APPLE_ACCELERATE;
-        case ccap::ConvertBackend::CPU:
-            return CCAP_CONVERT_BACKEND_CPU;
-        default:
-            return CCAP_CONVERT_BACKEND_AUTO;
+    case ccap::ConvertBackend::AUTO:
+        return CCAP_CONVERT_BACKEND_AUTO;
+    case ccap::ConvertBackend::CPU:
+        return CCAP_CONVERT_BACKEND_CPU;
+    case ccap::ConvertBackend::AVX2:
+        return CCAP_CONVERT_BACKEND_AVX2;
+    case ccap::ConvertBackend::AppleAccelerate:
+        return CCAP_CONVERT_BACKEND_APPLE_ACCELERATE;
+    case ccap::ConvertBackend::NEON:
+        return CCAP_CONVERT_BACKEND_NEON;
+    default:
+        return CCAP_CONVERT_BACKEND_AUTO;
     }
 }
 
 bool ccap_convert_set_backend(CcapConvertBackend backend) {
     ccap::ConvertBackend cppBackend;
     switch (backend) {
-        case CCAP_CONVERT_BACKEND_AUTO:
-            cppBackend = ccap::ConvertBackend::AUTO;
-            break;
-        case CCAP_CONVERT_BACKEND_AVX2:
-            cppBackend = ccap::ConvertBackend::AVX2;
-            break;
-        case CCAP_CONVERT_BACKEND_APPLE_ACCELERATE:
-            cppBackend = ccap::ConvertBackend::AppleAccelerate;
-            break;
-        case CCAP_CONVERT_BACKEND_CPU:
-            cppBackend = ccap::ConvertBackend::CPU;
-            break;
-        default:
-            return false;
+    case CCAP_CONVERT_BACKEND_AUTO:
+        cppBackend = ccap::ConvertBackend::AUTO;
+        break;
+    case CCAP_CONVERT_BACKEND_CPU:
+        cppBackend = ccap::ConvertBackend::CPU;
+        break;
+    case CCAP_CONVERT_BACKEND_AVX2:
+        cppBackend = ccap::ConvertBackend::AVX2;
+        break;
+    case CCAP_CONVERT_BACKEND_APPLE_ACCELERATE:
+        cppBackend = ccap::ConvertBackend::AppleAccelerate;
+        break;
+    case CCAP_CONVERT_BACKEND_NEON:
+        cppBackend = ccap::ConvertBackend::NEON;
+        break;
+    default:
+        return false;
     }
     return ccap::setConvertBackend(cppBackend);
 }
@@ -80,7 +98,7 @@ bool ccap_convert_set_backend(CcapConvertBackend backend) {
 
 static ccap::ConvertFlag convertFlags(CcapConvertFlag flag) {
     ccap::ConvertFlag cppFlag = static_cast<ccap::ConvertFlag>(0);
-    
+
     if (flag & CCAP_CONVERT_FLAG_BT601) {
         cppFlag = cppFlag | ccap::ConvertFlag::BT601;
     }
@@ -93,7 +111,7 @@ static ccap::ConvertFlag convertFlags(CcapConvertFlag flag) {
     if (flag & CCAP_CONVERT_FLAG_VIDEO_RANGE) {
         cppFlag = cppFlag | ccap::ConvertFlag::VideoRange;
     }
-    
+
     return cppFlag;
 }
 
@@ -121,8 +139,8 @@ void ccap_convert_yuv_to_rgb_709f(int y, int u, int v, int* r, int* g, int* b) {
 
 /* ========== Color Channel Shuffling ========== */
 
-void ccap_convert_rgba_to_bgra(const uint8_t* src, int src_stride, 
-                               uint8_t* dst, int dst_stride, 
+void ccap_convert_rgba_to_bgra(const uint8_t* src, int src_stride,
+                               uint8_t* dst, int dst_stride,
                                int width, int height) {
     if (!src || !dst) return;
     ccap::rgbaToBgra(src, src_stride, dst, dst_stride, width, height);
@@ -212,7 +230,7 @@ void ccap_convert_nv12_to_bgr24(const uint8_t* src_y, int src_y_stride,
                                 uint8_t* dst, int dst_stride,
                                 int width, int height, CcapConvertFlag flag) {
     if (!src_y || !src_uv || !dst) return;
-    ccap::nv12ToBgr24(src_y, src_y_stride, src_uv, src_uv_stride, 
+    ccap::nv12ToBgr24(src_y, src_y_stride, src_uv, src_uv_stride,
                       dst, dst_stride, width, height, convertFlags(flag));
 }
 
@@ -221,7 +239,7 @@ void ccap_convert_nv12_to_rgb24(const uint8_t* src_y, int src_y_stride,
                                 uint8_t* dst, int dst_stride,
                                 int width, int height, CcapConvertFlag flag) {
     if (!src_y || !src_uv || !dst) return;
-    ccap::nv12ToRgb24(src_y, src_y_stride, src_uv, src_uv_stride, 
+    ccap::nv12ToRgb24(src_y, src_y_stride, src_uv, src_uv_stride,
                       dst, dst_stride, width, height, convertFlags(flag));
 }
 
@@ -230,7 +248,7 @@ void ccap_convert_nv12_to_bgra32(const uint8_t* src_y, int src_y_stride,
                                  uint8_t* dst, int dst_stride,
                                  int width, int height, CcapConvertFlag flag) {
     if (!src_y || !src_uv || !dst) return;
-    ccap::nv12ToBgra32(src_y, src_y_stride, src_uv, src_uv_stride, 
+    ccap::nv12ToBgra32(src_y, src_y_stride, src_uv, src_uv_stride,
                        dst, dst_stride, width, height, convertFlags(flag));
 }
 
@@ -239,7 +257,7 @@ void ccap_convert_nv12_to_rgba32(const uint8_t* src_y, int src_y_stride,
                                  uint8_t* dst, int dst_stride,
                                  int width, int height, CcapConvertFlag flag) {
     if (!src_y || !src_uv || !dst) return;
-    ccap::nv12ToRgba32(src_y, src_y_stride, src_uv, src_uv_stride, 
+    ccap::nv12ToRgba32(src_y, src_y_stride, src_uv, src_uv_stride,
                        dst, dst_stride, width, height, convertFlags(flag));
 }
 
