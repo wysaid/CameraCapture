@@ -23,15 +23,23 @@ bool hasNEON()
 
 #if ENABLE_NEON_IMP
 
-template <int inputChannels, int outputChannels>
+template <int inputChannels, int outputChannels, int swapRB>
 void colorShuffle_neon(const uint8_t* src, int srcStride,
                        uint8_t* dst, int dstStride,
-                       int width, int height, const uint8_t inputShuffle[])
+                       int width, int height)
 {
     // Implement a general colorShuffle, accelerated by NEON
     static_assert((inputChannels == 3 || inputChannels == 4) &&
                       (outputChannels == 3 || outputChannels == 4),
                   "inputChannels and outputChannels must be 3 or 4");
+    
+    // 基于 swapRB 参数生成 shuffle 数组
+    const uint8_t inputShuffle[4] = {
+        swapRB ? 2u : 0u,  // R 通道
+        1,                 // G 通道
+        swapRB ? 0u : 2u,  // B 通道  
+        3                  // A 通道
+    };
 
     if (height < 0)
     {
@@ -157,21 +165,37 @@ void colorShuffle_neon(const uint8_t* src, int srcStride,
 }
 
 // Explicit template instantiations
-template void colorShuffle_neon<4, 4>(const uint8_t* src, int srcStride,
-                                      uint8_t* dst, int dstStride,
-                                      int width, int height, const uint8_t inputShuffle[]);
+template void colorShuffle_neon<4, 4, 0>(const uint8_t* src, int srcStride,
+                                         uint8_t* dst, int dstStride,
+                                         int width, int height);
 
-template void colorShuffle_neon<4, 3>(const uint8_t* src, int srcStride,
-                                      uint8_t* dst, int dstStride,
-                                      int width, int height, const uint8_t inputShuffle[]);
+template void colorShuffle_neon<4, 4, 1>(const uint8_t* src, int srcStride,
+                                         uint8_t* dst, int dstStride,
+                                         int width, int height);
 
-template void colorShuffle_neon<3, 4>(const uint8_t* src, int srcStride,
-                                      uint8_t* dst, int dstStride,
-                                      int width, int height, const uint8_t inputShuffle[]);
+template void colorShuffle_neon<4, 3, 0>(const uint8_t* src, int srcStride,
+                                         uint8_t* dst, int dstStride,
+                                         int width, int height);
 
-template void colorShuffle_neon<3, 3>(const uint8_t* src, int srcStride,
-                                      uint8_t* dst, int dstStride,
-                                      int width, int height, const uint8_t inputShuffle[]);
+template void colorShuffle_neon<4, 3, 1>(const uint8_t* src, int srcStride,
+                                         uint8_t* dst, int dstStride,
+                                         int width, int height);
+
+template void colorShuffle_neon<3, 4, 0>(const uint8_t* src, int srcStride,
+                                         uint8_t* dst, int dstStride,
+                                         int width, int height);
+
+template void colorShuffle_neon<3, 4, 1>(const uint8_t* src, int srcStride,
+                                         uint8_t* dst, int dstStride,
+                                         int width, int height);
+
+template void colorShuffle_neon<3, 3, 0>(const uint8_t* src, int srcStride,
+                                         uint8_t* dst, int dstStride,
+                                         int width, int height);
+
+template void colorShuffle_neon<3, 3, 1>(const uint8_t* src, int srcStride,
+                                         uint8_t* dst, int dstStride,
+                                         int width, int height);
 
 ///////////// YUV to RGB conversion functions /////////////
 
@@ -815,7 +839,7 @@ void _i420ToRgb_neon_imp(const uint8_t* srcY, int srcYStride,
 void nv12ToBgra32_neon(const uint8_t* srcY, int srcYStride,
                        const uint8_t* srcUV, int srcUVStride,
                        uint8_t* dst, int dstStride,
-                       int width, int height)
+                       int width, int height, ConvertFlag flag)
 {
     nv12ToRgbaColor_neon_imp<true>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height);
 }
@@ -823,7 +847,7 @@ void nv12ToBgra32_neon(const uint8_t* srcY, int srcYStride,
 void nv12ToRgba32_neon(const uint8_t* srcY, int srcYStride,
                        const uint8_t* srcUV, int srcUVStride,
                        uint8_t* dst, int dstStride,
-                       int width, int height)
+                       int width, int height, ConvertFlag flag)
 {
     nv12ToRgbaColor_neon_imp<false>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height);
 }
@@ -831,7 +855,7 @@ void nv12ToRgba32_neon(const uint8_t* srcY, int srcYStride,
 void nv12ToBgr24_neon(const uint8_t* srcY, int srcYStride,
                       const uint8_t* srcUV, int srcUVStride,
                       uint8_t* dst, int dstStride,
-                      int width, int height)
+                      int width, int height, ConvertFlag flag)
 {
     _nv12ToRgbColor_neon_imp<true>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height);
 }
@@ -839,7 +863,7 @@ void nv12ToBgr24_neon(const uint8_t* srcY, int srcYStride,
 void nv12ToRgb24_neon(const uint8_t* srcY, int srcYStride,
                       const uint8_t* srcUV, int srcUVStride,
                       uint8_t* dst, int dstStride,
-                      int width, int height)
+                      int width, int height, ConvertFlag flag)
 {
     _nv12ToRgbColor_neon_imp<false>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height);
 }
@@ -848,7 +872,7 @@ void i420ToBgra32_neon(const uint8_t* srcY, int srcYStride,
                        const uint8_t* srcU, int srcUStride,
                        const uint8_t* srcV, int srcVStride,
                        uint8_t* dst, int dstStride,
-                       int width, int height)
+                       int width, int height, ConvertFlag flag)
 {
     _i420ToRgba_neon_imp<true>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height);
 }
@@ -857,7 +881,7 @@ void i420ToRgba32_neon(const uint8_t* srcY, int srcYStride,
                        const uint8_t* srcU, int srcUStride,
                        const uint8_t* srcV, int srcVStride,
                        uint8_t* dst, int dstStride,
-                       int width, int height)
+                       int width, int height, ConvertFlag flag)
 {
     _i420ToRgba_neon_imp<false>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height);
 }
@@ -866,7 +890,7 @@ void i420ToBgr24_neon(const uint8_t* srcY, int srcYStride,
                       const uint8_t* srcU, int srcUStride,
                       const uint8_t* srcV, int srcVStride,
                       uint8_t* dst, int dstStride,
-                      int width, int height)
+                      int width, int height, ConvertFlag flag)
 {
     _i420ToRgb_neon_imp<true>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height);
 }
@@ -875,9 +899,431 @@ void i420ToRgb24_neon(const uint8_t* srcY, int srcYStride,
                       const uint8_t* srcU, int srcUStride,
                       const uint8_t* srcV, int srcVStride,
                       uint8_t* dst, int dstStride,
-                      int width, int height)
+                      int width, int height, ConvertFlag flag)
 {
     _i420ToRgb_neon_imp<false>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height);
+}
+
+///////////// YUYV/UYVY to RGB conversion functions /////////////
+
+template <bool isBGRA>
+void _yuyvToRgba_neon_imp(const uint8_t* src, int srcStride,
+                          uint8_t* dst, int dstStride,
+                          int width, int height)
+{
+    if (height < 0)
+    {
+        height = -height;
+        dst = dst + (height - 1) * dstStride;
+        dstStride = -dstStride;
+    }
+
+    for (int y = 0; y < height; ++y)
+    {
+        const uint8_t* srcRow = src + y * srcStride;
+        uint8_t* dstRow = dst + y * dstStride;
+
+        int x = 0;
+        
+        // Process 16 pixels at a time (32 bytes of YUYV data)
+        for (; x + 16 <= width; x += 16)
+        {
+            // Load 32 bytes of YUYV data: Y0U0Y1V0 Y2U1Y3V1 ...
+            uint8x16x2_t yuyv_data = vld2q_u8(srcRow + x * 2);
+            uint8x16_t y_vals = yuyv_data.val[0];  // Y0 Y1 Y2 Y3 ...
+            uint8x16_t uv_vals = yuyv_data.val[1]; // U0 V0 U1 V1 ...
+
+            // Deinterleave U and V
+            uint8x8x2_t uv_deint = vuzp_u8(vget_low_u8(uv_vals), vget_high_u8(uv_vals));
+            uint8x8_t u_vals = uv_deint.val[0];
+            uint8x8_t v_vals = uv_deint.val[1];
+
+            // Duplicate U and V values for each pair of pixels
+            uint8x8x2_t u_dup = vzip_u8(u_vals, u_vals);
+            uint8x8x2_t v_dup = vzip_u8(v_vals, v_vals);
+            uint8x16_t u_expanded = vcombine_u8(u_dup.val[0], u_dup.val[1]);
+            uint8x16_t v_expanded = vcombine_u8(v_dup.val[0], v_dup.val[1]);
+
+            // Convert YUV to RGB using fixed-point arithmetic
+            int16x8_t y_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(y_vals), vdup_n_u8(16)));
+            int16x8_t y_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(y_vals), vdup_n_u8(16)));
+            int16x8_t u_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(u_expanded), vdup_n_u8(128)));
+            int16x8_t u_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(u_expanded), vdup_n_u8(128)));
+            int16x8_t v_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(v_expanded), vdup_n_u8(128)));
+            int16x8_t v_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(v_expanded), vdup_n_u8(128)));
+
+            // YUV to RGB conversion coefficients (scaled by 256)
+            const int16_t c_y = 298;
+            const int16_t c_u_b = 516;
+            const int16_t c_u_g = -100;
+            const int16_t c_v_g = -208;
+            const int16_t c_v_r = 409;
+
+            // Convert to RGB
+            int16x8_t r_lo = vaddq_s16(vmulq_n_s16(y_lo, c_y), vmulq_n_s16(v_lo, c_v_r));
+            int16x8_t g_lo = vaddq_s16(vaddq_s16(vmulq_n_s16(y_lo, c_y), vmulq_n_s16(u_lo, c_u_g)), vmulq_n_s16(v_lo, c_v_g));
+            int16x8_t b_lo = vaddq_s16(vmulq_n_s16(y_lo, c_y), vmulq_n_s16(u_lo, c_u_b));
+
+            int16x8_t r_hi = vaddq_s16(vmulq_n_s16(y_hi, c_y), vmulq_n_s16(v_hi, c_v_r));
+            int16x8_t g_hi = vaddq_s16(vaddq_s16(vmulq_n_s16(y_hi, c_y), vmulq_n_s16(u_hi, c_u_g)), vmulq_n_s16(v_hi, c_v_g));
+            int16x8_t b_hi = vaddq_s16(vmulq_n_s16(y_hi, c_y), vmulq_n_s16(u_hi, c_u_b));
+
+            // Shift and clamp to 8-bit
+            uint8x8_t r_lo_u8 = vqrshrun_n_s16(r_lo, 8);
+            uint8x8_t g_lo_u8 = vqrshrun_n_s16(g_lo, 8);
+            uint8x8_t b_lo_u8 = vqrshrun_n_s16(b_lo, 8);
+            uint8x8_t r_hi_u8 = vqrshrun_n_s16(r_hi, 8);
+            uint8x8_t g_hi_u8 = vqrshrun_n_s16(g_hi, 8);
+            uint8x8_t b_hi_u8 = vqrshrun_n_s16(b_hi, 8);
+
+            uint8x16_t r_vals = vcombine_u8(r_lo_u8, r_hi_u8);
+            uint8x16_t g_vals = vcombine_u8(g_lo_u8, g_hi_u8);
+            uint8x16_t b_vals = vcombine_u8(b_lo_u8, b_hi_u8);
+            uint8x16_t a_vals = vdupq_n_u8(255);
+
+            // Store as RGBA or BGRA
+            uint8x16x4_t rgba;
+            if constexpr (isBGRA) {
+                rgba.val[0] = b_vals;
+                rgba.val[1] = g_vals;
+                rgba.val[2] = r_vals;
+            } else {
+                rgba.val[0] = r_vals;
+                rgba.val[1] = g_vals;
+                rgba.val[2] = b_vals;
+            }
+            rgba.val[3] = a_vals;
+
+            vst4q_u8(dstRow + x * 4, rgba);
+        }
+
+        // Handle remaining pixels
+        for (; x < width; x += 2)
+        {
+            if (x + 1 >= width) break;
+
+            uint8_t y0 = srcRow[x * 2];
+            uint8_t u = srcRow[x * 2 + 1];
+            uint8_t y1 = srcRow[x * 2 + 2];
+            uint8_t v = srcRow[x * 2 + 3];
+
+            // YUV to RGB conversion for both pixels
+            int c_y0 = (int)y0 - 16;
+            int c_y1 = (int)y1 - 16;
+            int c_u = (int)u - 128;
+            int c_v = (int)v - 128;
+
+            int r0 = (298 * c_y0 + 409 * c_v + 128) >> 8;
+            int g0 = (298 * c_y0 - 100 * c_u - 208 * c_v + 128) >> 8;
+            int b0 = (298 * c_y0 + 516 * c_u + 128) >> 8;
+
+            int r1 = (298 * c_y1 + 409 * c_v + 128) >> 8;
+            int g1 = (298 * c_y1 - 100 * c_u - 208 * c_v + 128) >> 8;
+            int b1 = (298 * c_y1 + 516 * c_u + 128) >> 8;
+
+            // Clamp values
+            r0 = r0 < 0 ? 0 : (r0 > 255 ? 255 : r0);
+            g0 = g0 < 0 ? 0 : (g0 > 255 ? 255 : g0);
+            b0 = b0 < 0 ? 0 : (b0 > 255 ? 255 : b0);
+            r1 = r1 < 0 ? 0 : (r1 > 255 ? 255 : r1);
+            g1 = g1 < 0 ? 0 : (g1 > 255 ? 255 : g1);
+            b1 = b1 < 0 ? 0 : (b1 > 255 ? 255 : b1);
+
+            if constexpr (isBGRA) {
+                dstRow[x * 4 + 0] = b0;
+                dstRow[x * 4 + 1] = g0;
+                dstRow[x * 4 + 2] = r0;
+                dstRow[x * 4 + 3] = 255;
+
+                dstRow[(x + 1) * 4 + 0] = b1;
+                dstRow[(x + 1) * 4 + 1] = g1;
+                dstRow[(x + 1) * 4 + 2] = r1;
+                dstRow[(x + 1) * 4 + 3] = 255;
+            } else {
+                dstRow[x * 4 + 0] = r0;
+                dstRow[x * 4 + 1] = g0;
+                dstRow[x * 4 + 2] = b0;
+                dstRow[x * 4 + 3] = 255;
+
+                dstRow[(x + 1) * 4 + 0] = r1;
+                dstRow[(x + 1) * 4 + 1] = g1;
+                dstRow[(x + 1) * 4 + 2] = b1;
+                dstRow[(x + 1) * 4 + 3] = 255;
+            }
+        }
+    }
+}
+
+template <bool isBGR>
+void _yuyvToRgb_neon_imp(const uint8_t* src, int srcStride,
+                         uint8_t* dst, int dstStride,
+                         int width, int height)
+{
+    if (height < 0)
+    {
+        height = -height;
+        dst = dst + (height - 1) * dstStride;
+        dstStride = -dstStride;
+    }
+
+    for (int y = 0; y < height; ++y)
+    {
+        const uint8_t* srcRow = src + y * srcStride;
+        uint8_t* dstRow = dst + y * dstStride;
+
+        int x = 0;
+        
+        // Process pixels in pairs
+        for (; x + 2 <= width; x += 2)
+        {
+            uint8_t y0 = srcRow[x * 2];
+            uint8_t u = srcRow[x * 2 + 1];
+            uint8_t y1 = srcRow[x * 2 + 2];
+            uint8_t v = srcRow[x * 2 + 3];
+
+            // YUV to RGB conversion
+            int c_y0 = (int)y0 - 16;
+            int c_y1 = (int)y1 - 16;
+            int c_u = (int)u - 128;
+            int c_v = (int)v - 128;
+
+            int r0 = (298 * c_y0 + 409 * c_v + 128) >> 8;
+            int g0 = (298 * c_y0 - 100 * c_u - 208 * c_v + 128) >> 8;
+            int b0 = (298 * c_y0 + 516 * c_u + 128) >> 8;
+
+            int r1 = (298 * c_y1 + 409 * c_v + 128) >> 8;
+            int g1 = (298 * c_y1 - 100 * c_u - 208 * c_v + 128) >> 8;
+            int b1 = (298 * c_y1 + 516 * c_u + 128) >> 8;
+
+            // Clamp values
+            r0 = r0 < 0 ? 0 : (r0 > 255 ? 255 : r0);
+            g0 = g0 < 0 ? 0 : (g0 > 255 ? 255 : g0);
+            b0 = b0 < 0 ? 0 : (b0 > 255 ? 255 : b0);
+            r1 = r1 < 0 ? 0 : (r1 > 255 ? 255 : r1);
+            g1 = g1 < 0 ? 0 : (g1 > 255 ? 255 : g1);
+            b1 = b1 < 0 ? 0 : (b1 > 255 ? 255 : b1);
+
+            if constexpr (isBGR) {
+                dstRow[x * 3 + 0] = b0;
+                dstRow[x * 3 + 1] = g0;
+                dstRow[x * 3 + 2] = r0;
+
+                dstRow[(x + 1) * 3 + 0] = b1;
+                dstRow[(x + 1) * 3 + 1] = g1;
+                dstRow[(x + 1) * 3 + 2] = r1;
+            } else {
+                dstRow[x * 3 + 0] = r0;
+                dstRow[x * 3 + 1] = g0;
+                dstRow[x * 3 + 2] = b0;
+
+                dstRow[(x + 1) * 3 + 0] = r1;
+                dstRow[(x + 1) * 3 + 1] = g1;
+                dstRow[(x + 1) * 3 + 2] = b1;
+            }
+        }
+    }
+}
+
+template <bool isBGRA>
+void _uyvyToRgba_neon_imp(const uint8_t* src, int srcStride,
+                          uint8_t* dst, int dstStride,
+                          int width, int height)
+{
+    if (height < 0)
+    {
+        height = -height;
+        dst = dst + (height - 1) * dstStride;
+        dstStride = -dstStride;
+    }
+
+    for (int y = 0; y < height; ++y)
+    {
+        const uint8_t* srcRow = src + y * srcStride;
+        uint8_t* dstRow = dst + y * dstStride;
+
+        int x = 0;
+        
+        // Process pixels in pairs
+        for (; x + 2 <= width; x += 2)
+        {
+            uint8_t u = srcRow[x * 2];
+            uint8_t y0 = srcRow[x * 2 + 1];
+            uint8_t v = srcRow[x * 2 + 2];
+            uint8_t y1 = srcRow[x * 2 + 3];
+
+            // YUV to RGB conversion
+            int c_y0 = (int)y0 - 16;
+            int c_y1 = (int)y1 - 16;
+            int c_u = (int)u - 128;
+            int c_v = (int)v - 128;
+
+            int r0 = (298 * c_y0 + 409 * c_v + 128) >> 8;
+            int g0 = (298 * c_y0 - 100 * c_u - 208 * c_v + 128) >> 8;
+            int b0 = (298 * c_y0 + 516 * c_u + 128) >> 8;
+
+            int r1 = (298 * c_y1 + 409 * c_v + 128) >> 8;
+            int g1 = (298 * c_y1 - 100 * c_u - 208 * c_v + 128) >> 8;
+            int b1 = (298 * c_y1 + 516 * c_u + 128) >> 8;
+
+            // Clamp values
+            r0 = r0 < 0 ? 0 : (r0 > 255 ? 255 : r0);
+            g0 = g0 < 0 ? 0 : (g0 > 255 ? 255 : g0);
+            b0 = b0 < 0 ? 0 : (b0 > 255 ? 255 : b0);
+            r1 = r1 < 0 ? 0 : (r1 > 255 ? 255 : r1);
+            g1 = g1 < 0 ? 0 : (g1 > 255 ? 255 : g1);
+            b1 = b1 < 0 ? 0 : (b1 > 255 ? 255 : b1);
+
+            if constexpr (isBGRA) {
+                dstRow[x * 4 + 0] = b0;
+                dstRow[x * 4 + 1] = g0;
+                dstRow[x * 4 + 2] = r0;
+                dstRow[x * 4 + 3] = 255;
+
+                dstRow[(x + 1) * 4 + 0] = b1;
+                dstRow[(x + 1) * 4 + 1] = g1;
+                dstRow[(x + 1) * 4 + 2] = r1;
+                dstRow[(x + 1) * 4 + 3] = 255;
+            } else {
+                dstRow[x * 4 + 0] = r0;
+                dstRow[x * 4 + 1] = g0;
+                dstRow[x * 4 + 2] = b0;
+                dstRow[x * 4 + 3] = 255;
+
+                dstRow[(x + 1) * 4 + 0] = r1;
+                dstRow[(x + 1) * 4 + 1] = g1;
+                dstRow[(x + 1) * 4 + 2] = b1;
+                dstRow[(x + 1) * 4 + 3] = 255;
+            }
+        }
+    }
+}
+
+template <bool isBGR>
+void _uyvyToRgb_neon_imp(const uint8_t* src, int srcStride,
+                         uint8_t* dst, int dstStride,
+                         int width, int height)
+{
+    if (height < 0)
+    {
+        height = -height;
+        dst = dst + (height - 1) * dstStride;
+        dstStride = -dstStride;
+    }
+
+    for (int y = 0; y < height; ++y)
+    {
+        const uint8_t* srcRow = src + y * srcStride;
+        uint8_t* dstRow = dst + y * dstStride;
+
+        int x = 0;
+        
+        // Process pixels in pairs
+        for (; x + 2 <= width; x += 2)
+        {
+            uint8_t u = srcRow[x * 2];
+            uint8_t y0 = srcRow[x * 2 + 1];
+            uint8_t v = srcRow[x * 2 + 2];
+            uint8_t y1 = srcRow[x * 2 + 3];
+
+            // YUV to RGB conversion
+            int c_y0 = (int)y0 - 16;
+            int c_y1 = (int)y1 - 16;
+            int c_u = (int)u - 128;
+            int c_v = (int)v - 128;
+
+            int r0 = (298 * c_y0 + 409 * c_v + 128) >> 8;
+            int g0 = (298 * c_y0 - 100 * c_u - 208 * c_v + 128) >> 8;
+            int b0 = (298 * c_y0 + 516 * c_u + 128) >> 8;
+
+            int r1 = (298 * c_y1 + 409 * c_v + 128) >> 8;
+            int g1 = (298 * c_y1 - 100 * c_u - 208 * c_v + 128) >> 8;
+            int b1 = (298 * c_y1 + 516 * c_u + 128) >> 8;
+
+            // Clamp values
+            r0 = r0 < 0 ? 0 : (r0 > 255 ? 255 : r0);
+            g0 = g0 < 0 ? 0 : (g0 > 255 ? 255 : g0);
+            b0 = b0 < 0 ? 0 : (b0 > 255 ? 255 : b0);
+            r1 = r1 < 0 ? 0 : (r1 > 255 ? 255 : r1);
+            g1 = g1 < 0 ? 0 : (g1 > 255 ? 255 : g1);
+            b1 = b1 < 0 ? 0 : (b1 > 255 ? 255 : b1);
+
+            if constexpr (isBGR) {
+                dstRow[x * 3 + 0] = b0;
+                dstRow[x * 3 + 1] = g0;
+                dstRow[x * 3 + 2] = r0;
+
+                dstRow[(x + 1) * 3 + 0] = b1;
+                dstRow[(x + 1) * 3 + 1] = g1;
+                dstRow[(x + 1) * 3 + 2] = r1;
+            } else {
+                dstRow[x * 3 + 0] = r0;
+                dstRow[x * 3 + 1] = g0;
+                dstRow[x * 3 + 2] = b0;
+
+                dstRow[(x + 1) * 3 + 0] = r1;
+                dstRow[(x + 1) * 3 + 1] = g1;
+                dstRow[(x + 1) * 3 + 2] = b1;
+            }
+        }
+    }
+}
+
+// YUYV conversion functions
+void yuyvToBgr24_neon(const uint8_t* src, int srcStride,
+                      uint8_t* dst, int dstStride,
+                      int width, int height, ConvertFlag flag)
+{
+    _yuyvToRgb_neon_imp<true>(src, srcStride, dst, dstStride, width, height);
+}
+
+void yuyvToRgb24_neon(const uint8_t* src, int srcStride,
+                      uint8_t* dst, int dstStride,
+                      int width, int height, ConvertFlag flag)
+{
+    _yuyvToRgb_neon_imp<false>(src, srcStride, dst, dstStride, width, height);
+}
+
+void yuyvToBgra32_neon(const uint8_t* src, int srcStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height, ConvertFlag flag)
+{
+    _yuyvToRgba_neon_imp<true>(src, srcStride, dst, dstStride, width, height);
+}
+
+void yuyvToRgba32_neon(const uint8_t* src, int srcStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height, ConvertFlag flag)
+{
+    _yuyvToRgba_neon_imp<false>(src, srcStride, dst, dstStride, width, height);
+}
+
+// UYVY conversion functions
+void uyvyToBgr24_neon(const uint8_t* src, int srcStride,
+                      uint8_t* dst, int dstStride,
+                      int width, int height, ConvertFlag flag)
+{
+    _uyvyToRgb_neon_imp<true>(src, srcStride, dst, dstStride, width, height);
+}
+
+void uyvyToRgb24_neon(const uint8_t* src, int srcStride,
+                      uint8_t* dst, int dstStride,
+                      int width, int height, ConvertFlag flag)
+{
+    _uyvyToRgb_neon_imp<false>(src, srcStride, dst, dstStride, width, height);
+}
+
+void uyvyToBgra32_neon(const uint8_t* src, int srcStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height, ConvertFlag flag)
+{
+    _uyvyToRgba_neon_imp<true>(src, srcStride, dst, dstStride, width, height);
+}
+
+void uyvyToRgba32_neon(const uint8_t* src, int srcStride,
+                       uint8_t* dst, int dstStride,
+                       int width, int height, ConvertFlag flag)
+{
+    _uyvyToRgba_neon_imp<false>(src, srcStride, dst, dstStride, width, height);
 }
 
 #endif // ENABLE_NEON_IMP
