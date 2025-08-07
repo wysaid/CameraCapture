@@ -32,16 +32,14 @@ inline bool hasNEON_() { return true; }
 #elif defined(_WIN32)
 // On Windows ARM64, NEON is standard
 #include <intrin.h>
-inline bool hasNEON_() 
-{
+inline bool hasNEON_() {
     // Windows ARM64 always has NEON support
     return true;
 }
 #elif defined(__ANDROID__) || defined(__linux__)
 // On Android/Linux, check through /proc/cpuinfo or assume available for ARM64
 #include <sys/auxv.h>
-inline bool hasNEON_()
-{
+inline bool hasNEON_() {
 #ifdef __aarch64__
     // NEON is mandatory in ARMv8-A (AArch64)
     return true;
@@ -56,8 +54,7 @@ inline bool hasNEON_() { return false; }
 
 #endif // ENABLE_NEON_IMP
 
-namespace ccap
-{
+namespace ccap {
 bool hasNEON();
 
 #if ENABLE_NEON_IMP
