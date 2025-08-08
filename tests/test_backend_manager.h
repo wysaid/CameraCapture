@@ -71,6 +71,11 @@ public:
             backends.push_back(ccap::ConvertBackend::AppleAccelerate);
         }
 
+        // Check NEON support
+        if (ccap::hasNEON()) {
+            backends.push_back(ccap::ConvertBackend::NEON);
+        }
+
         return backends;
     }
 
@@ -85,6 +90,8 @@ public:
             return "AVX2";
         case ccap::ConvertBackend::AppleAccelerate:
             return "vImage";
+        case ccap::ConvertBackend::NEON:
+            return "NEON";
         case ccap::ConvertBackend::AUTO:
             return "AUTO";
         default:

@@ -474,6 +474,22 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
     }
 
     [_session commitConfiguration];
+
+    // Log supported formats and frame rates for debugging
+    if (infoLogEnabled() && _device) {
+        NSMutableString* formatInfo = [NSMutableString stringWithString:@"ccap: Available formats and frame rates:\n"];
+        for (AVCaptureDeviceFormat* format in _device.formats) {
+            CMVideoDimensions dimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription);
+            [formatInfo appendFormat:@"  %dx%d: ", dimensions.width, dimensions.height];
+
+            for (AVFrameRateRange* range in format.videoSupportedFrameRateRanges) {
+                [formatInfo appendFormat:@"%.1f-%.1f fps, ", range.minFrameRate, range.maxFrameRate];
+            }
+            [formatInfo appendString:@"\n"];
+        }
+        NSLog(@"%@", formatInfo);
+    }
+
     if (auto fps = _provider->getFrameProperty().fps; fps > 0.0) {
         [self setFrameRate:_provider->getFrameProperty().fps];
     }
@@ -493,45 +509,110 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
             [_device respondsToSelector:@selector(setActiveVideoMaxFrameDuration:)]) {
             if (error == nil) {
                 double desiredFps = fps;
-                double distance = 1e9;
+
+                // First, try to find a format that supports the desired fps
+                AVCaptureDeviceFormat* bestFormat = nil;
+                AVFrameRateRange* bestRange = nil;
                 double bestFps = desiredFps;
-                CMTime maxFrameDuration = kCMTimeInvalid;
-                CMTime minFrameDuration = kCMTimeInvalid;
-                for (AVFrameRateRange* r in _device.activeFormat.videoSupportedFrameRateRanges) {
-                    // Check if desired fps is within this range
-                    double actualFps;
-                    if (desiredFps >= r.minFrameRate && desiredFps <= r.maxFrameRate) {
-                        // Desired fps is within range, use it directly
-                        actualFps = desiredFps;
-                    } else {
-                        // Choose the closest boundary value
-                        if (desiredFps < r.minFrameRate) {
-                            actualFps = r.minFrameRate;
-                        } else {
-                            actualFps = r.maxFrameRate;
+                double bestDistance = 1e9;
+
+                // Get current resolution for format matching
+                CGSize currentResolution = _resolution;
+                if (currentResolution.width <= 0 || currentResolution.height <= 0) {
+                    if (_device.activeFormat) {
+                        CMVideoDimensions dimensions = CMVideoFormatDescriptionGetDimensions(_device.activeFormat.formatDescription);
+                        currentResolution = CGSizeMake(dimensions.width, dimensions.height);
+                    }
+                }
+
+                // Search through all formats to find one that supports the desired fps
+                for (AVCaptureDeviceFormat* format in _device.formats) {
+                    CMVideoDimensions dimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription);
+
+                    // Skip formats with very different resolutions unless current resolution is unknown
+                    if (currentResolution.width > 0 && currentResolution.height > 0) {
+                        double widthRatio = (double)dimensions.width / currentResolution.width;
+                        double heightRatio = (double)dimensions.height / currentResolution.height;
+                        // Allow some tolerance for resolution matching
+                        if (widthRatio < 0.8 || widthRatio > 1.25 || heightRatio < 0.8 || heightRatio > 1.25) {
+                            continue;
                         }
                     }
 
-                    // Calculate distance to the actual fps we would use
-                    auto newDis = std::abs(actualFps - desiredFps);
-                    if (newDis < distance) {
-                        maxFrameDuration = r.maxFrameDuration;
-                        minFrameDuration = r.minFrameDuration;
-                        distance = newDis;
-                        bestFps = actualFps;
+                    for (AVFrameRateRange* range in format.videoSupportedFrameRateRanges) {
+                        double actualFps;
+                        if (desiredFps >= range.minFrameRate && desiredFps <= range.maxFrameRate) {
+                            // Desired fps is within range, use it directly
+                            actualFps = desiredFps;
+                        } else {
+                            // Choose the closest boundary value
+                            if (desiredFps < range.minFrameRate) {
+                                actualFps = range.minFrameRate;
+                            } else {
+                                actualFps = range.maxFrameRate;
+                            }
+                        }
+
+                        double distance = std::abs(actualFps - desiredFps);
+                        if (distance < bestDistance) {
+                            bestFormat = format;
+                            bestRange = range;
+                            bestFps = actualFps;
+                            bestDistance = distance;
+                        }
                     }
                 }
+
+                // If we found a better format, switch to it
+                if (bestFormat && bestFormat != _device.activeFormat) {
+                    _device.activeFormat = bestFormat;
+                    CCAP_NSLOG_I(@"ccap: Switched to format that supports %g fps", bestFps);
+
+                    // Update resolution after format change
+                    CMVideoDimensions newDimensions = CMVideoFormatDescriptionGetDimensions(bestFormat.formatDescription);
+                    _resolution = CGSizeMake(newDimensions.width, newDimensions.height);
+                    if (_provider) {
+                        auto& prop = _provider->getFrameProperty();
+                        prop.width = newDimensions.width;
+                        prop.height = newDimensions.height;
+                    }
+                }
+
                 fps = bestFps;
 
-                if (CMTIME_IS_VALID(maxFrameDuration) && CMTIME_IS_VALID(minFrameDuration)) {
+                if (bestRange) {
                     // Create precise frame duration for the selected fps
-                    CMTime frameDuration = CMTimeMake(1000000.0, fps * 1000000.0);
+                    // For high frame rates, we need precise time calculation
+                    CMTime frameDuration;
+
+                    if (fps == 60.0) {
+                        // Exact 60 fps: 1/60 second
+                        frameDuration = CMTimeMake(1, 60);
+                    } else if (fps == 120.0) {
+                        // Exact 120 fps: 1/120 second
+                        frameDuration = CMTimeMake(1, 120);
+                    } else if (fps == 240.0) {
+                        // Exact 240 fps: 1/240 second
+                        frameDuration = CMTimeMake(1, 240);
+                    } else {
+                        // For other frame rates, use high precision time scale
+                        int32_t timeScale = 600; // Base time scale
+
+                        // For high frame rates, use larger time scale for better precision
+                        if (fps >= 60) {
+                            timeScale = 6000;
+                        } else if (fps >= 30) {
+                            timeScale = 3000;
+                        }
+
+                        frameDuration = CMTimeMake(timeScale / fps, timeScale);
+                    }
 
                     // Clamp frameDuration to the supported range to prevent exceptions
-                    if (CMTimeCompare(frameDuration, minFrameDuration) < 0) {
-                        frameDuration = minFrameDuration;
-                    } else if (CMTimeCompare(frameDuration, maxFrameDuration) > 0) {
-                        frameDuration = maxFrameDuration;
+                    if (CMTimeCompare(frameDuration, bestRange.minFrameDuration) < 0) {
+                        frameDuration = bestRange.minFrameDuration;
+                    } else if (CMTimeCompare(frameDuration, bestRange.maxFrameDuration) > 0) {
+                        frameDuration = bestRange.maxFrameDuration;
                     }
 
                     [_device setActiveVideoMinFrameDuration:frameDuration];

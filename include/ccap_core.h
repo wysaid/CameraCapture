@@ -3,8 +3,14 @@
  * @author wysaid (this@wysaid.org)
  * @brief Header file for CameraCapture class.
  * @date 2025-04
+ * 
+ * @note For C language, use ccap_c.h instead of this header.
  *
  */
+
+#ifndef __cplusplus
+#error "ccap_core.h is for C++ only. For C language, please use ccap_c.h instead."
+#endif
 
 #pragma once
 #ifndef CCAP_H_

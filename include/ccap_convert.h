@@ -4,7 +4,13 @@
  * @brief pixel convert functions for ccap.
  * @date 2025-05
  *
+ * @note For C language, use ccap_convert_c.h instead of this header.
+ *
  */
+
+#ifndef __cplusplus
+#error "ccap_convert.h is for C++ only. For C language, please use ccap_convert_c.h instead."
+#endif
 
 #pragma once
 #ifndef CCAP_CONVERT_H
@@ -45,17 +51,31 @@ bool canUseAppleAccelerate();
  */
 bool enableAppleAccelerate(bool enable);
 
+/// Check if NEON is available. If available, use NEON acceleration.
+bool hasNEON();
+/// Check if NEON is enabled, useful for testing
+bool canUseNEON();
+/**
+ * @brief Enable or disable NEON implementation.
+ *
+ * @param enable true to enable NEON, false to disable.
+ * @return true if NEON is available and enabled, false otherwise.
+ */
+bool enableNEON(bool enable);
+
 enum class ConvertBackend : uint32_t {
     AUTO,            ///< Automatically choose the best available backend
+    CPU,             ///< CPU implementation
     AVX2,            ///< AVX2 implementation
     AppleAccelerate, ///< Apple Accelerate implementation
-    CPU,             ///< CPU implementation
+    NEON,            ///< NEON implementation
 };
 
 /**
  * @brief Check the current conversion backend that will be used.
  *  If Apple Accelerate is available and enabled, returns AppleAccelerate.
  *  If AVX2 is available and enabled, returns AVX2.
+ *  If NEON is available and enabled, returns NEON.
  *  Otherwise returns CPU.
  *
  * @return ConvertBackend
@@ -69,14 +89,15 @@ ConvertBackend getConvertBackend();
  * @return true if the backend was set successfully.
  * @return false if the backend is not supported or the operation failed.
  * Note: When setting ConvertBackend::AVX2, Apple Accelerate will be automatically disabled.
+ * Note: When setting ConvertBackend::NEON, Apple Accelerate and AVX2 will be automatically disabled.
  */
 bool setConvertBackend(ConvertBackend backend);
 
-/// @brief YUV 601 video-range to RGB (包含 video range 预处理)
+/// @brief YUV 601 video-range to RGB (includes video range preprocessing)
 inline void yuv2rgb601v(int y, int u, int v, int& r, int& g, int& b) {
-    y = y - 16;  // video range Y 预处理
-    u = u - 128; // 中心化 U
-    v = v - 128; // 中心化 V
+    y = y - 16;  // video range Y preprocessing
+    u = u - 128; // center U
+    v = v - 128; // center V
 
     r = (298 * y + 409 * v + 128) >> 8;
     g = (298 * y - 100 * u - 208 * v + 128) >> 8;
@@ -86,11 +107,11 @@ inline void yuv2rgb601v(int y, int u, int v, int& r, int& g, int& b) {
     b = std::clamp(b, 0, 255);
 }
 
-/// @brief YUV 709 video-range to RGB (包含 video range 预处理)
+/// @brief YUV 709 video-range to RGB (includes video range preprocessing)
 inline void yuv2rgb709v(int y, int u, int v, int& r, int& g, int& b) {
-    y = y - 16;  // video range Y 预处理
-    u = u - 128; // 中心化 U
-    v = v - 128; // 中心化 V
+    y = y - 16;  // video range Y preprocessing
+    u = u - 128; // center U
+    v = v - 128; // center V
 
     r = (298 * y + 459 * v + 128) >> 8;
     g = (298 * y - 55 * u - 136 * v + 128) >> 8;
@@ -100,11 +121,11 @@ inline void yuv2rgb709v(int y, int u, int v, int& r, int& g, int& b) {
     b = std::clamp(b, 0, 255);
 }
 
-/// @brief YUV 601 full-range to RGB (包含 full range 预处理)
+/// @brief YUV 601 full-range to RGB (includes full range preprocessing)
 inline void yuv2rgb601f(int y, int u, int v, int& r, int& g, int& b) {
-    // full range: Y 不需要减 16
-    u = u - 128; // 中心化 U
-    v = v - 128; // 中心化 V
+    // full range: Y does not need to subtract 16
+    u = u - 128; // center U
+    v = v - 128; // center V
 
     r = (256 * y + 351 * v + 128) >> 8;
     g = (256 * y - 86 * u - 179 * v + 128) >> 8;
@@ -114,11 +135,11 @@ inline void yuv2rgb601f(int y, int u, int v, int& r, int& g, int& b) {
     b = std::clamp(b, 0, 255);
 }
 
-/// @brief YUV 709 full-range to RGB (包含 full range 预处理)
+/// @brief YUV 709 full-range to RGB (includes full range preprocessing)
 inline void yuv2rgb709f(int y, int u, int v, int& r, int& g, int& b) {
-    // full range: Y 不需要减 16
-    u = u - 128; // 中心化 U
-    v = v - 128; // 中心化 V
+    // full range: Y does not need to subtract 16
+    u = u - 128; // center U
+    v = v - 128; // center V
 
     r = (256 * y + 403 * v + 128) >> 8;
     g = (256 * y - 48 * u - 120 * v + 128) >> 8;
@@ -268,7 +289,7 @@ void yuyvToRgba32(const uint8_t* src, int srcStride,
                   uint8_t* dst, int dstStride,
                   int width, int height, ConvertFlag flag = ConvertFlag::Default);
 
-// UYVY (YUV 4:2:2 packed) conversion functions  
+// UYVY (YUV 4:2:2 packed) conversion functions
 void uyvyToBgr24(const uint8_t* src, int srcStride,
                  uint8_t* dst, int dstStride,
                  int width, int height, ConvertFlag flag = ConvertFlag::Default);

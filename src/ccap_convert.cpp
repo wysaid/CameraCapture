@@ -10,6 +10,7 @@
 
 #include "ccap_convert_apple.h"
 #include "ccap_convert_avx2.h"
+#include "ccap_convert_neon.h"
 #include "ccap_core.h"
 
 #include <cassert>
@@ -19,6 +20,7 @@
 
 namespace ccap {
 static bool sEnableAppleAccelerate = true;
+static bool sEnableNEON = true;
 
 bool canUseAppleAccelerate() {
     return sEnableAppleAccelerate && hasAppleAccelerate();
@@ -37,11 +39,22 @@ bool enableAppleAccelerate(bool enable) {
     return hasAppleAccelerate() && sEnableAppleAccelerate;
 }
 
+bool canUseNEON() {
+    return sEnableNEON && hasNEON();
+}
+
+bool enableNEON(bool enable) {
+    sEnableNEON = enable;
+    return hasNEON() && sEnableNEON;
+}
+
 ConvertBackend getConvertBackend() {
     if (canUseAppleAccelerate()) {
         return ConvertBackend::AppleAccelerate;
     } else if (canUseAVX2()) {
         return ConvertBackend::AVX2;
+    } else if (canUseNEON()) {
+        return ConvertBackend::NEON;
     } else {
         return ConvertBackend::CPU;
     }
@@ -52,16 +65,24 @@ bool setConvertBackend(ConvertBackend backend) {
     case ConvertBackend::AUTO:
         enableAppleAccelerate(true);
         enableAVX2(true);
+        enableNEON(true);
         return true;
     case ConvertBackend::AVX2:
         enableAppleAccelerate(false);
+        enableNEON(false);
         return enableAVX2(true);
     case ConvertBackend::AppleAccelerate:
         enableAVX2(false);
+        enableNEON(false);
         return enableAppleAccelerate(true);
+    case ConvertBackend::NEON:
+        enableAppleAccelerate(false);
+        enableAVX2(false);
+        return enableNEON(true);
     case ConvertBackend::CPU:
         enableAppleAccelerate(false);
         enableAVX2(false);
+        enableNEON(false);
         return true; // CPU implementation is always available
     default:
         assert(false && "Unsupported ConvertBackend");
@@ -86,6 +107,13 @@ void colorShuffle(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride
 #if ENABLE_AVX2_IMP
     if (canUseAVX2()) {
         colorShuffle_avx2<inputChannels, outputChannels, swapRB>(src, srcStride, dst, dstStride, width, height);
+        return;
+    }
+#endif
+
+#if ENABLE_NEON_IMP
+    if (canUseNEON()) {
+        colorShuffle_neon<inputChannels, outputChannels, swapRB>(src, srcStride, dst, dstStride, width, height);
         return;
     }
 #endif
@@ -261,6 +289,13 @@ void nv12ToBgr24(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int 
     }
 #endif
 
+#if ENABLE_NEON_IMP
+    if (canUseNEON()) {
+        nv12ToBgr24_neon(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
+
     nv12ToRgb_common<true, false>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, flag);
 }
 
@@ -275,6 +310,13 @@ void nv12ToRgb24(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int 
 #if ENABLE_AVX2_IMP
     if (canUseAVX2()) {
         nv12ToRgb24_avx2(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
+
+#if ENABLE_NEON_IMP
+    if (canUseNEON()) {
+        nv12ToRgb24_neon(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, flag);
         return;
     }
 #endif
@@ -297,6 +339,13 @@ void nv12ToBgra32(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int
     }
 #endif
 
+#if ENABLE_NEON_IMP
+    if (canUseNEON()) {
+        nv12ToBgra32_neon(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
+
     nv12ToRgb_common<true, true>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, flag);
 }
 
@@ -311,6 +360,13 @@ void nv12ToRgba32(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int
 #if ENABLE_AVX2_IMP
     if (canUseAVX2()) {
         nv12ToRgba32_avx2(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
+
+#if ENABLE_NEON_IMP
+    if (canUseNEON()) {
+        nv12ToRgba32_neon(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, flag);
         return;
     }
 #endif
@@ -333,6 +389,13 @@ void i420ToBgr24(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int s
     }
 #endif
 
+#if ENABLE_NEON_IMP
+    if (canUseNEON()) {
+        i420ToBgr24_neon(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
+
     i420ToRgb_common<true, false>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, flag);
 }
 
@@ -347,6 +410,13 @@ void i420ToRgb24(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int s
 #if ENABLE_AVX2_IMP
     if (canUseAVX2()) {
         i420ToRgb24_avx2(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
+
+#if ENABLE_NEON_IMP
+    if (canUseNEON()) {
+        i420ToRgb24_neon(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, flag);
         return;
     }
 #endif
@@ -369,6 +439,13 @@ void i420ToBgra32(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int 
     }
 #endif
 
+#if ENABLE_NEON_IMP
+    if (canUseNEON()) {
+        i420ToBgra32_neon(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
+
     i420ToRgb_common<true, true>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, flag);
 }
 
@@ -383,6 +460,13 @@ void i420ToRgba32(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int 
 #if ENABLE_AVX2_IMP
     if (canUseAVX2()) {
         i420ToRgba32_avx2(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
+
+#if ENABLE_NEON_IMP
+    if (canUseNEON()) {
+        i420ToRgba32_neon(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, flag);
         return;
     }
 #endif
@@ -512,6 +596,14 @@ void yuyvToBgr24(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride,
         return;
     }
 #endif
+
+#if ENABLE_NEON_IMP
+    if (canUseNEON()) {
+        yuyvToBgr24_neon(src, srcStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
+
     yuyvToRgb_common<true, false>(src, srcStride, dst, dstStride, width, height, flag);
 }
 
@@ -522,6 +614,14 @@ void yuyvToRgb24(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride,
         return;
     }
 #endif
+
+#if ENABLE_NEON_IMP
+    if (canUseNEON()) {
+        yuyvToRgb24_neon(src, srcStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
+
     yuyvToRgb_common<false, false>(src, srcStride, dst, dstStride, width, height, flag);
 }
 
@@ -532,6 +632,14 @@ void yuyvToBgra32(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride
         return;
     }
 #endif
+
+#if ENABLE_NEON_IMP
+    if (canUseNEON()) {
+        yuyvToBgra32_neon(src, srcStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
+
     yuyvToRgb_common<true, true>(src, srcStride, dst, dstStride, width, height, flag);
 }
 
@@ -542,6 +650,14 @@ void yuyvToRgba32(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride
         return;
     }
 #endif
+
+#if ENABLE_NEON_IMP
+    if (canUseNEON()) {
+        yuyvToRgba32_neon(src, srcStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
+
     yuyvToRgb_common<false, true>(src, srcStride, dst, dstStride, width, height, flag);
 }
 
@@ -553,6 +669,14 @@ void uyvyToBgr24(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride,
         return;
     }
 #endif
+
+#if ENABLE_NEON_IMP
+    if (canUseNEON()) {
+        uyvyToBgr24_neon(src, srcStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
+
     uyvyToRgb_common<true, false>(src, srcStride, dst, dstStride, width, height, flag);
 }
 
@@ -563,6 +687,14 @@ void uyvyToRgb24(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride,
         return;
     }
 #endif
+
+#if ENABLE_NEON_IMP
+    if (canUseNEON()) {
+        uyvyToRgb24_neon(src, srcStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
+
     uyvyToRgb_common<false, false>(src, srcStride, dst, dstStride, width, height, flag);
 }
 
@@ -573,6 +705,14 @@ void uyvyToBgra32(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride
         return;
     }
 #endif
+
+#if ENABLE_NEON_IMP
+    if (canUseNEON()) {
+        uyvyToBgra32_neon(src, srcStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
+
     uyvyToRgb_common<true, true>(src, srcStride, dst, dstStride, width, height, flag);
 }
 
@@ -583,6 +723,14 @@ void uyvyToRgba32(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride
         return;
     }
 #endif
+
+#if ENABLE_NEON_IMP
+    if (canUseNEON()) {
+        uyvyToRgba32_neon(src, srcStride, dst, dstStride, width, height, flag);
+        return;
+    }
+#endif
+
     uyvyToRgb_common<false, true>(src, srcStride, dst, dstStride, width, height, flag);
 }
 
