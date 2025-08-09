@@ -12,6 +12,39 @@
 #include <cstring>
 
 namespace ccap {
+
+// Coefficient function from AVX2 implementation  
+inline void getYuvToRgbCoefficients(bool isBT601, bool isFullRange, int& cy, int& cr, int& cgu, int& cgv, int& cb) {
+    if (isBT601) {
+        if (isFullRange) { // BT.601 Full Range: 256, 351, 86, 179, 443 (divided by 4)
+            cy = 64;
+            cr = 88;
+            cgu = 22;
+            cgv = 45;
+            cb = 111;
+        } else { // BT.601 Video Range: 298, 409, 100, 208, 516 (divided by 4)
+            cy = 75;
+            cr = 102;
+            cgu = 25;
+            cgv = 52;
+            cb = 129;
+        }
+    } else {
+        if (isFullRange) { // BT.709 Full Range: 256, 403, 48, 120, 475 (divided by 4)
+            cy = 64;
+            cr = 101;
+            cgu = 12;
+            cgv = 30;
+            cb = 119;
+        } else { // BT.709 Video Range: 298, 459, 55, 136, 541 (divided by 4)
+            cy = 75;
+            cr = 115;
+            cgu = 14;
+            cgv = 34;
+            cb = 135;
+        }
+    }
+}
 bool hasNEON() {
 #if ENABLE_NEON_IMP
     static bool s_hasNEON = hasNEON_();
@@ -180,15 +213,31 @@ template void colorShuffle_neon<3, 3, 1>(const uint8_t* src, int srcStride,
 
 ///////////// YUV to RGB conversion functions /////////////
 
-template <bool isBGRA>
+template <bool isBGRA, bool isFullRange>
 void nv12ToRgbaColor_neon_imp(const uint8_t* srcY, int srcYStride,
                               const uint8_t* srcUV, int srcUVStride,
                               uint8_t* dst, int dstStride,
-                              int width, int height) {
+                              int width, int height, bool is601) {
     if (height < 0) {
         height = -height;
         dst = dst + (height - 1) * dstStride;
         dstStride = -dstStride;
+    }
+    
+    // Get dynamic YUV-to-RGB coefficients based on is601 and isFullRange
+    int cy, cr, cgu, cgv, cb;
+    if (is601) {
+        if (isFullRange) {
+            cy = 76; cr = 102; cgu = 25; cgv = 52; cb = 129; // BT.601 FullRange
+        } else {
+            cy = 75; cr = 102; cgu = 25; cgv = 52; cb = 129; // BT.601 VideoRange  
+        }
+    } else {
+        if (isFullRange) {
+            cy = 76; cr = 111; cgu = 13; cgv = 34; cb = 135; // BT.709 FullRange
+        } else {
+            cy = 75; cr = 111; cgu = 13; cgv = 34; cb = 135; // BT.709 VideoRange
+        }
     }
 
     for (int y = 0; y < height; ++y) {
@@ -204,7 +253,8 @@ void nv12ToRgbaColor_neon_imp(const uint8_t* srcY, int srcYStride,
             uint8x16_t y_vals = vld1q_u8(yRow + x);
 
             // 2. Load 16 bytes UV (8 UV pairs for 16 pixels)
-            uint8x16_t uv_vals = vld1q_u8(uvRow + x);
+            // UV is 2:1 horizontally subsampled, so for 16 Y pixels we need 8 UV pairs
+            uint8x16_t uv_vals = vld1q_u8(uvRow + (x / 2) * 2);
 
             // 3. Deinterleave U and V (NV12 format: UVUVUV...)
             uint8x8x2_t uv_deint = vuzp_u8(vget_low_u8(uv_vals), vget_high_u8(uv_vals));
@@ -217,44 +267,45 @@ void nv12ToRgbaColor_neon_imp(const uint8_t* srcY, int srcYStride,
             uint8x16_t u_expanded = vcombine_u8(u_dup.val[0], u_dup.val[1]);
             uint8x16_t v_expanded = vcombine_u8(v_dup.val[0], v_dup.val[1]);
 
-            // 5. Convert to 16-bit and apply offsets
-            int16x8_t y_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(y_vals), vdup_n_u8(16)));
-            int16x8_t y_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(y_vals), vdup_n_u8(16)));
+            // 5. Convert to 16-bit and apply offsets (fixed for FullRange support)
+            uint8x8_t yOffset = vdup_n_u8(isFullRange ? 0 : 16);
+            int16x8_t y_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(y_vals), yOffset));
+            int16x8_t y_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(y_vals), yOffset));
             int16x8_t u_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(u_expanded), vdup_n_u8(128)));
             int16x8_t u_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(u_expanded), vdup_n_u8(128)));
             int16x8_t v_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(v_expanded), vdup_n_u8(128)));
             int16x8_t v_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(v_expanded), vdup_n_u8(128)));
 
-            // 6. BT.601 conversion constants (same as AVX2)
-            int16x8_t c74 = vdupq_n_s16(74);
-            int16x8_t c102 = vdupq_n_s16(102);
-            int16x8_t c25 = vdupq_n_s16(25);
-            int16x8_t c52 = vdupq_n_s16(52);
-            int16x8_t c129 = vdupq_n_s16(129);
+            // 6. Dynamic conversion coefficients matching AVX2 exactly
+            int16x8_t c_cy = vdupq_n_s16(cy);
+            int16x8_t c_cr = vdupq_n_s16(cr);
+            int16x8_t c_cgu = vdupq_n_s16(cgu);
+            int16x8_t c_cgv = vdupq_n_s16(cgv);
+            int16x8_t c_cb = vdupq_n_s16(cb);
             int16x8_t c32 = vdupq_n_s16(32);
 
-            // 7. Calculate R, G, B for low 8 pixels
-            int16x8_t y74_lo = vmulq_s16(y_lo, c74);
-            int16x8_t r_lo = vaddq_s16(y74_lo, vmulq_s16(v_lo, c102));
+            // 7. Calculate R, G, B for low 8 pixels using dynamic coefficients
+            int16x8_t ycy_lo = vmulq_s16(y_lo, c_cy);
+            int16x8_t r_lo = vaddq_s16(ycy_lo, vmulq_s16(v_lo, c_cr));
             r_lo = vshrq_n_s16(vaddq_s16(r_lo, c32), 6);
 
-            int16x8_t g_lo = vsubq_s16(y74_lo, vmulq_s16(u_lo, c25));
-            g_lo = vsubq_s16(g_lo, vmulq_s16(v_lo, c52));
+            int16x8_t g_lo = vsubq_s16(ycy_lo, vmulq_s16(u_lo, c_cgu));
+            g_lo = vsubq_s16(g_lo, vmulq_s16(v_lo, c_cgv));
             g_lo = vshrq_n_s16(vaddq_s16(g_lo, c32), 6);
 
-            int16x8_t b_lo = vaddq_s16(y74_lo, vmulq_s16(u_lo, c129));
+            int16x8_t b_lo = vaddq_s16(ycy_lo, vmulq_s16(u_lo, c_cb));
             b_lo = vshrq_n_s16(vaddq_s16(b_lo, c32), 6);
 
-            // 8. Calculate R, G, B for high 8 pixels
-            int16x8_t y74_hi = vmulq_s16(y_hi, c74);
-            int16x8_t r_hi = vaddq_s16(y74_hi, vmulq_s16(v_hi, c102));
+            // 8. Calculate R, G, B for high 8 pixels using dynamic coefficients
+            int16x8_t ycy_hi = vmulq_s16(y_hi, c_cy);
+            int16x8_t r_hi = vaddq_s16(ycy_hi, vmulq_s16(v_hi, c_cr));
             r_hi = vshrq_n_s16(vaddq_s16(r_hi, c32), 6);
 
-            int16x8_t g_hi = vsubq_s16(y74_hi, vmulq_s16(u_hi, c25));
-            g_hi = vsubq_s16(g_hi, vmulq_s16(v_hi, c52));
+            int16x8_t g_hi = vsubq_s16(ycy_hi, vmulq_s16(u_hi, c_cgu));
+            g_hi = vsubq_s16(g_hi, vmulq_s16(v_hi, c_cgv));
             g_hi = vshrq_n_s16(vaddq_s16(g_hi, c32), 6);
 
-            int16x8_t b_hi = vaddq_s16(y74_hi, vmulq_s16(u_hi, c129));
+            int16x8_t b_hi = vaddq_s16(ycy_hi, vmulq_s16(u_hi, c_cb));
             b_hi = vshrq_n_s16(vaddq_s16(b_hi, c32), 6);
 
             // 9. Clamp and convert back to 8-bit
@@ -288,16 +339,47 @@ void nv12ToRgbaColor_neon_imp(const uint8_t* srcY, int srcYStride,
             }
         }
 
-        // Process remaining pixels
+        // Process remaining pixels (scalar fallback)
         for (; x < width; x += 2) {
-            int y0 = yRow[x] - 16;
-            int y1 = (x + 1 < width) ? yRow[x + 1] - 16 : y0;
+            // Use coefficient-based conversion for remaining pixels
+            int cy, cr, cgu, cgv, cb;
+            if (is601) {
+                if (isFullRange) {
+                    cy = 76; cr = 102; cgu = 25; cgv = 52; cb = 129; // BT.601 Full Range
+                } else {
+                    cy = 75; cr = 102; cgu = 25; cgv = 52; cb = 129; // BT.601 Video Range
+                }
+            } else {
+                if (isFullRange) {
+                    cy = 76; cr = 115; cgu = 22; cgv = 46; cb = 115; // BT.709 Full Range
+                } else {
+                    cy = 75; cr = 115; cgu = 22; cgv = 46; cb = 115; // BT.709 Video Range
+                }
+            }
+            
+            int yOffset = isFullRange ? 0 : 16;
+            int y0 = yRow[x] - yOffset;
+            int y1 = (x + 1 < width) ? yRow[x + 1] - yOffset : y0;
             int u = uvRow[x] - 128;     // U at even positions
             int v = uvRow[x + 1] - 128; // V at odd positions
 
-            int r0, g0, b0, r1, g1, b1;
-            yuv2rgb601v(y0, u, v, r0, g0, b0);
-            yuv2rgb601v(y1, u, v, r1, g1, b1);
+            // Convert first pixel
+            int r0 = (cy * y0 + cr * v + 32) >> 6;
+            int g0 = (cy * y0 - cgu * u - cgv * v + 32) >> 6;
+            int b0 = (cy * y0 + cb * u + 32) >> 6;
+            
+            // Convert second pixel  
+            int r1 = (cy * y1 + cr * v + 32) >> 6;
+            int g1 = (cy * y1 - cgu * u - cgv * v + 32) >> 6;
+            int b1 = (cy * y1 + cb * u + 32) >> 6;
+            
+            // Clamp values
+            r0 = std::max(0, std::min(255, r0));
+            g0 = std::max(0, std::min(255, g0));
+            b0 = std::max(0, std::min(255, b0));
+            r1 = std::max(0, std::min(255, r1));
+            g1 = std::max(0, std::min(255, g1));
+            b1 = std::max(0, std::min(255, b1));
 
             if constexpr (isBGRA) {
                 dstRow[x * 4 + 0] = b0;
@@ -328,15 +410,31 @@ void nv12ToRgbaColor_neon_imp(const uint8_t* srcY, int srcYStride,
     }
 }
 
-template <bool isBGR>
+template <bool isBGR, bool isFullRange>
 void _nv12ToRgbColor_neon_imp(const uint8_t* srcY, int srcYStride,
                               const uint8_t* srcUV, int srcUVStride,
                               uint8_t* dst, int dstStride,
-                              int width, int height) {
+                              int width, int height, bool is601) {
     if (height < 0) {
         height = -height;
         dst = dst + (height - 1) * dstStride;
         dstStride = -dstStride;
+    }
+    
+    // Get dynamic YUV-to-RGB coefficients based on is601 and isFullRange
+    int cy, cr, cgu, cgv, cb;
+    if (is601) {
+        if (isFullRange) {
+            cy = 76; cr = 102; cgu = 25; cgv = 52; cb = 129; // BT.601 FullRange
+        } else {
+            cy = 75; cr = 102; cgu = 25; cgv = 52; cb = 129; // BT.601 VideoRange  
+        }
+    } else {
+        if (isFullRange) {
+            cy = 76; cr = 111; cgu = 13; cgv = 34; cb = 135; // BT.709 FullRange
+        } else {
+            cy = 75; cr = 111; cgu = 13; cgv = 34; cb = 135; // BT.709 VideoRange
+        }
     }
 
     for (int y = 0; y < height; ++y) {
@@ -351,8 +449,9 @@ void _nv12ToRgbColor_neon_imp(const uint8_t* srcY, int srcYStride,
             // 1. Load 16 Y values
             uint8x16_t y_vals = vld1q_u8(yRow + x);
 
-            // 2. Load 16 bytes UV (8 UV pairs for 16 pixels)
-            uint8x16_t uv_vals = vld1q_u8(uvRow + x);
+            // 2. Load 16 bytes UV (8 UV pairs for 16 pixels) - FIXED: UV is 2:1 horizontally subsampled  
+            // For 16 Y pixels at x, we need 8 UV pairs starting at uvRow + (x/2)*2
+            uint8x16_t uv_vals = vld1q_u8(uvRow + (x / 2) * 2);
 
             // 3. Deinterleave U and V (NV12 format: UVUVUV...)
             uint8x8x2_t uv_deint = vuzp_u8(vget_low_u8(uv_vals), vget_high_u8(uv_vals));
@@ -365,44 +464,45 @@ void _nv12ToRgbColor_neon_imp(const uint8_t* srcY, int srcYStride,
             uint8x16_t u_expanded = vcombine_u8(u_dup.val[0], u_dup.val[1]);
             uint8x16_t v_expanded = vcombine_u8(v_dup.val[0], v_dup.val[1]);
 
-            // 5. Convert to 16-bit and apply offsets
-            int16x8_t y_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(y_vals), vdup_n_u8(16)));
-            int16x8_t y_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(y_vals), vdup_n_u8(16)));
+            // 5. Convert to 16-bit and apply offsets (fixed for FullRange support)
+            uint8x8_t yOffset = vdup_n_u8(isFullRange ? 0 : 16);
+            int16x8_t y_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(y_vals), yOffset));
+            int16x8_t y_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(y_vals), yOffset));
             int16x8_t u_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(u_expanded), vdup_n_u8(128)));
             int16x8_t u_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(u_expanded), vdup_n_u8(128)));
             int16x8_t v_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(v_expanded), vdup_n_u8(128)));
             int16x8_t v_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(v_expanded), vdup_n_u8(128)));
 
-            // 6. BT.601 conversion constants (same as AVX2)
-            int16x8_t c74 = vdupq_n_s16(74);
-            int16x8_t c102 = vdupq_n_s16(102);
-            int16x8_t c25 = vdupq_n_s16(25);
-            int16x8_t c52 = vdupq_n_s16(52);
-            int16x8_t c129 = vdupq_n_s16(129);
+            // 6. Dynamic conversion coefficients matching AVX2 exactly
+            int16x8_t c_cy = vdupq_n_s16(cy);
+            int16x8_t c_cr = vdupq_n_s16(cr);
+            int16x8_t c_cgu = vdupq_n_s16(cgu);
+            int16x8_t c_cgv = vdupq_n_s16(cgv);
+            int16x8_t c_cb = vdupq_n_s16(cb);
             int16x8_t c32 = vdupq_n_s16(32);
 
-            // 7. Calculate R, G, B for low 8 pixels
-            int16x8_t y74_lo = vmulq_s16(y_lo, c74);
-            int16x8_t r_lo = vaddq_s16(y74_lo, vmulq_s16(v_lo, c102));
+            // 7. Calculate R, G, B for low 8 pixels using dynamic coefficients
+            int16x8_t ycy_lo = vmulq_s16(y_lo, c_cy);
+            int16x8_t r_lo = vaddq_s16(ycy_lo, vmulq_s16(v_lo, c_cr));
             r_lo = vshrq_n_s16(vaddq_s16(r_lo, c32), 6);
 
-            int16x8_t g_lo = vsubq_s16(y74_lo, vmulq_s16(u_lo, c25));
-            g_lo = vsubq_s16(g_lo, vmulq_s16(v_lo, c52));
+            int16x8_t g_lo = vsubq_s16(ycy_lo, vmulq_s16(u_lo, c_cgu));
+            g_lo = vsubq_s16(g_lo, vmulq_s16(v_lo, c_cgv));
             g_lo = vshrq_n_s16(vaddq_s16(g_lo, c32), 6);
 
-            int16x8_t b_lo = vaddq_s16(y74_lo, vmulq_s16(u_lo, c129));
+            int16x8_t b_lo = vaddq_s16(ycy_lo, vmulq_s16(u_lo, c_cb));
             b_lo = vshrq_n_s16(vaddq_s16(b_lo, c32), 6);
 
-            // 8. Calculate R, G, B for high 8 pixels
-            int16x8_t y74_hi = vmulq_s16(y_hi, c74);
-            int16x8_t r_hi = vaddq_s16(y74_hi, vmulq_s16(v_hi, c102));
+            // 8. Calculate R, G, B for high 8 pixels using dynamic coefficients
+            int16x8_t ycy_hi = vmulq_s16(y_hi, c_cy);
+            int16x8_t r_hi = vaddq_s16(ycy_hi, vmulq_s16(v_hi, c_cr));
             r_hi = vshrq_n_s16(vaddq_s16(r_hi, c32), 6);
 
-            int16x8_t g_hi = vsubq_s16(y74_hi, vmulq_s16(u_hi, c25));
-            g_hi = vsubq_s16(g_hi, vmulq_s16(v_hi, c52));
+            int16x8_t g_hi = vsubq_s16(ycy_hi, vmulq_s16(u_hi, c_cgu));
+            g_hi = vsubq_s16(g_hi, vmulq_s16(v_hi, c_cgv));
             g_hi = vshrq_n_s16(vaddq_s16(g_hi, c32), 6);
 
-            int16x8_t b_hi = vaddq_s16(y74_hi, vmulq_s16(u_hi, c129));
+            int16x8_t b_hi = vaddq_s16(ycy_hi, vmulq_s16(u_hi, c_cb));
             b_hi = vshrq_n_s16(vaddq_s16(b_hi, c32), 6);
 
             // 9. Clamp and convert back to 8-bit
@@ -437,16 +537,47 @@ void _nv12ToRgbColor_neon_imp(const uint8_t* srcY, int srcYStride,
             }
         }
 
-        // Process remaining pixels
+        // Process remaining pixels (scalar fallback)
         for (; x < width; x += 2) {
-            int y0 = yRow[x] - 16;
-            int y1 = (x + 1 < width) ? yRow[x + 1] - 16 : y0;
-            int u = uvRow[x] - 128;     // U at even positions
-            int v = uvRow[x + 1] - 128; // V at odd positions
+            // Use coefficient-based conversion for remaining pixels
+            int cy, cr, cgu, cgv, cb;
+            if (is601) {
+                if (isFullRange) {
+                    cy = 76; cr = 102; cgu = 25; cgv = 52; cb = 129; // BT.601 Full Range
+                } else {
+                    cy = 75; cr = 102; cgu = 25; cgv = 52; cb = 129; // BT.601 Video Range
+                }
+            } else {
+                if (isFullRange) {
+                    cy = 76; cr = 115; cgu = 22; cgv = 46; cb = 115; // BT.709 Full Range
+                } else {
+                    cy = 75; cr = 115; cgu = 22; cgv = 46; cb = 115; // BT.709 Video Range
+                }
+            }
+            
+            int yOffset = isFullRange ? 0 : 16;
+            int y0 = yRow[x] - yOffset;
+            int y1 = (x + 1 < width) ? yRow[x + 1] - yOffset : y0;
+            int u = uvRow[(x / 2) * 2] - 128;     // U at even positions
+            int v = uvRow[(x / 2) * 2 + 1] - 128; // V at odd positions
 
-            int r0, g0, b0, r1, g1, b1;
-            yuv2rgb601v(y0, u, v, r0, g0, b0);
-            yuv2rgb601v(y1, u, v, r1, g1, b1);
+            // Convert first pixel
+            int r0 = (cy * y0 + cr * v + 32) >> 6;
+            int g0 = (cy * y0 - cgu * u - cgv * v + 32) >> 6;
+            int b0 = (cy * y0 + cb * u + 32) >> 6;
+            
+            // Convert second pixel  
+            int r1 = (cy * y1 + cr * v + 32) >> 6;
+            int g1 = (cy * y1 - cgu * u - cgv * v + 32) >> 6;
+            int b1 = (cy * y1 + cb * u + 32) >> 6;
+            
+            // Clamp values
+            r0 = std::max(0, std::min(255, r0));
+            g0 = std::max(0, std::min(255, g0));
+            b0 = std::max(0, std::min(255, b0));
+            r1 = std::max(0, std::min(255, r1));
+            g1 = std::max(0, std::min(255, g1));
+            b1 = std::max(0, std::min(255, b1));
 
             if constexpr (isBGR) {
                 dstRow[x * 3 + 0] = b0;
@@ -473,17 +604,45 @@ void _nv12ToRgbColor_neon_imp(const uint8_t* srcY, int srcYStride,
     }
 }
 
-template <bool isBGRA>
+template <bool isBGRA, bool isFullRange>
 void _i420ToRgba_neon_imp(const uint8_t* srcY, int srcYStride,
                           const uint8_t* srcU, int srcUStride,
                           const uint8_t* srcV, int srcVStride,
                           uint8_t* dst, int dstStride,
-                          int width, int height) {
+                          int width, int height, bool is601) {
     if (height < 0) {
         height = -height;
         dst = dst + (height - 1) * dstStride;
         dstStride = -dstStride;
     }
+
+    // Select coefficients based on flags
+    int cy, cr, cgu, cgv, cb;
+    if (is601) {
+        if (isFullRange) {
+            cy = 76; cr = 102; cgu = 25; cgv = 52; cb = 129; // BT.601 FullRange
+        } else {
+            cy = 75; cr = 102; cgu = 25; cgv = 52; cb = 129; // BT.601 VideoRange  
+        }
+    } else {
+        if (isFullRange) {
+            cy = 76; cr = 111; cgu = 13; cgv = 34; cb = 135; // BT.709 FullRange
+        } else {
+            cy = 75; cr = 111; cgu = 13; cgv = 34; cb = 135; // BT.709 VideoRange
+        }
+    }
+
+    // Load conversion coefficients into NEON registers
+    int16x8_t c_y = vdupq_n_s16(cy);
+    int16x8_t c_r = vdupq_n_s16(cr);
+    int16x8_t c_gu = vdupq_n_s16(cgu);
+    int16x8_t c_gv = vdupq_n_s16(cgv);
+    int16x8_t c_b = vdupq_n_s16(cb);
+
+    uint8x8_t c128 = vdup_n_u8(128);
+    uint8x8_t yOffset = vdup_n_u8(isFullRange ? 0 : 16);
+
+
 
     for (int y = 0; y < height; ++y) {
         const uint8_t* yRow = srcY + y * srcYStride;
@@ -495,60 +654,49 @@ void _i420ToRgba_neon_imp(const uint8_t* srcY, int srcYStride,
 
         // Process 16 pixels at a time using NEON
         for (; x + 16 <= width; x += 16) {
-            // 1. Load 16 Y values
+            // Load and process Y, U, V data
             uint8x16_t y_vals = vld1q_u8(yRow + x);
-
-            // 2. Load 8 U and 8 V values
             uint8x8_t u_vals = vld1_u8(uRow + x / 2);
             uint8x8_t v_vals = vld1_u8(vRow + x / 2);
 
-            // 3. Duplicate each U and V value for 2 pixels
+            // Duplicate each U and V value for 2 pixels
             uint8x8x2_t u_dup = vzip_u8(u_vals, u_vals);
             uint8x8x2_t v_dup = vzip_u8(v_vals, v_vals);
             uint8x16_t u_expanded = vcombine_u8(u_dup.val[0], u_dup.val[1]);
             uint8x16_t v_expanded = vcombine_u8(v_dup.val[0], v_dup.val[1]);
 
-            // 4. Convert to 16-bit and apply offsets
-            int16x8_t y_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(y_vals), vdup_n_u8(16)));
-            int16x8_t y_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(y_vals), vdup_n_u8(16)));
-            int16x8_t u_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(u_expanded), vdup_n_u8(128)));
-            int16x8_t u_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(u_expanded), vdup_n_u8(128)));
-            int16x8_t v_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(v_expanded), vdup_n_u8(128)));
-            int16x8_t v_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(v_expanded), vdup_n_u8(128)));
+            // Convert to 16-bit and apply offsets
+            int16x8_t y_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(y_vals), yOffset));
+            int16x8_t y_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(y_vals), yOffset));
+            int16x8_t u_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(u_expanded), c128));
+            int16x8_t u_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(u_expanded), c128));
+            int16x8_t v_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(v_expanded), c128));
+            int16x8_t v_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(v_expanded), c128));
 
-            // 5. BT.601 conversion constants (same as AVX2)
-            int16x8_t c74 = vdupq_n_s16(74);
-            int16x8_t c102 = vdupq_n_s16(102);
-            int16x8_t c25 = vdupq_n_s16(25);
-            int16x8_t c52 = vdupq_n_s16(52);
-            int16x8_t c129 = vdupq_n_s16(129);
-            int16x8_t c32 = vdupq_n_s16(32);
+            // YUV to RGB conversion
+            int16x8_t y_scaled_lo = vmulq_s16(y_lo, c_y);
+            int16x8_t r_lo = vaddq_s16(y_scaled_lo, vmulq_s16(v_lo, c_r));
+            r_lo = vshrq_n_s16(vaddq_s16(r_lo, vdupq_n_s16(32)), 6);
 
-            // 6. Calculate R, G, B for low 8 pixels
-            int16x8_t y74_lo = vmulq_s16(y_lo, c74);
-            int16x8_t r_lo = vaddq_s16(y74_lo, vmulq_s16(v_lo, c102));
-            r_lo = vshrq_n_s16(vaddq_s16(r_lo, c32), 6);
+            int16x8_t g_lo = vsubq_s16(y_scaled_lo, vmulq_s16(u_lo, c_gu));
+            g_lo = vsubq_s16(g_lo, vmulq_s16(v_lo, c_gv));
+            g_lo = vshrq_n_s16(vaddq_s16(g_lo, vdupq_n_s16(32)), 6);
 
-            int16x8_t g_lo = vsubq_s16(y74_lo, vmulq_s16(u_lo, c25));
-            g_lo = vsubq_s16(g_lo, vmulq_s16(v_lo, c52));
-            g_lo = vshrq_n_s16(vaddq_s16(g_lo, c32), 6);
+            int16x8_t b_lo = vaddq_s16(y_scaled_lo, vmulq_s16(u_lo, c_b));
+            b_lo = vshrq_n_s16(vaddq_s16(b_lo, vdupq_n_s16(32)), 6);
 
-            int16x8_t b_lo = vaddq_s16(y74_lo, vmulq_s16(u_lo, c129));
-            b_lo = vshrq_n_s16(vaddq_s16(b_lo, c32), 6);
+            int16x8_t y_scaled_hi = vmulq_s16(y_hi, c_y);
+            int16x8_t r_hi = vaddq_s16(y_scaled_hi, vmulq_s16(v_hi, c_r));
+            r_hi = vshrq_n_s16(vaddq_s16(r_hi, vdupq_n_s16(32)), 6);
 
-            // 7. Calculate R, G, B for high 8 pixels
-            int16x8_t y74_hi = vmulq_s16(y_hi, c74);
-            int16x8_t r_hi = vaddq_s16(y74_hi, vmulq_s16(v_hi, c102));
-            r_hi = vshrq_n_s16(vaddq_s16(r_hi, c32), 6);
+            int16x8_t g_hi = vsubq_s16(y_scaled_hi, vmulq_s16(u_hi, c_gu));
+            g_hi = vsubq_s16(g_hi, vmulq_s16(v_hi, c_gv));
+            g_hi = vshrq_n_s16(vaddq_s16(g_hi, vdupq_n_s16(32)), 6);
 
-            int16x8_t g_hi = vsubq_s16(y74_hi, vmulq_s16(u_hi, c25));
-            g_hi = vsubq_s16(g_hi, vmulq_s16(v_hi, c52));
-            g_hi = vshrq_n_s16(vaddq_s16(g_hi, c32), 6);
+            int16x8_t b_hi = vaddq_s16(y_scaled_hi, vmulq_s16(u_hi, c_b));
+            b_hi = vshrq_n_s16(vaddq_s16(b_hi, vdupq_n_s16(32)), 6);
 
-            int16x8_t b_hi = vaddq_s16(y74_hi, vmulq_s16(u_hi, c129));
-            b_hi = vshrq_n_s16(vaddq_s16(b_hi, c32), 6);
-
-            // 8. Clamp and convert back to 8-bit
+            // Clamp and convert back to 8-bit
             uint8x8_t r8_lo = vqmovun_s16(r_lo);
             uint8x8_t g8_lo = vqmovun_s16(g_lo);
             uint8x8_t b8_lo = vqmovun_s16(b_lo);
@@ -561,70 +709,60 @@ void _i420ToRgba_neon_imp(const uint8_t* srcY, int srcYStride,
             uint8x16_t b8 = vcombine_u8(b8_lo, b8_hi);
             uint8x16_t a8 = vdupq_n_u8(255);
 
-            // 9. Interleave and store RGBA/BGRA
+            // Interleave and store RGBA data
+            uint8x16x4_t rgba;
             if constexpr (isBGRA) {
-                uint8x16x4_t bgra;
-                bgra.val[0] = b8;
-                bgra.val[1] = g8;
-                bgra.val[2] = r8;
-                bgra.val[3] = a8;
-                vst4q_u8(dstRow + x * 4, bgra);
+                rgba.val[0] = b8;
+                rgba.val[1] = g8;
+                rgba.val[2] = r8;
+                rgba.val[3] = a8;
             } else {
-                uint8x16x4_t rgba;
                 rgba.val[0] = r8;
                 rgba.val[1] = g8;
                 rgba.val[2] = b8;
                 rgba.val[3] = a8;
-                vst4q_u8(dstRow + x * 4, rgba);
             }
+
+            vst4q_u8(dstRow + x * 4, rgba);
         }
 
-        // Process remaining pixels
-        for (; x < width; x += 2) {
-            int y0 = yRow[x] - 16;
-            int y1 = (x + 1 < width) ? yRow[x + 1] - 16 : y0;
-            int u = uRow[x / 2] - 128;
-            int v = vRow[x / 2] - 128;
+        // Process remaining pixels with scalar fallback
+        for (; x < width; x++) {
+            int y_val = yRow[x] - (isFullRange ? 0 : 16);
+            int u_val = uRow[x / 2] - 128;
+            int v_val = vRow[x / 2] - 128;
 
-            int r0, g0, b0, r1, g1, b1;
-            yuv2rgb601v(y0, u, v, r0, g0, b0);
-            yuv2rgb601v(y1, u, v, r1, g1, b1);
+            int r, g, b;
+            // Manual YUV to RGB conversion using coefficients
+            int r_temp = (cy * y_val + cr * v_val + 32) >> 6;
+            int g_temp = (cy * y_val - cgu * u_val - cgv * v_val + 32) >> 6;
+            int b_temp = (cy * y_val + cb * u_val + 32) >> 6;
+            
+            r = std::max(0, std::min(255, r_temp));
+            g = std::max(0, std::min(255, g_temp));
+            b = std::max(0, std::min(255, b_temp));
 
             if constexpr (isBGRA) {
-                dstRow[x * 4 + 0] = b0;
-                dstRow[x * 4 + 1] = g0;
-                dstRow[x * 4 + 2] = r0;
+                dstRow[x * 4 + 0] = b;
+                dstRow[x * 4 + 1] = g;
+                dstRow[x * 4 + 2] = r;
                 dstRow[x * 4 + 3] = 255;
-
-                if (x + 1 < width) {
-                    dstRow[(x + 1) * 4 + 0] = b1;
-                    dstRow[(x + 1) * 4 + 1] = g1;
-                    dstRow[(x + 1) * 4 + 2] = r1;
-                    dstRow[(x + 1) * 4 + 3] = 255;
-                }
             } else {
-                dstRow[x * 4 + 0] = r0;
-                dstRow[x * 4 + 1] = g0;
-                dstRow[x * 4 + 2] = b0;
+                dstRow[x * 4 + 0] = r;
+                dstRow[x * 4 + 1] = g;
+                dstRow[x * 4 + 2] = b;
                 dstRow[x * 4 + 3] = 255;
-
-                if (x + 1 < width) {
-                    dstRow[(x + 1) * 4 + 0] = r1;
-                    dstRow[(x + 1) * 4 + 1] = g1;
-                    dstRow[(x + 1) * 4 + 2] = b1;
-                    dstRow[(x + 1) * 4 + 3] = 255;
-                }
             }
         }
     }
 }
 
-template <bool isBGR>
+template <bool isBGR, bool isFullRange>
 void _i420ToRgb_neon_imp(const uint8_t* srcY, int srcYStride,
                          const uint8_t* srcU, int srcUStride,
                          const uint8_t* srcV, int srcVStride,
                          uint8_t* dst, int dstStride,
-                         int width, int height) {
+                         int width, int height, bool is601) {
     if (height < 0) {
         height = -height;
         dst = dst + (height - 1) * dstStride;
@@ -654,45 +792,61 @@ void _i420ToRgb_neon_imp(const uint8_t* srcY, int srcYStride,
             uint8x16_t u_expanded = vcombine_u8(u_dup.val[0], u_dup.val[1]);
             uint8x16_t v_expanded = vcombine_u8(v_dup.val[0], v_dup.val[1]);
 
-            // 4. Convert to 16-bit and apply offsets
-            int16x8_t y_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(y_vals), vdup_n_u8(16)));
-            int16x8_t y_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(y_vals), vdup_n_u8(16)));
+            // 5. Use dynamic coefficients instead of hardcoded ones
+            // Select coefficients based on flags
+            int cy, cr, cgu, cgv, cb;
+            if (is601) {
+                if (isFullRange) {
+                    cy = 76; cr = 102; cgu = 25; cgv = 52; cb = 129; // BT.601 Full Range
+                } else {
+                    cy = 75; cr = 102; cgu = 25; cgv = 52; cb = 129; // BT.601 Video Range
+                }
+            } else {
+                if (isFullRange) {
+                    cy = 76; cr = 115; cgu = 22; cgv = 46; cb = 115; // BT.709 Full Range
+                } else {
+                    cy = 75; cr = 115; cgu = 22; cgv = 46; cb = 115; // BT.709 Video Range
+                }
+            }
+
+            // Load conversion coefficients into NEON registers
+            int16x8_t c_y = vdupq_n_s16(cy);
+            int16x8_t c_r = vdupq_n_s16(cr);
+            int16x8_t c_gu = vdupq_n_s16(cgu);
+            int16x8_t c_gv = vdupq_n_s16(cgv);
+            int16x8_t c_b = vdupq_n_s16(cb);
+
+            uint8x8_t yOffset = vdup_n_u8(isFullRange ? 0 : 16);
+            int16x8_t y_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(y_vals), yOffset));
+            int16x8_t y_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(y_vals), yOffset));
             int16x8_t u_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(u_expanded), vdup_n_u8(128)));
             int16x8_t u_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(u_expanded), vdup_n_u8(128)));
             int16x8_t v_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(v_expanded), vdup_n_u8(128)));
             int16x8_t v_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(v_expanded), vdup_n_u8(128)));
 
-            // 5. BT.601 conversion constants (same as AVX2)
-            int16x8_t c74 = vdupq_n_s16(74);
-            int16x8_t c102 = vdupq_n_s16(102);
-            int16x8_t c25 = vdupq_n_s16(25);
-            int16x8_t c52 = vdupq_n_s16(52);
-            int16x8_t c129 = vdupq_n_s16(129);
-            int16x8_t c32 = vdupq_n_s16(32);
+            // 6. Calculate R, G, B for low 8 pixels using dynamic coefficients
+            int16x8_t y_scaled_lo = vmulq_s16(y_lo, c_y);
+            int16x8_t r_lo = vaddq_s16(y_scaled_lo, vmulq_s16(v_lo, c_r));
+            r_lo = vshrq_n_s16(vaddq_s16(r_lo, vdupq_n_s16(32)), 6);
 
-            // 6. Calculate R, G, B for low 8 pixels
-            int16x8_t y74_lo = vmulq_s16(y_lo, c74);
-            int16x8_t r_lo = vaddq_s16(y74_lo, vmulq_s16(v_lo, c102));
-            r_lo = vshrq_n_s16(vaddq_s16(r_lo, c32), 6);
+            int16x8_t g_lo = vsubq_s16(y_scaled_lo, vmulq_s16(u_lo, c_gu));
+            g_lo = vsubq_s16(g_lo, vmulq_s16(v_lo, c_gv));
+            g_lo = vshrq_n_s16(vaddq_s16(g_lo, vdupq_n_s16(32)), 6);
 
-            int16x8_t g_lo = vsubq_s16(y74_lo, vmulq_s16(u_lo, c25));
-            g_lo = vsubq_s16(g_lo, vmulq_s16(v_lo, c52));
-            g_lo = vshrq_n_s16(vaddq_s16(g_lo, c32), 6);
+            int16x8_t b_lo = vaddq_s16(y_scaled_lo, vmulq_s16(u_lo, c_b));
+            b_lo = vshrq_n_s16(vaddq_s16(b_lo, vdupq_n_s16(32)), 6);
 
-            int16x8_t b_lo = vaddq_s16(y74_lo, vmulq_s16(u_lo, c129));
-            b_lo = vshrq_n_s16(vaddq_s16(b_lo, c32), 6);
+            // 7. Calculate R, G, B for high 8 pixels using dynamic coefficients
+            int16x8_t y_scaled_hi = vmulq_s16(y_hi, c_y);
+            int16x8_t r_hi = vaddq_s16(y_scaled_hi, vmulq_s16(v_hi, c_r));
+            r_hi = vshrq_n_s16(vaddq_s16(r_hi, vdupq_n_s16(32)), 6);
 
-            // 7. Calculate R, G, B for high 8 pixels
-            int16x8_t y74_hi = vmulq_s16(y_hi, c74);
-            int16x8_t r_hi = vaddq_s16(y74_hi, vmulq_s16(v_hi, c102));
-            r_hi = vshrq_n_s16(vaddq_s16(r_hi, c32), 6);
+            int16x8_t g_hi = vsubq_s16(y_scaled_hi, vmulq_s16(u_hi, c_gu));
+            g_hi = vsubq_s16(g_hi, vmulq_s16(v_hi, c_gv));
+            g_hi = vshrq_n_s16(vaddq_s16(g_hi, vdupq_n_s16(32)), 6);
 
-            int16x8_t g_hi = vsubq_s16(y74_hi, vmulq_s16(u_hi, c25));
-            g_hi = vsubq_s16(g_hi, vmulq_s16(v_hi, c52));
-            g_hi = vshrq_n_s16(vaddq_s16(g_hi, c32), 6);
-
-            int16x8_t b_hi = vaddq_s16(y74_hi, vmulq_s16(u_hi, c129));
-            b_hi = vshrq_n_s16(vaddq_s16(b_hi, c32), 6);
+            int16x8_t b_hi = vaddq_s16(y_scaled_hi, vmulq_s16(u_hi, c_b));
+            b_hi = vshrq_n_s16(vaddq_s16(b_hi, vdupq_n_s16(32)), 6);
 
             // 8. Clamp and convert back to 8-bit
             uint8x8_t r8_lo = vqmovun_s16(r_lo);
@@ -726,37 +880,45 @@ void _i420ToRgb_neon_imp(const uint8_t* srcY, int srcYStride,
             }
         }
 
-        // Process remaining pixels
-        for (; x < width; x += 2) {
-            int y0 = yRow[x] - 16;
-            int y1 = (x + 1 < width) ? yRow[x + 1] - 16 : y0;
-            int u = uRow[x / 2] - 128;
-            int v = vRow[x / 2] - 128;
+        // Process remaining pixels with scalar fallback
+        // Get YUV-to-RGB coefficients
+        int cy, cr, cgu, cgv, cb;
+        if (is601) {
+            if (isFullRange) {
+                cy = 76; cr = 102; cgu = 25; cgv = 52; cb = 129; // BT.601 Full Range
+            } else {
+                cy = 75; cr = 102; cgu = 25; cgv = 52; cb = 129; // BT.601 Video Range
+            }
+        } else {
+            if (isFullRange) {
+                cy = 76; cr = 115; cgu = 22; cgv = 46; cb = 115; // BT.709 Full Range
+            } else {
+                cy = 75; cr = 115; cgu = 22; cgv = 46; cb = 115; // BT.709 Video Range
+            }
+        }
+        for (; x < width; x++) {
+            int y_val = yRow[x] - (isFullRange ? 0 : 16);
+            int u_val = uRow[x / 2] - 128;
+            int v_val = vRow[x / 2] - 128;
 
-            int r0, g0, b0, r1, g1, b1;
-            yuv2rgb601v(y0, u, v, r0, g0, b0);
-            yuv2rgb601v(y1, u, v, r1, g1, b1);
+            int r, g, b;
+            // Manual YUV to RGB conversion using coefficients
+            int r_temp = (cy * y_val + cr * v_val + 32) >> 6;
+            int g_temp = (cy * y_val - cgu * u_val - cgv * v_val + 32) >> 6;
+            int b_temp = (cy * y_val + cb * u_val + 32) >> 6;
+            
+            r = std::max(0, std::min(255, r_temp));
+            g = std::max(0, std::min(255, g_temp));
+            b = std::max(0, std::min(255, b_temp));
 
             if constexpr (isBGR) {
-                dstRow[x * 3 + 0] = b0;
-                dstRow[x * 3 + 1] = g0;
-                dstRow[x * 3 + 2] = r0;
-
-                if (x + 1 < width) {
-                    dstRow[(x + 1) * 3 + 0] = b1;
-                    dstRow[(x + 1) * 3 + 1] = g1;
-                    dstRow[(x + 1) * 3 + 2] = r1;
-                }
+                dstRow[x * 3 + 0] = b;
+                dstRow[x * 3 + 1] = g;
+                dstRow[x * 3 + 2] = r;
             } else {
-                dstRow[x * 3 + 0] = r0;
-                dstRow[x * 3 + 1] = g0;
-                dstRow[x * 3 + 2] = b0;
-
-                if (x + 1 < width) {
-                    dstRow[(x + 1) * 3 + 0] = r1;
-                    dstRow[(x + 1) * 3 + 1] = g1;
-                    dstRow[(x + 1) * 3 + 2] = b1;
-                }
+                dstRow[x * 3 + 0] = r;
+                dstRow[x * 3 + 1] = g;
+                dstRow[x * 3 + 2] = b;
             }
         }
     }
@@ -767,28 +929,56 @@ void nv12ToBgra32_neon(const uint8_t* srcY, int srcYStride,
                        const uint8_t* srcUV, int srcUVStride,
                        uint8_t* dst, int dstStride,
                        int width, int height, ConvertFlag flag) {
-    nv12ToRgbaColor_neon_imp<true>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height);
+    bool is601 = !(flag & ConvertFlag::BT709);
+    bool isFullRange = (flag & ConvertFlag::FullRange);
+    
+    if (isFullRange) {
+        nv12ToRgbaColor_neon_imp<true, true>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, is601);
+    } else {
+        nv12ToRgbaColor_neon_imp<true, false>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, is601);
+    }
 }
 
 void nv12ToRgba32_neon(const uint8_t* srcY, int srcYStride,
                        const uint8_t* srcUV, int srcUVStride,
                        uint8_t* dst, int dstStride,
                        int width, int height, ConvertFlag flag) {
-    nv12ToRgbaColor_neon_imp<false>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height);
+    bool is601 = !(flag & ConvertFlag::BT709);
+    bool isFullRange = (flag & ConvertFlag::FullRange);
+    
+    if (isFullRange) {
+        nv12ToRgbaColor_neon_imp<false, true>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, is601);
+    } else {
+        nv12ToRgbaColor_neon_imp<false, false>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, is601);
+    }
 }
 
 void nv12ToBgr24_neon(const uint8_t* srcY, int srcYStride,
                       const uint8_t* srcUV, int srcUVStride,
                       uint8_t* dst, int dstStride,
                       int width, int height, ConvertFlag flag) {
-    _nv12ToRgbColor_neon_imp<true>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height);
+    bool is601 = !(flag & ConvertFlag::BT709);
+    bool isFullRange = (flag & ConvertFlag::FullRange);
+    
+    if (isFullRange) {
+        _nv12ToRgbColor_neon_imp<true, true>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, is601);
+    } else {
+        _nv12ToRgbColor_neon_imp<true, false>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, is601);
+    }
 }
 
 void nv12ToRgb24_neon(const uint8_t* srcY, int srcYStride,
                       const uint8_t* srcUV, int srcUVStride,
                       uint8_t* dst, int dstStride,
                       int width, int height, ConvertFlag flag) {
-    _nv12ToRgbColor_neon_imp<false>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height);
+    bool is601 = !(flag & ConvertFlag::BT709);
+    bool isFullRange = (flag & ConvertFlag::FullRange);
+    
+    if (isFullRange) {
+        _nv12ToRgbColor_neon_imp<false, true>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, is601);
+    } else {
+        _nv12ToRgbColor_neon_imp<false, false>(srcY, srcYStride, srcUV, srcUVStride, dst, dstStride, width, height, is601);
+    }
 }
 
 void i420ToBgra32_neon(const uint8_t* srcY, int srcYStride,
@@ -796,7 +986,14 @@ void i420ToBgra32_neon(const uint8_t* srcY, int srcYStride,
                        const uint8_t* srcV, int srcVStride,
                        uint8_t* dst, int dstStride,
                        int width, int height, ConvertFlag flag) {
-    _i420ToRgba_neon_imp<true>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height);
+    bool is601 = !(flag & ConvertFlag::BT709);
+    bool isFullRange = (flag & ConvertFlag::FullRange);
+    
+    if (isFullRange) {
+        _i420ToRgba_neon_imp<true, true>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, is601);
+    } else {
+        _i420ToRgba_neon_imp<true, false>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, is601);
+    }
 }
 
 void i420ToRgba32_neon(const uint8_t* srcY, int srcYStride,
@@ -804,7 +1001,14 @@ void i420ToRgba32_neon(const uint8_t* srcY, int srcYStride,
                        const uint8_t* srcV, int srcVStride,
                        uint8_t* dst, int dstStride,
                        int width, int height, ConvertFlag flag) {
-    _i420ToRgba_neon_imp<false>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height);
+    bool is601 = !(flag & ConvertFlag::BT709);
+    bool isFullRange = (flag & ConvertFlag::FullRange);
+    
+    if (isFullRange) {
+        _i420ToRgba_neon_imp<false, true>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, is601);
+    } else {
+        _i420ToRgba_neon_imp<false, false>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, is601);
+    }
 }
 
 void i420ToBgr24_neon(const uint8_t* srcY, int srcYStride,
@@ -812,7 +1016,14 @@ void i420ToBgr24_neon(const uint8_t* srcY, int srcYStride,
                       const uint8_t* srcV, int srcVStride,
                       uint8_t* dst, int dstStride,
                       int width, int height, ConvertFlag flag) {
-    _i420ToRgb_neon_imp<true>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height);
+    bool is601 = !(flag & ConvertFlag::BT709);
+    bool isFullRange = (flag & ConvertFlag::FullRange);
+    
+    if (isFullRange) {
+        _i420ToRgb_neon_imp<true, true>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, is601);
+    } else {
+        _i420ToRgb_neon_imp<true, false>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, is601);
+    }
 }
 
 void i420ToRgb24_neon(const uint8_t* srcY, int srcYStride,
@@ -820,7 +1031,14 @@ void i420ToRgb24_neon(const uint8_t* srcY, int srcYStride,
                       const uint8_t* srcV, int srcVStride,
                       uint8_t* dst, int dstStride,
                       int width, int height, ConvertFlag flag) {
-    _i420ToRgb_neon_imp<false>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height);
+    bool is601 = !(flag & ConvertFlag::BT709);
+    bool isFullRange = (flag & ConvertFlag::FullRange);
+    
+    if (isFullRange) {
+        _i420ToRgb_neon_imp<false, true>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, is601);
+    } else {
+        _i420ToRgb_neon_imp<false, false>(srcY, srcYStride, srcU, srcUStride, srcV, srcVStride, dst, dstStride, width, height, is601);
+    }
 }
 
 ///////////// YUYV/UYVY to RGB conversion functions /////////////
