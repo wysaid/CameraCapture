@@ -13,6 +13,7 @@
 #   ./run_tests.sh --functional       # Run only functional tests
 #   ./run_tests.sh --performance      # Run only performance tests
 #   ./run_tests.sh --avx2             # Run only AVX2 performance tests
+#   ./run_tests.sh --shuffle          # Run only tests with names containing 'shuffle' (case-insensitive) in functional tests
 #   ./run_tests.sh --help             # Show help
 
 set -e # Exit on any error
@@ -68,6 +69,7 @@ SKIP_BUILD=false
 EXIT_WHEN_FAILED=false
 GTEST_FAIL_FAST_PARAM=""
 FILTER=""
+SHUFFLE_ONLY=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -87,6 +89,13 @@ while [[ $# -gt 0 ]]; do
         FILTER="--gtest_filter=*AVX2*"
         shift
         ;;
+    --shuffle)
+        # Functional only, and later restrict to tests containing 'shuffle' (case-insensitive)
+        RUN_FUNCTIONAL=true
+        RUN_PERFORMANCE=false
+        SHUFFLE_ONLY=true
+        shift
+        ;;
     --skip-build)
         SKIP_BUILD=true
         shift
@@ -104,6 +113,7 @@ while [[ $# -gt 0 ]]; do
         echo "  $0 --functional       # Run only functional tests (Debug mode)"
         echo "  $0 --performance      # Run only performance tests (Release mode)"
         echo "  $0 --avx2             # Run only AVX2 performance tests (Release mode)"
+        echo "  $0 --shuffle          # Run only tests whose names contain '*shuffle*' or '*Shuffle*' in functional tests"
         echo "  $0 --skip-build       # Skip build step, run tests only"
         echo "  $0 --exit-when-failed # Stop at first test failure (gtest fail fast mode)"
         echo "  $0 --help             # Show this help"
@@ -253,7 +263,12 @@ if [ "$RUN_FUNCTIONAL" = true ]; then
     if [ -f "$TEST_EXECUTABLE" ]; then
         echo -e "${YELLOW}Running functional tests in Debug mode...${NC}"
 
-        "$TEST_EXECUTABLE" $GTEST_FAIL_FAST_PARAM --gtest_output=xml:build/test_results_debug.xml
+        if [ "$SHUFFLE_ONLY" = true ]; then
+            echo -e "${BLUE}Filtering tests to names containing '*shuffle*' or '*Shuffle*'...${NC}"
+            "$TEST_EXECUTABLE" --gtest_filter='*shuffle*:*Shuffle*' $GTEST_FAIL_FAST_PARAM --gtest_output=xml:build/test_results_debug.xml
+        else
+            "$TEST_EXECUTABLE" $GTEST_FAIL_FAST_PARAM --gtest_output=xml:build/test_results_debug.xml
+        fi
 
         TEST_RESULT=$?
 
