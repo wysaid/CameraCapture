@@ -93,8 +93,8 @@ jobs:
   build-ubuntu-clang:
     name: "Build (${{ matrix.build_type }}-clang)"
     runs-on: ubuntu-latest
-    # Only run clang builds on push to main branch
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  # Run clang builds on push to main and on pull requests
+  if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     
     strategy:
       matrix:
@@ -193,15 +193,15 @@ jobs:
       run: |
         cmake --build build/arm64/${{ matrix.build_type }} --config ${{ matrix.build_type }} --target ccap_convert_test --parallel $(nproc)
 
-    - name: Install QEMU for ARM64 test emulation (main branch, Release only)
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.build_type == 'Release'
+    - name: Install QEMU for ARM64 test emulation (PRs and main push, Release only)
+      if: (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && matrix.build_type == 'Release'
       run: |
         sudo apt-get update
         sudo apt-get install -y qemu-user qemu-user-static
         qemu-aarch64 --version
 
-    - name: Run ARM64 Unit Tests (main branch, Release only)
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.build_type == 'Release'
+    - name: Run ARM64 Unit Tests (PRs and main push, Release only)
+      if: (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && matrix.build_type == 'Release'
       run: |
         TEST_BIN="build/arm64/${{ matrix.build_type }}/tests/ccap_convert_test"
         if [ ! -x "$TEST_BIN" ]; then
