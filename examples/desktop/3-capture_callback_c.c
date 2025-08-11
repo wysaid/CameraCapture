@@ -11,8 +11,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
+// Platform-specific includes for directory, cwd and sleep
+#if defined(_WIN32) || defined(_WIN64)
+#include <direct.h>
+#include <windows.h>
+#define getcwd _getcwd
+#else
 #include <unistd.h>
+#include <sys/stat.h>
+#endif
 #include <ctype.h>
 #include <time.h>
 
@@ -23,53 +30,58 @@ static int g_framesSaved = 0;
 int selectCamera(CcapProvider* provider) {
     char** deviceNames;
     size_t deviceCount;
-    
+
     if (ccap_provider_find_device_names(provider, &deviceNames, &deviceCount) && deviceCount > 1) {
         printf("Multiple devices found, please select one:\n");
         for (size_t i = 0; i < deviceCount; i++) {
             printf("  %zu: %s\n", i, deviceNames[i]);
         }
-        
+
         int selectedIndex;
         printf("Enter the index of the device you want to use: ");
         if (scanf("%d", &selectedIndex) != 1) {
             selectedIndex = 0;
         }
-        
+
         if (selectedIndex < 0 || selectedIndex >= (int)deviceCount) {
             selectedIndex = 0;
             fprintf(stderr, "Invalid index, using the first device: %s\n", deviceNames[0]);
         } else {
             printf("Using device: %s\n", deviceNames[selectedIndex]);
         }
-        
+
         ccap_provider_free_device_names(deviceNames, deviceCount);
         return selectedIndex;
     }
-    
+
     if (deviceCount > 0) {
         ccap_provider_free_device_names(deviceNames, deviceCount);
     }
-    
+
     return -1; // One or no device, use default.
 }
 
 void createDirectory(const char* path) {
-    struct stat st = {0};
+    // Create directory if not exists
+#if defined(_WIN32) || defined(_WIN64)
+    _mkdir(path); // ignore error if exists
+#else
+    struct stat st = { 0 };
     if (stat(path, &st) == -1) {
         mkdir(path, 0700);
     }
+#endif
 }
 
 // Callback function for new frames
 bool frame_callback(const CcapVideoFrame* frame, void* userData) {
     (void)userData; // Suppress unused parameter warning
-    
+
     CcapVideoFrameInfo frameInfo;
     if (ccap_video_frame_get_info(frame, &frameInfo)) {
-        printf("VideoFrame %llu grabbed: width = %d, height = %d, bytes: %d\n", 
+        printf("VideoFrame %llu grabbed: width = %d, height = %d, bytes: %d\n",
                frameInfo.frameIndex, frameInfo.width, frameInfo.height, frameInfo.sizeInBytes);
-        
+
         // Save frame to directory
         char outputPath[2048];
         int result = ccap_dump_frame_to_directory(frame, g_captureDir, outputPath, sizeof(outputPath));
@@ -80,15 +92,19 @@ bool frame_callback(const CcapVideoFrame* frame, void* userData) {
             fprintf(stderr, "Failed to save frame!\n");
         }
     }
-    
+
     return true; // Consume the frame (won't be available for grab())
 }
 
 void sleep_seconds(int seconds) {
+#if defined(_WIN32) || defined(_WIN64)
+    Sleep(seconds * 1000);
+#else
     struct timespec ts;
     ts.tv_sec = seconds;
     ts.tv_nsec = 0;
     nanosleep(&ts, NULL);
+#endif
 }
 
 int main(int argc, char** argv) {
@@ -103,7 +119,7 @@ int main(int argc, char** argv) {
     if (argc > 0 && argv[0][0] != '.') {
         strncpy(cwd, argv[0], sizeof(cwd) - 1);
         cwd[sizeof(cwd) - 1] = '\0';
-        
+
         // Find last slash
         char* lastSlash = strrchr(cwd, '/');
         if (!lastSlash) {
@@ -117,10 +133,10 @@ int main(int argc, char** argv) {
             strcpy(cwd, ".");
         }
     }
-    
+
     snprintf(g_captureDir, sizeof(g_captureDir), "%s/image_capture", cwd);
     createDirectory(g_captureDir);
-    
+
     // Create provider
     CcapProvider* provider = ccap_provider_create();
     if (!provider) {
@@ -142,7 +158,7 @@ int main(int argc, char** argv) {
     int requestedWidth = 1920;
     int requestedHeight = 1080;
     double requestedFps = 60.0;
-    
+
     ccap_provider_set_property(provider, CCAP_PROPERTY_WIDTH, requestedWidth);
     ccap_provider_set_property(provider, CCAP_PROPERTY_HEIGHT, requestedHeight);
     ccap_provider_set_property(provider, CCAP_PROPERTY_PIXEL_FORMAT_OUTPUT, CCAP_PIXEL_FORMAT_BGR24);
@@ -155,7 +171,7 @@ int main(int argc, char** argv) {
     } else {
         deviceIndex = selectCamera(provider);
     }
-    
+
     if (!ccap_provider_open_by_index(provider, deviceIndex, true)) {
         printf("Failed to open camera\n");
         ccap_provider_destroy(provider);
@@ -186,11 +202,11 @@ int main(int argc, char** argv) {
     // Wait for 5 seconds to capture frames
     printf("Capturing frames for 5 seconds...\n");
     sleep_seconds(5);
-    
+
     printf("Captured for 5 seconds, stopping... (Total frames saved: %d)\n", g_framesSaved);
 
     // Cleanup
     ccap_provider_destroy(provider);
-    
+
     return 0;
 }

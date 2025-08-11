@@ -12,48 +12,60 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+// Platform-specific includes for directory and cwd utilities
+#if defined(_WIN32) || defined(_WIN64)
+#include <direct.h>
+#define getcwd _getcwd
+#else
 #include <unistd.h>
+#endif
 #include <ctype.h>
 
 int selectCamera(CcapProvider* provider) {
     char** deviceNames;
     size_t deviceCount;
-    
+
     if (ccap_provider_find_device_names(provider, &deviceNames, &deviceCount) && deviceCount > 1) {
         printf("Multiple devices found, please select one:\n");
         for (size_t i = 0; i < deviceCount; i++) {
             printf("  %zu: %s\n", i, deviceNames[i]);
         }
-        
+
         int selectedIndex;
         printf("Enter the index of the device you want to use: ");
         if (scanf("%d", &selectedIndex) != 1) {
             selectedIndex = 0;
         }
-        
+
         if (selectedIndex < 0 || selectedIndex >= (int)deviceCount) {
             selectedIndex = 0;
             fprintf(stderr, "Invalid index, using the first device: %s\n", deviceNames[0]);
         } else {
             printf("Using device: %s\n", deviceNames[selectedIndex]);
         }
-        
+
         ccap_provider_free_device_names(deviceNames, deviceCount);
         return selectedIndex;
     }
-    
+
     if (deviceCount > 0) {
         ccap_provider_free_device_names(deviceNames, deviceCount);
     }
-    
+
     return -1; // One or no device, use default.
 }
 
 void createDirectory(const char* path) {
-    struct stat st = {0};
+#if defined(_WIN32) || defined(_WIN64)
+    // On Windows, _mkdir returns 0 on success, -1 on failure (e.g., already exists).
+    // It's safe to call without pre-check; ignore EEXIST.
+    _mkdir(path);
+#else
+    struct stat st = { 0 };
     if (stat(path, &st) == -1) {
         mkdir(path, 0700);
     }
+#endif
 }
 
 int main(int argc, char** argv) {
@@ -68,7 +80,7 @@ int main(int argc, char** argv) {
     if (argc > 0 && argv[0][0] != '.') {
         strncpy(cwd, argv[0], sizeof(cwd) - 1);
         cwd[sizeof(cwd) - 1] = '\0';
-        
+
         // Find last slash
         char* lastSlash = strrchr(cwd, '/');
         if (!lastSlash) {
@@ -82,11 +94,11 @@ int main(int argc, char** argv) {
             strcpy(cwd, ".");
         }
     }
-    
+
     char captureDir[1024];
     snprintf(captureDir, sizeof(captureDir), "%s/image_capture", cwd);
     createDirectory(captureDir);
-    
+
     // Create provider
     CcapProvider* provider = ccap_provider_create();
     if (!provider) {
@@ -98,7 +110,7 @@ int main(int argc, char** argv) {
     int requestedWidth = 1920;
     int requestedHeight = 1080;
     double requestedFps = 60.0;
-    
+
     ccap_provider_set_property(provider, CCAP_PROPERTY_WIDTH, requestedWidth);
     ccap_provider_set_property(provider, CCAP_PROPERTY_HEIGHT, requestedHeight);
     ccap_provider_set_property(provider, CCAP_PROPERTY_PIXEL_FORMAT_OUTPUT, CCAP_PIXEL_FORMAT_RGB24);
@@ -111,7 +123,7 @@ int main(int argc, char** argv) {
     } else {
         deviceIndex = selectCamera(provider);
     }
-    
+
     if (!ccap_provider_open_by_index(provider, deviceIndex, true)) {
         printf("Failed to open camera\n");
         ccap_provider_destroy(provider);
@@ -139,9 +151,9 @@ int main(int argc, char** argv) {
         if (frame) {
             CcapVideoFrameInfo frameInfo;
             if (ccap_video_frame_get_info(frame, &frameInfo)) {
-                printf("VideoFrame %llu grabbed: width = %d, height = %d, bytes: %d\n", 
+                printf("VideoFrame %llu grabbed: width = %d, height = %d, bytes: %d\n",
                        frameInfo.frameIndex, frameInfo.width, frameInfo.height, frameInfo.sizeInBytes);
-                
+
                 // Save frame to directory
                 char outputPath[2048];
                 int result = ccap_dump_frame_to_directory(frame, captureDir, outputPath, sizeof(outputPath));
@@ -151,10 +163,10 @@ int main(int argc, char** argv) {
                     fprintf(stderr, "Failed to save frame!\n");
                 }
             }
-            
+
             ccap_video_frame_release(frame);
             frameCount++;
-            
+
             if (frameCount >= 10) {
                 printf("Captured 10 frames, stopping...\n");
                 break;
@@ -167,6 +179,6 @@ int main(int argc, char** argv) {
 
     // Cleanup
     ccap_provider_destroy(provider);
-    
+
     return 0;
 }
