@@ -278,6 +278,37 @@
             "problemMatcher": "$gcc"
         },
         {
+            "label": "Run Shuffle Tests",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "run_tests.sh",
+                "--shuffle"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/scripts"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Run Shuffle Tests (Fast)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "run_tests.sh",
+                "--shuffle",
+                "--exit-when-failed",
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/scripts"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc"
+        },
+        {
             "label": "Run All Tests",
             "type": "shell",
             "command": "echo",
