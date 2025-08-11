@@ -183,11 +183,41 @@ jobs:
               -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
               -DCMAKE_CROSSCOMPILING=ON \
               -DCCAP_BUILD_EXAMPLES=ON \
-              -DCCAP_BUILD_TESTS=OFF
-    
+              -DCCAP_BUILD_TESTS=ON
+  
     - name: Build ARM64
       run: cmake --build build/arm64/${{ matrix.build_type }} --config ${{ matrix.build_type }} --parallel $(nproc)
-    
+
+    - name: Build ARM64 test target (Release only)
+      if: matrix.build_type == 'Release'
+      run: |
+        cmake --build build/arm64/${{ matrix.build_type }} --config ${{ matrix.build_type }} --target ccap_convert_test --parallel $(nproc)
+
+    - name: Install QEMU for ARM64 test emulation (main branch, Release only)
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.build_type == 'Release'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y qemu-user qemu-user-static
+        qemu-aarch64 --version
+
+    - name: Run ARM64 Unit Tests (main branch, Release only)
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.build_type == 'Release'
+      run: |
+        TEST_BIN="build/arm64/${{ matrix.build_type }}/tests/ccap_convert_test"
+        if [ ! -x "$TEST_BIN" ]; then
+          echo "Test binary not found: $TEST_BIN" >&2
+          ls -la "build/arm64/${{ matrix.build_type }}" || true
+          exit 1
+        fi
+        echo "Verifying test binary architecture:"
+        file "$TEST_BIN" || true
+        echo "Running ARM64 unit tests via QEMU..."
+        # Use the ARM64 sysroot provided by the cross toolchain for dynamic libs
+        qemu-aarch64 -L /usr/aarch64-linux-gnu "$TEST_BIN" \
+          --gtest_fail_fast \
+          --gtest_output=xml:build/arm64/${{ matrix.build_type }}/arm64_results.xml
+        echo "✓ ARM64 unit tests finished"
+
     - name: Verify build outputs
       working-directory: build/arm64/${{ matrix.build_type }}
       run: |
@@ -252,7 +282,7 @@ jobs:
       run: |
         cd scripts
         ./run_tests.sh --functional --exit-when-failed
-
+    
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
