@@ -11,13 +11,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 // Platform-specific includes for directory and cwd utilities
 #if defined(_WIN32) || defined(_WIN64)
 #include <direct.h>
 #define getcwd _getcwd
 #else
 #include <unistd.h>
+#include <sys/stat.h>
 #endif
 #include <ctype.h>
 
