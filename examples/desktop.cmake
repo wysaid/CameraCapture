@@ -48,6 +48,7 @@ foreach(EXAMPLE ${EXAMPLE_SOURCE})
     endif()
 
     add_executable(${EXAMPLE_NAME} ${EXAMPLE})
+    target_compile_definitions(${EXAMPLE_NAME} PRIVATE _CRT_SECURE_NO_WARNINGS=1)
     target_link_libraries(${EXAMPLE_NAME} PRIVATE ccap)
 
     if(APPLE)
