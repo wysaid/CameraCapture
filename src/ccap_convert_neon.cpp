@@ -32,7 +32,7 @@ void colorShuffle_neon(const uint8_t* src, int srcStride,
                       (outputChannels == 3 || outputChannels == 4),
                   "inputChannels and outputChannels must be 3 or 4");
 
-    // 基于 swapRB 参数生成索引（仅用于标量尾部和 vld/vst 寄存器交换）
+    // Generate indices based on swapRB parameter (used only for scalar tail processing and vld/vst register swapping)
     constexpr int idxR = swapRB ? 2 : 0;
     constexpr int idxG = 1;
     constexpr int idxB = swapRB ? 0 : 2;
@@ -50,12 +50,12 @@ void colorShuffle_neon(const uint8_t* src, int srcStride,
 
         int x = 0;
 
-        // 1) 主循环：一次处理 16 像素（128bit 寄存器宽度）
+        // 1) Main loop: process 16 pixels at a time (128-bit register width)
         if constexpr (inputChannels == 4 && outputChannels == 4) {
             for (; x + 16 <= width; x += 16) {
                 uint8x16x4_t rgba = vld4q_u8(srcRow + x * 4);
                 if constexpr (swapRB) {
-                    // 交换 R/B
+                    // Swap R and B channels
                     uint8x16_t tmp = rgba.val[0];
                     rgba.val[0] = rgba.val[2];
                     rgba.val[2] = tmp;
@@ -91,7 +91,7 @@ void colorShuffle_neon(const uint8_t* src, int srcStride,
         } else { // inputChannels == 4 && outputChannels == 3
             for (; x + 16 <= width; x += 16) {
                 uint8x16x4_t rgba = vld4q_u8(srcRow + x * 4);
-                // 生成 RGB/BGR 三通道
+                // Generate 3-channel RGB/BGR data
                 uint8x16x3_t rgb;
                 if constexpr (swapRB) {
                     rgb.val[0] = rgba.val[2];
@@ -106,7 +106,7 @@ void colorShuffle_neon(const uint8_t* src, int srcStride,
             }
         }
 
-        // 2) 次级循环：一次处理 8 像素，减少尾部标量比例
+        // 2) Secondary loop: process 8 pixels at a time, reducing scalar tail overhead
         if constexpr (inputChannels == 4 && outputChannels == 4) {
             for (; x + 8 <= width; x += 8) {
                 uint8x8x4_t rgba = vld4_u8(srcRow + x * 4);
@@ -160,7 +160,7 @@ void colorShuffle_neon(const uint8_t* src, int srcStride,
             }
         }
 
-        // 3) 标量尾部处理
+        // 3) Scalar tail processing
         for (; x < width; ++x) {
             if constexpr (outputChannels == 4 && inputChannels == 4) {
                 const uint8_t* s = srcRow + x * 4;
@@ -242,14 +242,14 @@ inline void getYuvToRgbCoefficients_neon(ConvertFlag flag,
     getYuvToRgbCoefficients_neon(isBT601, isFullRange, cy, cr, cgu, cgv, cb, y_offset);
 }
 
-// 标量尾部：使用整数定点系数（×64）和 +32 >> 6 的舍入，并显式 clamp
+// Scalar tail: use integer fixed-point coefficients (×64) with (+32 >> 6) rounding and explicit clamping
 inline void yuv2rgbGeneric_int(int y, int u, int v, int& r, int& g, int& b,
                                int cy, int cr, int cgu, int cgv, int cb) {
-    // y,u,v 已经完成偏移（y-y_offset，u-128，v-128）
+    // y, u, v have already been offset (y - y_offset, u - 128, v - 128)
     int fr = (cy * y + cr * v + 32) >> 6;
     int fg = (cy * y - cgu * u - cgv * v + 32) >> 6;
     int fb = (cy * y + cb * u + 32) >> 6;
-    // clamp 到 [0,255]
+    // Clamp to [0, 255]
     r = fr < 0 ? 0 : (fr > 255 ? 255 : fr);
     g = fg < 0 ? 0 : (fg > 255 ? 255 : fg);
     b = fb < 0 ? 0 : (fb > 255 ? 255 : fb);
@@ -622,7 +622,7 @@ void _i420ToRgba_neon_imp(const uint8_t* srcY, int srcYStride,
         dstStride = -dstStride;
     }
 
-    // 获取整数定点（×64）系数
+    // Get integer fixed-point (×64) coefficients
     int cy, cr, cgu, cgv, cb, y_offset;
     getYuvToRgbCoefficients_neon(flag, cy, cr, cgu, cgv, cb, y_offset);
 
@@ -657,7 +657,7 @@ void _i420ToRgba_neon_imp(const uint8_t* srcY, int srcYStride,
             int16x8_t v_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(v_expanded), vdup_n_u8(128)));
             int16x8_t v_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(v_expanded), vdup_n_u8(128)));
 
-            // 5. 使用整数定点（×64）系数
+            // 5. Use integer fixed-point (×64) coefficients
             int16x8_t cy_coeff = vdupq_n_s16(static_cast<int16_t>(cy));
             int16x8_t cr_coeff = vdupq_n_s16(static_cast<int16_t>(cr));
             int16x8_t cgu_coeff = vdupq_n_s16(static_cast<int16_t>(cgu));
@@ -772,7 +772,7 @@ void _i420ToRgb_neon_imp(const uint8_t* srcY, int srcYStride,
         dstStride = -dstStride;
     }
 
-    // 获取整数定点（×64）系数
+    // Get integer fixed-point (×64) coefficients
     int cy, cr, cgu, cgv, cb, y_offset;
     getYuvToRgbCoefficients_neon(flag, cy, cr, cgu, cgv, cb, y_offset);
 
@@ -807,7 +807,7 @@ void _i420ToRgb_neon_imp(const uint8_t* srcY, int srcYStride,
             int16x8_t v_lo = vreinterpretq_s16_u16(vsubl_u8(vget_low_u8(v_expanded), vdup_n_u8(128)));
             int16x8_t v_hi = vreinterpretq_s16_u16(vsubl_u8(vget_high_u8(v_expanded), vdup_n_u8(128)));
 
-            // 5. 使用整数定点（×64）系数
+            // 5. Use integer fixed-point (×64) coefficients
             int16x8_t cy_coeff = vdupq_n_s16(static_cast<int16_t>(cy));
             int16x8_t cr_coeff = vdupq_n_s16(static_cast<int16_t>(cr));
             int16x8_t cgu_coeff = vdupq_n_s16(static_cast<int16_t>(cgu));
@@ -1231,13 +1231,13 @@ void _yuyvToRgb_neon_imp(const uint8_t* src, int srcStride,
                 uint8x16_t g8 = vcombine_u8(g8_lo, g8_hi);
                 uint8x16_t b8 = vcombine_u8(b8_lo, b8_hi);
 
-                // 使用 NEON 交错存储写回 RGB（vst3q_u8），避免标量循环
+                // Use NEON interleaved store to write back RGB (vst3q_u8), avoiding scalar loop
                 if constexpr (isBGR) {
                     uint8x16x3_t bgr;
                     bgr.val[0] = b8;
                     bgr.val[1] = g8;
                     bgr.val[2] = r8;
-                    // 这里 x+16<=width 已由循环条件保证，可安全整块写回
+                    // Here x+16<=width is already guaranteed by the loop condition, so it's safe to write the whole block
                     vst3q_u8(dstRow + x * 3, bgr);
                 } else {
                     uint8x16x3_t rgb;
@@ -1343,7 +1343,7 @@ void _uyvyToRgba_neon_imp(const uint8_t* src, int srcStride,
         dstStride = -dstStride;
     }
 
-    // 使用与 YUYV 相同的整数系数（×64）与动态 y_offset，保持 SIMD/标量一致的舍入规则
+    // Use the same integer coefficients (×64) and dynamic y_offset as YUYV, keep SIMD/scalar rounding rules consistent
     const bool is601 = (flag & ConvertFlag::BT601) != 0;
     const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
     int cy_i, cr_i, cgu_i, cgv_i, cb_i, y_offset;
@@ -1355,35 +1355,35 @@ void _uyvyToRgba_neon_imp(const uint8_t* src, int srcStride,
 
         int x = 0;
 
-        // 向量路径：每次处理 16 像素（8 个 UYVY 组 = 32 字节）
+        // Vector path: process 16 pixels at a time (8 UYVY groups = 32 bytes)
         if (width >= 16) {
             for (; x + 16 <= width; x += 16) {
-                // 载入 32 字节
+                // Load 32 bytes
                 uint8x16_t yuv1 = vld1q_u8(srcRow + x * 2);
                 uint8x16_t yuv2 = vld1q_u8(srcRow + x * 2 + 16);
 
-                // 从 UYVY 提取 Y（奇数索引 1,3,...,15）
+                // Extract Y from UYVY (odd indices 1,3,...,15)
                 uint8x8_t y_low = vtbl2_u8({ vget_low_u8(yuv1), vget_high_u8(yuv1) },
                                            vcreate_u8(0x0F0D0B0907050301ULL));
                 uint8x8_t y_high = vtbl2_u8({ vget_low_u8(yuv2), vget_high_u8(yuv2) },
                                             vcreate_u8(0x0F0D0B0907050301ULL));
                 uint8x16_t y_vals = vcombine_u8(y_low, y_high);
 
-                // 提取并复制 U（索引 0,0,4,4,8,8,12,12）
+                // Extract and duplicate U (indices 0,0,4,4,8,8,12,12)
                 uint8x8_t u_packed1 = vtbl2_u8({ vget_low_u8(yuv1), vget_high_u8(yuv1) },
                                                vcreate_u8(0x0C0C080804040000ULL));
                 uint8x8_t u_packed2 = vtbl2_u8({ vget_low_u8(yuv2), vget_high_u8(yuv2) },
                                                vcreate_u8(0x0C0C080804040000ULL));
                 uint8x16_t u_vals = vcombine_u8(u_packed1, u_packed2);
 
-                // 提取并复制 V（索引 2,2,6,6,10,10,14,14）
+                // Extract and duplicate V (indices 2,2,6,6,10,10,14,14)
                 uint8x8_t v_packed1 = vtbl2_u8({ vget_low_u8(yuv1), vget_high_u8(yuv1) },
                                                vcreate_u8(0x0E0E0A0A06060202ULL));
                 uint8x8_t v_packed2 = vtbl2_u8({ vget_low_u8(yuv2), vget_high_u8(yuv2) },
                                                vcreate_u8(0x0E0E0A0A06060202ULL));
                 uint8x16_t v_vals = vcombine_u8(v_packed1, v_packed2);
 
-                // 宽化并做带符号偏移
+                // Widen and apply signed offset
                 int16x8_t y_lo = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(y_vals))), vdupq_n_s16(y_offset));
                 int16x8_t y_hi = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(y_vals))), vdupq_n_s16(y_offset));
                 int16x8_t u_lo = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(u_vals))), vdupq_n_s16(128));
@@ -1391,7 +1391,7 @@ void _uyvyToRgba_neon_imp(const uint8_t* src, int srcStride,
                 int16x8_t v_lo = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(v_vals))), vdupq_n_s16(128));
                 int16x8_t v_hi = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(v_vals))), vdupq_n_s16(128));
 
-                // 系数（×64）与 +32 >> 6 舍入
+                // Coefficients (×64) and +32 >> 6 rounding
                 int16x8_t cy_c = vdupq_n_s16(static_cast<int16_t>(cy_i));
                 int16x8_t cr_c = vdupq_n_s16(static_cast<int16_t>(cr_i));
                 int16x8_t cgu_c = vdupq_n_s16(static_cast<int16_t>(cgu_i));
@@ -1399,7 +1399,7 @@ void _uyvyToRgba_neon_imp(const uint8_t* src, int srcStride,
                 int16x8_t cb_c = vdupq_n_s16(static_cast<int16_t>(cb_i));
                 int16x8_t c32 = vdupq_n_s16(32);
 
-                // 计算低 8 像素
+                // Calculate for low 8 pixels
                 int16x8_t y_scaled_lo = vmulq_s16(y_lo, cy_c);
                 int16x8_t r_lo = vaddq_s16(y_scaled_lo, vmulq_s16(v_lo, cr_c));
                 r_lo = vshrq_n_s16(vaddq_s16(r_lo, c32), 6);
@@ -1409,7 +1409,7 @@ void _uyvyToRgba_neon_imp(const uint8_t* src, int srcStride,
                 int16x8_t b_lo = vaddq_s16(y_scaled_lo, vmulq_s16(u_lo, cb_c));
                 b_lo = vshrq_n_s16(vaddq_s16(b_lo, c32), 6);
 
-                // 计算高 8 像素
+                // Calculate for high 8 pixels
                 int16x8_t y_scaled_hi = vmulq_s16(y_hi, cy_c);
                 int16x8_t r_hi = vaddq_s16(y_scaled_hi, vmulq_s16(v_hi, cr_c));
                 r_hi = vshrq_n_s16(vaddq_s16(r_hi, c32), 6);
@@ -1419,7 +1419,7 @@ void _uyvyToRgba_neon_imp(const uint8_t* src, int srcStride,
                 int16x8_t b_hi = vaddq_s16(y_scaled_hi, vmulq_s16(u_hi, cb_c));
                 b_hi = vshrq_n_s16(vaddq_s16(b_hi, c32), 6);
 
-                // 饱和收缩为 8 位
+                // Saturate and narrow to 8-bit
                 uint8x8_t r8_lo = vqmovun_s16(r_lo);
                 uint8x8_t g8_lo = vqmovun_s16(g_lo);
                 uint8x8_t b8_lo = vqmovun_s16(b_lo);
@@ -1431,7 +1431,7 @@ void _uyvyToRgba_neon_imp(const uint8_t* src, int srcStride,
                 uint8x16_t g8 = vcombine_u8(g8_lo, g8_hi);
                 uint8x16_t b8 = vcombine_u8(b8_lo, b8_hi);
 
-                // 使用 NEON 交错存储写回 RGBA（vst4q_u8），避免标量循环
+                // Use NEON interleaved store to write RGBA (vst4q_u8), avoid scalar loop
                 uint8x16_t a8 = vdupq_n_u8(255);
                 uint8x16x4_t px;
                 if constexpr (isBGRA) {
@@ -1449,7 +1449,7 @@ void _uyvyToRgba_neon_imp(const uint8_t* src, int srcStride,
             }
         }
 
-        // 标量尾部：按 2 像素一组
+        // Scalar tail: process in pairs of two pixels
         for (; x + 2 <= width; x += 2) {
             uint8_t u = srcRow[x * 2];
             uint8_t y0 = srcRow[x * 2 + 1];
@@ -1496,7 +1496,7 @@ void _uyvyToRgba_neon_imp(const uint8_t* src, int srcStride,
             }
         }
 
-        // 单像素尾（奇宽）
+        // Single pixel tail (odd width)
         if (x < width) {
             uint8_t u = srcRow[x * 2 + 0];
             uint8_t y0 = srcRow[x * 2 + 1];
@@ -1525,7 +1525,6 @@ void _uyvyToRgba_neon_imp(const uint8_t* src, int srcStride,
         }
     }
 }
-
 template <bool isBGR>
 void _uyvyToRgb_neon_imp(const uint8_t* src, int srcStride,
                          uint8_t* dst, int dstStride,
@@ -1536,7 +1535,7 @@ void _uyvyToRgb_neon_imp(const uint8_t* src, int srcStride,
         dstStride = -dstStride;
     }
 
-    // 使用与 YUYV 相同的整数系数（×64）与动态 y_offset
+    // Use the same integer coefficients (×64) and dynamic y_offset as YUYV
     const bool is601 = (flag & ConvertFlag::BT601) != 0;
     const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
     int cy_i, cr_i, cgu_i, cgv_i, cb_i, y_offset;
@@ -1548,34 +1547,34 @@ void _uyvyToRgb_neon_imp(const uint8_t* src, int srcStride,
 
         int x = 0;
 
-        // 向量路径：每次处理 16 像素
+        // Vector path: process 16 pixels at a time
         if (width >= 16) {
             for (; x + 16 <= width; x += 16) {
                 uint8x16_t yuv1 = vld1q_u8(srcRow + x * 2);
                 uint8x16_t yuv2 = vld1q_u8(srcRow + x * 2 + 16);
 
-                // Y 索引 1,3,5,7,9,11,13,15
+                // Y indices: 1,3,5,7,9,11,13,15
                 uint8x8_t y_low = vtbl2_u8({ vget_low_u8(yuv1), vget_high_u8(yuv1) },
                                            vcreate_u8(0x0F0D0B0907050301ULL));
                 uint8x8_t y_high = vtbl2_u8({ vget_low_u8(yuv2), vget_high_u8(yuv2) },
                                             vcreate_u8(0x0F0D0B0907050301ULL));
                 uint8x16_t y_vals = vcombine_u8(y_low, y_high);
 
-                // U: 0,0,4,4,8,8,12,12
+                // U indices: 0,0,4,4,8,8,12,12
                 uint8x8_t u_p1 = vtbl2_u8({ vget_low_u8(yuv1), vget_high_u8(yuv1) },
                                           vcreate_u8(0x0C0C080804040000ULL));
                 uint8x8_t u_p2 = vtbl2_u8({ vget_low_u8(yuv2), vget_high_u8(yuv2) },
                                           vcreate_u8(0x0C0C080804040000ULL));
                 uint8x16_t u_vals = vcombine_u8(u_p1, u_p2);
 
-                // V: 2,2,6,6,10,10,14,14
+                // V indices: 2,2,6,6,10,10,14,14
                 uint8x8_t v_p1 = vtbl2_u8({ vget_low_u8(yuv1), vget_high_u8(yuv1) },
                                           vcreate_u8(0x0E0E0A0A06060202ULL));
                 uint8x8_t v_p2 = vtbl2_u8({ vget_low_u8(yuv2), vget_high_u8(yuv2) },
                                           vcreate_u8(0x0E0E0A0A06060202ULL));
                 uint8x16_t v_vals = vcombine_u8(v_p1, v_p2);
 
-                // 宽化与偏移
+                // Widen and apply offset
                 int16x8_t y_lo = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(y_vals))), vdupq_n_s16(y_offset));
                 int16x8_t y_hi = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(y_vals))), vdupq_n_s16(y_offset));
                 int16x8_t u_lo = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(u_vals))), vdupq_n_s16(128));
@@ -1590,7 +1589,7 @@ void _uyvyToRgb_neon_imp(const uint8_t* src, int srcStride,
                 int16x8_t cb_c = vdupq_n_s16(static_cast<int16_t>(cb_i));
                 int16x8_t c32 = vdupq_n_s16(32);
 
-                // 低 8 像素
+                // Low 8 pixels
                 int16x8_t y_scaled_lo = vmulq_s16(y_lo, cy_c);
                 int16x8_t r_lo = vaddq_s16(y_scaled_lo, vmulq_s16(v_lo, cr_c));
                 r_lo = vshrq_n_s16(vaddq_s16(r_lo, c32), 6);
@@ -1600,7 +1599,7 @@ void _uyvyToRgb_neon_imp(const uint8_t* src, int srcStride,
                 int16x8_t b_lo = vaddq_s16(y_scaled_lo, vmulq_s16(u_lo, cb_c));
                 b_lo = vshrq_n_s16(vaddq_s16(b_lo, c32), 6);
 
-                // 高 8 像素
+                // High 8 pixels
                 int16x8_t y_scaled_hi = vmulq_s16(y_hi, cy_c);
                 int16x8_t r_hi = vaddq_s16(y_scaled_hi, vmulq_s16(v_hi, cr_c));
                 r_hi = vshrq_n_s16(vaddq_s16(r_hi, c32), 6);
@@ -1610,7 +1609,7 @@ void _uyvyToRgb_neon_imp(const uint8_t* src, int srcStride,
                 int16x8_t b_hi = vaddq_s16(y_scaled_hi, vmulq_s16(u_hi, cb_c));
                 b_hi = vshrq_n_s16(vaddq_s16(b_hi, c32), 6);
 
-                // 饱和收缩
+                // Saturate and narrow
                 uint8x8_t r8_lo = vqmovun_s16(r_lo);
                 uint8x8_t g8_lo = vqmovun_s16(g_lo);
                 uint8x8_t b8_lo = vqmovun_s16(b_lo);
@@ -1622,7 +1621,7 @@ void _uyvyToRgb_neon_imp(const uint8_t* src, int srcStride,
                 uint8x16_t g8 = vcombine_u8(g8_lo, g8_hi);
                 uint8x16_t b8 = vcombine_u8(b8_lo, b8_hi);
 
-                // 使用 NEON 交错存储写回 RGB（vst3q_u8），避免标量循环
+                // Use NEON interleaved store to write RGB (vst3q_u8), avoid scalar loop
                 uint8x16x3_t px3;
                 if constexpr (isBGR) {
                     px3.val[0] = b8;
@@ -1637,7 +1636,7 @@ void _uyvyToRgb_neon_imp(const uint8_t* src, int srcStride,
             }
         }
 
-        // 标量尾部
+        // Scalar tail
         for (; x + 2 <= width; x += 2) {
             uint8_t u = srcRow[x * 2];
             uint8_t y0 = srcRow[x * 2 + 1];
@@ -1680,7 +1679,7 @@ void _uyvyToRgb_neon_imp(const uint8_t* src, int srcStride,
             }
         }
 
-        // 单像素尾
+        // Single pixel tail
         if (x < width) {
             uint8_t u = srcRow[x * 2 + 0];
             uint8_t y0 = srcRow[x * 2 + 1];
