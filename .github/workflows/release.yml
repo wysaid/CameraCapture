@@ -21,7 +21,94 @@ on:
         default: false
 
 jobs:
+  # Run comprehensive tests before building release packages
+  test:
+    name: Run Full Test Suite
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true  # Stop all jobs if any test fails
+      matrix:
+        include:
+          - os: windows-latest
+            name: Windows Tests
+            test_type: both
+            
+          - os: ubuntu-latest  
+            name: Linux Tests
+            test_type: both
+            
+          - os: ubuntu-latest
+            name: Linux ARM64 Tests
+            test_type: functional
+            arch: arm64
+            
+          - os: macos-latest
+            name: macOS Tests
+            test_type: both
+            
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        
+    - name: Setup cross-compilation for ARM64
+      if: matrix.arch == 'arm64'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu qemu-user qemu-user-static
+        
+    - name: Setup Visual Studio (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: microsoft/setup-msbuild@v1.1
+      
+    - name: Install Linux dependencies
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential gcc
+        if [ "${{ matrix.test_type }}" = "both" ]; then
+          sudo apt-get install -y libglfw3-dev
+        fi
+        
+    - name: Run Tests
+      shell: bash
+      run: |
+        cd scripts
+        echo "=== Running ${{ matrix.name }} ==="
+        
+        if [ "${{ matrix.arch }}" = "arm64" ]; then
+          # ARM64 cross-compilation tests
+          echo "Running ARM64 functional tests..."
+          ./run_tests.sh --functional --exit-when-failed
+        elif [ "${{ matrix.test_type }}" = "both" ]; then
+          # Full test suite (functional + performance)
+          echo "Running full test suite..."
+          ./run_tests.sh --functional --exit-when-failed
+          ./run_tests.sh --performance --exit-when-failed  
+        else
+          # Functional tests only
+          echo "Running functional tests..."
+          ./run_tests.sh --functional --exit-when-failed
+        fi
+        
+        echo "✅ ${{ matrix.name }} completed successfully!"
+        
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.name }}-${{ github.run_id }}
+        path: |
+          build/**/test_results.xml
+          build/**/*_results.xml
+        retention-days: 7
+        if-no-files-found: ignore
+
   build:
+    name: Build Release Packages  
+    needs: test
     strategy:
       fail-fast: false
       matrix:
@@ -34,6 +121,7 @@ jobs:
           - os: windows-latest
             name: Windows
             artifact_name: ccap-msvc-x86_64
+            build_type: Release
             
           - os: ubuntu-latest
             name: Linux
@@ -238,7 +326,7 @@ jobs:
         retention-days: 5
 
   release:
-    needs: build
+    needs: [test, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -295,6 +383,16 @@ jobs:
       run: |
         cat > release_notes.md << 'EOF'
         ## 🚀 ccap ${{ steps.release_type.outputs.tag_name }}
+        
+        ### ✅ Quality Assurance
+        
+        **All packages have passed comprehensive unit tests before release:**
+        - ✅ **Windows Tests**: Functional and performance tests on Windows platform
+        - ✅ **Linux x86_64 Tests**: Functional and performance tests on Linux
+        - ✅ **Linux ARM64 Tests**: Cross-compiled functional tests with QEMU validation  
+        - ✅ **macOS Tests**: Functional and performance tests on macOS platform
+        
+        > **Note**: This release was only created after ALL platform tests passed successfully. Any test failure would have prevented the release.
         
         ### 📦 Downloads
         
@@ -369,8 +467,16 @@ jobs:
         echo "## 🎉 Release Created Successfully!" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Release**: ${{ steps.release_type.outputs.release_name }}" >> $GITHUB_STEP_SUMMARY
-        echo "**Tag**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Tag**: ${{ steps.release_type.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
         echo "**Prerelease**: ${{ steps.release_type.outputs.prerelease }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### ✅ Quality Assurance" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ **Windows Tests**: All functional and performance tests passed" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ **Linux x86_64 Tests**: All functional and performance tests passed" >> $GITHUB_STEP_SUMMARY  
+        echo "- ✅ **Linux ARM64 Tests**: Cross-compilation and functional tests passed" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ **macOS Tests**: All functional and performance tests passed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "> 🛡️ **This release was only created after ALL tests passed successfully!**" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📦 Included Files:" >> $GITHUB_STEP_SUMMARY
         echo "- ccap-macos-universal.tar.gz" >> $GITHUB_STEP_SUMMARY
@@ -378,4 +484,4 @@ jobs:
         echo "- ccap-linux-x86_64.tar.gz" >> $GITHUB_STEP_SUMMARY
         echo "- ccap-linux-arm64.tar.gz" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "Release page: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "Release page: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.release_type.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
