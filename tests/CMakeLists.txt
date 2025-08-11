@@ -98,8 +98,16 @@ target_include_directories(ccap_performance_test PRIVATE ${libyuv_SOURCE_DIR}/in
 
 # Register tests with CTest
 include(GoogleTest)
-gtest_discover_tests(ccap_convert_test)
-gtest_discover_tests(ccap_performance_test)
+# When cross-compiling (e.g., building ARM64 on x86_64), avoid discovering tests
+# at configure/build time because it would attempt to execute the target binary
+# for test listing on the host. We'll run tests explicitly (e.g., via QEMU) in CI.
+if(NOT CMAKE_CROSSCOMPILING)
+    # Defer discovery to test time to avoid executing the binary during configure
+    gtest_discover_tests(ccap_convert_test DISCOVERY_MODE PRE_TEST)
+    gtest_discover_tests(ccap_performance_test DISCOVERY_MODE PRE_TEST)
+else()
+    message(STATUS "CMAKE_CROSSCOMPILING is ON: skipping GoogleTest discovery at configure time.")
+endif()
 
 # Set test properties
 set_target_properties(ccap_convert_test PROPERTIES
