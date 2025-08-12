@@ -91,7 +91,8 @@ int main(int argc, char** argv) {
         }
     } else {
         if (!getcwd(cwd, sizeof(cwd))) {
-            strcpy(cwd, ".");
+            strncpy(cwd, ".", sizeof(cwd) - 1);
+            cwd[sizeof(cwd) - 1] = '\0';
         }
     }
 
