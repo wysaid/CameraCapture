@@ -45,6 +45,7 @@ struct FrameRateInfo {
 
 static const ResolutionInfo kResolutions[] = {
     { 640, 360, "360p" },
+    { 640, 480, "480p" },
     { 960, 540, "540p" },
     { 1280, 720, "720p" },
     { 1920, 1080, "1080p" },

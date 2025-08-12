@@ -265,9 +265,9 @@ if [ "$RUN_FUNCTIONAL" = true ]; then
 
         if [ "$SHUFFLE_ONLY" = true ]; then
             echo -e "${BLUE}Filtering tests to names containing '*shuffle*' or '*Shuffle*'...${NC}"
-            "$TEST_EXECUTABLE" --gtest_filter='*shuffle*:*Shuffle*' $GTEST_FAIL_FAST_PARAM --gtest_output=xml:build/test_results_debug.xml
+            "$TEST_EXECUTABLE" --gtest_filter='*shuffle*:*Shuffle*:*SHUFFLE*' $GTEST_FAIL_FAST_PARAM --gtest_output=xml:test_results_debug.xml
         else
-            "$TEST_EXECUTABLE" $GTEST_FAIL_FAST_PARAM --gtest_output=xml:build/test_results_debug.xml
+            "$TEST_EXECUTABLE" $GTEST_FAIL_FAST_PARAM --gtest_output=xml:test_results_debug.xml
         fi
 
         TEST_RESULT=$?
