@@ -300,7 +300,7 @@
                 "-l",
                 "run_tests.sh",
                 "--shuffle",
-                "--exit-when-failed",
+                "--exit-when-failed"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/scripts"
