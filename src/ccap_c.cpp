@@ -71,18 +71,30 @@ struct CallbackWrapper {
 /* ========== Provider Lifecycle ========== */
 
 CcapProvider* ccap_provider_create(void) {
-    return reinterpret_cast<CcapProvider*>(new ccap::Provider());
+    try {
+        return reinterpret_cast<CcapProvider*>(new ccap::Provider());
+    } catch (...) {
+        return nullptr;
+    }
 }
 
 CcapProvider* ccap_provider_create_with_device(const char* deviceName, const char* extraInfo) {
-    std::string_view deviceNameView = deviceName ? deviceName : "";
-    std::string_view extraInfoView = extraInfo ? extraInfo : "";
-    return reinterpret_cast<CcapProvider*>(new ccap::Provider(deviceNameView, extraInfoView));
+    try {
+        std::string_view deviceNameView = deviceName ? deviceName : "";
+        std::string_view extraInfoView = extraInfo ? extraInfo : "";
+        return reinterpret_cast<CcapProvider*>(new ccap::Provider(deviceNameView, extraInfoView));
+    } catch (...) {
+        return nullptr;
+    }
 }
 
 CcapProvider* ccap_provider_create_with_index(int deviceIndex, const char* extraInfo) {
-    std::string_view extraInfoView = extraInfo ? extraInfo : "";
-    return reinterpret_cast<CcapProvider*>(new ccap::Provider(deviceIndex, extraInfoView));
+    try {
+        std::string_view extraInfoView = extraInfo ? extraInfo : "";
+        return reinterpret_cast<CcapProvider*>(new ccap::Provider(deviceIndex, extraInfoView));
+    } catch (...) {
+        return nullptr;
+    }
 }
 
 void ccap_provider_destroy(CcapProvider* provider) {
@@ -137,17 +149,25 @@ void ccap_provider_free_device_names(char** deviceNames, size_t count) {
 
 bool ccap_provider_open(CcapProvider* provider, const char* deviceName, bool autoStart) {
     if (!provider) return false;
-
-    auto* cppProvider = reinterpret_cast<ccap::Provider*>(provider);
-    std::string_view deviceNameView = deviceName ? deviceName : "";
-    return cppProvider->open(deviceNameView, autoStart);
+    
+    try {
+        auto* cppProvider = reinterpret_cast<ccap::Provider*>(provider);
+        std::string_view deviceNameView = deviceName ? deviceName : "";
+        return cppProvider->open(deviceNameView, autoStart);
+    } catch (...) {
+        return false;
+    }
 }
 
 bool ccap_provider_open_by_index(CcapProvider* provider, int deviceIndex, bool autoStart) {
     if (!provider) return false;
-
-    auto* cppProvider = reinterpret_cast<ccap::Provider*>(provider);
-    return cppProvider->open(deviceIndex, autoStart);
+    
+    try {
+        auto* cppProvider = reinterpret_cast<ccap::Provider*>(provider);
+        return cppProvider->open(deviceIndex, autoStart);
+    } catch (...) {
+        return false;
+    }
 }
 
 bool ccap_provider_is_opened(const CcapProvider* provider) {
@@ -223,9 +243,13 @@ void ccap_provider_close(CcapProvider* provider) {
 
 bool ccap_provider_start(CcapProvider* provider) {
     if (!provider) return false;
-
-    auto* cppProvider = reinterpret_cast<ccap::Provider*>(provider);
-    return cppProvider->start();
+    
+    try {
+        auto* cppProvider = reinterpret_cast<ccap::Provider*>(provider);
+        return cppProvider->start();
+    } catch (...) {
+        return false;
+    }
 }
 
 void ccap_provider_stop(CcapProvider* provider) {
