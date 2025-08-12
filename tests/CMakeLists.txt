@@ -96,6 +96,9 @@ target_link_libraries(
 # Add LibYUV include directory for performance test
 target_include_directories(ccap_performance_test PRIVATE ${libyuv_SOURCE_DIR}/include)
 
+# Enable testing before any test registration
+enable_testing()
+
 # Register tests with CTest
 include(GoogleTest)
 # When cross-compiling (e.g., building ARM64 on x86_64), avoid discovering tests
@@ -133,9 +136,6 @@ target_compile_definitions(ccap_performance_test PRIVATE
     $<$<CONFIG:Release>:NDEBUG> # Define NDEBUG macro for Release builds
     $<$<NOT:$<BOOL:${MSVC}>>:GTEST_HAS_PTHREAD=1> # Enable pthread for non-MSVC compilers
 )
-
-# Enable testing
-enable_testing()
 
 if(MSVC)
     target_compile_options(ccap_convert_test PRIVATE
