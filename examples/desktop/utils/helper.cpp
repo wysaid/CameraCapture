@@ -1,6 +1,7 @@
 #include "helper.h"
 
 #include "ccap_c.h"
+
 #include <ccap.h>
 #include <cstdio>
 #include <cstdlib>
@@ -20,7 +21,7 @@ void createDirectory(const char* path) {
 }
 
 // Get current working directory (portable)
-int getCurrentWorkingDirectory(char* buffer, size_t size) {
+int getCurrentWorkingDirectory(char* buffer, int size) {
     try {
         auto cwd = std::filesystem::current_path().string();
         if (cwd.size() >= size) {
