@@ -5,6 +5,7 @@
 #include <ccap.h>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -27,7 +28,7 @@ int getCurrentWorkingDirectory(char* buffer, int size) {
         if (cwd.size() >= size) {
             return -1; // Buffer too small
         }
-        std::strcpy(buffer, cwd.c_str());
+        strcpy(buffer, cwd.c_str());
         return 0;
     } catch (const std::exception& e) {
         fprintf(stderr, "Failed to get current working directory: %s\n", e.what());
