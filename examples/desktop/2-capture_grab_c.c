@@ -12,10 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-// Platform-specific includes for cwd utilities
-#if defined(_WIN32) || defined(_WIN64)
-#else
-#endif
+
 #include <ctype.h>
 
 int main(int argc, char** argv) {
