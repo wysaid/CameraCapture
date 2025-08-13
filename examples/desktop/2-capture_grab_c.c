@@ -12,28 +12,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-// Platform-specific includes for directory and cwd utilities
+// Platform-specific includes for cwd utilities
 #if defined(_WIN32) || defined(_WIN64)
-#include <direct.h>
-#define getcwd _getcwd
 #else
-#include <sys/stat.h>
-#include <unistd.h>
 #endif
 #include <ctype.h>
-
-void createDirectory(const char* path) {
-#if defined(_WIN32) || defined(_WIN64)
-    // On Windows, _mkdir returns 0 on success, -1 on failure (e.g., already exists).
-    // It's safe to call without pre-check; ignore EEXIST.
-    _mkdir(path);
-#else
-    struct stat st = { 0 };
-    if (stat(path, &st) == -1) {
-        mkdir(path, 0700);
-    }
-#endif
-}
 
 int main(int argc, char** argv) {
     printf("ccap C Interface Capture Grab Example\n");
@@ -57,7 +40,7 @@ int main(int argc, char** argv) {
             *lastSlash = '\0';
         }
     } else {
-        if (!getcwd(cwd, sizeof(cwd))) {
+        if (getCurrentWorkingDirectory(cwd, sizeof(cwd)) != 0) {
             strncpy(cwd, ".", sizeof(cwd) - 1);
             cwd[sizeof(cwd) - 1] = '\0';
         }

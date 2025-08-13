@@ -17,6 +17,11 @@ extern "C" {
 //  - -1: zero or one device available (use default/open first)
 typedef struct CcapProvider CcapProvider; // forward declaration from ccap_c.h
 int selectCamera(CcapProvider* provider);
+// Create directory if not exists (portable)
+void createDirectory(const char* path);
+// Get current working directory (portable)
+// Returns 0 on success, -1 on failure
+int getCurrentWorkingDirectory(char* buffer, size_t size);
 
 #ifdef __cplusplus
 } // extern "C"
