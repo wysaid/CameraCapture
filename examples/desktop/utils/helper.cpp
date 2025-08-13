@@ -37,13 +37,12 @@ int getCurrentWorkingDirectory(char* buffer, int size) {
 }
 
 int selectCamera(CcapProvider* provider) {
-    char** deviceNames;
-    size_t deviceCount;
+    CcapDeviceNamesList deviceList;
 
-    if (ccap_provider_find_device_names(provider, &deviceNames, &deviceCount) && deviceCount > 1) {
+    if (ccap_provider_find_device_names_list(provider, &deviceList) && deviceList.deviceCount > 1) {
         printf("Multiple devices found, please select one:\n");
-        for (size_t i = 0; i < deviceCount; i++) {
-            printf("  %zu: %s\n", i, deviceNames[i]);
+        for (size_t i = 0; i < deviceList.deviceCount; i++) {
+            printf("  %zu: %s\n", i, deviceList.deviceNames[i]);
         }
 
         int selectedIndex;
@@ -52,19 +51,14 @@ int selectCamera(CcapProvider* provider) {
             selectedIndex = 0;
         }
 
-        if (selectedIndex < 0 || selectedIndex >= static_cast<int>(deviceCount)) {
+        if (selectedIndex < 0 || selectedIndex >= static_cast<int>(deviceList.deviceCount)) {
             selectedIndex = 0;
-            fprintf(stderr, "Invalid index, using the first device: %s\n", deviceNames[0]);
+            fprintf(stderr, "Invalid index, using the first device: %s\n", deviceList.deviceNames[0]);
         } else {
-            printf("Using device: %s\n", deviceNames[selectedIndex]);
+            printf("Using device: %s\n", deviceList.deviceNames[selectedIndex]);
         }
 
-        ccap_provider_free_device_names(deviceNames, deviceCount);
         return selectedIndex;
-    }
-
-    if (deviceCount > 0) {
-        ccap_provider_free_device_names(deviceNames, deviceCount);
     }
 
     return -1; // One or no device, use default.
