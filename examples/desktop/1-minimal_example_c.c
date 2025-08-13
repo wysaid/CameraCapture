@@ -7,43 +7,10 @@
 
 #include "ccap_c.h"
 #include "ccap_utils_c.h"
+#include "utils/helper.h"
 
 #include <stdio.h>
 #include <stdlib.h>
-
-int selectCamera(CcapProvider* provider) {
-    char** deviceNames;
-    size_t deviceCount;
-    
-    if (ccap_provider_find_device_names(provider, &deviceNames, &deviceCount) && deviceCount > 1) {
-        printf("Multiple devices found, please select one:\n");
-        for (size_t i = 0; i < deviceCount; i++) {
-            printf("  %zu: %s\n", i, deviceNames[i]);
-        }
-        
-        int selectedIndex;
-        printf("Enter the index of the device you want to use: ");
-        if (scanf("%d", &selectedIndex) != 1) {
-            selectedIndex = 0;
-        }
-        
-        if (selectedIndex < 0 || selectedIndex >= (int)deviceCount) {
-            selectedIndex = 0;
-            fprintf(stderr, "Invalid index, using the first device: %s\n", deviceNames[0]);
-        } else {
-            printf("Using device: %s\n", deviceNames[selectedIndex]);
-        }
-        
-        ccap_provider_free_device_names(deviceNames, deviceCount);
-        return selectedIndex;
-    }
-    
-    if (deviceCount > 0) {
-        ccap_provider_free_device_names(deviceNames, deviceCount);
-    }
-    
-    return -1; // One or no device, use default.
-}
 
 int main() {
     printf("ccap C Interface Minimal Example\n");
@@ -81,12 +48,12 @@ int main() {
                 // Get pixel format string
                 char formatStr[64];
                 ccap_pixel_format_to_string(frameInfo.pixelFormat, formatStr, sizeof(formatStr));
-                
-                printf("VideoFrame %llu grabbed: width = %d, height = %d, bytes: %d, format: %s\n", 
-                       frameInfo.frameIndex, frameInfo.width, frameInfo.height, 
+
+                printf("VideoFrame %llu grabbed: width = %d, height = %d, bytes: %d, format: %s\n",
+                       frameInfo.frameIndex, frameInfo.width, frameInfo.height,
                        frameInfo.sizeInBytes, formatStr);
             }
-            
+
             ccap_video_frame_release(frame);
         } else {
             fprintf(stderr, "Failed to grab frame!\n");
@@ -96,9 +63,9 @@ int main() {
     }
 
     printf("Captured 10 frames, stopping...\n");
-    
+
     // Cleanup
     ccap_provider_destroy(provider);
-    
+
     return 0;
 }

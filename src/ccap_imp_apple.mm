@@ -582,30 +582,46 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
 
                 if (bestRange) {
                     // Create precise frame duration for the selected fps
-                    // For high frame rates, we need precise time calculation
+                    // Use tolerance to handle floating-point fps values and cover common NTSC fractional rates
                     CMTime frameDuration;
 
-                    if (fps == 60.0) {
-                        // Exact 60 fps: 1/60 second
-                        frameDuration = CMTimeMake(1, 60);
-                    } else if (fps == 120.0) {
-                        // Exact 120 fps: 1/120 second
-                        frameDuration = CMTimeMake(1, 120);
-                    } else if (fps == 240.0) {
-                        // Exact 240 fps: 1/240 second
+                    const double fpsEps = 0.01; // tighter tolerance to distinguish 30.0 vs 29.97, 24.0 vs 23.976
+                    auto approx = [&](double t) { return std::abs(fps - t) < fpsEps; };
+
+                    // Prefer fractional NTSC rates first, then integer rates
+                    if (approx(239.76)) {
+                        // 239.76 fps ~= 240000/1001 -> duration = 1001/240000 s
+                        frameDuration = CMTimeMake(1001, 240000);
+                    } else if (approx(240.0)) {
+                        // 240.00 fps -> 1/240 s
                         frameDuration = CMTimeMake(1, 240);
+                    } else if (approx(119.88)) {
+                        // 119.88 fps ~= 120000/1001 -> duration = 1001/120000 s
+                        frameDuration = CMTimeMake(1001, 120000);
+                    } else if (approx(120.0)) {
+                        // 120.00 fps -> 1/120 s
+                        frameDuration = CMTimeMake(1, 120);
+                    } else if (approx(59.94)) {
+                        // 59.94 fps ~= 60000/1001 -> duration = 1001/60000 s
+                        frameDuration = CMTimeMake(1001, 60000);
+                    } else if (approx(60.0)) {
+                        // 60.00 fps -> 1/60 s
+                        frameDuration = CMTimeMake(1, 60);
+                    } else if (approx(29.97)) {
+                        // 29.97 fps ~= 30000/1001 -> duration = 1001/30000 s
+                        frameDuration = CMTimeMake(1001, 30000);
+                    } else if (approx(30.0)) {
+                        // 30.00 fps -> 1/30 s
+                        frameDuration = CMTimeMake(1, 30);
+                    } else if (approx(23.976)) {
+                        // 23.976 fps ~= 24000/1001 -> duration = 1001/24000 s
+                        frameDuration = CMTimeMake(1001, 24000);
+                    } else if (approx(24.0)) {
+                        // 24.00 fps -> 1/24 s
+                        frameDuration = CMTimeMake(1, 24);
                     } else {
-                        // For other frame rates, use high precision time scale
-                        int32_t timeScale = 600; // Base time scale
-
-                        // For high frame rates, use larger time scale for better precision
-                        if (fps >= 60) {
-                            timeScale = 6000;
-                        } else if (fps >= 30) {
-                            timeScale = 3000;
-                        }
-
-                        frameDuration = CMTimeMake(timeScale / fps, timeScale);
+                        // Fallback: use high time scale to retain precision and avoid integer truncation
+                        frameDuration = CMTimeMakeWithSeconds(1.0 / fps, 60000);
                     }
 
                     // Clamp frameDuration to the supported range to prevent exceptions
@@ -634,7 +650,8 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
             for (AVCaptureConnection* connection in _videoOutput.connections) {
                 for (AVCaptureInputPort* port in connection.inputPorts) {
                     if ([port.mediaType isEqualToString:AVMediaTypeVideo]) {
-                        auto tm = CMTimeMake(1, fps);
+                        // Use a precise frame duration for legacy API path as well
+                        auto tm = CMTimeMakeWithSeconds(1.0 / fps, 60000);
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
                         connection.videoMinFrameDuration = tm;

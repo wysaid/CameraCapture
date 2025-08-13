@@ -149,7 +149,7 @@ void ccap_provider_free_device_names(char** deviceNames, size_t count) {
 
 bool ccap_provider_open(CcapProvider* provider, const char* deviceName, bool autoStart) {
     if (!provider) return false;
-    
+
     try {
         auto* cppProvider = reinterpret_cast<ccap::Provider*>(provider);
         std::string_view deviceNameView = deviceName ? deviceName : "";
@@ -161,7 +161,7 @@ bool ccap_provider_open(CcapProvider* provider, const char* deviceName, bool aut
 
 bool ccap_provider_open_by_index(CcapProvider* provider, int deviceIndex, bool autoStart) {
     if (!provider) return false;
-    
+
     try {
         auto* cppProvider = reinterpret_cast<ccap::Provider*>(provider);
         return cppProvider->open(deviceIndex, autoStart);
@@ -243,7 +243,7 @@ void ccap_provider_close(CcapProvider* provider) {
 
 bool ccap_provider_start(CcapProvider* provider) {
     if (!provider) return false;
-    
+
     try {
         auto* cppProvider = reinterpret_cast<ccap::Provider*>(provider);
         return cppProvider->start();
