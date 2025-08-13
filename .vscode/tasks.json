@@ -26,7 +26,7 @@
                 "options": {
                     "cwd": "${workspaceFolder}"
                 },
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -52,7 +52,7 @@
                 "options": {
                     "cwd": "${workspaceFolder}"
                 },
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -106,7 +106,7 @@
                 "options": {
                     "cwd": "${workspaceFolder}"
                 },
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -132,7 +132,7 @@
                 "options": {
                     "cwd": "${workspaceFolder}"
                 },
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -345,7 +345,7 @@
             ],
             "windows": {
                 "command": ".\\0-print_camera.exe",
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -367,7 +367,7 @@
             ],
             "windows": {
                 "command": ".\\0-print_camera.exe",
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -389,7 +389,7 @@
             ],
             "windows": {
                 "command": ".\\1-minimal_example.exe",
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -411,7 +411,7 @@
             ],
             "windows": {
                 "command": ".\\1-minimal_example.exe",
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -433,7 +433,7 @@
             ],
             "windows": {
                 "command": ".\\2-capture_grab.exe",
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -455,7 +455,7 @@
             ],
             "windows": {
                 "command": ".\\2-capture_grab.exe",
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -477,7 +477,7 @@
             ],
             "windows": {
                 "command": ".\\3-capture_callback.exe",
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -499,7 +499,7 @@
             ],
             "windows": {
                 "command": ".\\3-capture_callback.exe",
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -521,7 +521,7 @@
             ],
             "windows": {
                 "command": ".\\4-example_with_glfw.exe",
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -543,7 +543,7 @@
             ],
             "windows": {
                 "command": ".\\4-example_with_glfw.exe",
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -565,7 +565,7 @@
             ],
             "windows": {
                 "command": ".\\0-print_camera_c.exe",
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -587,7 +587,7 @@
             ],
             "windows": {
                 "command": ".\\0-print_camera_c.exe",
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -609,7 +609,7 @@
             ],
             "windows": {
                 "command": ".\\1-minimal_example_c.exe",
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -631,7 +631,7 @@
             ],
             "windows": {
                 "command": ".\\1-minimal_example_c.exe",
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -653,7 +653,7 @@
             ],
             "windows": {
                 "command": ".\\2-capture_grab_c.exe",
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -675,7 +675,7 @@
             ],
             "windows": {
                 "command": ".\\2-capture_grab_c.exe",
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -697,7 +697,7 @@
             ],
             "windows": {
                 "command": ".\\3-capture_callback_c.exe",
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -719,7 +719,7 @@
             ],
             "windows": {
                 "command": ".\\3-capture_callback_c.exe",
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -741,7 +741,7 @@
             ],
             "windows": {
                 "command": ".\\4-example_with_glfw_c.exe",
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         },
         {
@@ -763,7 +763,7 @@
             ],
             "windows": {
                 "command": ".\\4-example_with_glfw_c.exe",
-                "problemMatcher": "$msCompile",
+                "problemMatcher": "$msCompile"
             }
         }
     ]
