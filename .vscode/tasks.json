@@ -545,6 +545,226 @@
                 "command": ".\\4-example_with_glfw.exe",
                 "problemMatcher": "$msCompile",
             }
+        },
+        {
+            "label": "Run 0-print_camera_c (Debug)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./0-print_camera_c.exe; else ./0-print_camera_c; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Debug"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Debug)"
+            ],
+            "windows": {
+                "command": ".\\0-print_camera_c.exe",
+                "problemMatcher": "$msCompile",
+            }
+        },
+        {
+            "label": "Run 0-print_camera_c (Release)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./0-print_camera_c.exe; else ./0-print_camera_c; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Release"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Release)"
+            ],
+            "windows": {
+                "command": ".\\0-print_camera_c.exe",
+                "problemMatcher": "$msCompile",
+            }
+        },
+        {
+            "label": "Run 1-minimal_example_c (Debug)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./1-minimal_example_c.exe; else ./1-minimal_example_c; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Debug"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Debug)"
+            ],
+            "windows": {
+                "command": ".\\1-minimal_example_c.exe",
+                "problemMatcher": "$msCompile",
+            }
+        },
+        {
+            "label": "Run 1-minimal_example_c (Release)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./1-minimal_example_c.exe; else ./1-minimal_example_c; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Release"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Release)"
+            ],
+            "windows": {
+                "command": ".\\1-minimal_example_c.exe",
+                "problemMatcher": "$msCompile",
+            }
+        },
+        {
+            "label": "Run 2-capture_grab_c (Debug)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./2-capture_grab_c.exe; else ./2-capture_grab_c; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Debug"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Debug)"
+            ],
+            "windows": {
+                "command": ".\\2-capture_grab_c.exe",
+                "problemMatcher": "$msCompile",
+            }
+        },
+        {
+            "label": "Run 2-capture_grab_c (Release)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./2-capture_grab_c.exe; else ./2-capture_grab_c; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Release"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Release)"
+            ],
+            "windows": {
+                "command": ".\\2-capture_grab_c.exe",
+                "problemMatcher": "$msCompile",
+            }
+        },
+        {
+            "label": "Run 3-capture_callback_c (Debug)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./3-capture_callback_c.exe; else ./3-capture_callback_c; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Debug"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Debug)"
+            ],
+            "windows": {
+                "command": ".\\3-capture_callback_c.exe",
+                "problemMatcher": "$msCompile",
+            }
+        },
+        {
+            "label": "Run 3-capture_callback_c (Release)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./3-capture_callback_c.exe; else ./3-capture_callback_c; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Release"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Release)"
+            ],
+            "windows": {
+                "command": ".\\3-capture_callback_c.exe",
+                "problemMatcher": "$msCompile",
+            }
+        },
+        {
+            "label": "Run 4-example_with_glfw_c (Debug)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./4-example_with_glfw_c.exe; else ./4-example_with_glfw_c; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Debug"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Debug)"
+            ],
+            "windows": {
+                "command": ".\\4-example_with_glfw_c.exe",
+                "problemMatcher": "$msCompile",
+            }
+        },
+        {
+            "label": "Run 4-example_with_glfw_c (Release)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./4-example_with_glfw_c.exe; else ./4-example_with_glfw_c; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Release"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Release)"
+            ],
+            "windows": {
+                "command": ".\\4-example_with_glfw_c.exe",
+                "problemMatcher": "$msCompile",
+            }
         }
     ]
 }
