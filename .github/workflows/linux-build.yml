@@ -93,8 +93,8 @@ jobs:
   build-ubuntu-clang:
     name: "Build (${{ matrix.build_type }}-clang)"
     runs-on: ubuntu-latest
-  # Run clang builds on push to main and on pull requests
-  if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    # Run clang builds on push to main and on pull requests
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     
     strategy:
       matrix:
