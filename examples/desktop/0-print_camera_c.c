@@ -39,17 +39,13 @@ int main() {
     }
 
     // Find available devices
-    char** deviceNames;
-    size_t deviceCount;
-    if (ccap_provider_find_device_names(provider, &deviceNames, &deviceCount)) {
-        printf("Found %zu camera device(s):\n", deviceCount);
-        for (size_t i = 0; i < deviceCount; i++) {
-            printf("  %zu: %s\n", i, deviceNames[i]);
+    CcapDeviceNamesList deviceList;
+    if (ccap_provider_find_device_names_list(provider, &deviceList)) {
+        printf("Found %zu camera device(s):\n", deviceList.deviceCount);
+        for (size_t i = 0; i < deviceList.deviceCount; i++) {
+            printf("  %zu: %s\n", i, deviceList.deviceNames[i]);
         }
         printf("\n");
-
-        // Free device names
-        ccap_provider_free_device_names(deviceNames, deviceCount);
     } else {
         printf("Failed to enumerate devices\n");
     }

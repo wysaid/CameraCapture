@@ -105,6 +105,32 @@ void ccap_provider_destroy(CcapProvider* provider) {
 
 /* ========== Device Discovery ========== */
 
+bool ccap_provider_find_device_names_list(CcapProvider* provider, CcapDeviceNamesList* deviceList) {
+    if (!provider || !deviceList) return false;
+
+    auto* cppProvider = reinterpret_cast<ccap::Provider*>(provider);
+    auto devices = cppProvider->findDeviceNames();
+
+    // Initialize structure
+    memset(deviceList, 0, sizeof(CcapDeviceNamesList));
+    
+    deviceList->deviceCount = devices.size();
+    if (deviceList->deviceCount > CCAP_MAX_DEVICES) {
+        deviceList->deviceCount = CCAP_MAX_DEVICES;
+    }
+
+    for (size_t i = 0; i < deviceList->deviceCount; ++i) {
+        size_t nameLen = devices[i].size();
+        if (nameLen >= CCAP_MAX_DEVICE_NAME_LENGTH) {
+            nameLen = CCAP_MAX_DEVICE_NAME_LENGTH - 1;
+        }
+        strncpy(deviceList->deviceNames[i], devices[i].c_str(), nameLen);
+        deviceList->deviceNames[i][nameLen] = '\0';
+    }
+
+    return true;
+}
+
 bool ccap_provider_find_device_names(CcapProvider* provider, char*** deviceNames, size_t* count) {
     if (!provider || !deviceNames || !count) return false;
 
