@@ -20,15 +20,21 @@
 #endif
 #include <ctype.h>
 
-// Global variables for callback context
-static char g_captureDir[1024];
-static int g_framesSaved = 0;
+// Context structure for callback data
+typedef struct {
+    char captureDir[1024];
+    int framesSaved;
+} CallbackContext;
 
 // Create directory via helper
 
 // Callback function for new frames
 bool frame_callback(const CcapVideoFrame* frame, void* userData) {
-    (void)userData; // Suppress unused parameter warning
+    CallbackContext* context = (CallbackContext*)userData;
+    if (!context) {
+        fprintf(stderr, "Invalid callback context!\n");
+        return true;
+    }
 
     CcapVideoFrameInfo frameInfo;
     if (ccap_video_frame_get_info(frame, &frameInfo)) {
@@ -37,10 +43,10 @@ bool frame_callback(const CcapVideoFrame* frame, void* userData) {
 
         // Save frame to directory
         char outputPath[2048];
-        int result = ccap_dump_frame_to_directory(frame, g_captureDir, outputPath, sizeof(outputPath));
+        int result = ccap_dump_frame_to_directory(frame, context->captureDir, outputPath, sizeof(outputPath));
         if (result > 0) {
             printf("VideoFrame saved to: %s\n", outputPath);
-            g_framesSaved++;
+            context->framesSaved++;
         } else {
             fprintf(stderr, "Failed to save frame!\n");
         }
@@ -88,8 +94,10 @@ int main(int argc, char** argv) {
         }
     }
 
-    snprintf(g_captureDir, sizeof(g_captureDir), "%s/image_capture", cwd);
-    createDirectory(g_captureDir);
+    // Initialize callback context
+    CallbackContext callbackContext = { 0 };
+    snprintf(callbackContext.captureDir, sizeof(callbackContext.captureDir), "%s/image_capture", cwd);
+    createDirectory(callbackContext.captureDir);
 
     // Create provider
     CcapProvider* provider = ccap_provider_create();
@@ -145,7 +153,7 @@ int main(int argc, char** argv) {
            requestedWidth, requestedHeight, realWidth, realHeight, requestedFps, realFps);
 
     // Set frame callback
-    if (!ccap_provider_set_new_frame_callback(provider, frame_callback, NULL)) {
+    if (!ccap_provider_set_new_frame_callback(provider, frame_callback, &callbackContext)) {
         fprintf(stderr, "Failed to set frame callback!\n");
         ccap_provider_destroy(provider);
         return -1;
@@ -155,7 +163,7 @@ int main(int argc, char** argv) {
     printf("Capturing frames for 5 seconds...\n");
     sleep_seconds(5);
 
-    printf("Captured for 5 seconds, stopping... (Total frames saved: %d)\n", g_framesSaved);
+    printf("Captured for 5 seconds, stopping... (Total frames saved: %d)\n", callbackContext.framesSaved);
 
     // Cleanup
     ccap_provider_destroy(provider);
