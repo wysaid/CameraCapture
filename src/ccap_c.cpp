@@ -47,16 +47,6 @@ CcapFrameOrientation convert_frame_orientation_to_c(ccap::FrameOrientation orien
     return static_cast<CcapFrameOrientation>(static_cast<uint32_t>(orientation));
 }
 
-// Helper to allocate and copy C string
-char* allocate_c_string(const std::string& str) {
-    if (str.empty()) return nullptr;
-    char* result = static_cast<char*>(malloc(str.length() + 1));
-    if (result) {
-        strcpy(result, str.c_str());
-    }
-    return result;
-}
-
 // Wrapper struct for callback management
 struct CallbackWrapper {
     CcapNewFrameCallback callback;
@@ -129,46 +119,6 @@ bool ccap_provider_find_device_names_list(CcapProvider* provider, CcapDeviceName
     }
 
     return true;
-}
-
-bool ccap_provider_find_device_names(CcapProvider* provider, char*** deviceNames, size_t* count) {
-    if (!provider || !deviceNames || !count) return false;
-
-    auto* cppProvider = reinterpret_cast<ccap::Provider*>(provider);
-    auto devices = cppProvider->findDeviceNames();
-
-    *count = devices.size();
-    if (*count == 0) {
-        *deviceNames = nullptr;
-        return true;
-    }
-
-    char** names = static_cast<char**>(malloc(*count * sizeof(char*)));
-    if (!names) return false;
-
-    for (size_t i = 0; i < *count; ++i) {
-        names[i] = allocate_c_string(devices[i]);
-        if (!names[i]) {
-            // Cleanup on failure
-            for (size_t j = 0; j < i; ++j) {
-                free(names[j]);
-            }
-            free(names);
-            return false;
-        }
-    }
-
-    *deviceNames = names;
-    return true;
-}
-
-void ccap_provider_free_device_names(char** deviceNames, size_t count) {
-    if (deviceNames) {
-        for (size_t i = 0; i < count; ++i) {
-            free(deviceNames[i]);
-        }
-        free(deviceNames);
-    }
 }
 
 /* ========== Device Management ========== */
