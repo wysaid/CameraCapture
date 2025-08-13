@@ -10,12 +10,9 @@
 
 #include "ccap_c.h"
 
+#include <ccap.h>
 #include <stdio.h>
 #include <stdlib.h>
-#ifdef __cplusplus
-#include <ccap.h>
-#include <iostream>
-#endif
 
 int selectCamera(CcapProvider* provider) {
     char** deviceNames;
@@ -51,24 +48,26 @@ int selectCamera(CcapProvider* provider) {
     return -1; // One or no device, use default.
 }
 
-#ifdef __cplusplus
 int selectCamera(ccap::Provider& provider) {
-    if (auto names = provider.findDeviceNames(); names.size() > 1) {
-        std::cout << "Multiple devices found, please select one:" << std::endl;
+    auto names = provider.findDeviceNames();
+    if (names.size() > 1) {
+        printf("Multiple devices found, please select one:\n");
         for (size_t i = 0; i < names.size(); ++i) {
-            std::cout << "  " << i << ": " << names[i] << std::endl;
+            printf("  %zu: %s\n", i, names[i].c_str());
         }
         int selectedIndex;
-        std::cout << "Enter the index of the device you want to use: ";
-        std::cin >> selectedIndex;
+        printf("Enter the index of the device you want to use: ");
+        if (scanf("%d", &selectedIndex) != 1) {
+            selectedIndex = 0;
+        }
         if (selectedIndex < 0 || selectedIndex >= static_cast<int>(names.size())) {
             selectedIndex = 0;
-            std::cerr << "Invalid index, using the first device:" << names[0] << std::endl;
+            fprintf(stderr, "Invalid index, using the first device: %s\n", names[0].c_str());
         } else {
-            std::cout << "Using device: " << names[selectedIndex] << std::endl;
+            printf("Using device: %s\n", names[selectedIndex].c_str());
         }
         return selectedIndex;
     }
     return -1; // One or no device, use default.
 }
-#endif
+// ...existing code...
