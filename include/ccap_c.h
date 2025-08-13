@@ -148,30 +148,12 @@ void ccap_provider_destroy(CcapProvider* provider);
 /* ========== Device Discovery ========== */
 
 /**
- * @brief Find all available camera device names (new optimized API)
+ * @brief Find all available camera device names
  * @param provider Pointer to CcapProvider instance
  * @param deviceList Output parameter for device names list
  * @return true on success, false on failure
  */
 bool ccap_provider_find_device_names_list(CcapProvider* provider, CcapDeviceNamesList* deviceList);
-
-/**
- * @brief Find all available camera device names (legacy API - deprecated)
- * @param provider Pointer to CcapProvider instance
- * @param deviceNames Output array of device name strings (caller must free each string and the array)
- * @param count Output parameter for number of devices found
- * @return true on success, false on failure
- * @deprecated Use ccap_provider_find_device_names_list instead
- */
-bool ccap_provider_find_device_names(CcapProvider* provider, char*** deviceNames, size_t* count);
-
-/**
- * @brief Free device names array returned by ccap_provider_find_device_names (legacy API - deprecated)
- * @param deviceNames Array of device name strings
- * @param count Number of device names
- * @deprecated Use ccap_provider_find_device_names_list instead
- */
-void ccap_provider_free_device_names(char** deviceNames, size_t count);
 
 /* ========== Device Management ========== */
 
