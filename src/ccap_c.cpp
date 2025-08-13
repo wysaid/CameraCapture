@@ -56,6 +56,20 @@ struct CallbackWrapper {
         callback(cb), userData(data) {}
 };
 
+// Wrapper struct for error callback management
+struct ErrorCallbackWrapper {
+    CcapErrorCallback callback;
+    void* userData;
+
+    ErrorCallbackWrapper(CcapErrorCallback cb, void* data) :
+        callback(cb), userData(data) {}
+};
+
+// Convert C++ ErrorCode to C enum
+CcapErrorCode convert_error_code_to_c(ccap::ErrorCode errorCode) {
+    return static_cast<CcapErrorCode>(static_cast<uint32_t>(errorCode));
+}
+
 } // anonymous namespace
 
 /* ========== Provider Lifecycle ========== */
@@ -343,7 +357,37 @@ void ccap_provider_set_max_cache_frame_size(CcapProvider* provider, uint32_t siz
     }
 }
 
+/* ========== Error Callback ========== */
+
+bool ccap_provider_set_error_callback(CcapProvider* provider, CcapErrorCallback callback, void* userData) {
+    if (!provider) return false;
+
+    try {
+        auto* cppProvider = reinterpret_cast<ccap::Provider*>(provider);
+        
+        if (callback) {
+            auto wrapper = std::make_shared<ErrorCallbackWrapper>(callback, userData);
+            cppProvider->setErrorCallback([wrapper](ccap::ErrorCode errorCode, const std::string& description) {
+                wrapper->callback(convert_error_code_to_c(errorCode), description.c_str(), wrapper->userData);
+            });
+        } else {
+            cppProvider->setErrorCallback(nullptr);
+        }
+        
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
 /* ========== Utility Functions ========== */
+
+const char* ccap_error_code_to_string(CcapErrorCode errorCode) {
+    ccap::ErrorCode cppErrorCode = static_cast<ccap::ErrorCode>(static_cast<uint32_t>(errorCode));
+    static thread_local std::string errorString;
+    errorString = ccap::errorCodeToString(cppErrorCode);
+    return errorString.c_str();
+}
 
 const char* ccap_get_version(void) {
     // You may want to define this version string elsewhere

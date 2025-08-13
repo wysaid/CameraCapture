@@ -36,6 +36,12 @@ int main(int argc, char** argv) {
 
     ccap::Provider cameraProvider;
 
+    // Set error callback to receive error notifications
+    cameraProvider.setErrorCallback([](ccap::ErrorCode errorCode, const std::string& description) {
+        std::cerr << "Camera Error - Code: " << static_cast<int>(errorCode) 
+                  << ", Description: " << description << std::endl;
+    });
+
     if (auto deviceNames = cameraProvider.findDeviceNames(); !deviceNames.empty()) {
         for (const auto& name : deviceNames) {
             std::cout << "## Found video capture device: " << name << std::endl;

@@ -90,6 +90,7 @@ bool ProviderV4L2::open(std::string_view deviceName) {
         auto devices = findDeviceNames();
         if (devices.empty()) {
             CCAP_LOG_E("ccap: No video devices found\n");
+            reportError(ErrorCode::NoDeviceFound, "No video devices found");
             return false;
         }
         m_deviceName = devices[0];
@@ -112,6 +113,7 @@ bool ProviderV4L2::open(std::string_view deviceName) {
         }
         if (!found) {
             CCAP_LOG_E("ccap: Device not found: %s\n", deviceName.data());
+            reportError(ErrorCode::InvalidDevice, "Device not found: " + std::string(deviceName));
             return false;
         }
     }
@@ -120,12 +122,14 @@ bool ProviderV4L2::open(std::string_view deviceName) {
     m_fd = ::open(m_devicePath.c_str(), O_RDWR | O_NONBLOCK);
     if (m_fd < 0) {
         CCAP_LOG_E("ccap: Failed to open device %s: %s\n", m_devicePath.c_str(), strerror(errno));
+        reportError(ErrorCode::DeviceOpenFailed, "Failed to open device " + m_devicePath + ": " + strerror(errno));
         return false;
     }
 
     if (!setupDevice()) {
         ::close(m_fd);
         m_fd = -1;
+        reportError(ErrorCode::DeviceOpenFailed, "Failed to setup device " + m_devicePath);
         return false;
     }
 
@@ -177,6 +181,7 @@ void ProviderV4L2::close() {
 bool ProviderV4L2::start() {
     if (!isOpened()) {
         CCAP_LOG_E("ccap: Device not opened\n");
+        reportError(ErrorCode::DeviceStartFailed, "Device not opened");
         return false;
     }
 
@@ -186,6 +191,7 @@ bool ProviderV4L2::start() {
     }
 
     if (!negotiateFormat() || !allocateBuffers() || !startStreaming()) {
+        reportError(ErrorCode::DeviceStartFailed, "Failed to start streaming");
         return false;
     }
 

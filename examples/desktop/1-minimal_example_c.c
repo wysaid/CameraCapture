@@ -12,6 +12,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// Error callback function
+void error_callback(CcapErrorCode errorCode, const char* errorDescription, void* userData) {
+    (void)userData; // Unused parameter
+    printf("Error occurred - Code: %d, Description: %s\n", (int)errorCode, errorDescription);
+}
+
 int main() {
     printf("ccap C Interface Minimal Example\n");
     printf("Version: %s\n\n", ccap_get_version());
@@ -22,6 +28,9 @@ int main() {
         printf("Failed to create provider\n");
         return -1;
     }
+
+    // Set error callback to receive error notifications
+    ccap_provider_set_error_callback(provider, error_callback, NULL);
 
     // Select and open camera
     int deviceIndex = selectCamera(provider);
