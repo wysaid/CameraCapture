@@ -102,8 +102,8 @@ int main(int argc, char** argv) {
         if (frame) {
             CcapVideoFrameInfo frameInfo;
             if (ccap_video_frame_get_info(frame, &frameInfo)) {
-                printf("VideoFrame %llu grabbed: width = %d, height = %d, bytes: %d\n",
-                       frameInfo.frameIndex, frameInfo.width, frameInfo.height, frameInfo.sizeInBytes);
+                printf("VideoFrame %d grabbed: width = %d, height = %d, bytes: %d\n",
+                       (int)frameInfo.frameIndex, frameInfo.width, frameInfo.height, (int)frameInfo.sizeInBytes);
 
                 // Save frame to directory
                 char outputPath[2048];

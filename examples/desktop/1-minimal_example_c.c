@@ -49,9 +49,9 @@ int main() {
                 char formatStr[64];
                 ccap_pixel_format_to_string(frameInfo.pixelFormat, formatStr, sizeof(formatStr));
 
-                printf("VideoFrame %llu grabbed: width = %d, height = %d, bytes: %d, format: %s\n",
-                       frameInfo.frameIndex, frameInfo.width, frameInfo.height,
-                       frameInfo.sizeInBytes, formatStr);
+                printf("VideoFrame %d grabbed: width = %d, height = %d, bytes: %d, format: %s\n",
+                       (int)frameInfo.frameIndex, frameInfo.width, frameInfo.height,
+                       (int)frameInfo.sizeInBytes, formatStr);
             }
 
             ccap_video_frame_release(frame);
