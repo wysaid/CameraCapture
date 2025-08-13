@@ -14,31 +14,17 @@
 #include <string.h>
 // Platform-specific includes for directory, cwd and sleep
 #if defined(_WIN32) || defined(_WIN64)
-#include <direct.h>
 #include <windows.h>
-#define getcwd _getcwd
 #else
-#include <sys/stat.h>
-#include <unistd.h>
+#include <time.h>
 #endif
 #include <ctype.h>
-#include <time.h>
 
 // Global variables for callback context
 static char g_captureDir[1024];
 static int g_framesSaved = 0;
 
-void createDirectory(const char* path) {
-    // Create directory if not exists
-#if defined(_WIN32) || defined(_WIN64)
-    _mkdir(path); // ignore error if exists
-#else
-    struct stat st = { 0 };
-    if (stat(path, &st) == -1) {
-        mkdir(path, 0700);
-    }
-#endif
-}
+// Create directory via helper
 
 // Callback function for new frames
 bool frame_callback(const CcapVideoFrame* frame, void* userData) {
@@ -96,7 +82,7 @@ int main(int argc, char** argv) {
             *lastSlash = '\0';
         }
     } else {
-        if (!getcwd(cwd, sizeof(cwd))) {
+        if (getCurrentWorkingDirectory(cwd, sizeof(cwd)) != 0) {
             strncpy(cwd, ".", sizeof(cwd) - 1);
             cwd[sizeof(cwd) - 1] = '\0';
         }
