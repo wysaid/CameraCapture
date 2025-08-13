@@ -61,6 +61,27 @@ typedef enum {
     CCAP_PROPERTY_FRAME_ORIENTATION = 0x40000
 } CcapPropertyName;
 
+/** @brief Error codes for camera capture operations */
+typedef enum {
+    CCAP_ERROR_NONE = 0,                        /**< No error occurred */
+    CCAP_ERROR_NO_DEVICE_FOUND = 0x1001,       /**< No camera device found or device discovery failed */
+    CCAP_ERROR_INVALID_DEVICE = 0x1002,        /**< Invalid device name or device index */
+    CCAP_ERROR_DEVICE_OPEN_FAILED = 0x1003,    /**< Camera device open failed */
+    CCAP_ERROR_DEVICE_START_FAILED = 0x1004,   /**< Camera start failed */
+    CCAP_ERROR_DEVICE_STOP_FAILED = 0x1005,    /**< Camera stop failed */
+    CCAP_ERROR_UNSUPPORTED_RESOLUTION = 0x2001, /**< Requested resolution is not supported */
+    CCAP_ERROR_UNSUPPORTED_PIXEL_FORMAT = 0x2002, /**< Requested pixel format is not supported */
+    CCAP_ERROR_FRAME_RATE_SET_FAILED = 0x2003,  /**< Frame rate setting failed */
+    CCAP_ERROR_PROPERTY_SET_FAILED = 0x2004,    /**< Property setting failed */
+    CCAP_ERROR_FRAME_CAPTURE_TIMEOUT = 0x3001, /**< Frame capture timeout */
+    CCAP_ERROR_FRAME_CAPTURE_FAILED = 0x3002,  /**< Frame capture failed */
+    CCAP_ERROR_MEMORY_ALLOCATION_FAILED = 0x4001, /**< Memory allocation failed */
+    CCAP_ERROR_INTERNAL_ERROR = 0x9999,        /**< Unknown or internal error */
+} CcapErrorCode;
+
+/** @brief Error callback function type for C interface */
+typedef void (*CcapErrorCallback)(CcapErrorCode errorCode, const char* errorDescription, void* userData);
+
 /* ========== Constants ========== */
 
 /** @brief Maximum number of camera devices */
@@ -289,7 +310,25 @@ void ccap_provider_set_max_available_frame_size(CcapProvider* provider, uint32_t
  */
 void ccap_provider_set_max_cache_frame_size(CcapProvider* provider, uint32_t size);
 
+/* ========== Error Callback ========== */
+
+/**
+ * @brief Set error callback for a specific provider
+ * @param provider Pointer to CcapProvider instance
+ * @param callback Error callback function (NULL to remove callback)
+ * @param userData User data passed to callback
+ * @return true on success, false on failure
+ */
+bool ccap_provider_set_error_callback(CcapProvider* provider, CcapErrorCallback callback, void* userData);
+
 /* ========== Utility Functions ========== */
+
+/**
+ * @brief Convert error code to English string description
+ * @param errorCode The error code to convert
+ * @return Error description string
+ */
+const char* ccap_error_code_to_string(CcapErrorCode errorCode);
 
 /**
  * @brief Get library version string

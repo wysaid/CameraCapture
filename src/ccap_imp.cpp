@@ -188,4 +188,20 @@ std::shared_ptr<VideoFrame> ProviderImp::getFreeFrame() {
     }
     return frame;
 }
+
+void ProviderImp::setErrorCallback(ErrorCallback callback) {
+    m_errorCallback = std::move(callback);
+}
+
+void ProviderImp::reportError(ErrorCode errorCode, const std::string& description) {
+    if (m_errorCallback) {
+        try {
+            m_errorCallback(errorCode, description);
+        } catch (...) {
+            // Ignore exceptions in user callback to prevent crashes
+            CCAP_LOG_E("ccap: Error callback threw an exception\n");
+        }
+    }
+}
+
 } // namespace ccap

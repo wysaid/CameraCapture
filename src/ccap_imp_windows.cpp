@@ -311,6 +311,7 @@ void ProviderDirectShow::enumerateDevices(std::function<bool(IMoniker* moniker, 
             CCAP_LOG_E("ccap: CreateClassEnumerator CLSID_VideoInputDeviceCategory failed, result=0x%08X\n", result);
         } else {
             CCAP_LOG_E("ccap: No video capture devices found.\n");
+            reportError(ErrorCode::NoDeviceFound, "No video capture devices found");
         }
 
         return;
@@ -680,12 +681,15 @@ bool ProviderDirectShow::open(std::string_view deviceName) {
 
     if (!found) {
         CCAP_LOG_E("ccap: No video capture device: %s\n", deviceName.empty() ? unavailableMsg : deviceName.data());
+        reportError(ErrorCode::InvalidDevice, deviceName.empty() ? "No video capture device available" : 
+                    "Video capture device not found: " + std::string(deviceName));
         return false;
     }
 
     CCAP_LOG_I("ccap: Found video capture device: %s\n", m_deviceName.c_str());
 
     if (!buildGraph()) {
+        reportError(ErrorCode::DeviceOpenFailed, "Failed to build DirectShow graph");
         return false;
     }
 

@@ -55,6 +55,12 @@ bool frame_callback(const CcapVideoFrame* frame, void* userData) {
     return true; // Consume the frame (won't be available for grab())
 }
 
+// Error callback function
+void error_callback(CcapErrorCode errorCode, const char* errorDescription, void* userData) {
+    (void)userData; // Unused parameter
+    printf("Camera Error - Code: %d, Description: %s\n", (int)errorCode, errorDescription);
+}
+
 void sleep_seconds(int seconds) {
 #if defined(_WIN32) || defined(_WIN64)
     Sleep(seconds * 1000);
@@ -105,6 +111,9 @@ int main(int argc, char** argv) {
         printf("Failed to create provider\n");
         return -1;
     }
+
+    // Set error callback to receive error notifications
+    ccap_provider_set_error_callback(provider, error_callback, NULL);
 
     // Find and print available devices
     CcapDeviceNamesList deviceList;

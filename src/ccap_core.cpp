@@ -178,4 +178,8 @@ void Provider::setMaxAvailableFrameSize(uint32_t size) { m_imp->setMaxAvailableF
 
 void Provider::setMaxCacheFrameSize(uint32_t size) { m_imp->setMaxCacheFrameSize(size); }
 
+void Provider::setErrorCallback(ErrorCallback callback) { 
+    if (m_imp) m_imp->setErrorCallback(std::move(callback)); 
+}
+
 } // namespace ccap

@@ -38,6 +38,7 @@
 #endif
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -218,6 +219,67 @@ enum class PropertyName {
      */
     FrameOrientation = 0x40000,
 };
+
+/**
+ * @brief Error codes for camera capture operations
+ */
+enum class ErrorCode {
+    /// No error occurred
+    None = 0,
+    
+    /// No camera device found or device discovery failed
+    NoDeviceFound = 0x1001,
+    
+    /// Invalid device name or device index
+    InvalidDevice = 0x1002,
+    
+    /// Camera device open failed
+    DeviceOpenFailed = 0x1003,
+    
+    /// Camera start failed
+    DeviceStartFailed = 0x1004,
+    
+    /// Camera stop failed
+    DeviceStopFailed = 0x1005,
+    
+    /// Requested resolution is not supported
+    UnsupportedResolution = 0x2001,
+    
+    /// Requested pixel format is not supported
+    UnsupportedPixelFormat = 0x2002,
+    
+    /// Frame rate setting failed
+    FrameRateSetFailed = 0x2003,
+    
+    /// Property setting failed
+    PropertySetFailed = 0x2004,
+    
+    /// Frame capture timeout
+    FrameCaptureTimeout = 0x3001,
+    
+    /// Frame capture failed
+    FrameCaptureFailed = 0x3002,
+    
+    /// Memory allocation failed
+    MemoryAllocationFailed = 0x4001,
+    
+    /// Unknown or internal error
+    InternalError = 0x9999,
+};
+
+/**
+ * @brief Error callback function type for C++ interface
+ * @param errorCode The error code that occurred
+ * @param errorDescription English description of the error
+ */
+using ErrorCallback = std::function<void(ErrorCode errorCode, const std::string& errorDescription)>;
+
+/**
+ * @brief Convert error code to English string description
+ * @param errorCode The error code to convert
+ * @return English description of the error
+ */
+std::string errorCodeToString(ErrorCode errorCode);
 
 /**
  * @brief Interface for memory allocation, primarily used to allocate the `data` field in `ccap::Frame`.

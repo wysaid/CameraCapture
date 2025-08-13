@@ -247,4 +247,39 @@ void setLogLevel(LogLevel level) {
 #endif
 }
 
+std::string errorCodeToString(ErrorCode errorCode) {
+    switch (errorCode) {
+    case ErrorCode::None:
+        return "No error";
+    case ErrorCode::NoDeviceFound:
+        return "No camera device found or device discovery failed";
+    case ErrorCode::InvalidDevice:
+        return "Invalid device name or device index";
+    case ErrorCode::DeviceOpenFailed:
+        return "Camera device open failed";
+    case ErrorCode::DeviceStartFailed:
+        return "Camera start failed";
+    case ErrorCode::DeviceStopFailed:
+        return "Camera stop failed";
+    case ErrorCode::UnsupportedResolution:
+        return "Requested resolution is not supported";
+    case ErrorCode::UnsupportedPixelFormat:
+        return "Requested pixel format is not supported";
+    case ErrorCode::FrameRateSetFailed:
+        return "Frame rate setting failed";
+    case ErrorCode::PropertySetFailed:
+        return "Property setting failed";
+    case ErrorCode::FrameCaptureTimeout:
+        return "Frame capture timeout";
+    case ErrorCode::FrameCaptureFailed:
+        return "Frame capture failed";
+    case ErrorCode::MemoryAllocationFailed:
+        return "Memory allocation failed";
+    case ErrorCode::InternalError:
+        return "Unknown or internal error";
+    default:
+        return "Unknown error code";
+    }
+}
+
 } // namespace ccap

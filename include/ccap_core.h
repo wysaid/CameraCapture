@@ -216,6 +216,16 @@ public:
      */
     void setMaxCacheFrameSize(uint32_t size);
 
+    /**
+     * @brief Sets the error callback function to handle errors that occur during camera operations.
+     * @param callback The callback function to be invoked when an error occurs.
+     *     The callback receives an error code and English description of the error.
+     *     Pass nullptr to remove the error callback.
+     * @note The callback is executed in the same thread where the error occurs.
+     *       Keep the callback implementation lightweight to avoid blocking camera operations.
+     */
+    void setErrorCallback(ErrorCallback callback);
+
     // ↓ This part is not relevant to the user ↓
     Provider(Provider&&) = default;
     Provider& operator=(Provider&&) = default;
