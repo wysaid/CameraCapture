@@ -113,6 +113,42 @@ int main() {
 }
 ```
 
+##### Error Handling in C++
+
+Starting from v1.1.0, C++ interface supports error callbacks for detailed error reporting:
+
+```cpp
+#include <ccap.h>
+#include <iostream>
+
+int main() {
+    ccap::Provider provider;
+    
+    // Set error callback to receive detailed error information
+    provider.setErrorCallback([](ccap::ErrorCode errorCode, const std::string& description) {
+        std::cerr << "Camera Error - Code: " << static_cast<int>(errorCode) 
+                  << ", Description: " << description << std::endl;
+    });
+    
+    // Camera operations - errors will trigger the callback
+    if (!provider.open("", true)) {
+        std::cerr << "Failed to open camera" << std::endl;
+    }
+    
+    return 0;
+}
+```
+
+Available error codes include:
+- `ErrorCode::NoDeviceFound` - No camera device found
+- `ErrorCode::InvalidDevice` - Invalid device name or index  
+- `ErrorCode::DeviceOpenFailed` - Camera open failed
+- `ErrorCode::DeviceStartFailed` - Camera start failed
+- `ErrorCode::UnsupportedResolution` - Unsupported resolution
+- `ErrorCode::UnsupportedPixelFormat` - Unsupported pixel format
+- `ErrorCode::FrameCaptureTimeout` - Frame capture timeout
+- `ErrorCode::FrameCaptureFailed` - Frame capture failed
+
 #### Pure C Interface
 
 ```c
@@ -456,6 +492,54 @@ typedef enum {
     CCAP_PIXEL_FORMAT_RGBA32 = CCAP_PIXEL_FORMAT_RGB24 | (1 << 19),
     CCAP_PIXEL_FORMAT_BGRA32 = CCAP_PIXEL_FORMAT_BGR24 | (1 << 19)
 } CcapPixelFormat;
+```
+
+##### Error Handling
+
+Starting from v1.1.0, ccap supports error callbacks for detailed error reporting:
+
+```c
+// Error codes
+typedef enum {
+    CCAP_ERROR_NONE = 0,
+    CCAP_ERROR_NO_DEVICE_FOUND = 0x1001,       // No camera device found
+    CCAP_ERROR_INVALID_DEVICE = 0x1002,        // Invalid device name or index
+    CCAP_ERROR_DEVICE_OPEN_FAILED = 0x1003,    // Camera open failed
+    CCAP_ERROR_DEVICE_START_FAILED = 0x1004,   // Camera start failed
+    CCAP_ERROR_UNSUPPORTED_RESOLUTION = 0x2001, // Unsupported resolution
+    CCAP_ERROR_UNSUPPORTED_PIXEL_FORMAT = 0x2002, // Unsupported pixel format
+    CCAP_ERROR_FRAME_CAPTURE_TIMEOUT = 0x3001, // Frame capture timeout
+    CCAP_ERROR_FRAME_CAPTURE_FAILED = 0x3002,  // Frame capture failed
+    // More error codes...
+} CcapErrorCode;
+
+// Error callback function
+typedef void (*CcapErrorCallback)(CcapErrorCode errorCode, const char* errorDescription, void* userData);
+
+// Set error callback
+bool ccap_provider_set_error_callback(CcapProvider* provider, CcapErrorCallback callback, void* userData);
+
+// Get error description
+const char* ccap_error_code_to_string(CcapErrorCode errorCode);
+
+// Usage example
+void error_callback(CcapErrorCode errorCode, const char* errorDescription, void* userData) {
+    printf("Camera Error - Code: %d, Description: %s\n", (int)errorCode, errorDescription);
+}
+
+int main() {
+    CcapProvider* provider = ccap_provider_create();
+    
+    // Set error callback to receive error notifications
+    ccap_provider_set_error_callback(provider, error_callback, NULL);
+    
+    if (!ccap_provider_open_by_index(provider, 0, true)) {
+        printf("Failed to open camera\n"); // Error callback will also be called
+    }
+    
+    ccap_provider_destroy(provider);
+    return 0;
+}
 ```
 
 #### Compilation and Linking

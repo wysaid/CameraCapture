@@ -243,6 +243,65 @@ C 接口使用以下错误处理策略：
 1. **返回值**: 大多数函数返回 `bool` 类型，`true` 表示成功，`false` 表示失败
 2. **空指针**: 当操作失败时，指针返回函数返回 `NULL`
 3. **NaN**: 数值返回函数在失败时返回 `NaN`
+4. **错误回调**: 可以设置错误回调函数来接收详细的错误信息
+
+### 错误回调
+
+从 v1.1.0 开始，ccap 支持设置错误回调函数来接收详细的错误信息：
+
+#### 错误码
+
+```c
+typedef enum {
+    CCAP_ERROR_NONE = 0,                        // 无错误
+    CCAP_ERROR_NO_DEVICE_FOUND = 0x1001,       // 未找到相机设备
+    CCAP_ERROR_INVALID_DEVICE = 0x1002,        // 设备名称或索引无效
+    CCAP_ERROR_DEVICE_OPEN_FAILED = 0x1003,    // 相机设备打开失败
+    CCAP_ERROR_DEVICE_START_FAILED = 0x1004,   // 相机启动失败
+    CCAP_ERROR_UNSUPPORTED_RESOLUTION = 0x2001, // 不支持的分辨率
+    CCAP_ERROR_UNSUPPORTED_PIXEL_FORMAT = 0x2002, // 不支持的像素格式
+    CCAP_ERROR_FRAME_CAPTURE_TIMEOUT = 0x3001, // 帧捕获超时
+    CCAP_ERROR_FRAME_CAPTURE_FAILED = 0x3002,  // 帧捕获失败
+    // 更多错误码...
+} CcapErrorCode;
+```
+
+#### 错误回调函数
+
+```c
+// 错误回调函数类型
+typedef void (*CcapErrorCallback)(CcapErrorCode errorCode, const char* errorDescription, void* userData);
+
+// 设置错误回调
+bool ccap_provider_set_error_callback(CcapProvider* provider, CcapErrorCallback callback, void* userData);
+
+// 获取错误码描述
+const char* ccap_error_code_to_string(CcapErrorCode errorCode);
+```
+
+#### 使用示例
+
+```c
+// 错误回调函数
+void error_callback(CcapErrorCode errorCode, const char* errorDescription, void* userData) {
+    printf("Camera Error - Code: %d, Description: %s\n", (int)errorCode, errorDescription);
+}
+
+int main() {
+    CcapProvider* provider = ccap_provider_create();
+    
+    // 设置错误回调
+    ccap_provider_set_error_callback(provider, error_callback, NULL);
+    
+    // 执行相机操作，如果出错会调用回调函数
+    if (!ccap_provider_open_by_index(provider, 0, true)) {
+        printf("Failed to open camera\n");
+    }
+    
+    ccap_provider_destroy(provider);
+    return 0;
+}
+```
 
 ## 注意事项
 
