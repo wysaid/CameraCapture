@@ -94,13 +94,11 @@ int main(int argc, char** argv) {
     }
 
     // Find and print available devices
-    char** deviceNames;
-    size_t deviceCount;
-    if (ccap_provider_find_device_names(provider, &deviceNames, &deviceCount)) {
-        for (size_t i = 0; i < deviceCount; i++) {
-            printf("## Found video capture device: %s\n", deviceNames[i]);
+    CcapDeviceNamesList deviceList;
+    if (ccap_provider_find_device_names_list(provider, &deviceList)) {
+        for (size_t i = 0; i < deviceList.deviceCount; i++) {
+            printf("## Found video capture device: %s\n", deviceList.deviceNames[i]);
         }
-        ccap_provider_free_device_names(deviceNames, deviceCount);
     }
 
     // Set camera properties
