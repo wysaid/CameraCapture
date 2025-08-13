@@ -49,7 +49,7 @@ if(CCAP_FORCE_ARM64)
     endif()
 endif()
 
-# 检测 ARM64 架构并设置相应的编译标志
+# Detect ARM64 architecture and set corresponding compile flags
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "[Aa][Rr][Mm]64|[Aa][Aa][Rr][Cc]h64" OR
    CMAKE_GENERATOR_PLATFORM MATCHES "[Aa][Rr][Mm]64" OR
    CMAKE_OSX_ARCHITECTURES MATCHES "[Aa][Rr][Mm]64" OR
@@ -66,6 +66,11 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "[Aa][Rr][Mm]64|[Aa][Aa][Rr][Cc]h64" OR
     
     # macOS ARM64 特定设置
     if(APPLE)
+        # Ensure a valid deployment target for macOS arm64
+        if(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS "11.0")
+            set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum OS X deployment version" FORCE)
+            message(STATUS "ccap: Bumping macOS deployment target to 11.0 for ARM64")
+        endif()
         message(STATUS "ccap: NEON support enabled for macOS ARM64")
     endif()
 endif()
