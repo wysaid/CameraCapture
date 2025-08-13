@@ -75,8 +75,6 @@ int main() {
                    deviceInfo.supportedResolutions[0].width,
                    deviceInfo.supportedResolutions[0].height);
         }
-
-        ccap_provider_free_device_info(&deviceInfo);
     }
 
     // Set camera properties

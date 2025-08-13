@@ -190,46 +190,36 @@ bool ccap_provider_get_device_info(const CcapProvider* provider, CcapDeviceInfo*
     // Initialize structure
     memset(deviceInfo, 0, sizeof(CcapDeviceInfo));
 
-    // Copy device name
-    deviceInfo->deviceName = allocate_c_string(info.deviceName);
+    // Copy device name (with bounds checking)
+    size_t deviceNameLen = info.deviceName.size();
+    if (deviceNameLen >= CCAP_MAX_DEVICE_NAME_LENGTH) {
+        deviceNameLen = CCAP_MAX_DEVICE_NAME_LENGTH - 1;
+    }
+    strncpy(deviceInfo->deviceName, info.deviceName.c_str(), deviceNameLen);
+    deviceInfo->deviceName[deviceNameLen] = '\0';
 
-    // Copy supported pixel formats
+    // Copy supported pixel formats (with bounds checking)
     deviceInfo->pixelFormatCount = info.supportedPixelFormats.size();
-    if (deviceInfo->pixelFormatCount > 0) {
-        deviceInfo->supportedPixelFormats = static_cast<CcapPixelFormat*>(
-            malloc(deviceInfo->pixelFormatCount * sizeof(CcapPixelFormat)));
-
-        if (deviceInfo->supportedPixelFormats) {
-            for (size_t i = 0; i < deviceInfo->pixelFormatCount; ++i) {
-                deviceInfo->supportedPixelFormats[i] = convert_pixel_format_to_c(info.supportedPixelFormats[i]);
-            }
-        }
+    if (deviceInfo->pixelFormatCount > CCAP_MAX_PIXEL_FORMATS) {
+        deviceInfo->pixelFormatCount = CCAP_MAX_PIXEL_FORMATS;
     }
 
-    // Copy supported resolutions
-    deviceInfo->resolutionCount = info.supportedResolutions.size();
-    if (deviceInfo->resolutionCount > 0) {
-        deviceInfo->supportedResolutions = static_cast<CcapResolution*>(
-            malloc(deviceInfo->resolutionCount * sizeof(CcapResolution)));
+    for (size_t i = 0; i < deviceInfo->pixelFormatCount; ++i) {
+        deviceInfo->supportedPixelFormats[i] = convert_pixel_format_to_c(info.supportedPixelFormats[i]);
+    }
 
-        if (deviceInfo->supportedResolutions) {
-            for (size_t i = 0; i < deviceInfo->resolutionCount; ++i) {
-                deviceInfo->supportedResolutions[i].width = info.supportedResolutions[i].width;
-                deviceInfo->supportedResolutions[i].height = info.supportedResolutions[i].height;
-            }
-        }
+    // Copy supported resolutions (with bounds checking)
+    deviceInfo->resolutionCount = info.supportedResolutions.size();
+    if (deviceInfo->resolutionCount > CCAP_MAX_RESOLUTIONS) {
+        deviceInfo->resolutionCount = CCAP_MAX_RESOLUTIONS;
+    }
+
+    for (size_t i = 0; i < deviceInfo->resolutionCount; ++i) {
+        deviceInfo->supportedResolutions[i].width = info.supportedResolutions[i].width;
+        deviceInfo->supportedResolutions[i].height = info.supportedResolutions[i].height;
     }
 
     return true;
-}
-
-void ccap_provider_free_device_info(CcapDeviceInfo* deviceInfo) {
-    if (deviceInfo) {
-        free(deviceInfo->deviceName);
-        free(deviceInfo->supportedPixelFormats);
-        free(deviceInfo->supportedResolutions);
-        memset(deviceInfo, 0, sizeof(CcapDeviceInfo));
-    }
 }
 
 void ccap_provider_close(CcapProvider* provider) {

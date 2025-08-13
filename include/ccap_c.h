@@ -61,6 +61,17 @@ typedef enum {
     CCAP_PROPERTY_FRAME_ORIENTATION = 0x40000
 } CcapPropertyName;
 
+/* ========== Constants ========== */
+
+/** @brief Maximum length for device name including null terminator */
+#define CCAP_MAX_DEVICE_NAME_LENGTH 128
+
+/** @brief Maximum number of supported pixel formats */
+#define CCAP_MAX_PIXEL_FORMATS 32
+
+/** @brief Maximum number of supported resolutions */
+#define CCAP_MAX_RESOLUTIONS 64
+
 /* ========== Data Structures ========== */
 
 /** @brief Video frame data structure for C interface */
@@ -85,11 +96,11 @@ typedef struct {
 
 /** @brief Device information structure */
 typedef struct {
-    char* deviceName;                      /**< Device name (caller must free) */
-    CcapPixelFormat* supportedPixelFormats; /**< Array of supported pixel formats (caller must free) */
-    size_t pixelFormatCount;               /**< Number of supported pixel formats */
-    CcapResolution* supportedResolutions;   /**< Array of supported resolutions (caller must free) */
-    size_t resolutionCount;                /**< Number of supported resolutions */
+    char deviceName[CCAP_MAX_DEVICE_NAME_LENGTH];      /**< Device name */
+    CcapPixelFormat supportedPixelFormats[CCAP_MAX_PIXEL_FORMATS]; /**< Array of supported pixel formats */
+    size_t pixelFormatCount;                           /**< Number of supported pixel formats */
+    CcapResolution supportedResolutions[CCAP_MAX_RESOLUTIONS];   /**< Array of supported resolutions */
+    size_t resolutionCount;                            /**< Number of supported resolutions */
 } CcapDeviceInfo;
 
 /** @brief Callback function type for new frame notifications */
@@ -173,16 +184,10 @@ bool ccap_provider_is_opened(const CcapProvider* provider);
 /**
  * @brief Get device information
  * @param provider Pointer to CcapProvider instance
- * @param deviceInfo Output parameter for device information (caller must free using ccap_provider_free_device_info)
+ * @param deviceInfo Output parameter for device information
  * @return true on success, false on failure
  */
 bool ccap_provider_get_device_info(const CcapProvider* provider, CcapDeviceInfo* deviceInfo);
-
-/**
- * @brief Free device info structure
- * @param deviceInfo Pointer to device info structure
- */
-void ccap_provider_free_device_info(CcapDeviceInfo* deviceInfo);
 
 /**
  * @brief Close camera device
