@@ -103,7 +103,7 @@ bool ccap_provider_find_device_names_list(CcapProvider* provider, CcapDeviceName
 
     // Initialize structure
     memset(deviceList, 0, sizeof(CcapDeviceNamesList));
-    
+
     deviceList->deviceCount = devices.size();
     if (deviceList->deviceCount > CCAP_MAX_DEVICES) {
         deviceList->deviceCount = CCAP_MAX_DEVICES;

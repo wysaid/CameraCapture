@@ -38,6 +38,7 @@ message(STATUS "ccap: GLFW available: ${GLFW_AVAILABLE}")
 
 add_library(common_utils STATIC ${DESKTOP_EXAMPLES_DIR}/utils/helper.cpp)
 target_include_directories(common_utils PRIVATE ${DESKTOP_EXAMPLES_DIR}/utils)
+target_compile_definitions(common_utils PUBLIC _CRT_SECURE_NO_WARNINGS=1)
 target_link_libraries(common_utils PUBLIC ccap)
 
 file(GLOB EXAMPLE_SOURCE ${DESKTOP_EXAMPLES_DIR}/*.cpp ${DESKTOP_EXAMPLES_DIR}/*.c)
@@ -52,7 +53,6 @@ foreach(EXAMPLE ${EXAMPLE_SOURCE})
     endif()
 
     add_executable(${EXAMPLE_NAME} ${EXAMPLE})
-    target_compile_definitions(${EXAMPLE_NAME} PRIVATE _CRT_SECURE_NO_WARNINGS=1)
     target_link_libraries(${EXAMPLE_NAME} PRIVATE common_utils)
 
     if(APPLE)
