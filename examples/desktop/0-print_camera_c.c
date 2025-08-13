@@ -17,9 +17,9 @@ bool frame_callback(const CcapVideoFrame* frame, void* userData) {
 
     CcapVideoFrameInfo frameInfo;
     if (ccap_video_frame_get_info(frame, &frameInfo)) {
-        printf("Frame %d: %dx%d, format=%d, timestamp=%llu\n",
+        printf("Frame %d: %dx%d, format=%d, timestamp=%d\n",
                frameCount, frameInfo.width, frameInfo.height,
-               frameInfo.pixelFormat, frameInfo.timestamp);
+               frameInfo.pixelFormat, (int)frameInfo.timestamp);
     }
 
     // Return false to keep the frame available for grab()

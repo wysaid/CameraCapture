@@ -78,8 +78,8 @@ int main(int argc, char** argv) {
            requestedWidth, requestedHeight, realWidth, realHeight, requestedFps, realFps);
 
     cameraProvider.setNewFrameCallback([=](const std::shared_ptr<ccap::VideoFrame>& frame) -> bool {
-        printf("VideoFrame %lld grabbed: width = %d, height = %d, bytes: %d\n", frame->frameIndex, frame->width, frame->height,
-               frame->sizeInBytes);
+        printf("VideoFrame %d grabbed: width = %d, height = %d, bytes: %d\n", (int)frame->frameIndex, frame->width, frame->height,
+               (int)frame->sizeInBytes);
         if (auto dumpFile = ccap::dumpFrameToDirectory(frame.get(), captureDir); !dumpFile.empty()) {
             std::cout << "VideoFrame saved to: " << dumpFile << std::endl;
         } else {
