@@ -7,12 +7,13 @@
 
 #include "ccap_c.h"
 #include "ccap_utils_c.h"
+#include "utils/helper.h"
 
+#include <ctype.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
-#include <math.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -24,81 +25,47 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
-static const char* vertexShaderSource = 
-"#version 330 core\n"
-"layout(location = 0) in vec2 pos;\n"
-"out vec2 texCoord;\n"
-"void main() {\n"
-"    gl_Position = vec4(pos, 0.0, 1.0);\n"
-"    texCoord = (pos / 2.0) + 0.5;\n"
-"}\n";
+static const char* vertexShaderSource =
+    "#version 330 core\n"
+    "layout(location = 0) in vec2 pos;\n"
+    "out vec2 texCoord;\n"
+    "void main() {\n"
+    "    gl_Position = vec4(pos, 0.0, 1.0);\n"
+    "    texCoord = (pos / 2.0) + 0.5;\n"
+    "}\n";
 
-static const char* fragmentShaderSource = 
-"#version 330 core\n"
-"in vec2 texCoord;\n"
-"out vec4 fragColor;\n"
-"uniform sampler2D tex;\n"
-"uniform float progress;\n"
-"\n"
-"const float angle = 10.0;\n"
-"\n"
-"void main() {\n"
-"    /// Apply a wavy distortion to the texture coordinates based on the progress\n"
-"    vec2 newCoord;\n"
-"    newCoord.x = texCoord.x + 0.01 * sin(progress + texCoord.x * angle);\n"
-"    newCoord.y = texCoord.y + 0.01 * sin(progress + texCoord.y * angle);\n"
-"    \n"
-"    /// Avoid sampling too close to the edges\n"
-"    float edge1 = min(texCoord.x, texCoord.y);\n"
-"    float edge2 = max(texCoord.x, texCoord.y);\n"
-"    if (edge1 < 0.05 || edge2 > 0.95)\n"
-"    {\n"
-"        float lengthToEdge = min(edge1, 1.0 - edge2) / 0.05;\n"
-"        newCoord = mix(texCoord, newCoord, vec2(lengthToEdge));\n"
-"    }\n"
-"    \n"
-"    fragColor = texture(tex, newCoord);\n"
-"}\n";
-
-int selectCamera(CcapProvider* provider) {
-    char** deviceNames;
-    size_t deviceCount;
-    
-    if (ccap_provider_find_device_names(provider, &deviceNames, &deviceCount) && deviceCount > 1) {
-        printf("Multiple devices found, please select one:\n");
-        for (size_t i = 0; i < deviceCount; i++) {
-            printf("  %zu: %s\n", i, deviceNames[i]);
-        }
-        
-        int selectedIndex;
-        printf("Enter the index of the device you want to use: ");
-        if (scanf("%d", &selectedIndex) != 1) {
-            selectedIndex = 0;
-        }
-        
-        if (selectedIndex < 0 || selectedIndex >= (int)deviceCount) {
-            selectedIndex = 0;
-            fprintf(stderr, "Invalid index, using the first device: %s\n", deviceNames[0]);
-        } else {
-            printf("Using device: %s\n", deviceNames[selectedIndex]);
-        }
-        
-        ccap_provider_free_device_names(deviceNames, deviceCount);
-        return selectedIndex;
-    }
-    
-    if (deviceCount > 0) {
-        ccap_provider_free_device_names(deviceNames, deviceCount);
-    }
-    
-    return -1; // One or no device, use default.
-}
+static const char* fragmentShaderSource =
+    "#version 330 core\n"
+    "in vec2 texCoord;\n"
+    "out vec4 fragColor;\n"
+    "uniform sampler2D tex;\n"
+    "uniform float progress;\n"
+    "\n"
+    "const float angle = 10.0;\n"
+    "\n"
+    "void main() {\n"
+    "    /// Apply a wavy distortion to the texture coordinates based on the progress\n"
+    "    vec2 newCoord;\n"
+    "    newCoord.x = texCoord.x + 0.01 * sin(progress + texCoord.x * angle);\n"
+    "    newCoord.y = texCoord.y + 0.01 * sin(progress + texCoord.y * angle);\n"
+    "    \n"
+    "    /// Avoid sampling too close to the edges\n"
+    "    float edge1 = min(texCoord.x, texCoord.y);\n"
+    "    float edge2 = max(texCoord.x, texCoord.y);\n"
+    "    if (edge1 < 0.05 || edge2 > 0.95)\n"
+    "    {\n"
+    "        float lengthToEdge = min(edge1, 1.0 - edge2) / 0.05;\n"
+    "        newCoord = mix(texCoord, newCoord, vec2(lengthToEdge));\n"
+    "    }\n"
+    "    \n"
+    "    fragColor = texture(tex, newCoord);\n"
+    "}\n";
 
 GLuint compileShader(GLenum type, const char* source) {
     GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, NULL);
     glCompileShader(shader);
-    
+
     GLint success;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
@@ -108,7 +75,7 @@ GLuint compileShader(GLenum type, const char* source) {
         glDeleteShader(shader);
         return 0;
     }
-    
+
     return shader;
 }
 
@@ -140,10 +107,10 @@ int main(int argc, char** argv) {
     int requestedWidth = 1920;
     int requestedHeight = 1080;
     double requestedFps = 60.0;
-    
+
     CcapPixelFormat cameraOutputPixelFormat = CCAP_PIXEL_FORMAT_RGBA32;
     GLenum pixelFormatGl = GL_RGBA;
-    
+
     ccap_provider_set_property(provider, CCAP_PROPERTY_WIDTH, requestedWidth);
     ccap_provider_set_property(provider, CCAP_PROPERTY_HEIGHT, requestedHeight);
     ccap_provider_set_property(provider, CCAP_PROPERTY_PIXEL_FORMAT_OUTPUT, cameraOutputPixelFormat);
@@ -157,7 +124,7 @@ int main(int argc, char** argv) {
     } else {
         deviceIndex = selectCamera(provider);
     }
-    
+
     if (!ccap_provider_open_by_index(provider, deviceIndex, true)) {
         printf("Failed to open camera\n");
         ccap_provider_destroy(provider);
@@ -172,7 +139,7 @@ int main(int argc, char** argv) {
 
     // Get frame dimensions
     int frameWidth = 0, frameHeight = 0;
-    
+
     // 5s timeout for grab
     CcapVideoFrame* firstFrame = ccap_provider_grab(provider, 5000);
     if (firstFrame) {
@@ -320,7 +287,7 @@ int main(int argc, char** argv) {
 
     ccap_provider_destroy(provider);
     glfwTerminate();
-    
+
     printf("GLFW example completed successfully\n");
     return 0;
 }
