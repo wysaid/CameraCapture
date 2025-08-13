@@ -7,6 +7,8 @@
  */
 #pragma once
 
+#include <stddef.h> // for size_t
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -21,7 +23,7 @@ int selectCamera(CcapProvider* provider);
 void createDirectory(const char* path);
 // Get current working directory (portable)
 // Returns 0 on success, -1 on failure
-int getCurrentWorkingDirectory(char* buffer, int size);
+int getCurrentWorkingDirectory(char* buffer, size_t size);
 
 #ifdef __cplusplus
 } // extern "C"

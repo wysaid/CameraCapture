@@ -99,12 +99,12 @@ private:
     bool m_isStreaming = false;
 
     // V4L2 device capabilities
-    struct v4l2_capability m_caps{};
+    struct v4l2_capability m_caps {};
     std::vector<V4L2Format> m_supportedFormats;
     std::vector<DeviceInfo::Resolution> m_supportedResolutions;
 
     // Current format
-    struct v4l2_format m_currentFormat{};
+    struct v4l2_format m_currentFormat {};
 
     // Buffer management
     std::vector<V4L2Buffer> m_buffers;

@@ -9,11 +9,10 @@
 #include "ccap_utils_c.h"
 #include "utils/helper.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <ctype.h>
 
 int main(int argc, char** argv) {
     printf("ccap C Interface Capture Grab Example\n");
@@ -105,7 +104,7 @@ int main(int argc, char** argv) {
                 // Save frame to directory
                 char outputPath[2048];
                 int result = ccap_dump_frame_to_directory(frame, captureDir, outputPath, sizeof(outputPath));
-                if (result > 0) {
+                if (result >= 0) {
                     printf("VideoFrame saved to: %s\n", outputPath);
                 } else {
                     fprintf(stderr, "Failed to save frame!\n");

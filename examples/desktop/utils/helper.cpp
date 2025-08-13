@@ -14,26 +14,33 @@ extern "C" {
 
 // Create directory if not exists
 void createDirectory(const char* path) {
-    try {
-        std::filesystem::create_directories(path);
-    } catch (const std::exception& e) {
-        fprintf(stderr, "Failed to create directory %s: %s\n", path, e.what());
+    std::error_code ec;
+    std::filesystem::create_directories(path, ec);
+    if (ec) {
+        fprintf(stderr, "Failed to create directory %s: %s\n", path, ec.message().c_str());
     }
 }
 
 // Get current working directory (portable)
-int getCurrentWorkingDirectory(char* buffer, int size) {
-    try {
-        auto cwd = std::filesystem::current_path().string();
-        if (cwd.size() >= size) {
-            return -1; // Buffer too small
-        }
-        strcpy(buffer, cwd.c_str());
-        return 0;
-    } catch (const std::exception& e) {
-        fprintf(stderr, "Failed to get current working directory: %s\n", e.what());
+int getCurrentWorkingDirectory(char* buffer, size_t size) {
+    if (!buffer || size == 0) {
         return -1;
     }
+
+    std::error_code ec;
+    auto cwd = std::filesystem::current_path(ec);
+    if (ec) {
+        fprintf(stderr, "Failed to get current working directory: %s\n", ec.message().c_str());
+        return -1;
+    }
+
+    std::string cwd_str = cwd.string();
+    if (cwd_str.size() >= size) {
+        return -1; // Buffer too small
+    }
+    strncpy(buffer, cwd_str.c_str(), size - 1);
+    buffer[size - 1] = '\0';
+    return 0;
 }
 
 int selectCamera(CcapProvider* provider) {

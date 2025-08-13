@@ -44,7 +44,7 @@ bool frame_callback(const CcapVideoFrame* frame, void* userData) {
         // Save frame to directory
         char outputPath[2048];
         int result = ccap_dump_frame_to_directory(frame, context->captureDir, outputPath, sizeof(outputPath));
-        if (result > 0) {
+        if (result >= 0) {
             printf("VideoFrame saved to: %s\n", outputPath);
             context->framesSaved++;
         } else {
