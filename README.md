@@ -5,6 +5,7 @@
 [![Linux Build](https://github.com/wysaid/CameraCapture/actions/workflows/linux-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/linux-build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![C++17](https://img.shields.io/badge/C++-17-blue.svg)](https://isocpp.org/)
+[![C99](https://img.shields.io/badge/C-99-blue.svg)](https://en.wikipedia.org/wiki/C99)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20iOS%20%7C%20Linux-brightgreen)](https://github.com/wysaid/CameraCapture)
 
 [English](./README.md) | [中文](./README.zh-CN.md)
@@ -171,7 +172,7 @@ int main() {
 | **iOS** | Xcode 11+ | iOS 13.0+ |
 | **Linux** | GCC 7+ / Clang 6+ | V4L2 (Linux 2.6+) |
 
-**Build Requirements**: CMake 3.14+, C++17
+**Build Requirements**: CMake 3.14+, C++17 (C++ interface), C99 (C interface)
 
 ### Supported Linux Distributions
 
