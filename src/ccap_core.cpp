@@ -41,12 +41,12 @@ namespace {
     ErrorCallback g_globalErrorCallback;
 }
 
-void setGlobalErrorCallback(ErrorCallback callback) {
+void setErrorCallback(ErrorCallback callback) {
     std::lock_guard<std::mutex> lock(g_errorCallbackMutex);
     g_globalErrorCallback = std::move(callback);
 }
 
-ErrorCallback getGlobalErrorCallback() {
+ErrorCallback getErrorCallback() {
     std::lock_guard<std::mutex> lock(g_errorCallbackMutex);
     return g_globalErrorCallback;
 }

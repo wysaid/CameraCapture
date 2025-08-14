@@ -122,8 +122,8 @@ Starting from v1.2.0, ccap uses a global error callback system for simplified er
 #include <iostream>
 
 int main() {
-    // Set global error callback to receive detailed error information
-    ccap::setGlobalErrorCallback([](ccap::ErrorCode errorCode, const std::string& description) {
+    // Set error callback to receive detailed error information
+    ccap::setErrorCallback([](ccap::ErrorCode errorCode, const std::string& description) {
         std::cerr << "Camera Error - Code: " << static_cast<int>(errorCode) 
                   << ", Description: " << description << std::endl;
     });
@@ -516,8 +516,8 @@ typedef enum {
 // Error callback function
 typedef void (*CcapErrorCallback)(CcapErrorCode errorCode, const char* errorDescription, void* userData);
 
-// Set global error callback
-bool ccap_set_global_error_callback(CcapErrorCallback callback, void* userData);
+// Set error callback
+bool ccap_set_error_callback(CcapErrorCallback callback, void* userData);
 
 // Get error description
 const char* ccap_error_code_to_string(CcapErrorCode errorCode);
@@ -528,8 +528,8 @@ void error_callback(CcapErrorCode errorCode, const char* errorDescription, void*
 }
 
 int main() {
-    // Set global error callback to receive error notifications
-    ccap_set_global_error_callback(error_callback, NULL);
+    // Set error callback to receive error notifications
+    ccap_set_error_callback(error_callback, NULL);
     
     CcapProvider* provider = ccap_provider_create();
     
