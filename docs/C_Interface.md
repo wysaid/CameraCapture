@@ -272,8 +272,8 @@ typedef enum {
 // 错误回调函数类型
 typedef void (*CcapErrorCallback)(CcapErrorCode errorCode, const char* errorDescription, void* userData);
 
-// 设置全局错误回调
-bool ccap_set_global_error_callback(CcapErrorCallback callback, void* userData);
+// 设置错误回调
+bool ccap_set_error_callback(CcapErrorCallback callback, void* userData);
 
 // 获取错误码描述
 const char* ccap_error_code_to_string(CcapErrorCode errorCode);
@@ -288,8 +288,8 @@ void error_callback(CcapErrorCode errorCode, const char* errorDescription, void*
 }
 
 int main() {
-    // 设置全局错误回调
-    ccap_set_global_error_callback(error_callback, NULL);
+    // 设置错误回调
+    ccap_set_error_callback(error_callback, NULL);
     
     CcapProvider* provider = ccap_provider_create();
     

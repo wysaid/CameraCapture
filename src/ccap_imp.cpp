@@ -14,7 +14,7 @@
 
 namespace ccap {
 void resetSharedAllocator();
-ErrorCallback getGlobalErrorCallback(); // Forward declaration
+ErrorCallback getErrorCallback(); // Forward declaration
 
 uint8_t* DefaultAllocator::data() { return m_data; }
 
@@ -191,7 +191,7 @@ std::shared_ptr<VideoFrame> ProviderImp::getFreeFrame() {
 }
 
 void ProviderImp::reportError(ErrorCode errorCode, const std::string& description) {
-    ErrorCallback globalCallback = getGlobalErrorCallback();
+    ErrorCallback globalCallback = getErrorCallback();
     if (globalCallback) {
         try {
             globalCallback(errorCode, description);

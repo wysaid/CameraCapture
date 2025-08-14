@@ -27,8 +27,8 @@ int main(int argc, char** argv) {
     // Enable verbose log to see debug information
     ccap_set_log_level(CCAP_LOG_LEVEL_VERBOSE);
 
-    // Set global error callback to receive error notifications
-    ccap_set_global_error_callback(error_callback, NULL);
+    // Set error callback to receive error notifications
+    ccap_set_error_callback(error_callback, NULL);
 
     // Get current working directory and create capture directory
     char cwd[1024];
