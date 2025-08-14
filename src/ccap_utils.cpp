@@ -247,7 +247,7 @@ void setLogLevel(LogLevel level) {
 #endif
 }
 
-std::string errorCodeToString(ErrorCode errorCode) {
+std::string_view errorCodeToString(ErrorCode errorCode) {
     switch (errorCode) {
     case ErrorCode::None:
         return "No error";

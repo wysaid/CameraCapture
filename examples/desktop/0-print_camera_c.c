@@ -17,9 +17,9 @@ bool frame_callback(const CcapVideoFrame* frame, void* userData) {
 
     CcapVideoFrameInfo frameInfo;
     if (ccap_video_frame_get_info(frame, &frameInfo)) {
-        printf("Frame %d: %dx%d, format=%d, timestamp=%d\n",
+        printf("Frame %d: %dx%d, format=%d, timestamp=%llu\n",
                frameCount, frameInfo.width, frameInfo.height,
-               frameInfo.pixelFormat, (int)frameInfo.timestamp);
+               frameInfo.pixelFormat, frameInfo.timestamp);
     }
 
     // Return false to keep the frame available for grab()
@@ -71,14 +71,17 @@ int main() {
     // Get device info
     CcapDeviceInfo deviceInfo;
     if (ccap_provider_get_device_info(provider, &deviceInfo)) {
-        printf("Device: %s\n", deviceInfo.deviceName ? deviceInfo.deviceName : "Unknown");
+        printf("Device: %s\n", deviceInfo.deviceName[0] ? deviceInfo.deviceName : "Unknown");
         printf("Supported pixel formats: %zu\n", deviceInfo.pixelFormatCount);
         printf("Supported resolutions: %zu\n", deviceInfo.resolutionCount);
 
         if (deviceInfo.resolutionCount > 0) {
-            printf("First resolution: %dx%d\n",
-                   deviceInfo.supportedResolutions[0].width,
-                   deviceInfo.supportedResolutions[0].height);
+            printf("Supported resolutions:\n");
+            for (size_t i = 0; i < deviceInfo.resolutionCount; i++) {
+                printf("  %zu: %dx%d\n", i + 1,
+                       deviceInfo.supportedResolutions[i].width,
+                       deviceInfo.supportedResolutions[i].height);
+            }
         }
     }
 
