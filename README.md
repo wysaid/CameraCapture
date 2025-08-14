@@ -115,22 +115,22 @@ int main() {
 
 ##### Error Handling in C++
 
-Starting from v1.1.0, C++ interface supports error callbacks for detailed error reporting:
+Starting from v1.2.0, ccap uses a global error callback system for simplified error handling across all camera operations:
 
 ```cpp
 #include <ccap.h>
 #include <iostream>
 
 int main() {
-    ccap::Provider provider;
-    
-    // Set error callback to receive detailed error information
-    provider.setErrorCallback([](ccap::ErrorCode errorCode, const std::string& description) {
+    // Set global error callback to receive detailed error information
+    ccap::setGlobalErrorCallback([](ccap::ErrorCode errorCode, const std::string& description) {
         std::cerr << "Camera Error - Code: " << static_cast<int>(errorCode) 
                   << ", Description: " << description << std::endl;
     });
     
-    // Camera operations - errors will trigger the callback
+    ccap::Provider provider;
+    
+    // Camera operations - errors will trigger the global callback
     if (!provider.open("", true)) {
         std::cerr << "Failed to open camera" << std::endl;
     }
@@ -496,7 +496,7 @@ typedef enum {
 
 ##### Error Handling
 
-Starting from v1.1.0, ccap supports error callbacks for detailed error reporting:
+Starting from v1.2.0, ccap uses a global error callback system for simplified error handling:
 
 ```c
 // Error codes
@@ -516,8 +516,8 @@ typedef enum {
 // Error callback function
 typedef void (*CcapErrorCallback)(CcapErrorCode errorCode, const char* errorDescription, void* userData);
 
-// Set error callback
-bool ccap_provider_set_error_callback(CcapProvider* provider, CcapErrorCallback callback, void* userData);
+// Set global error callback
+bool ccap_set_global_error_callback(CcapErrorCallback callback, void* userData);
 
 // Get error description
 const char* ccap_error_code_to_string(CcapErrorCode errorCode);
@@ -528,10 +528,10 @@ void error_callback(CcapErrorCode errorCode, const char* errorDescription, void*
 }
 
 int main() {
-    CcapProvider* provider = ccap_provider_create();
+    // Set global error callback to receive error notifications
+    ccap_set_global_error_callback(error_callback, NULL);
     
-    // Set error callback to receive error notifications
-    ccap_provider_set_error_callback(provider, error_callback, NULL);
+    CcapProvider* provider = ccap_provider_create();
     
     if (!ccap_provider_open_by_index(provider, 0, true)) {
         printf("Failed to open camera\n"); // Error callback will also be called
