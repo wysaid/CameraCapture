@@ -14,6 +14,7 @@
 #include <cstring>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 extern "C" {
@@ -64,6 +65,10 @@ struct ErrorCallbackWrapper {
     ErrorCallbackWrapper(CcapErrorCallback cb, void* data) :
         callback(cb), userData(data) {}
 };
+
+// Global error callback storage for C interface
+std::mutex g_cErrorCallbackMutex;
+std::shared_ptr<ErrorCallbackWrapper> g_cGlobalErrorCallbackWrapper;
 
 // Convert C++ ErrorCode to C enum
 CcapErrorCode convert_error_code_to_c(ccap::ErrorCode errorCode) {
@@ -357,21 +362,26 @@ void ccap_provider_set_max_cache_frame_size(CcapProvider* provider, uint32_t siz
     }
 }
 
-/* ========== Error Callback ========== */
+/* ========== Global Error Callback ========== */
 
-bool ccap_provider_set_error_callback(CcapProvider* provider, CcapErrorCallback callback, void* userData) {
-    if (!provider) return false;
-
+bool ccap_set_global_error_callback(CcapErrorCallback callback, void* userData) {
     try {
-        auto* cppProvider = reinterpret_cast<ccap::Provider*>(provider);
+        std::lock_guard<std::mutex> lock(g_cErrorCallbackMutex);
         
         if (callback) {
-            auto wrapper = std::make_shared<ErrorCallbackWrapper>(callback, userData);
-            cppProvider->setErrorCallback([wrapper](ccap::ErrorCode errorCode, const std::string& description) {
-                wrapper->callback(convert_error_code_to_c(errorCode), description.c_str(), wrapper->userData);
+            g_cGlobalErrorCallbackWrapper = std::make_shared<ErrorCallbackWrapper>(callback, userData);
+            
+            ccap::setGlobalErrorCallback([](ccap::ErrorCode errorCode, const std::string& description) {
+                std::lock_guard<std::mutex> lock(g_cErrorCallbackMutex);
+                if (g_cGlobalErrorCallbackWrapper && g_cGlobalErrorCallbackWrapper->callback) {
+                    g_cGlobalErrorCallbackWrapper->callback(convert_error_code_to_c(errorCode), 
+                                                            description.c_str(), 
+                                                            g_cGlobalErrorCallbackWrapper->userData);
+                }
             });
         } else {
-            cppProvider->setErrorCallback(nullptr);
+            g_cGlobalErrorCallbackWrapper = nullptr;
+            ccap::setGlobalErrorCallback(nullptr);
         }
         
         return true;

@@ -27,9 +27,18 @@ bool frame_callback(const CcapVideoFrame* frame, void* userData) {
     return false;
 }
 
+// Error callback function
+void error_callback(CcapErrorCode errorCode, const char* errorDescription, void* userData) {
+    (void)userData; // Unused parameter
+    printf("Camera Error - Code: %d, Description: %s\n", (int)errorCode, errorDescription);
+}
+
 int main() {
     printf("ccap C Interface Example\n");
     printf("Version: %s\n\n", ccap_get_version());
+
+    // Set global error callback to receive error notifications
+    ccap_set_global_error_callback(error_callback, NULL);
 
     // Create provider
     CcapProvider* provider = ccap_provider_create();

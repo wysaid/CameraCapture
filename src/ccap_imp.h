@@ -66,7 +66,6 @@ public:
     std::shared_ptr<VideoFrame> grab(uint32_t timeoutInMs);
     void setMaxAvailableFrameSize(uint32_t size);
     void setMaxCacheFrameSize(uint32_t size);
-    void setErrorCallback(ErrorCallback callback);
 
     virtual std::vector<std::string> findDeviceNames() = 0;
     virtual bool open(std::string_view deviceName) = 0;
@@ -95,7 +94,6 @@ protected:
     // Callback function for new data frames
     std::shared_ptr<std::function<bool(const std::shared_ptr<VideoFrame>&)>> m_callback;
     std::function<std::shared_ptr<Allocator>()> m_allocatorFactory;
-    ErrorCallback m_errorCallback;
 
     /// Frames from camera. If not taken or no callback is set, they will accumulate here. Max length is MAX_AVAILABLE_FRAME_SIZE.
     std::queue<std::shared_ptr<VideoFrame>> m_availableFrames;

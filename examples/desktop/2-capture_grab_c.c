@@ -14,12 +14,21 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Error callback function
+void error_callback(CcapErrorCode errorCode, const char* errorDescription, void* userData) {
+    (void)userData; // Unused parameter
+    printf("Camera Error - Code: %d, Description: %s\n", (int)errorCode, errorDescription);
+}
+
 int main(int argc, char** argv) {
     printf("ccap C Interface Capture Grab Example\n");
     printf("Version: %s\n\n", ccap_get_version());
 
     // Enable verbose log to see debug information
     ccap_set_log_level(CCAP_LOG_LEVEL_VERBOSE);
+
+    // Set global error callback to receive error notifications
+    ccap_set_global_error_callback(error_callback, NULL);
 
     // Get current working directory and create capture directory
     char cwd[1024];

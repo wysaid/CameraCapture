@@ -310,16 +310,18 @@ void ccap_provider_set_max_available_frame_size(CcapProvider* provider, uint32_t
  */
 void ccap_provider_set_max_cache_frame_size(CcapProvider* provider, uint32_t size);
 
-/* ========== Error Callback ========== */
+
+
+/* ========== Global Error Callback ========== */
 
 /**
- * @brief Set error callback for a specific provider
- * @param provider Pointer to CcapProvider instance
+ * @brief Set global error callback for all camera operations
  * @param callback Error callback function (NULL to remove callback)
  * @param userData User data passed to callback
  * @return true on success, false on failure
+ * @note This global callback will be used by all provider instances
  */
-bool ccap_provider_set_error_callback(CcapProvider* provider, CcapErrorCallback callback, void* userData);
+bool ccap_set_global_error_callback(CcapErrorCallback callback, void* userData);
 
 /* ========== Utility Functions ========== */
 

@@ -19,6 +19,12 @@ int main(int argc, char** argv) {
     /// Enable verbose log to see debug information
     ccap::setLogLevel(ccap::LogLevel::Verbose);
 
+    // Set global error callback to receive error notifications
+    ccap::setGlobalErrorCallback([](ccap::ErrorCode errorCode, const std::string& description) {
+        std::cerr << "Camera Error - Code: " << static_cast<int>(errorCode) 
+                  << ", Description: " << description << std::endl;
+    });
+
     std::string cwd = argv[0];
 
     if (auto lastSlashPos = cwd.find_last_of("/\\"); lastSlashPos != std::string::npos && cwd[0] != '.') {

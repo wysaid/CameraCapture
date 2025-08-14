@@ -8,6 +8,7 @@
 
 #include <ccap.h>
 #include <cstdio>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -59,6 +60,12 @@ void printCameraInfo(const std::string& deviceName) {
 }
 
 int main() {
+    // Set global error callback to receive error notifications
+    ccap::setGlobalErrorCallback([](ccap::ErrorCode errorCode, const std::string& description) {
+        std::cerr << "Camera Error - Code: " << static_cast<int>(errorCode) 
+                  << ", Description: " << description << std::endl;
+    });
+
     auto deviceNames = findCameraNames();
     if (deviceNames.empty()) {
         return 1;

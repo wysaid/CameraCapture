@@ -22,15 +22,15 @@ int main() {
     printf("ccap C Interface Minimal Example\n");
     printf("Version: %s\n\n", ccap_get_version());
 
+    // Set global error callback to receive error notifications
+    ccap_set_global_error_callback(error_callback, NULL);
+
     // Create provider
     CcapProvider* provider = ccap_provider_create();
     if (!provider) {
         printf("Failed to create provider\n");
         return -1;
     }
-
-    // Set error callback to receive error notifications
-    ccap_provider_set_error_callback(provider, error_callback, NULL);
 
     // Select and open camera
     int deviceIndex = selectCamera(provider);
