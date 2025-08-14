@@ -112,8 +112,8 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    // Set error callback to receive error notifications
-    ccap_provider_set_error_callback(provider, error_callback, NULL);
+    // Set global error callback to receive error notifications
+    ccap_set_global_error_callback(error_callback, NULL);
 
     // Find and print available devices
     CcapDeviceNamesList deviceList;

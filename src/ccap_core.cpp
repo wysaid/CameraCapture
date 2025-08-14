@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
 
 #ifdef _MSC_VER
 #include <malloc.h>
@@ -33,6 +34,22 @@ namespace ccap {
 ProviderImp* createProviderApple();
 ProviderImp* createProviderDirectShow();
 ProviderImp* createProviderV4L2();
+
+// Global error callback storage
+namespace {
+    std::mutex g_errorCallbackMutex;
+    ErrorCallback g_globalErrorCallback;
+}
+
+void setGlobalErrorCallback(ErrorCallback callback) {
+    std::lock_guard<std::mutex> lock(g_errorCallbackMutex);
+    g_globalErrorCallback = std::move(callback);
+}
+
+ErrorCallback getGlobalErrorCallback() {
+    std::lock_guard<std::mutex> lock(g_errorCallbackMutex);
+    return g_globalErrorCallback;
+}
 
 Allocator::~Allocator() { CCAP_LOG_V("ccap: Allocator::~Allocator() called, this=%p\n", this); }
 
@@ -177,9 +194,5 @@ void Provider::setFrameAllocator(std::function<std::shared_ptr<Allocator>()> all
 void Provider::setMaxAvailableFrameSize(uint32_t size) { m_imp->setMaxAvailableFrameSize(size); }
 
 void Provider::setMaxCacheFrameSize(uint32_t size) { m_imp->setMaxCacheFrameSize(size); }
-
-void Provider::setErrorCallback(ErrorCallback callback) { 
-    if (m_imp) m_imp->setErrorCallback(std::move(callback)); 
-}
 
 } // namespace ccap
