@@ -394,9 +394,8 @@ bool ccap_set_error_callback(CcapErrorCallback callback, void* userData) {
 
 const char* ccap_error_code_to_string(CcapErrorCode errorCode) {
     ccap::ErrorCode cppErrorCode = static_cast<ccap::ErrorCode>(static_cast<uint32_t>(errorCode));
-    static thread_local std::string errorString;
-    errorString = ccap::errorCodeToString(cppErrorCode);
-    return errorString.c_str();
+    std::string_view result = ccap::errorCodeToString(cppErrorCode);
+    return result.data(); // std::string_view::data() returns const char*, safe for string literals
 }
 
 const char* ccap_get_version(void) {

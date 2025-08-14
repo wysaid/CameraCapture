@@ -279,7 +279,7 @@ using ErrorCallback = std::function<void(ErrorCode errorCode, const std::string&
  * @param errorCode The error code to convert
  * @return English description of the error
  */
-std::string errorCodeToString(ErrorCode errorCode);
+std::string_view errorCodeToString(ErrorCode errorCode);
 
 /**
  * @brief Interface for memory allocation, primarily used to allocate the `data` field in `ccap::Frame`.
