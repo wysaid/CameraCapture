@@ -12,6 +12,33 @@
 
 #include <cstring>
 
+// Static assertions to ensure C and C++ convert enum values are consistent
+// This prevents type casting issues when passing enum values between C and C++ layers
+
+// ConvertBackend enum consistency checks
+static_assert(static_cast<uint32_t>(CCAP_CONVERT_BACKEND_AUTO) == static_cast<uint32_t>(ccap::ConvertBackend::AUTO),
+              "C and C++ ConvertBackend::AUTO values must match");
+static_assert(static_cast<uint32_t>(CCAP_CONVERT_BACKEND_CPU) == static_cast<uint32_t>(ccap::ConvertBackend::CPU),
+              "C and C++ ConvertBackend::CPU values must match");
+static_assert(static_cast<uint32_t>(CCAP_CONVERT_BACKEND_AVX2) == static_cast<uint32_t>(ccap::ConvertBackend::AVX2),
+              "C and C++ ConvertBackend::AVX2 values must match");
+static_assert(static_cast<uint32_t>(CCAP_CONVERT_BACKEND_APPLE_ACCELERATE) == static_cast<uint32_t>(ccap::ConvertBackend::AppleAccelerate),
+              "C and C++ ConvertBackend::AppleAccelerate values must match");
+static_assert(static_cast<uint32_t>(CCAP_CONVERT_BACKEND_NEON) == static_cast<uint32_t>(ccap::ConvertBackend::NEON),
+              "C and C++ ConvertBackend::NEON values must match");
+
+// ConvertFlag enum consistency checks
+static_assert(static_cast<uint32_t>(CCAP_CONVERT_FLAG_BT601) == static_cast<uint32_t>(ccap::ConvertFlag::BT601),
+              "C and C++ ConvertFlag::BT601 values must match");
+static_assert(static_cast<uint32_t>(CCAP_CONVERT_FLAG_BT709) == static_cast<uint32_t>(ccap::ConvertFlag::BT709),
+              "C and C++ ConvertFlag::BT709 values must match");
+static_assert(static_cast<uint32_t>(CCAP_CONVERT_FLAG_FULL_RANGE) == static_cast<uint32_t>(ccap::ConvertFlag::FullRange),
+              "C and C++ ConvertFlag::FullRange values must match");
+static_assert(static_cast<uint32_t>(CCAP_CONVERT_FLAG_VIDEO_RANGE) == static_cast<uint32_t>(ccap::ConvertFlag::VideoRange),
+              "C and C++ ConvertFlag::VideoRange values must match");
+static_assert(static_cast<uint32_t>(CCAP_CONVERT_FLAG_DEFAULT) == static_cast<uint32_t>(ccap::ConvertFlag::Default),
+              "C and C++ ConvertFlag::Default values must match");
+
 extern "C" {
 
 /* ========== Conversion Backend Management ========== */

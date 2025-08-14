@@ -7,8 +7,10 @@
  */
 
 #include "ccap_c.h"
+#include "ccap_utils_c.h"
 
 #include "ccap.h"
+#include "ccap_utils.h"
 
 #include <cmath>
 #include <cstring>
@@ -367,15 +369,15 @@ void ccap_provider_set_max_cache_frame_size(CcapProvider* provider, uint32_t siz
 bool ccap_set_error_callback(CcapErrorCallback callback, void* userData) {
     try {
         std::lock_guard<std::mutex> lock(g_cErrorCallbackMutex);
-        
+
         if (callback) {
             g_cGlobalErrorCallbackWrapper = std::make_shared<ErrorCallbackWrapper>(callback, userData);
-            
+
             ccap::setErrorCallback([](ccap::ErrorCode errorCode, const std::string& description) {
                 std::lock_guard<std::mutex> lock(g_cErrorCallbackMutex);
                 if (g_cGlobalErrorCallbackWrapper && g_cGlobalErrorCallbackWrapper->callback) {
-                    g_cGlobalErrorCallbackWrapper->callback(convert_error_code_to_c(errorCode), 
-                                                            description.c_str(), 
+                    g_cGlobalErrorCallbackWrapper->callback(convert_error_code_to_c(errorCode),
+                                                            description.c_str(),
                                                             g_cGlobalErrorCallbackWrapper->userData);
                 }
             });
@@ -383,7 +385,7 @@ bool ccap_set_error_callback(CcapErrorCallback callback, void* userData) {
             g_cGlobalErrorCallbackWrapper = nullptr;
             ccap::setErrorCallback(nullptr);
         }
-        
+
         return true;
     } catch (...) {
         return false;
@@ -414,3 +416,96 @@ bool ccap_pixel_format_is_yuv(CcapPixelFormat format) {
 }
 
 } // extern "C"
+
+// Static assertions to ensure C and C++ enum values are consistent
+// This prevents type casting issues when passing enum values between C and C++ layers
+
+// PixelFormat enum consistency checks
+static_assert(static_cast<uint32_t>(CCAP_PIXEL_FORMAT_UNKNOWN) == static_cast<uint32_t>(ccap::PixelFormat::Unknown),
+              "C and C++ PixelFormat::Unknown values must match");
+static_assert(static_cast<uint32_t>(CCAP_PIXEL_FORMAT_NV12) == static_cast<uint32_t>(ccap::PixelFormat::NV12),
+              "C and C++ PixelFormat::NV12 values must match");
+static_assert(static_cast<uint32_t>(CCAP_PIXEL_FORMAT_NV12F) == static_cast<uint32_t>(ccap::PixelFormat::NV12f),
+              "C and C++ PixelFormat::NV12f values must match");
+static_assert(static_cast<uint32_t>(CCAP_PIXEL_FORMAT_I420) == static_cast<uint32_t>(ccap::PixelFormat::I420),
+              "C and C++ PixelFormat::I420 values must match");
+static_assert(static_cast<uint32_t>(CCAP_PIXEL_FORMAT_I420F) == static_cast<uint32_t>(ccap::PixelFormat::I420f),
+              "C and C++ PixelFormat::I420f values must match");
+static_assert(static_cast<uint32_t>(CCAP_PIXEL_FORMAT_YUYV) == static_cast<uint32_t>(ccap::PixelFormat::YUYV),
+              "C and C++ PixelFormat::YUYV values must match");
+static_assert(static_cast<uint32_t>(CCAP_PIXEL_FORMAT_YUYV_F) == static_cast<uint32_t>(ccap::PixelFormat::YUYVf),
+              "C and C++ PixelFormat::YUYVf values must match");
+static_assert(static_cast<uint32_t>(CCAP_PIXEL_FORMAT_UYVY) == static_cast<uint32_t>(ccap::PixelFormat::UYVY),
+              "C and C++ PixelFormat::UYVY values must match");
+static_assert(static_cast<uint32_t>(CCAP_PIXEL_FORMAT_UYVY_F) == static_cast<uint32_t>(ccap::PixelFormat::UYVYf),
+              "C and C++ PixelFormat::UYVYf values must match");
+static_assert(static_cast<uint32_t>(CCAP_PIXEL_FORMAT_RGB24) == static_cast<uint32_t>(ccap::PixelFormat::RGB24),
+              "C and C++ PixelFormat::RGB24 values must match");
+static_assert(static_cast<uint32_t>(CCAP_PIXEL_FORMAT_BGR24) == static_cast<uint32_t>(ccap::PixelFormat::BGR24),
+              "C and C++ PixelFormat::BGR24 values must match");
+static_assert(static_cast<uint32_t>(CCAP_PIXEL_FORMAT_RGBA32) == static_cast<uint32_t>(ccap::PixelFormat::RGBA32),
+              "C and C++ PixelFormat::RGBA32 values must match");
+static_assert(static_cast<uint32_t>(CCAP_PIXEL_FORMAT_BGRA32) == static_cast<uint32_t>(ccap::PixelFormat::BGRA32),
+              "C and C++ PixelFormat::BGRA32 values must match");
+
+// FrameOrientation enum consistency checks
+static_assert(static_cast<uint32_t>(CCAP_FRAME_ORIENTATION_TOP_TO_BOTTOM) == static_cast<uint32_t>(ccap::FrameOrientation::TopToBottom),
+              "C and C++ FrameOrientation::TopToBottom values must match");
+static_assert(static_cast<uint32_t>(CCAP_FRAME_ORIENTATION_BOTTOM_TO_TOP) == static_cast<uint32_t>(ccap::FrameOrientation::BottomToTop),
+              "C and C++ FrameOrientation::BottomToTop values must match");
+
+// PropertyName enum consistency checks
+static_assert(static_cast<uint32_t>(CCAP_PROPERTY_WIDTH) == static_cast<uint32_t>(ccap::PropertyName::Width),
+              "C and C++ PropertyName::Width values must match");
+static_assert(static_cast<uint32_t>(CCAP_PROPERTY_HEIGHT) == static_cast<uint32_t>(ccap::PropertyName::Height),
+              "C and C++ PropertyName::Height values must match");
+static_assert(static_cast<uint32_t>(CCAP_PROPERTY_FRAME_RATE) == static_cast<uint32_t>(ccap::PropertyName::FrameRate),
+              "C and C++ PropertyName::FrameRate values must match");
+static_assert(static_cast<uint32_t>(CCAP_PROPERTY_PIXEL_FORMAT_INTERNAL) == static_cast<uint32_t>(ccap::PropertyName::PixelFormatInternal),
+              "C and C++ PropertyName::PixelFormatInternal values must match");
+static_assert(static_cast<uint32_t>(CCAP_PROPERTY_PIXEL_FORMAT_OUTPUT) == static_cast<uint32_t>(ccap::PropertyName::PixelFormatOutput),
+              "C and C++ PropertyName::PixelFormatOutput values must match");
+static_assert(static_cast<uint32_t>(CCAP_PROPERTY_FRAME_ORIENTATION) == static_cast<uint32_t>(ccap::PropertyName::FrameOrientation),
+              "C and C++ PropertyName::FrameOrientation values must match");
+
+// ErrorCode enum consistency checks
+static_assert(static_cast<uint32_t>(CCAP_ERROR_NONE) == static_cast<uint32_t>(ccap::ErrorCode::None),
+              "C and C++ ErrorCode::None values must match");
+static_assert(static_cast<uint32_t>(CCAP_ERROR_NO_DEVICE_FOUND) == static_cast<uint32_t>(ccap::ErrorCode::NoDeviceFound),
+              "C and C++ ErrorCode::NoDeviceFound values must match");
+static_assert(static_cast<uint32_t>(CCAP_ERROR_INVALID_DEVICE) == static_cast<uint32_t>(ccap::ErrorCode::InvalidDevice),
+              "C and C++ ErrorCode::InvalidDevice values must match");
+static_assert(static_cast<uint32_t>(CCAP_ERROR_DEVICE_OPEN_FAILED) == static_cast<uint32_t>(ccap::ErrorCode::DeviceOpenFailed),
+              "C and C++ ErrorCode::DeviceOpenFailed values must match");
+static_assert(static_cast<uint32_t>(CCAP_ERROR_DEVICE_START_FAILED) == static_cast<uint32_t>(ccap::ErrorCode::DeviceStartFailed),
+              "C and C++ ErrorCode::DeviceStartFailed values must match");
+static_assert(static_cast<uint32_t>(CCAP_ERROR_DEVICE_STOP_FAILED) == static_cast<uint32_t>(ccap::ErrorCode::DeviceStopFailed),
+              "C and C++ ErrorCode::DeviceStopFailed values must match");
+static_assert(static_cast<uint32_t>(CCAP_ERROR_UNSUPPORTED_RESOLUTION) == static_cast<uint32_t>(ccap::ErrorCode::UnsupportedResolution),
+              "C and C++ ErrorCode::UnsupportedResolution values must match");
+static_assert(static_cast<uint32_t>(CCAP_ERROR_UNSUPPORTED_PIXEL_FORMAT) == static_cast<uint32_t>(ccap::ErrorCode::UnsupportedPixelFormat),
+              "C and C++ ErrorCode::UnsupportedPixelFormat values must match");
+static_assert(static_cast<uint32_t>(CCAP_ERROR_FRAME_RATE_SET_FAILED) == static_cast<uint32_t>(ccap::ErrorCode::FrameRateSetFailed),
+              "C and C++ ErrorCode::FrameRateSetFailed values must match");
+static_assert(static_cast<uint32_t>(CCAP_ERROR_PROPERTY_SET_FAILED) == static_cast<uint32_t>(ccap::ErrorCode::PropertySetFailed),
+              "C and C++ ErrorCode::PropertySetFailed values must match");
+static_assert(static_cast<uint32_t>(CCAP_ERROR_FRAME_CAPTURE_TIMEOUT) == static_cast<uint32_t>(ccap::ErrorCode::FrameCaptureTimeout),
+              "C and C++ ErrorCode::FrameCaptureTimeout values must match");
+static_assert(static_cast<uint32_t>(CCAP_ERROR_FRAME_CAPTURE_FAILED) == static_cast<uint32_t>(ccap::ErrorCode::FrameCaptureFailed),
+              "C and C++ ErrorCode::FrameCaptureFailed values must match");
+static_assert(static_cast<uint32_t>(CCAP_ERROR_MEMORY_ALLOCATION_FAILED) == static_cast<uint32_t>(ccap::ErrorCode::MemoryAllocationFailed),
+              "C and C++ ErrorCode::MemoryAllocationFailed values must match");
+static_assert(static_cast<uint32_t>(CCAP_ERROR_INTERNAL_ERROR) == static_cast<uint32_t>(ccap::ErrorCode::InternalError),
+              "C and C++ ErrorCode::InternalError values must match");
+
+// LogLevel enum consistency checks
+static_assert(static_cast<uint32_t>(CCAP_LOG_LEVEL_NONE) == static_cast<uint32_t>(ccap::LogLevel::None),
+              "C and C++ LogLevel::None values must match");
+static_assert(static_cast<uint32_t>(CCAP_LOG_LEVEL_ERROR) == static_cast<uint32_t>(ccap::LogLevel::Error),
+              "C and C++ LogLevel::Error values must match");
+static_assert(static_cast<uint32_t>(CCAP_LOG_LEVEL_WARNING) == static_cast<uint32_t>(ccap::LogLevel::Warning),
+              "C and C++ LogLevel::Warning values must match");
+static_assert(static_cast<uint32_t>(CCAP_LOG_LEVEL_INFO) == static_cast<uint32_t>(ccap::LogLevel::Info),
+              "C and C++ LogLevel::Info values must match");
+static_assert(static_cast<uint32_t>(CCAP_LOG_LEVEL_VERBOSE) == static_cast<uint32_t>(ccap::LogLevel::Verbose),
+              "C and C++ LogLevel::Verbose values must match");
