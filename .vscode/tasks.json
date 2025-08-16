@@ -232,6 +232,19 @@
             "dependsOrder": "sequence"
         },
         {
+            "label": "Format All Code",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "format_all.sh"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/scripts"
+            },
+            "group": "build"
+        },
+        {
             "label": "Run Functional Tests",
             "type": "shell",
             "command": "bash",
