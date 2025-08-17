@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
     ccap::Provider cameraProvider;
 
     // Set error callback to receive error notifications
-    ccap::setErrorCallback([](ccap::ErrorCode errorCode, const std::string& description) {
+    ccap::setErrorCallback([](ccap::ErrorCode errorCode, std::string_view description) {
         std::cerr << "Camera Error - Code: " << static_cast<int>(errorCode) 
                   << ", Description: " << description << std::endl;
     });

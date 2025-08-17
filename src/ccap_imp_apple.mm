@@ -271,7 +271,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
     }
 
     if (authStatus != AVAuthorizationStatusAuthorized) {
-        CCAP_NSLOG_E(@"ccap: Camera access not authorized. Current status: %ld", (long)authStatus);
+        reportError(ErrorCode::DeviceOpenFailed, "Camera access not authorized");
         return NO;
     }
 
@@ -322,7 +322,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
     }
 
     if (![_device hasMediaType:AVMediaTypeVideo]) { /// No video device found
-        CCAP_NSLOG_E(@"ccap: No video device found");
+        reportError(ErrorCode::NoDeviceFound, "No video device found");
         return NO;
     }
 
@@ -343,7 +343,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
     if (error) {
         [AVCaptureDeviceInput deviceInputWithDevice:self.device error:&error];
         if (error) {
-            CCAP_NSLOG_E(@"ccap: Open camera failed: %@", error);
+            reportError(ErrorCode::DeviceOpenFailed, "Open camera failed: " + std::string([error.localizedDescription UTF8String]));
             return NO;
         }
     }
@@ -354,7 +354,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
 
         CCAP_NSLOG_V(@"ccap: Add input to session");
     } else {
-        CCAP_NSLOG_E(@"ccap: session can not add input");
+        reportError(ErrorCode::DeviceOpenFailed, "Session cannot add input device");
         return NO;
     }
 
@@ -469,7 +469,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
         [_session addOutput:_videoOutput];
         CCAP_NSLOG_V(@"ccap: Add output to session");
     } else {
-        CCAP_NSLOG_E(@"ccap: session can not add output");
+        reportError(ErrorCode::DeviceOpenFailed, "Session cannot add output device");
         return NO;
     }
 
@@ -670,13 +670,13 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
     auto& internalFormat = _provider->getFrameProperty().cameraPixelFormat;
     switch (internalFormat) {
     case PixelFormat::I420:
-        CCAP_NSLOG_E(@"ccap: I420 is not supported on macOS, fallback to NV12");
+        reportError(ErrorCode::UnsupportedPixelFormat, "I420 is not supported on macOS, fallback to NV12");
     case PixelFormat::NV12:
         _cvPixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
         internalFormat = PixelFormat::NV12;
         break;
     case PixelFormat::I420f:
-        CCAP_NSLOG_E(@"ccap: I420f is not supported on macOS, fallback to NV12f");
+        reportError(ErrorCode::UnsupportedPixelFormat, "I420f is not supported on macOS, fallback to NV12f");
     case PixelFormat::NV12f:
         _cvPixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarFullRange;
         internalFormat = PixelFormat::NV12f;
@@ -976,7 +976,7 @@ std::vector<std::string> ProviderApple::findDeviceNames() {
 
 bool ProviderApple::open(std::string_view deviceName) {
     if (m_imp != nil) {
-        CCAP_NSLOG_E(@"ccap: Camera is already opened");
+        reportError(ErrorCode::DeviceOpenFailed, "Camera is already opened");
         return false;
     }
 

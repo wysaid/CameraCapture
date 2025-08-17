@@ -88,7 +88,6 @@ public:
 protected:
     void newFrameAvailable(std::shared_ptr<VideoFrame> frame);
     std::shared_ptr<VideoFrame> getFreeFrame();
-    void reportError(ErrorCode errorCode, const std::string& description);
 
 protected:
     // Callback function for new data frames
@@ -129,6 +128,8 @@ private:
 };
 
 inline bool operator&(PixelFormat lhs, PixelFormatConstants rhs) { return (static_cast<uint32_t>(lhs) & rhs) != 0; }
+
+void reportError(ErrorCode errorCode, std::string_view description);
 
 } // namespace ccap
 

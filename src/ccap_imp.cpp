@@ -190,15 +190,11 @@ std::shared_ptr<VideoFrame> ProviderImp::getFreeFrame() {
     return frame;
 }
 
-void ProviderImp::reportError(ErrorCode errorCode, const std::string& description) {
-    ErrorCallback globalCallback = getErrorCallback();
-    if (globalCallback) {
-        try {
-            globalCallback(errorCode, description);
-        } catch (...) {
-            // Ignore exceptions in user callback to prevent crashes
-            CCAP_LOG_E("ccap: Error callback threw an exception\n");
-        }
+void reportError(ErrorCode errorCode, std::string_view description) {
+    if (ErrorCallback globalCallback = getErrorCallback()) {
+        globalCallback(errorCode, description);
+    } else if (ccap::errorLogEnabled()) {
+        CCAP_LOG_E("ccap error code %s: %s\n", errorCodeToString(errorCode).data(), description.data());
     }
 }
 

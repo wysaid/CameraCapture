@@ -7,10 +7,10 @@
  */
 
 #include "ccap_c.h"
-#include "ccap_utils_c.h"
 
 #include "ccap.h"
 #include "ccap_utils.h"
+#include "ccap_utils_c.h"
 
 #include <cmath>
 #include <cstring>
@@ -373,11 +373,11 @@ bool ccap_set_error_callback(CcapErrorCallback callback, void* userData) {
         if (callback) {
             g_cGlobalErrorCallbackWrapper = std::make_shared<ErrorCallbackWrapper>(callback, userData);
 
-            ccap::setErrorCallback([](ccap::ErrorCode errorCode, const std::string& description) {
+            ccap::setErrorCallback([](ccap::ErrorCode errorCode, std::string_view description) {
                 std::lock_guard<std::mutex> lock(g_cErrorCallbackMutex);
                 if (g_cGlobalErrorCallbackWrapper && g_cGlobalErrorCallbackWrapper->callback) {
                     g_cGlobalErrorCallbackWrapper->callback(convert_error_code_to_c(errorCode),
-                                                            description.c_str(),
+                                                            description.data(),
                                                             g_cGlobalErrorCallbackWrapper->userData);
                 }
             });

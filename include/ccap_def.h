@@ -272,7 +272,7 @@ enum class ErrorCode {
  * @param errorCode The error code that occurred
  * @param errorDescription English description of the error
  */
-using ErrorCallback = std::function<void(ErrorCode errorCode, const std::string& errorDescription)>;
+using ErrorCallback = std::function<void(ErrorCode errorCode, std::string_view errorDescription)>;
 
 /**
  * @brief Convert error code to English string description
