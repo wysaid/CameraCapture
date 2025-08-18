@@ -481,6 +481,8 @@ static_assert(static_cast<uint32_t>(CCAP_ERROR_DEVICE_START_FAILED) == static_ca
               "C and C++ ErrorCode::DeviceStartFailed values must match");
 static_assert(static_cast<uint32_t>(CCAP_ERROR_DEVICE_STOP_FAILED) == static_cast<uint32_t>(ccap::ErrorCode::DeviceStopFailed),
               "C and C++ ErrorCode::DeviceStopFailed values must match");
+static_assert(static_cast<uint32_t>(CCAP_ERROR_INITIALIZATION_FAILED) == static_cast<uint32_t>(ccap::ErrorCode::InitializationFailed),
+              "C and C++ ErrorCode::InitializationFailed values must match");
 static_assert(static_cast<uint32_t>(CCAP_ERROR_UNSUPPORTED_RESOLUTION) == static_cast<uint32_t>(ccap::ErrorCode::UnsupportedResolution),
               "C and C++ ErrorCode::UnsupportedResolution values must match");
 static_assert(static_cast<uint32_t>(CCAP_ERROR_UNSUPPORTED_PIXEL_FORMAT) == static_cast<uint32_t>(ccap::ErrorCode::UnsupportedPixelFormat),

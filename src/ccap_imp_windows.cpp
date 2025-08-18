@@ -589,6 +589,7 @@ bool ProviderDirectShow::createStream() {
                 }
             } else {
                 CCAP_LOG_E("ccap: SetFormat failed, result=0x%lx\n", setFormatResult);
+                ccap::reportError(ErrorCode::UnsupportedPixelFormat, "SetFormat failed");
             }
         }
     }
@@ -623,6 +624,7 @@ bool ProviderDirectShow::createStream() {
         hr = m_graph->QueryInterface(IID_IMediaFilter, (void**)&pMediaFilter);
         if (FAILED(hr)) {
             CCAP_LOG_E("ccap: QueryInterface IMediaFilter failed, result=0x%lx\n", hr);
+            ccap::reportError(ErrorCode::DeviceOpenFailed, "QueryInterface IMediaFilter failed");
         } else {
             pMediaFilter->SetSyncSource(NULL);
             pMediaFilter->Release();
@@ -686,11 +688,12 @@ bool ProviderDirectShow::open(std::string_view deviceName) {
     CCAP_LOG_I("ccap: Found video capture device: %s\n", m_deviceName.c_str());
 
     if (!buildGraph()) {
-        reportError(ErrorCode::DeviceOpenFailed, "Failed to build DirectShow graph");
+        ccap::reportError(ErrorCode::DeviceOpenFailed, "Failed to build DirectShow graph");
         return false;
     }
 
     if (!createStream()) {
+        ccap::reportError(ErrorCode::DeviceOpenFailed, "Failed to create DirectShow stream");
         return false;
     }
 
@@ -706,7 +709,8 @@ bool ProviderDirectShow::open(std::string_view deviceName) {
         hr = m_graph->QueryInterface(IID_IVideoWindow, (LPVOID*)&videoWindow);
         if (FAILED(hr)) {
             CCAP_LOG_E("ccap: QueryInterface IVideoWindow failed, result=0x%lx\n", hr);
-            return hr;
+            ccap::reportError(ErrorCode::DeviceOpenFailed, "QueryInterface IVideoWindow failed");
+            return false;
         }
         videoWindow->put_AutoShow(false);
     }
@@ -732,6 +736,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     BYTE* sampleData = nullptr;
     if (auto hr = mediaSample->GetPointer(&sampleData); FAILED(hr)) {
         CCAP_LOG_E("ccap: GetPointer failed, hr=0x%lx\n", hr);
+        ccap::reportError(ErrorCode::FrameCaptureFailed, "GetPointer failed");
         return S_OK;
     }
 

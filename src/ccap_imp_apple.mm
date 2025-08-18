@@ -298,6 +298,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
 
         if (![_session canSetSessionPreset:preset]) {
             CCAP_NSLOG_E(@"ccap: CameraCaptureObjc init - session preset not supported, using AVCaptureSessionPresetHigh");
+            ccap::reportError(ErrorCode::UnsupportedResolution, "Session preset not supported");
             preset = AVCaptureSessionPresetHigh;
         }
 
@@ -644,6 +645,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
                     }
                 } else {
                     CCAP_NSLOG_E(@"ccap: Desired fps (%g) not supported, skipping", fps);
+                    ccap::reportError(ErrorCode::FrameRateSetFailed, "Desired fps not supported");
                 }
             }
         } else {
@@ -1037,6 +1039,7 @@ void ProviderApple::close() {
 bool ProviderApple::start() {
     if (!isOpened()) {
         CCAP_NSLOG_W(@"ccap: camera start called with no device opened");
+        ccap::reportError(ErrorCode::DeviceStartFailed, "Camera start called with no device opened");
         return false;
     }
 

@@ -242,6 +242,9 @@ enum class ErrorCode {
     /// Camera stop failed
     DeviceStopFailed = 0x1005,
     
+    /// Initialization failed
+    InitializationFailed = 0x1006,
+    
     /// Requested resolution is not supported
     UnsupportedResolution = 0x2001,
     

@@ -126,7 +126,7 @@ bool ProviderV4L2::open(std::string_view deviceName) {
     if (!setupDevice()) {
         ::close(m_fd);
         m_fd = -1;
-        reportError(ErrorCode::DeviceOpenFailed, "Failed to setup device " + m_devicePath);
+        ccap::reportError(ErrorCode::DeviceOpenFailed, "Failed to setup device " + m_devicePath);
         return false;
     }
 
@@ -187,7 +187,7 @@ bool ProviderV4L2::start() {
     }
 
     if (!negotiateFormat() || !allocateBuffers() || !startStreaming()) {
-        reportError(ErrorCode::DeviceStartFailed, "Failed to start streaming");
+        ccap::reportError(ErrorCode::DeviceStartFailed, "Failed to start streaming");
         return false;
     }
 
@@ -451,6 +451,7 @@ void ProviderV4L2::stopStreaming() {
     enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(m_fd, VIDIOC_STREAMOFF, &type) < 0) {
         CCAP_LOG_E("ccap: VIDIOC_STREAMOFF failed: %s\n", strerror(errno));
+        ccap::reportError(ErrorCode::DeviceStopFailed, "VIDIOC_STREAMOFF failed: " + std::string(strerror(errno)));
     }
 }
 
@@ -636,6 +637,7 @@ bool ProviderV4L2::readFrame() {
 
                 if (ioctl(m_fd, VIDIOC_QBUF, &requeueBuf) < 0) {
                     CCAP_LOG_E("ccap: VIDIOC_QBUF failed in destructor: %s\n", strerror(errno));
+                    ccap::reportError(ErrorCode::FrameCaptureFailed, "VIDIOC_QBUF failed in destructor: " + std::string(strerror(errno)));
                 }
             }
             frame = nullptr;
@@ -651,6 +653,7 @@ bool ProviderV4L2::readFrame() {
         // Requeue buffer immediately after copying data
         if (ioctl(m_fd, VIDIOC_QBUF, &buf) < 0) {
             CCAP_LOG_E("ccap: VIDIOC_QBUF failed: %s\n", strerror(errno));
+            ccap::reportError(ErrorCode::FrameCaptureFailed, "VIDIOC_QBUF failed: " + std::string(strerror(errno)));
             return false;
         }
     }
