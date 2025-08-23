@@ -611,7 +611,7 @@ bool ProviderDirectShow::createStream() {
     hr = m_graph->AddFilter(m_dstNullFilter, L"NullRenderer");
     if (FAILED(hr)) {
         reportError(ErrorCode::DeviceOpenFailed, "Add null renderer filter to graph failed");
-        return hr;
+        return false;
     }
 
     hr = m_captureBuilder->RenderStream(&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video, m_deviceFilter, m_sampleGrabberFilter, m_dstNullFilter);
