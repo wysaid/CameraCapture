@@ -114,5 +114,10 @@
         "ExampleVC*": "objective-cpp",
         "MainVC.*": "objective-cpp",
         "AppDelegate.*": "objective-cpp",
+        "__tree": "cpp",
+        "any": "cpp",
+        "map": "cpp",
+        "set": "cpp",
+        "unordered_set": "cpp"
     }
 }

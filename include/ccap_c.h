@@ -73,6 +73,7 @@ typedef enum {
     CCAP_ERROR_DEVICE_OPEN_FAILED = 0x1003,    /**< Camera device open failed */
     CCAP_ERROR_DEVICE_START_FAILED = 0x1004,   /**< Camera start failed */
     CCAP_ERROR_DEVICE_STOP_FAILED = 0x1005,    /**< Camera stop failed */
+    CCAP_ERROR_INITIALIZATION_FAILED = 0x1006, /**< Initialization failed */
     CCAP_ERROR_UNSUPPORTED_RESOLUTION = 0x2001, /**< Requested resolution is not supported */
     CCAP_ERROR_UNSUPPORTED_PIXEL_FORMAT = 0x2002, /**< Requested pixel format is not supported */
     CCAP_ERROR_FRAME_RATE_SET_FAILED = 0x2003,  /**< Frame rate setting failed */

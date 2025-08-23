@@ -13,6 +13,7 @@
 #include "ccap_convert_frame.h"
 #include "ccap_utils.h"
 
+#include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <cmath>
@@ -80,21 +81,28 @@ std::vector<std::string> ProviderV4L2::findDeviceNames() {
 
 bool ProviderV4L2::open(std::string_view deviceName) {
     if (m_isOpened) {
-        CCAP_LOG_E("ccap: Device already opened\n");
+        reportError(ErrorCode::DeviceOpenFailed, "Device already opened");
         return false;
     }
 
     // Find device path
     if (deviceName.empty()) {
-        // Use first available device
-        auto devices = findDeviceNames();
-        if (devices.empty()) {
-            CCAP_LOG_E("ccap: No video devices found\n");
+        // Pick the first valid /dev/video* deterministically
+        std::vector<std::string> candidates;
+        for (const auto& entry : std::filesystem::directory_iterator("/dev")) {
+            const std::string filename = entry.path().filename().string();
+            if (filename.rfind("video", 0) == 0 && isVideoDevice(entry.path().string())) {
+                candidates.emplace_back(entry.path().string());
+            }
+        }
+        std::sort(candidates.begin(), candidates.end()); // ensures video0 < video1 < ...
+        if (candidates.empty()) {
             reportError(ErrorCode::NoDeviceFound, "No video devices found");
             return false;
         }
-        m_deviceName = devices[0];
-        m_devicePath = "/dev/video0"; // Default to first device
+        m_devicePath = candidates.front();
+        m_deviceName = getDeviceDescription(m_devicePath);
+        if (m_deviceName.empty()) m_deviceName = m_devicePath;
     } else {
         m_deviceName = deviceName;
         // Try to find device path by name
@@ -112,7 +120,6 @@ bool ProviderV4L2::open(std::string_view deviceName) {
             }
         }
         if (!found) {
-            CCAP_LOG_E("ccap: Device not found: %s\n", deviceName.data());
             reportError(ErrorCode::InvalidDevice, "Device not found: " + std::string(deviceName));
             return false;
         }
@@ -121,7 +128,6 @@ bool ProviderV4L2::open(std::string_view deviceName) {
     // Open device
     m_fd = ::open(m_devicePath.c_str(), O_RDWR | O_NONBLOCK);
     if (m_fd < 0) {
-        CCAP_LOG_E("ccap: Failed to open device %s: %s\n", m_devicePath.c_str(), strerror(errno));
         reportError(ErrorCode::DeviceOpenFailed, "Failed to open device " + m_devicePath + ": " + strerror(errno));
         return false;
     }
@@ -180,7 +186,6 @@ void ProviderV4L2::close() {
 
 bool ProviderV4L2::start() {
     if (!isOpened()) {
-        CCAP_LOG_E("ccap: Device not opened\n");
         reportError(ErrorCode::DeviceStartFailed, "Device not opened");
         return false;
     }
@@ -247,17 +252,17 @@ bool ProviderV4L2::setupDevice() {
 
 bool ProviderV4L2::queryCapabilities() {
     if (ioctl(m_fd, VIDIOC_QUERYCAP, &m_caps) < 0) {
-        CCAP_LOG_E("ccap: VIDIOC_QUERYCAP failed: %s\n", strerror(errno));
+        reportError(ErrorCode::DeviceOpenFailed, "Query device capabilities failed: " + std::string(strerror(errno)));
         return false;
     }
 
     if (!(m_caps.capabilities & V4L2_CAP_VIDEO_CAPTURE)) {
-        CCAP_LOG_E("ccap: Device does not support video capture\n");
+        reportError(ErrorCode::UnsupportedPixelFormat, "Device does not support video capture");
         return false;
     }
 
     if (!(m_caps.capabilities & V4L2_CAP_STREAMING)) {
-        CCAP_LOG_E("ccap: Device does not support streaming\n");
+        reportError(ErrorCode::UnsupportedPixelFormat, "Device does not support streaming");
         return false;
     }
 
@@ -327,7 +332,7 @@ bool ProviderV4L2::negotiateFormat() {
     // Get current format
     m_currentFormat.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(m_fd, VIDIOC_G_FMT, &m_currentFormat) < 0) {
-        CCAP_LOG_E("ccap: VIDIOC_G_FMT failed: %s\n", strerror(errno));
+        reportError(ErrorCode::DeviceStartFailed, "Get device format failed: " + std::string(strerror(errno)));
         return false;
     }
 
@@ -360,7 +365,7 @@ bool ProviderV4L2::negotiateFormat() {
 
         // Get the actual format set by the driver
         if (ioctl(m_fd, VIDIOC_G_FMT, &m_currentFormat) < 0) {
-            CCAP_LOG_E("ccap: VIDIOC_G_FMT failed after set: %s\n", strerror(errno));
+            reportError(ErrorCode::DeviceStartFailed, "Get device format failed after set: " + std::string(strerror(errno)));
             return false;
         }
     }
@@ -383,12 +388,12 @@ bool ProviderV4L2::allocateBuffers() {
     req.memory = V4L2_MEMORY_MMAP;
 
     if (ioctl(m_fd, VIDIOC_REQBUFS, &req) < 0) {
-        CCAP_LOG_E("ccap: VIDIOC_REQBUFS failed: %s\n", strerror(errno));
+        reportError(ErrorCode::MemoryAllocationFailed, "Request device buffers failed: " + std::string(strerror(errno)));
         return false;
     }
 
     if (req.count < 2) {
-        CCAP_LOG_E("ccap: Insufficient buffer memory\n");
+        reportError(ErrorCode::MemoryAllocationFailed, "Insufficient buffer memory");
         return false;
     }
 
@@ -401,7 +406,8 @@ bool ProviderV4L2::allocateBuffers() {
         buf.index = i;
 
         if (ioctl(m_fd, VIDIOC_QUERYBUF, &buf) < 0) {
-            CCAP_LOG_E("ccap: VIDIOC_QUERYBUF failed: %s\n", strerror(errno));
+            reportError(ErrorCode::MemoryAllocationFailed, "Query device buffer failed: " + std::string(strerror(errno)));
+            releaseAndFreeDriverBuffers();
             return false;
         }
 
@@ -410,7 +416,8 @@ bool ProviderV4L2::allocateBuffers() {
         m_buffers[i].index = i;
 
         if (m_buffers[i].start == MAP_FAILED) {
-            CCAP_LOG_E("ccap: mmap failed: %s\n", strerror(errno));
+            reportError(ErrorCode::MemoryAllocationFailed, "Memory mapping failed: " + std::string(strerror(errno)));
+            releaseAndFreeDriverBuffers();
             return false;
         }
     }
@@ -428,6 +435,19 @@ void ProviderV4L2::releaseBuffers() {
     m_buffers.clear();
 }
 
+void ProviderV4L2::releaseAndFreeDriverBuffers() {
+    // Unmap any mapped buffers we have and clear the vector
+    releaseBuffers();
+
+    // Hint the driver to free any requested buffers
+    struct v4l2_requestbuffers zero = {};
+    zero.count = 0;
+    zero.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    zero.memory = V4L2_MEMORY_MMAP;
+    // Ignoring return value: this is a best-effort hint during cleanup
+    ioctl(m_fd, VIDIOC_REQBUFS, &zero);
+}
+
 bool ProviderV4L2::startStreaming() {
     // Queue all buffers
     for (size_t i = 0; i < m_buffers.size(); i++) {
@@ -437,14 +457,14 @@ bool ProviderV4L2::startStreaming() {
         buf.index = i;
 
         if (ioctl(m_fd, VIDIOC_QBUF, &buf) < 0) {
-            CCAP_LOG_E("ccap: VIDIOC_QBUF failed: %s\n", strerror(errno));
+            reportError(ErrorCode::DeviceStartFailed, "Queue buffer failed: " + std::string(strerror(errno)));
             return false;
         }
     }
 
     enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(m_fd, VIDIOC_STREAMON, &type) < 0) {
-        CCAP_LOG_E("ccap: VIDIOC_STREAMON failed: %s\n", strerror(errno));
+        reportError(ErrorCode::DeviceStartFailed, "Start streaming failed: " + std::string(strerror(errno)));
         return false;
     }
 
@@ -454,7 +474,7 @@ bool ProviderV4L2::startStreaming() {
 void ProviderV4L2::stopStreaming() {
     enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(m_fd, VIDIOC_STREAMOFF, &type) < 0) {
-        CCAP_LOG_E("ccap: VIDIOC_STREAMOFF failed: %s\n", strerror(errno));
+        reportError(ErrorCode::DeviceStopFailed, "VIDIOC_STREAMOFF failed: " + std::string(strerror(errno)));
     }
 }
 
@@ -520,7 +540,6 @@ bool ProviderV4L2::readFrame() {
     frame->height = m_frameProp.height;
     frame->pixelFormat = m_frameProp.cameraPixelFormat;
     frame->timestamp = (std::chrono::steady_clock::now() - m_startTime).count();
-    frame->frameIndex = m_frameIndex++;
     frame->sizeInBytes = buf.bytesused;
 
     assert(frame->pixelFormat != PixelFormat::Unknown);
@@ -640,6 +659,7 @@ bool ProviderV4L2::readFrame() {
 
                 if (ioctl(m_fd, VIDIOC_QBUF, &requeueBuf) < 0) {
                     CCAP_LOG_E("ccap: VIDIOC_QBUF failed in destructor: %s\n", strerror(errno));
+                    reportError(ErrorCode::FrameCaptureFailed, "VIDIOC_QBUF failed in destructor: " + std::string(strerror(errno)));
                 }
             }
             frame = nullptr;
@@ -655,6 +675,7 @@ bool ProviderV4L2::readFrame() {
         // Requeue buffer immediately after copying data
         if (ioctl(m_fd, VIDIOC_QBUF, &buf) < 0) {
             CCAP_LOG_E("ccap: VIDIOC_QBUF failed: %s\n", strerror(errno));
+            reportError(ErrorCode::FrameCaptureFailed, "VIDIOC_QBUF failed: " + std::string(strerror(errno)));
             return false;
         }
     }

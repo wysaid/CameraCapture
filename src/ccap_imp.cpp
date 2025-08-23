@@ -110,7 +110,7 @@ std::shared_ptr<VideoFrame> ProviderImp::grab(uint32_t timeoutInMs) {
 
     if (m_availableFrames.empty() && timeoutInMs > 0) {
         if (!isStarted()) {
-            CCAP_LOG_W("ccap: Grab called when camera is not started!");
+            reportError(ErrorCode::DeviceStartFailed, "Grab called when camera is not started");
             return nullptr;
         }
 
@@ -126,7 +126,7 @@ std::shared_ptr<VideoFrame> ProviderImp::grab(uint32_t timeoutInMs) {
 
         m_grabFrameWaiting = false;
         if (!waitSuccess) {
-            CCAP_LOG_V("ccap: Grab timed out after %u ms\n", timeoutInMs);
+            reportError(ErrorCode::FrameCaptureTimeout, "Grab timed out after " + std::to_string(timeoutInMs) + " ms");
             return nullptr;
         }
     }
@@ -190,15 +190,11 @@ std::shared_ptr<VideoFrame> ProviderImp::getFreeFrame() {
     return frame;
 }
 
-void ProviderImp::reportError(ErrorCode errorCode, const std::string& description) {
-    ErrorCallback globalCallback = getErrorCallback();
-    if (globalCallback) {
-        try {
-            globalCallback(errorCode, description);
-        } catch (...) {
-            // Ignore exceptions in user callback to prevent crashes
-            CCAP_LOG_E("ccap: Error callback threw an exception\n");
-        }
+void reportError(ErrorCode errorCode, std::string_view description) {
+    if (ErrorCallback globalCallback = getErrorCallback()) {
+        globalCallback(errorCode, description);
+    } else if (ccap::errorLogEnabled()) {
+        CCAP_LOG_E("ccap error code %s: %s\n", errorCodeToString(errorCode).data(), description.data());
     }
 }
 

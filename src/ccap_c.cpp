@@ -7,10 +7,10 @@
  */
 
 #include "ccap_c.h"
-#include "ccap_utils_c.h"
 
 #include "ccap.h"
 #include "ccap_utils.h"
+#include "ccap_utils_c.h"
 
 #include <cmath>
 #include <cstring>
@@ -373,11 +373,11 @@ bool ccap_set_error_callback(CcapErrorCallback callback, void* userData) {
         if (callback) {
             g_cGlobalErrorCallbackWrapper = std::make_shared<ErrorCallbackWrapper>(callback, userData);
 
-            ccap::setErrorCallback([](ccap::ErrorCode errorCode, const std::string& description) {
+            ccap::setErrorCallback([](ccap::ErrorCode errorCode, std::string_view description) {
                 std::lock_guard<std::mutex> lock(g_cErrorCallbackMutex);
                 if (g_cGlobalErrorCallbackWrapper && g_cGlobalErrorCallbackWrapper->callback) {
                     g_cGlobalErrorCallbackWrapper->callback(convert_error_code_to_c(errorCode),
-                                                            description.c_str(),
+                                                            description.data(),
                                                             g_cGlobalErrorCallbackWrapper->userData);
                 }
             });
@@ -481,6 +481,8 @@ static_assert(static_cast<uint32_t>(CCAP_ERROR_DEVICE_START_FAILED) == static_ca
               "C and C++ ErrorCode::DeviceStartFailed values must match");
 static_assert(static_cast<uint32_t>(CCAP_ERROR_DEVICE_STOP_FAILED) == static_cast<uint32_t>(ccap::ErrorCode::DeviceStopFailed),
               "C and C++ ErrorCode::DeviceStopFailed values must match");
+static_assert(static_cast<uint32_t>(CCAP_ERROR_INITIALIZATION_FAILED) == static_cast<uint32_t>(ccap::ErrorCode::InitializationFailed),
+              "C and C++ ErrorCode::InitializationFailed values must match");
 static_assert(static_cast<uint32_t>(CCAP_ERROR_UNSUPPORTED_RESOLUTION) == static_cast<uint32_t>(ccap::ErrorCode::UnsupportedResolution),
               "C and C++ ErrorCode::UnsupportedResolution values must match");
 static_assert(static_cast<uint32_t>(CCAP_ERROR_UNSUPPORTED_PIXEL_FORMAT) == static_cast<uint32_t>(ccap::ErrorCode::UnsupportedPixelFormat),

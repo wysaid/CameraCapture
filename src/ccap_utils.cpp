@@ -261,6 +261,8 @@ std::string_view errorCodeToString(ErrorCode errorCode) {
         return "Camera start failed";
     case ErrorCode::DeviceStopFailed:
         return "Camera stop failed";
+    case ErrorCode::InitializationFailed:
+        return "Initialization failed";
     case ErrorCode::UnsupportedResolution:
         return "Requested resolution is not supported";
     case ErrorCode::UnsupportedPixelFormat:
