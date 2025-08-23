@@ -516,7 +516,6 @@ bool ProviderV4L2::readFrame() {
     frame->height = m_frameProp.height;
     frame->pixelFormat = m_frameProp.cameraPixelFormat;
     frame->timestamp = (std::chrono::steady_clock::now() - m_startTime).count();
-    frame->frameIndex = m_frameIndex++;
     frame->sizeInBytes = buf.bytesused;
 
     assert(frame->pixelFormat != PixelFormat::Unknown);
