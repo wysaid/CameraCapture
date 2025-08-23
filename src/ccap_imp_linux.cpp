@@ -407,6 +407,7 @@ bool ProviderV4L2::allocateBuffers() {
 
         if (ioctl(m_fd, VIDIOC_QUERYBUF, &buf) < 0) {
             reportError(ErrorCode::MemoryAllocationFailed, "Query device buffer failed: " + std::string(strerror(errno)));
+            releaseAndFreeDriverBuffers();
             return false;
         }
 
@@ -416,6 +417,7 @@ bool ProviderV4L2::allocateBuffers() {
 
         if (m_buffers[i].start == MAP_FAILED) {
             reportError(ErrorCode::MemoryAllocationFailed, "Memory mapping failed: " + std::string(strerror(errno)));
+            releaseAndFreeDriverBuffers();
             return false;
         }
     }
@@ -431,6 +433,19 @@ void ProviderV4L2::releaseBuffers() {
         }
     }
     m_buffers.clear();
+}
+
+void ProviderV4L2::releaseAndFreeDriverBuffers() {
+    // Unmap any mapped buffers we have and clear the vector
+    releaseBuffers();
+
+    // Hint the driver to free any requested buffers
+    struct v4l2_requestbuffers zero = {};
+    zero.count = 0;
+    zero.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    zero.memory = V4L2_MEMORY_MMAP;
+    // Ignoring return value: this is a best-effort hint during cleanup
+    ioctl(m_fd, VIDIOC_REQBUFS, &zero);
 }
 
 bool ProviderV4L2::startStreaming() {
