@@ -3,7 +3,7 @@
  * @author wysaid (this@wysaid.org)
  * @brief Some basic type definitions
  * @date 2025-05
- * 
+ *
  * @note For C language, use ccap_c.h instead of this header.
  *
  */
@@ -41,6 +41,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 // ccap is short for (C)amera(CAP)ture
@@ -226,46 +227,46 @@ enum class PropertyName {
 enum class ErrorCode {
     /// No error occurred
     None = 0,
-    
+
     /// No camera device found or device discovery failed
     NoDeviceFound = 0x1001,
-    
+
     /// Invalid device name or device index
     InvalidDevice = 0x1002,
-    
+
     /// Camera device open failed
     DeviceOpenFailed = 0x1003,
-    
+
     /// Camera start failed
     DeviceStartFailed = 0x1004,
-    
+
     /// Camera stop failed
     DeviceStopFailed = 0x1005,
-    
+
     /// Initialization failed
     InitializationFailed = 0x1006,
-    
+
     /// Requested resolution is not supported
     UnsupportedResolution = 0x2001,
-    
+
     /// Requested pixel format is not supported
     UnsupportedPixelFormat = 0x2002,
-    
+
     /// Frame rate setting failed
     FrameRateSetFailed = 0x2003,
-    
+
     /// Property setting failed
     PropertySetFailed = 0x2004,
-    
+
     /// Frame capture timeout
     FrameCaptureTimeout = 0x3001,
-    
+
     /// Frame capture failed
     FrameCaptureFailed = 0x3002,
-    
+
     /// Memory allocation failed
     MemoryAllocationFailed = 0x4001,
-    
+
     /// Unknown or internal error
     InternalError = 0x9999,
 };
