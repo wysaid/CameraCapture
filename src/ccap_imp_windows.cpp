@@ -480,7 +480,7 @@ bool ProviderDirectShow::setGrabberOutputSubtype(GUID subtype) {
         mt.subtype = subtype;
         mt.formattype = FORMAT_VideoInfo;
         HRESULT hr = m_sampleGrabber->SetMediaType(&mt);
-        if (SUCCEEDED(hr)) return false;
+        if (SUCCEEDED(hr)) return true;
 
         reportError(ErrorCode::UnsupportedPixelFormat, "Set media type failed");
     }
