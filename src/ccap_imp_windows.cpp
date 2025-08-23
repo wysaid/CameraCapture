@@ -714,6 +714,7 @@ bool ProviderDirectShow::open(std::string_view deviceName) {
             return false;
         }
         videoWindow->put_AutoShow(false);
+        videoWindow->Release();
     }
 
     CCAP_LOG_V("ccap: Graph built successfully.\n");
