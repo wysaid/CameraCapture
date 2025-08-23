@@ -13,6 +13,7 @@
 #include "ccap_convert_frame.h"
 #include "ccap_utils.h"
 
+#include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <cmath>
@@ -86,14 +87,22 @@ bool ProviderV4L2::open(std::string_view deviceName) {
 
     // Find device path
     if (deviceName.empty()) {
-        // Use first available device
-        auto devices = findDeviceNames();
-        if (devices.empty()) {
+        // Pick the first valid /dev/video* deterministically
+        std::vector<std::string> candidates;
+        for (const auto& entry : std::filesystem::directory_iterator("/dev")) {
+            const std::string filename = entry.path().filename().string();
+            if (filename.rfind("video", 0) == 0 && isVideoDevice(entry.path().string())) {
+                candidates.emplace_back(entry.path().string());
+            }
+        }
+        std::sort(candidates.begin(), candidates.end()); // ensures video0 < video1 < ...
+        if (candidates.empty()) {
             reportError(ErrorCode::NoDeviceFound, "No video devices found");
             return false;
         }
-        m_deviceName = devices[0];
-        m_devicePath = "/dev/video0"; // Default to first device
+        m_devicePath = candidates.front();
+        m_deviceName = getDeviceDescription(m_devicePath);
+        if (m_deviceName.empty()) m_deviceName = m_devicePath;
     } else {
         m_deviceName = deviceName;
         // Try to find device path by name
