@@ -331,21 +331,21 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
     /// Configure device
 
     NSError* error = nil;
-    [_device lockForConfiguration:&error];
-    if ([_device isFocusModeSupported:AVCaptureFocusModeContinuousAutoFocus]) {
-        [_device setFocusMode:AVCaptureFocusModeContinuousAutoFocus];
-        CCAP_NSLOG_V(@"ccap: Set focus mode to continuous auto focus");
+    if ([_device lockForConfiguration:&error]) {
+        if ([_device isFocusModeSupported:AVCaptureFocusModeContinuousAutoFocus]) {
+            [_device setFocusMode:AVCaptureFocusModeContinuousAutoFocus];
+            CCAP_NSLOG_V(@"ccap: Set focus mode to continuous auto focus");
+        }
+        [_device unlockForConfiguration];
+    } else {
+        CCAP_NSLOG_W(@"ccap: lockForConfiguration failed: %@", error.localizedDescription);
     }
-    [_device unlockForConfiguration];
 
     // Create input device
-    _videoInput = [[AVCaptureDeviceInput alloc] initWithDevice:_device error:&error];
-    if (error) {
-        [AVCaptureDeviceInput deviceInputWithDevice:self.device error:&error];
-        if (error) {
-            reportError(ErrorCode::DeviceOpenFailed, "Open camera failed: " + std::string([error.localizedDescription UTF8String]));
-            return NO;
-        }
+    _videoInput = [AVCaptureDeviceInput deviceInputWithDevice:_device error:&error];
+    if (!_videoInput || error) {
+        reportError(ErrorCode::DeviceOpenFailed, "Open camera failed" + (error && error.localizedDescription ? (": " + std::string([error.localizedDescription UTF8String])) : ""));
+        return NO;
     }
 
     // Add input device to session
