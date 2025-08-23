@@ -682,7 +682,7 @@ bool ProviderDirectShow::open(std::string_view deviceName) {
     });
 
     if (!found) {
-        reportError(ErrorCode::InvalidDevice, "ccap: No video capture device: " + std::string(deviceName.empty() ? unavailableMsg : deviceName));
+        reportError(ErrorCode::InvalidDevice, "No video capture device: " + std::string(deviceName.empty() ? unavailableMsg : deviceName));
         return false;
     }
 
