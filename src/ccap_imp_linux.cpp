@@ -450,7 +450,6 @@ bool ProviderV4L2::startStreaming() {
 void ProviderV4L2::stopStreaming() {
     enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(m_fd, VIDIOC_STREAMOFF, &type) < 0) {
-        CCAP_LOG_E("ccap: VIDIOC_STREAMOFF failed: %s\n", strerror(errno));
         reportError(ErrorCode::DeviceStopFailed, "VIDIOC_STREAMOFF failed: " + std::string(strerror(errno)));
     }
 }
