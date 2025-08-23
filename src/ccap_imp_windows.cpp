@@ -308,7 +308,8 @@ void ProviderDirectShow::enumerateDevices(std::function<bool(IMoniker* moniker, 
     deviceEnum->Release();
     if (auto failed = FAILED(result); failed || !enumerator) {
         if (failed) {
-            reportError(ErrorCode::NoDeviceFound, "CreateClassEnumerator CLSID_VideoInputDeviceCategory failed, result=0x" + std::to_string(result));
+            // result is formatted as decimal by std::to_string, don't prefix with 0x
+            reportError(ErrorCode::NoDeviceFound, "CreateClassEnumerator CLSID_VideoInputDeviceCategory failed, result=" + std::to_string(result));
         } else {
             reportError(ErrorCode::NoDeviceFound, "No video capture devices found");
         }
@@ -589,7 +590,7 @@ bool ProviderDirectShow::createStream() {
                 }
             } else {
                 CCAP_LOG_E("ccap: SetFormat failed, result=0x%lx\n", setFormatResult);
-                ccap::reportError(ErrorCode::UnsupportedPixelFormat, "SetFormat failed");
+                reportError(ErrorCode::UnsupportedPixelFormat, "SetFormat failed, result=" + std::to_string(setFormatResult));
             }
         }
     }
@@ -624,7 +625,7 @@ bool ProviderDirectShow::createStream() {
         hr = m_graph->QueryInterface(IID_IMediaFilter, (void**)&pMediaFilter);
         if (FAILED(hr)) {
             CCAP_LOG_E("ccap: QueryInterface IMediaFilter failed, result=0x%lx\n", hr);
-            ccap::reportError(ErrorCode::DeviceOpenFailed, "QueryInterface IMediaFilter failed");
+            reportError(ErrorCode::DeviceOpenFailed, "QueryInterface IMediaFilter failed");
         } else {
             pMediaFilter->SetSyncSource(NULL);
             pMediaFilter->Release();
@@ -688,12 +689,12 @@ bool ProviderDirectShow::open(std::string_view deviceName) {
     CCAP_LOG_I("ccap: Found video capture device: %s\n", m_deviceName.c_str());
 
     if (!buildGraph()) {
-        ccap::reportError(ErrorCode::DeviceOpenFailed, "Failed to build DirectShow graph");
+        reportError(ErrorCode::DeviceOpenFailed, "Failed to build DirectShow graph");
         return false;
     }
 
     if (!createStream()) {
-        ccap::reportError(ErrorCode::DeviceOpenFailed, "Failed to create DirectShow stream");
+        reportError(ErrorCode::DeviceOpenFailed, "Failed to create DirectShow stream");
         return false;
     }
 
@@ -709,7 +710,7 @@ bool ProviderDirectShow::open(std::string_view deviceName) {
         hr = m_graph->QueryInterface(IID_IVideoWindow, (LPVOID*)&videoWindow);
         if (FAILED(hr)) {
             CCAP_LOG_E("ccap: QueryInterface IVideoWindow failed, result=0x%lx\n", hr);
-            ccap::reportError(ErrorCode::DeviceOpenFailed, "QueryInterface IVideoWindow failed");
+            reportError(ErrorCode::DeviceOpenFailed, "QueryInterface IVideoWindow failed, result=" + std::to_string(hr));
             return false;
         }
         videoWindow->put_AutoShow(false);
@@ -736,7 +737,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     BYTE* sampleData = nullptr;
     if (auto hr = mediaSample->GetPointer(&sampleData); FAILED(hr)) {
         CCAP_LOG_E("ccap: GetPointer failed, hr=0x%lx\n", hr);
-        ccap::reportError(ErrorCode::FrameCaptureFailed, "GetPointer failed");
+        reportError(ErrorCode::FrameCaptureFailed, "GetPointer failed");
         return S_OK;
     }
 
@@ -914,7 +915,6 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
 
 HRESULT STDMETHODCALLTYPE ProviderDirectShow::BufferCB(double SampleTime, BYTE* pBuffer, long BufferLen) {
     CCAP_LOG_E("ccap: BufferCB called, SampleTime: %f, BufferLen: %ld\n", SampleTime, BufferLen);
-    // This callback is not used in this implementation
     return S_OK;
 }
 

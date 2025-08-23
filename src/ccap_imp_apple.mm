@@ -297,8 +297,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
         }
 
         if (![_session canSetSessionPreset:preset]) {
-            CCAP_NSLOG_E(@"ccap: CameraCaptureObjc init - session preset not supported, using AVCaptureSessionPresetHigh");
-            ccap::reportError(ErrorCode::UnsupportedResolution, "Session preset not supported");
+            CCAP_NSLOG_W(@"ccap: CameraCaptureObjc init - session preset not supported, using AVCaptureSessionPresetHigh");
             preset = AVCaptureSessionPresetHigh;
         }
 
@@ -455,6 +454,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
                 auto fallbackInfo = getPixelFormatInfo(_cvPixelFormat);
                 CCAP_NSLOG_E(@"ccap: Preferred pixel format (%@-%s) not supported, fallback to: (%@-%s)", preferredInfo.name,
                              preferredInfo.description.c_str(), fallbackInfo.name, fallbackInfo.description.c_str());
+                reportError(ErrorCode::UnsupportedPixelFormat, "Preferred pixel format not supported, fallback to: " + fallbackInfo.description);
             }
         }
 
@@ -644,8 +644,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
                         }
                     }
                 } else {
-                    CCAP_NSLOG_E(@"ccap: Desired fps (%g) not supported, skipping", fps);
-                    ccap::reportError(ErrorCode::FrameRateSetFailed, "Desired fps not supported");
+                    reportError(ErrorCode::FrameRateSetFailed, "Desired fps (" + std::to_string(fps) + ") not supported, using fallback");
                 }
             }
         } else {
@@ -735,7 +734,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
         }
     }
 
-    CCAP_NSLOG_E(@"ccap: No connections available");
+    reportError(ErrorCode::InitializationFailed, "No connections available");
 }
 
 - (BOOL)start {
@@ -793,7 +792,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
     didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
            fromConnection:(AVCaptureConnection*)connection {
     if (!_provider) {
-        CCAP_NSLOG_E(@"ccap: CameraCaptureObjc captureOutput - provider is nil");
+        reportError(ErrorCode::InitializationFailed, "CameraCaptureObjc captureOutput - provider is nil");
         return;
     }
 
@@ -1023,7 +1022,7 @@ std::optional<DeviceInfo> ProviderApple::getDeviceInfo() const {
     }
 
     if (!deviceInfo) {
-        CCAP_NSLOG_E(@"ccap: getDeviceInfo called with no device opened");
+        reportError(ErrorCode::InitializationFailed, "getDeviceInfo called with no device opened");
     }
     return deviceInfo;
 }
@@ -1039,7 +1038,7 @@ void ProviderApple::close() {
 bool ProviderApple::start() {
     if (!isOpened()) {
         CCAP_NSLOG_W(@"ccap: camera start called with no device opened");
-        ccap::reportError(ErrorCode::DeviceStartFailed, "Camera start called with no device opened");
+        reportError(ErrorCode::DeviceStartFailed, "Camera start called with no device opened");
         return false;
     }
 

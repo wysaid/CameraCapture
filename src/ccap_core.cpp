@@ -68,7 +68,7 @@ void DefaultAllocator::resize(size_t size) {
     size_t alignedSize = (size + 31) & ~size_t(31);
     m_data = static_cast<uint8_t*>(ALIGNED_ALLOC(32, alignedSize));
     if (!m_data) {
-        ccap::reportError(ErrorCode::MemoryAllocationFailed, "Failed to allocate " + std::to_string(alignedSize) + " bytes of aligned memory");
+        reportError(ErrorCode::MemoryAllocationFailed, "Failed to allocate " + std::to_string(alignedSize) + " bytes of aligned memory");
         m_size = 0;
         return;
     }
@@ -119,7 +119,7 @@ ProviderImp* createProvider(std::string_view extraInfo) {
     if (warningLogEnabled()) {
         CCAP_LOG_W("ccap: Unsupported platform!\n");
     }
-    ccap::reportError(ErrorCode::InitializationFailed, "Unsupported platform");
+    reportError(ErrorCode::InitializationFailed, "Unsupported platform");
 #endif
     return nullptr;
 }
@@ -127,7 +127,7 @@ ProviderImp* createProvider(std::string_view extraInfo) {
 Provider::Provider() :
     m_imp(createProvider("")) {
     if (!m_imp) {
-        ccap::reportError(ErrorCode::InitializationFailed, ErrorMessages::FAILED_TO_CREATE_PROVIDER);
+        reportError(ErrorCode::InitializationFailed, ErrorMessages::FAILED_TO_CREATE_PROVIDER);
     }
 }
 
@@ -141,7 +141,7 @@ Provider::Provider(std::string_view deviceName, std::string_view extraInfo) :
     if (m_imp) {
         open(deviceName);
     } else {
-        ccap::reportError(ErrorCode::InitializationFailed, ErrorMessages::FAILED_TO_CREATE_PROVIDER);
+        reportError(ErrorCode::InitializationFailed, ErrorMessages::FAILED_TO_CREATE_PROVIDER);
     }
 }
 
@@ -150,7 +150,7 @@ Provider::Provider(int deviceIndex, std::string_view extraInfo) :
     if (m_imp) {
         open(deviceIndex);
     } else {
-        ccap::reportError(ErrorCode::InitializationFailed, ErrorMessages::FAILED_TO_CREATE_PROVIDER);
+        reportError(ErrorCode::InitializationFailed, ErrorMessages::FAILED_TO_CREATE_PROVIDER);
     }
 }
 
@@ -158,7 +158,7 @@ std::vector<std::string> Provider::findDeviceNames() { return m_imp ? m_imp->fin
 
 bool Provider::open(std::string_view deviceName, bool autoStart) {
     if (!m_imp) {
-        ccap::reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
+        reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
         return false;
     }
     return m_imp->open(deviceName) && (!autoStart || m_imp->start());
@@ -166,7 +166,7 @@ bool Provider::open(std::string_view deviceName, bool autoStart) {
 
 bool Provider::open(int deviceIndex, bool autoStart) {
     if (!m_imp) {
-        ccap::reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
+        reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
         return false;
     }
 
@@ -196,7 +196,7 @@ void Provider::close() {
 
 bool Provider::start() {
     if (!m_imp) {
-        ccap::reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
+        reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
         return false;
     }
     return m_imp->start();
@@ -210,7 +210,7 @@ bool Provider::isStarted() const { return m_imp && m_imp->isStarted(); }
 
 bool Provider::set(PropertyName prop, double value) {
     if (!m_imp) {
-        ccap::reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
+        reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
         return false;
     }
     return m_imp->set(prop, value);
@@ -220,7 +220,7 @@ double Provider::get(PropertyName prop) { return m_imp ? m_imp->get(prop) : NAN;
 
 std::shared_ptr<VideoFrame> Provider::grab(uint32_t timeoutInMs) {
     if (!m_imp) {
-        ccap::reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
+        reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
         return nullptr;
     }
     return m_imp->grab(timeoutInMs);
@@ -228,7 +228,7 @@ std::shared_ptr<VideoFrame> Provider::grab(uint32_t timeoutInMs) {
 
 void Provider::setNewFrameCallback(std::function<bool(const std::shared_ptr<VideoFrame>&)> callback) {
     if (!m_imp) {
-        ccap::reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
+        reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
         return;
     }
     m_imp->setNewFrameCallback(std::move(callback));
@@ -236,7 +236,7 @@ void Provider::setNewFrameCallback(std::function<bool(const std::shared_ptr<Vide
 
 void Provider::setFrameAllocator(std::function<std::shared_ptr<Allocator>()> allocatorFactory) {
     if (!m_imp) {
-        ccap::reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
+        reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
         return;
     }
     m_imp->setFrameAllocator(std::move(allocatorFactory));
@@ -244,7 +244,7 @@ void Provider::setFrameAllocator(std::function<std::shared_ptr<Allocator>()> all
 
 void Provider::setMaxAvailableFrameSize(uint32_t size) {
     if (!m_imp) {
-        ccap::reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
+        reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
         return;
     }
     m_imp->setMaxAvailableFrameSize(size);
@@ -252,7 +252,7 @@ void Provider::setMaxAvailableFrameSize(uint32_t size) {
 
 void Provider::setMaxCacheFrameSize(uint32_t size) {
     if (!m_imp) {
-        ccap::reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
+        reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
         return;
     }
     m_imp->setMaxCacheFrameSize(size);

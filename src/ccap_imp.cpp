@@ -110,8 +110,7 @@ std::shared_ptr<VideoFrame> ProviderImp::grab(uint32_t timeoutInMs) {
 
     if (m_availableFrames.empty() && timeoutInMs > 0) {
         if (!isStarted()) {
-            CCAP_LOG_W("ccap: Grab called when camera is not started!");
-            ccap::reportError(ErrorCode::DeviceStartFailed, "Grab called when camera is not started");
+            reportError(ErrorCode::DeviceStartFailed, "Grab called when camera is not started");
             return nullptr;
         }
 
@@ -127,8 +126,7 @@ std::shared_ptr<VideoFrame> ProviderImp::grab(uint32_t timeoutInMs) {
 
         m_grabFrameWaiting = false;
         if (!waitSuccess) {
-            CCAP_LOG_V("ccap: Grab timed out after %u ms\n", timeoutInMs);
-            ccap::reportError(ErrorCode::FrameCaptureTimeout, "Grab timed out after " + std::to_string(timeoutInMs) + " ms");
+            reportError(ErrorCode::FrameCaptureTimeout, "Grab timed out after " + std::to_string(timeoutInMs) + " ms");
             return nullptr;
         }
     }
