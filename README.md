@@ -115,7 +115,7 @@ int main() {
 
 ##### Error Handling in C++
 
-Starting from v1.2.0, ccap uses a global error callback system for simplified error handling across all camera operations:
+Starting from v1.0.0, ccap uses a global error callback system for simplified error handling across all camera operations:
 
 ```cpp
 #include <ccap.h>
@@ -505,7 +505,7 @@ typedef enum {
 
 ##### Error Handling
 
-Starting from v1.2.0, ccap uses a global error callback system for simplified error handling:
+Starting from v1.0.0, ccap uses a global error callback system for simplified error handling:
 
 ```c
 // Error codes

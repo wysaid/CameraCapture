@@ -7,7 +7,7 @@ Comprehensive test suite for ccap library built with Google Test, covering pixel
 ## Test Structure
 
 - **Core Tests**: Color conversion, YUV processing, platform features
-- **Performance Tests**: Multi-backend benchmarks (CPU/AVX2/Apple Accelerate)  
+- **Performance Tests**: Multi-backend benchmarks (CPU/AVX2/Apple Accelerate/NEON)  
 - **Debug Tools**: Detailed analysis and debugging utilities
 - **Technology**: Google Test 1.14.0, CMake 3.14+, C++17
 
@@ -44,11 +44,11 @@ cmake --build .
 - Color channel shuffling (RGB/BGR conversions)
 - YUV format conversion (NV12/I420 to RGB/BGR)
 - Single-pixel YUV conversion with BT.601/BT.709 standards
-- Platform feature detection (AVX2, Apple Accelerate)
+- Platform feature detection (AVX2, Apple Accelerate, NEON)
 
 ### Performance Validation
 
-- Multi-backend comparison across CPU, AVX2, Apple Accelerate
+- Multi-backend comparison across CPU, AVX2, Apple Accelerate, NEON
 - CCAP vs LibYUV benchmarks
 - Memory bandwidth testing
 - FPS and throughput analysis
