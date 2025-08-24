@@ -22,7 +22,7 @@
 
 ## 特性
 
-- **高性能**：硬件加速的像素格式转换，提升高达 10 倍性能（AVX2、Apple Accelerate）
+- **高性能**：硬件加速的像素格式转换，提升高达 10 倍性能（AVX2、Apple Accelerate、NEON）
 - **轻量级**：零外部依赖，仅使用系统框架
 - **跨平台**：Windows（DirectShow）、macOS/iOS（AVFoundation）、Linux（V4L2）
 - **多种格式**：RGB、BGR、YUV（NV12/I420）及自动转换
@@ -114,6 +114,7 @@ int main() {
 
 ```c
 #include <ccap_c.h>
+#include <ccap_utils_c.h>
 
 int main() {
     // 创建 provider
@@ -121,14 +122,12 @@ int main() {
     if (!provider) return -1;
     
     // 查找可用设备
-    char** deviceNames;
-    size_t deviceCount;
-    if (ccap_provider_find_device_names(provider, &deviceNames, &deviceCount)) {
-        printf("找到 %zu 个摄像头设备:\n", deviceCount);
-        for (size_t i = 0; i < deviceCount; i++) {
-            printf("  %zu: %s\n", i, deviceNames[i]);
+    CcapDeviceNamesList deviceList;
+    if (ccap_provider_find_device_names_list(provider, &deviceList)) {
+        printf("找到 %zu 个摄像头设备:\n", deviceList.deviceCount);
+        for (size_t i = 0; i < deviceList.deviceCount; i++) {
+            printf("  %zu: %s\n", i, deviceList.deviceNames[i]);
         }
-        ccap_provider_free_device_names(deviceNames, deviceCount);
     }
     
     // 打开默认相机
@@ -144,8 +143,12 @@ int main() {
             if (frame) {
                 CcapVideoFrameInfo frameInfo;
                 if (ccap_video_frame_get_info(frame, &frameInfo)) {
-                    printf("捕获: %dx%d, 格式=%d\n", 
-                           frameInfo.width, frameInfo.height, frameInfo.pixelFormat);
+                    // 获取像素格式字符串
+                    char formatStr[64];
+                    ccap_pixel_format_to_string(frameInfo.pixelFormat, formatStr, sizeof(formatStr));
+                    
+                    printf("捕获: %dx%d, 格式=%s\n", 
+                           frameInfo.width, frameInfo.height, formatStr);
                 }
                 ccap_video_frame_release(frame);
             }
@@ -301,6 +304,7 @@ namespace ccap {
     // 硬件能力检测
     bool hasAVX2();
     bool hasAppleAccelerate();
+    bool hasNEON();
     
     // 后端管理
     ConvertBackend getConvertBackend();
@@ -357,9 +361,8 @@ CcapProvider* ccap_provider_create(void);
 void ccap_provider_destroy(CcapProvider* provider);
 
 // 设备发现
-bool ccap_provider_find_device_names(CcapProvider* provider, 
-                                     char*** deviceNames, size_t* count);
-void ccap_provider_free_device_names(char** deviceNames, size_t count);
+bool ccap_provider_find_device_names_list(CcapProvider* provider, 
+                                          CcapDeviceNamesList* deviceList);
 
 // 设备管理
 bool ccap_provider_open(CcapProvider* provider, const char* deviceName, bool autoStart);
@@ -397,6 +400,12 @@ typedef struct {
     CcapPixelFormat pixelFormat; // 像素格式
     CcapFrameOrientation orientation; // 方向
 } CcapVideoFrameInfo;
+
+// 设备名称列表
+typedef struct {
+    char deviceNames[CCAP_MAX_DEVICES][CCAP_MAX_DEVICE_NAME_LENGTH];
+    size_t deviceCount;
+} CcapDeviceNamesList;
 
 bool ccap_video_frame_get_info(const CcapVideoFrame* frame, CcapVideoFrameInfo* info);
 ```
@@ -460,3 +469,7 @@ gcc -std=c99 your_code.c -o your_app \
 #### 完整文档
 
 C 接口的详细使用说明和示例请参见：[C 接口文档](./docs/C_Interface.md)
+
+**额外的 C 工具函数**：如需像素格式字符串转换和文件 I/O 功能，还需包含：
+- `#include <ccap_utils_c.h>` - 提供 `ccap_pixel_format_to_string()`、`ccap_dump_frame_to_file()` 等函数
+- `#include <ccap_convert_c.h>` - 提供像素格式转换函数

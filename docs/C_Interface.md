@@ -47,16 +47,12 @@ if (!provider) {
 
 ```c
 // 查找可用设备
-char** deviceNames;
-size_t deviceCount;
-if (ccap_provider_find_device_names(provider, &deviceNames, &deviceCount)) {
-    printf("Found %zu devices:\n", deviceCount);
-    for (size_t i = 0; i < deviceCount; i++) {
-        printf("  %zu: %s\n", i, deviceNames[i]);
+CcapDeviceNamesList deviceList;
+if (ccap_provider_find_device_names_list(provider, &deviceList)) {
+    printf("Found %zu devices:\n", deviceList.deviceCount);
+    for (size_t i = 0; i < deviceList.deviceCount; i++) {
+        printf("  %zu: %s\n", i, deviceList.deviceNames[i]);
     }
-    
-    // 释放设备名称数组
-    ccap_provider_free_device_names(deviceNames, deviceCount);
 }
 ```
 
@@ -218,7 +214,7 @@ gcc -std=c99 ccap_c_example.c -o ccap_c_example \
 - `ccap_provider_destroy()` - 销毁 provider
 
 #### 设备管理
-- `ccap_provider_find_device_names()` - 查找设备
+- `ccap_provider_find_device_names_list()` - 查找设备
 - `ccap_provider_open()` - 打开设备
 - `ccap_provider_close()` - 关闭设备
 - `ccap_provider_is_opened()` - 检查是否已打开

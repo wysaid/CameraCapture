@@ -25,7 +25,7 @@ A high-performance, lightweight cross-platform camera capture library with hardw
 
 ## Features
 
-- **High Performance**: Hardware-accelerated pixel format conversion with up to 10x speedup (AVX2, Apple Accelerate)
+- **High Performance**: Hardware-accelerated pixel format conversion with up to 10x speedup (AVX2, Apple Accelerate, NEON)
 - **Lightweight**: Zero external dependencies - uses only system frameworks
 - **Cross Platform**: Windows (DirectShow), macOS/iOS (AVFoundation), Linux (V4L2)
 - **Multiple Formats**: RGB, BGR, YUV (NV12/I420) with automatic conversion
@@ -153,6 +153,7 @@ Available error codes include:
 
 ```c
 #include <ccap_c.h>
+#include <ccap_utils_c.h>
 
 int main() {
     // Create provider
@@ -160,14 +161,12 @@ int main() {
     if (!provider) return -1;
     
     // Find available devices
-    char** deviceNames;
-    size_t deviceCount;
-    if (ccap_provider_find_device_names(provider, &deviceNames, &deviceCount)) {
-        printf("Found %zu camera device(s):\n", deviceCount);
-        for (size_t i = 0; i < deviceCount; i++) {
-            printf("  %zu: %s\n", i, deviceNames[i]);
+    CcapDeviceNamesList deviceList;
+    if (ccap_provider_find_device_names_list(provider, &deviceList)) {
+        printf("Found %zu camera device(s):\n", deviceList.deviceCount);
+        for (size_t i = 0; i < deviceList.deviceCount; i++) {
+            printf("  %zu: %s\n", i, deviceList.deviceNames[i]);
         }
-        ccap_provider_free_device_names(deviceNames, deviceCount);
     }
     
     // Open default camera
@@ -183,8 +182,12 @@ int main() {
             if (frame) {
                 CcapVideoFrameInfo frameInfo;
                 if (ccap_video_frame_get_info(frame, &frameInfo)) {
-                    printf("Captured: %dx%d, format=%d\n", 
-                           frameInfo.width, frameInfo.height, frameInfo.pixelFormat);
+                    // Get pixel format string
+                    char formatStr[64];
+                    ccap_pixel_format_to_string(frameInfo.pixelFormat, formatStr, sizeof(formatStr));
+                    
+                    printf("Captured: %dx%d, format=%s\n", 
+                           frameInfo.width, frameInfo.height, formatStr);
                 }
                 ccap_video_frame_release(frame);
             }
@@ -340,6 +343,7 @@ namespace ccap {
     // Hardware capabilities
     bool hasAVX2();
     bool hasAppleAccelerate();
+    bool hasNEON();
     
     // Backend management
     ConvertBackend getConvertBackend();
@@ -386,7 +390,7 @@ provider.set(ccap::PropertyName::PixelFormatOutput,
 
 Comprehensive test suite with 50+ test cases covering all functionality:
 
-- Multi-backend testing (CPU, AVX2, Apple Accelerate)
+- Multi-backend testing (CPU, AVX2, Apple Accelerate, NEON)
 - Performance benchmarks and accuracy validation  
 - 95%+ precision for pixel format conversions
 
@@ -422,9 +426,8 @@ CcapProvider* ccap_provider_create(void);
 void ccap_provider_destroy(CcapProvider* provider);
 
 // Device discovery
-bool ccap_provider_find_device_names(CcapProvider* provider, 
-                                     char*** deviceNames, size_t* count);
-void ccap_provider_free_device_names(char** deviceNames, size_t count);
+bool ccap_provider_find_device_names_list(CcapProvider* provider, 
+                                          CcapDeviceNamesList* deviceList);
 
 // Device management
 bool ccap_provider_open(CcapProvider* provider, const char* deviceName, bool autoStart);
@@ -462,6 +465,12 @@ typedef struct {
     CcapPixelFormat pixelFormat; // Pixel format
     CcapFrameOrientation orientation; // Orientation
 } CcapVideoFrameInfo;
+
+// Device names list
+typedef struct {
+    char deviceNames[CCAP_MAX_DEVICES][CCAP_MAX_DEVICE_NAME_LENGTH];
+    size_t deviceCount;
+} CcapDeviceNamesList;
 
 bool ccap_video_frame_get_info(const CcapVideoFrame* frame, CcapVideoFrameInfo* info);
 ```
@@ -573,3 +582,7 @@ gcc -std=c99 your_code.c -o your_app \
 #### Complete Documentation
 
 For detailed usage instructions and examples of the C interface, see: [C Interface Documentation](./docs/C_Interface.md)
+
+**Additional C Utilities**: For pixel format string conversion and file I/O functions, also include:
+- `#include <ccap_utils_c.h>` - provides `ccap_pixel_format_to_string()`, `ccap_dump_frame_to_file()`
+- `#include <ccap_convert_c.h>` - provides pixel format conversion functions
