@@ -1223,6 +1223,106 @@
                 "args": ["-d", "0", "-c", "5", "-o", ".\\captures"],
                 "problemMatcher": "$msCompile"
             }
+        },
+        {
+            "label": "Run Rust print_camera",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "run",
+                "--example",
+                "print_camera"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/bindings/rust"
+            },
+            "group": "build",
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "Run Rust minimal_example",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "run",
+                "--example",
+                "minimal_example"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/bindings/rust"
+            },
+            "group": "build",
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "Run Rust capture_grab",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "run",
+                "--example",
+                "capture_grab"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/bindings/rust"
+            },
+            "group": "build",
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "Run Rust capture_callback",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "run",
+                "--example",
+                "capture_callback"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/bindings/rust"
+            },
+            "group": "build",
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "Build Rust Bindings",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "build"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/bindings/rust"
+            },
+            "group": "build",
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "Build Rust Examples",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "build",
+                "--examples"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/bindings/rust"
+            },
+            "group": "build",
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "Test Rust Bindings",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "test"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/bindings/rust"
+            },
+            "group": "build",
+            "problemMatcher": "$rustc"
         }
     ]
 }
