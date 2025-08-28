@@ -157,7 +157,10 @@
             "problemMatcher": [],
             "windows": {
                 "command": "cmd",
-                "args": ["/c", "if not exist dev.cmake (copy cmake\\dev.cmake.example dev.cmake && echo dev.cmake created from template) else (echo dev.cmake already exists)"]
+                "args": [
+                    "/c",
+                    "if not exist dev.cmake (copy cmake\\dev.cmake.example dev.cmake && echo dev.cmake created from template) else (echo dev.cmake already exists)"
+                ]
             }
         },
         {
@@ -175,7 +178,10 @@
             "problemMatcher": [],
             "windows": {
                 "command": "cmd",
-                "args": ["/c", "if exist dev.cmake del dev.cmake"]
+                "args": [
+                    "/c",
+                    "if exist dev.cmake del dev.cmake"
+                ]
             }
         },
         {
@@ -1125,7 +1131,9 @@
             "dependsOrder": "sequence",
             "windows": {
                 "command": ".\\ccap.exe",
-                "args": ["--help"],
+                "args": [
+                    "--help"
+                ],
                 "problemMatcher": "$msCompile"
             }
         },
@@ -1150,7 +1158,9 @@
             "dependsOrder": "sequence",
             "windows": {
                 "command": ".\\ccap.exe",
-                "args": ["--list-devices"],
+                "args": [
+                    "--list-devices"
+                ],
                 "problemMatcher": "$msCompile"
             }
         },
@@ -1175,7 +1185,11 @@
             "dependsOrder": "sequence",
             "windows": {
                 "command": ".\\ccap.exe",
-                "args": ["-d", "0", "--preview"],
+                "args": [
+                    "-d",
+                    "0",
+                    "--preview"
+                ],
                 "problemMatcher": "$msCompile"
             }
         },
@@ -1200,7 +1214,14 @@
             "dependsOrder": "sequence",
             "windows": {
                 "command": ".\\ccap.exe",
-                "args": ["-d", "0", "-c", "5", "-o", ".\\captures"],
+                "args": [
+                    "-d",
+                    "0",
+                    "-c",
+                    "5",
+                    "-o",
+                    ".\\captures"
+                ],
                 "problemMatcher": "$msCompile"
             }
         },
@@ -1225,7 +1246,9 @@
             "dependsOrder": "sequence",
             "windows": {
                 "command": ".\\ccap.exe",
-                "args": ["--help"],
+                "args": [
+                    "--help"
+                ],
                 "problemMatcher": "$msCompile"
             }
         },
@@ -1250,7 +1273,9 @@
             "dependsOrder": "sequence",
             "windows": {
                 "command": ".\\ccap.exe",
-                "args": ["--list-devices"],
+                "args": [
+                    "--list-devices"
+                ],
                 "problemMatcher": "$msCompile"
             }
         },
@@ -1275,7 +1300,11 @@
             "dependsOrder": "sequence",
             "windows": {
                 "command": ".\\ccap.exe",
-                "args": ["-d", "0", "--preview"],
+                "args": [
+                    "-d",
+                    "0",
+                    "--preview"
+                ],
                 "problemMatcher": "$msCompile"
             }
         },
@@ -1300,7 +1329,14 @@
             "dependsOrder": "sequence",
             "windows": {
                 "command": ".\\ccap.exe",
-                "args": ["-d", "0", "-c", "5", "-o", ".\\captures"],
+                "args": [
+                    "-d",
+                    "0",
+                    "-c",
+                    "5",
+                    "-o",
+                    ".\\captures"
+                ],
                 "problemMatcher": "$msCompile"
             }
         },
@@ -1325,7 +1361,14 @@
             "dependsOrder": "sequence",
             "windows": {
                 "command": ".\\ccap.exe",
-                "args": ["--video", "test.mp4", "-c", "10", "-o", ".\\video_frames"],
+                "args": [
+                    "--video",
+                    "test.mp4",
+                    "-c",
+                    "10",
+                    "-o",
+                    ".\\video_frames"
+                ],
                 "options": {
                     "cwd": "${workspaceFolder}/build/Debug"
                 },
@@ -1353,7 +1396,14 @@
             "dependsOrder": "sequence",
             "windows": {
                 "command": ".\\ccap.exe",
-                "args": ["--video", "test.mp4", "-c", "10", "-o", ".\\video_frames"],
+                "args": [
+                    "--video",
+                    "test.mp4",
+                    "-c",
+                    "10",
+                    "-o",
+                    ".\\video_frames"
+                ],
                 "options": {
                     "cwd": "${workspaceFolder}/build/Release"
                 },
@@ -1381,7 +1431,11 @@
             "dependsOrder": "sequence",
             "windows": {
                 "command": ".\\ccap.exe",
-                "args": ["-i", "test.mp4", "--preview"],
+                "args": [
+                    "-i",
+                    "test.mp4",
+                    "--preview"
+                ],
                 "options": {
                     "cwd": "${workspaceFolder}/build/Debug"
                 },
@@ -1409,12 +1463,116 @@
             "dependsOrder": "sequence",
             "windows": {
                 "command": ".\\ccap.exe",
-                "args": ["-i", "test.mp4", "--preview"],
+                "args": [
+                    "-i",
+                    "test.mp4",
+                    "--preview"
+                ],
                 "options": {
                     "cwd": "${workspaceFolder}/build/Release"
                 },
                 "problemMatcher": "$msCompile"
             }
+        },
+        {
+            "label": "Run Rust print_camera",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "run",
+                "--example",
+                "print_camera"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/bindings/rust"
+            },
+            "group": "build",
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "Run Rust minimal_example",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "run",
+                "--example",
+                "minimal_example"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/bindings/rust"
+            },
+            "group": "build",
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "Run Rust capture_grab",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "run",
+                "--example",
+                "capture_grab"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/bindings/rust"
+            },
+            "group": "build",
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "Run Rust capture_callback",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "run",
+                "--example",
+                "capture_callback"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/bindings/rust"
+            },
+            "group": "build",
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "Build Rust Bindings",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "build"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/bindings/rust"
+            },
+            "group": "build",
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "Build Rust Examples",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "build",
+                "--examples"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/bindings/rust"
+            },
+            "group": "build",
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "Test Rust Bindings",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "test"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/bindings/rust"
+            },
+            "group": "build",
+            "problemMatcher": "$rustc"
         }
     ]
 }
