@@ -374,3 +374,38 @@ if (CCAP_INSTALL)
     message(STATUS "  Headers: ${CMAKE_INSTALL_PREFIX}/${CCAP_INSTALL_INCLUDEDIR}")
     message(STATUS "  CMake: ${CMAKE_INSTALL_PREFIX}/${CCAP_INSTALL_CMAKEDIR}")
 endif ()
+
+# ############### Rust Bindings ################
+option(CCAP_BUILD_RUST "Build Rust bindings" OFF)
+
+if (CCAP_BUILD_RUST)
+    message(STATUS "ccap: Building Rust bindings")
+    # Find Rust/Cargo
+    find_program(CARGO_CMD cargo)
+    if (NOT CARGO_CMD)
+        message(WARNING "cargo not found - Rust bindings disabled")
+    else ()
+        message(STATUS "ccap: Found cargo: ${CARGO_CMD}")
+        # Add custom target to build Rust bindings
+        add_custom_target(ccap-rust
+                COMMAND ${CARGO_CMD} build --release
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bindings/rust
+                COMMENT "Building Rust bindings"
+                DEPENDS ccap
+        )
+        # Add custom target to test Rust bindings
+        add_custom_target(ccap-rust-test
+                COMMAND ${CARGO_CMD} test
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bindings/rust
+                COMMENT "Testing Rust bindings"
+                DEPENDS ccap-rust
+        )
+        # Add to main build if requested
+        if (CCAP_IS_ROOT_PROJECT)
+            add_dependencies(ccap ccap-rust)
+        endif ()
+        message(STATUS "ccap: Rust bindings targets added:")
+        message(STATUS "  ccap-rust: Build Rust bindings")
+        message(STATUS "  ccap-rust-test: Test Rust bindings")
+    endif ()
+endif ()
