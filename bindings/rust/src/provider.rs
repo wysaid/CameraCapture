@@ -284,6 +284,24 @@ impl Provider {
     pub fn find_device_names(&self) -> Result<Vec<String>> {
         self.list_devices()
     }
+    
+    /// Get current resolution (convenience getter)
+    pub fn resolution(&self) -> Result<(u32, u32)> {
+        let width = self.get_property(PropertyName::Width)? as u32;
+        let height = self.get_property(PropertyName::Height)? as u32;
+        Ok((width, height))
+    }
+    
+    /// Get current pixel format (convenience getter)
+    pub fn pixel_format(&self) -> Result<PixelFormat> {
+        let format_val = self.get_property(PropertyName::PixelFormatOutput)? as u32;
+        Ok(PixelFormat::from(format_val))
+    }
+    
+    /// Get current frame rate (convenience getter)
+    pub fn frame_rate(&self) -> Result<f64> {
+        self.get_property(PropertyName::FrameRate)
+    }
 }
 
 impl Drop for Provider {

@@ -28,7 +28,9 @@ fn main() {
     
     #[cfg(target_os = "linux")]
     {
-        println!("cargo:rustc-link-lib=v4l2");
+        // v4l2 might not be available on all systems
+        // println!("cargo:rustc-link-lib=v4l2");
+        println!("cargo:rustc-link-lib=stdc++");
     }
     
     #[cfg(target_os = "windows")]

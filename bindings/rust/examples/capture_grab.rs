@@ -1,6 +1,4 @@
-use ccap::{Provider, Convert, Utils, Result, PixelFormat};
-use std::thread;
-use std::time::Duration;
+use ccap::{Provider, Result, PixelFormat};
 
 fn main() -> Result<()> {
     // Create a camera provider
@@ -41,12 +39,12 @@ fn main() -> Result<()> {
     }
     
     // Print current settings
-    let resolution = provider.resolution();
-    let pixel_format = provider.pixel_format();
-    let frame_rate = provider.frame_rate();
+    let resolution = provider.resolution()?;
+    let pixel_format = provider.pixel_format()?;
+    let frame_rate = provider.frame_rate()?;
     
     println!("Current settings:");
-    println!("  Resolution: {}x{}", resolution.width, resolution.height);
+    println!("  Resolution: {}x{}", resolution.0, resolution.1);
     println!("  Pixel format: {:?}", pixel_format);
     println!("  Frame rate: {:.2} fps", frame_rate);
     
@@ -57,24 +55,12 @@ fn main() -> Result<()> {
             println!("Captured frame: {}x{}, format: {:?}, size: {} bytes",
                 frame.width(), frame.height(), frame.pixel_format(), frame.data_size());
             
-            // Save the frame as BMP
-            match Utils::save_frame_as_bmp(&frame, "captured_frame.bmp") {
-                Ok(()) => println!("Frame saved as 'captured_frame.bmp'"),
-                Err(e) => eprintln!("Failed to save frame: {}", e),
-            }
+            // TODO: Add frame saving functionality
+            println!("Frame captured successfully (saving not yet implemented)");
             
-            // If it's not RGB24, try to convert it
+            // TODO: Add frame conversion functionality
             if frame.pixel_format() != PixelFormat::Rgb24 {
-                match Convert::convert_frame(&frame, PixelFormat::Rgb24) {
-                    Ok(rgb_frame) => {
-                        println!("Converted frame to RGB24");
-                        match Utils::save_frame_as_bmp(&rgb_frame, "converted_frame.bmp") {
-                            Ok(()) => println!("Converted frame saved as 'converted_frame.bmp'"),
-                            Err(e) => eprintln!("Failed to save converted frame: {}", e),
-                        }
-                    }
-                    Err(e) => eprintln!("Failed to convert frame: {}", e),
-                }
+                println!("Frame format conversion not yet implemented");
             }
         }
         Ok(None) => {
