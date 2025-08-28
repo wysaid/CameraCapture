@@ -131,7 +131,7 @@ impl ColorConversionBackend {
             ColorConversionBackend::Cpu => sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_CPU,
             ColorConversionBackend::Avx2 => sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_AVX2,
             ColorConversionBackend::Neon => sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_NEON,
-            ColorConversionBackend::Accelerate => sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_ACCELERATE,
+            ColorConversionBackend::Accelerate => sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_APPLE_ACCELERATE,
         }
     }
 
@@ -140,7 +140,7 @@ impl ColorConversionBackend {
             sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_CPU => ColorConversionBackend::Cpu,
             sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_AVX2 => ColorConversionBackend::Avx2,
             sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_NEON => ColorConversionBackend::Neon,
-            sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_ACCELERATE => ColorConversionBackend::Accelerate,
+            sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_APPLE_ACCELERATE => ColorConversionBackend::Accelerate,
             _ => ColorConversionBackend::Cpu,
         }
     }

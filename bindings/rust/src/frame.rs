@@ -87,7 +87,7 @@ impl VideoFrame {
                 strides: [info.stride[0], info.stride[1], info.stride[2]],
             })
         } else {
-            Err(CcapError::FrameCaptureFailed)
+            Err(CcapError::FrameGrabFailed)
         }
     }
 
@@ -102,7 +102,7 @@ impl VideoFrame {
                 std::slice::from_raw_parts(info.data[0], info.sizeInBytes as usize)
             })
         } else {
-            Err(CcapError::FrameCaptureFailed)
+            Err(CcapError::FrameGrabFailed)
         }
     }
 }
