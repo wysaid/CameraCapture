@@ -39,6 +39,12 @@ pub enum CcapError {
     /// Not supported operation
     NotSupported,
     
+    /// Backend set failed
+    BackendSetFailed,
+    
+    /// String conversion error
+    StringConversionError(String),
+    
     /// Unknown error
     Unknown { code: i32 },
 }
@@ -58,6 +64,8 @@ impl std::fmt::Display for CcapError {
             CcapError::Timeout => write!(f, "Timeout occurred"),
             CcapError::InvalidParameter(param) => write!(f, "Invalid parameter: {}", param),
             CcapError::NotSupported => write!(f, "Operation not supported"),
+            CcapError::BackendSetFailed => write!(f, "Backend set failed"),
+            CcapError::StringConversionError(msg) => write!(f, "String conversion error: {}", msg),
             CcapError::Unknown { code } => write!(f, "Unknown error: {}", code),
         }
     }
@@ -69,6 +77,7 @@ impl From<i32> for CcapError {
     fn from(code: i32) -> Self {
         use crate::sys::*;
         
+        #[allow(non_upper_case_globals)]
         match code as u32 {
             CcapErrorCode_CCAP_ERROR_NONE => CcapError::None,
             CcapErrorCode_CCAP_ERROR_NO_DEVICE_FOUND => CcapError::NoDeviceFound,
