@@ -45,8 +45,14 @@ pub enum CcapError {
     /// String conversion error
     StringConversionError(String),
     
-    /// Unknown error
-    Unknown { code: i32 },
+    /// Internal error
+    InternalError(String),
+    
+    /// Unknown error with error code
+    Unknown {
+        /// Error code from the underlying system
+        code: i32 
+    },
 }
 
 impl std::fmt::Display for CcapError {
@@ -66,6 +72,7 @@ impl std::fmt::Display for CcapError {
             CcapError::NotSupported => write!(f, "Operation not supported"),
             CcapError::BackendSetFailed => write!(f, "Backend set failed"),
             CcapError::StringConversionError(msg) => write!(f, "String conversion error: {}", msg),
+            CcapError::InternalError(msg) => write!(f, "Internal error: {}", msg),
             CcapError::Unknown { code } => write!(f, "Unknown error: {}", code),
         }
     }

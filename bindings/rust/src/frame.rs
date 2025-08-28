@@ -1,16 +1,19 @@
 use crate::{sys, error::CcapError, types::*};
-use std::ffi::{CStr, CString};
-use std::ptr;
+use std::ffi::CStr;
 
 /// Device information structure
 #[derive(Debug, Clone)]
 pub struct DeviceInfo {
+    /// Device name
     pub name: String,
+    /// Supported pixel formats
     pub supported_pixel_formats: Vec<PixelFormat>,
+    /// Supported resolutions
     pub supported_resolutions: Vec<Resolution>,
 }
 
 impl DeviceInfo {
+    /// Create DeviceInfo from C structure
     pub fn from_c_struct(info: &sys::CcapDeviceInfo) -> Result<Self, CcapError> {
         let name_cstr = unsafe { CStr::from_ptr(info.deviceName.as_ptr()) };
         let name = name_cstr
@@ -46,10 +49,14 @@ impl VideoFrame {
         VideoFrame { frame }
     }
 
+    /// Get the internal C pointer (for internal use)
+    #[allow(dead_code)]
     pub(crate) fn as_c_ptr(&self) -> *const sys::CcapVideoFrame {
         self.frame as *const sys::CcapVideoFrame
     }
 
+    /// Create frame from raw pointer (for internal use)
+    #[allow(dead_code)]
     pub(crate) fn from_raw(frame: *mut sys::CcapVideoFrame) -> Option<Self> {
         if frame.is_null() {
             None
@@ -142,13 +149,22 @@ unsafe impl Sync for VideoFrame {}
 /// High-level video frame information
 #[derive(Debug)]
 pub struct VideoFrameInfo {
+    /// Frame width in pixels
     pub width: u32,
+    /// Frame height in pixels
     pub height: u32,
+    /// Pixel format of the frame
     pub pixel_format: PixelFormat,
+    /// Size of frame data in bytes
     pub size_in_bytes: u32,
+    /// Frame timestamp
     pub timestamp: u64,
+    /// Frame sequence index
     pub frame_index: u64,
+    /// Frame orientation
     pub orientation: FrameOrientation,
+    /// Frame data planes (up to 3 planes)
     pub data_planes: [Option<&'static [u8]>; 3],
+    /// Stride values for each plane
     pub strides: [u32; 3],
 }

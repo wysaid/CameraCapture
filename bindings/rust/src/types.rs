@@ -3,18 +3,31 @@ use crate::sys;
 /// Pixel format enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PixelFormat {
+    /// Unknown pixel format
     Unknown,
+    /// NV12 pixel format
     Nv12,
+    /// NV12F pixel format
     Nv12F,
+    /// I420 pixel format
     I420,
+    /// I420F pixel format
     I420F,
+    /// YUYV pixel format
     Yuyv,
+    /// YUYV flipped pixel format
     YuyvF,
+    /// UYVY pixel format
     Uyvy,
+    /// UYVY flipped pixel format
     UyvyF,
+    /// RGB24 pixel format
     Rgb24,
+    /// BGR24 pixel format
     Bgr24,
+    /// RGBA32 pixel format
     Rgba32,
+    /// BGRA32 pixel format
     Bgra32,
 }
 
@@ -40,10 +53,12 @@ impl From<sys::CcapPixelFormat> for PixelFormat {
 }
 
 impl PixelFormat {
+    /// Convert pixel format to C enum
     pub fn to_c_enum(self) -> sys::CcapPixelFormat {
         self.into()
     }
 
+    /// Create pixel format from C enum
     pub fn from_c_enum(format: sys::CcapPixelFormat) -> Self {
         format.into()
     }
@@ -72,7 +87,9 @@ impl Into<sys::CcapPixelFormat> for PixelFormat {
 /// Frame orientation enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FrameOrientation {
+    /// Top to bottom orientation
     TopToBottom,
+    /// Bottom to top orientation
     BottomToTop,
 }
 
@@ -89,15 +106,22 @@ impl From<sys::CcapFrameOrientation> for FrameOrientation {
 /// Camera property enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PropertyName {
+    /// Width property
     Width,
+    /// Height property
     Height,
+    /// Frame rate property
     FrameRate,
+    /// Internal pixel format property
     PixelFormatInternal,
+    /// Output pixel format property
     PixelFormatOutput,
+    /// Frame orientation property
     FrameOrientation,
 }
 
 impl PropertyName {
+    /// Convert property name to C enum
     pub fn to_c_enum(self) -> sys::CcapPropertyName {
         self.into()
     }
@@ -119,13 +143,18 @@ impl From<PropertyName> for sys::CcapPropertyName {
 /// Color conversion backend enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColorConversionBackend {
+    /// CPU backend
     Cpu,
+    /// AVX2 backend
     Avx2,
+    /// NEON backend
     Neon,
+    /// Apple Accelerate backend
     Accelerate,
 }
 
 impl ColorConversionBackend {
+    /// Convert backend to C enum
     pub fn to_c_enum(self) -> sys::CcapConvertBackend {
         match self {
             ColorConversionBackend::Cpu => sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_CPU,
@@ -135,6 +164,7 @@ impl ColorConversionBackend {
         }
     }
 
+    /// Create backend from C enum
     pub fn from_c_enum(backend: sys::CcapConvertBackend) -> Self {
         match backend {
             sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_CPU => ColorConversionBackend::Cpu,
@@ -149,7 +179,9 @@ impl ColorConversionBackend {
 /// Resolution structure
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Resolution {
+    /// Width in pixels
     pub width: u32,
+    /// Height in pixels
     pub height: u32,
 }
 

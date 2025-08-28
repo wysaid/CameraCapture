@@ -44,7 +44,7 @@ fn main() -> Result<()> {
     }
     
     // Stop capture
-    provider.stop();
+    let _ = provider.stop();
     println!("Camera capture stopped.");
     
     Ok(())
