@@ -105,6 +105,26 @@ impl VideoFrame {
             Err(CcapError::FrameGrabFailed)
         }
     }
+    
+    /// Get frame width (convenience method)
+    pub fn width(&self) -> u32 {
+        self.info().map(|info| info.width).unwrap_or(0)
+    }
+    
+    /// Get frame height (convenience method)
+    pub fn height(&self) -> u32 {
+        self.info().map(|info| info.height).unwrap_or(0)
+    }
+    
+    /// Get pixel format (convenience method)
+    pub fn pixel_format(&self) -> PixelFormat {
+        self.info().map(|info| info.pixel_format).unwrap_or(PixelFormat::Unknown)
+    }
+    
+    /// Get data size in bytes (convenience method)
+    pub fn data_size(&self) -> u32 {
+        self.info().map(|info| info.size_in_bytes).unwrap_or(0)
+    }
 }
 
 impl Drop for VideoFrame {

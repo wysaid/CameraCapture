@@ -1,4 +1,4 @@
-use ccap::{Provider, Utils, Result};
+use ccap::{Provider, Result};
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -54,13 +54,9 @@ fn main() -> Result<()> {
                             fps
                         );
                         
-                        // Save every 30th frame
-                        let filename = format!("frame_{:06}.bmp", *count);
-                        if let Err(e) = Utils::save_frame_as_bmp(&frame, &filename) {
-                            eprintln!("Failed to save {}: {}", filename, e);
-                        } else {
-                            println!("Saved {}", filename);
-                        }
+                        // TODO: Save every 30th frame (saving not yet implemented)
+                        println!("Frame {} captured: {}x{}, format: {:?} (saving not implemented)", 
+                                *count, frame.width(), frame.height(), frame.pixel_format());
                     }
                 }
                 Ok(None) => {
