@@ -153,7 +153,7 @@ impl Provider {
     }
     
     /// Open device with optional device name and auto start
-    pub fn open_device(&mut self, device_name: Option<&str>, auto_start: bool) -> Result<()> {
+    pub fn open_device(&mut self, _device_name: Option<&str>, auto_start: bool) -> Result<()> {
         // If device_name is provided, we might need to recreate provider with that device
         self.open()?;
         if auto_start {

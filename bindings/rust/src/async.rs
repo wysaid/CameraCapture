@@ -42,7 +42,7 @@ impl AsyncProvider {
     /// Open a camera device
     pub async fn open(&self, device_name: Option<&str>, auto_start: bool) -> Result<()> {
         let mut provider = self.provider.lock().await;
-        provider.open(device_name, auto_start)
+        provider.open_device(device_name, auto_start)
     }
 
     /// Start capturing frames
@@ -52,7 +52,7 @@ impl AsyncProvider {
     }
 
     /// Stop capturing frames
-    pub async fn stop(&self) {
+    pub async fn stop(&self) -> Result<()> {
         let mut provider = self.provider.lock().await;
         provider.stop()
     }
@@ -75,7 +75,7 @@ impl AsyncProvider {
         let timeout_ms = timeout.as_millis() as u32;
         
         tokio::task::spawn_blocking(move || {
-            let provider = provider.blocking_lock();
+            let mut provider = provider.blocking_lock();
             provider.grab_frame(timeout_ms)
         }).await.map_err(|e| crate::CcapError::InternalError(e.to_string()))?
     }
@@ -99,7 +99,6 @@ impl AsyncProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio_test;
 
     #[tokio::test]
     async fn test_async_provider_creation() {
