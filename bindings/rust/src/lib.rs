@@ -20,9 +20,9 @@ mod error;
 mod types;
 mod frame;
 mod provider;
+mod utils;
 // TODO: Fix these modules later
 // mod convert;
-// mod utils;
 
 #[cfg(feature = "async")]
 pub mod r#async;
@@ -32,8 +32,8 @@ pub use error::{CcapError, Result};
 pub use types::*;
 pub use frame::*;
 pub use provider::Provider;
+pub use utils::{Utils, LogLevel};
 // pub use convert::Convert;
-// pub use utils::Utils;
 
 /// Get library version string
 pub fn version() -> Result<String> {
