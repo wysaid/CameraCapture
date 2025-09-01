@@ -1,96 +1,100 @@
-use ccap::{Provider, Result};
-use std::sync::{Arc, Mutex, mpsc};
+use ccap::{Provider, Result, Utils, PropertyName, PixelFormat, LogLevel};
+use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 fn main() -> Result<()> {
-    // Create a camera provider
-    let mut provider = Provider::new()?;
+    // Enable verbose log to see debug information
+    Utils::set_log_level(LogLevel::Verbose);
+
+    // Set error callback to receive error notifications
+    Provider::set_error_callback(|error_code, description| {
+        eprintln!("Camera Error - Code: {}, Description: {}", error_code, description);
+    });
+
+    let temp_provider = Provider::new()?;
+    let devices = temp_provider.list_devices()?;
+    if devices.is_empty() {
+        eprintln!("No camera devices found!");
+        return Ok(());
+    }
+
+    for (i, device) in devices.iter().enumerate() {
+        println!("## Found video capture device: {}: {}", i, device);
+    }
+
+    // Select camera device (automatically use first device for testing)
+    let device_index = if devices.len() == 1 {
+        0
+    } else {
+        0 // Just use first device for now
+    };
     
-    // Open the first available device
+    // Create provider with selected device
+    let mut provider = Provider::with_device(device_index as i32)?;
+
+    // Set camera properties
+    let requested_width = 1920;
+    let requested_height = 1080;
+    let requested_fps = 60.0;
+
+    provider.set_property(PropertyName::Width, requested_width as f64)?;
+    provider.set_property(PropertyName::Height, requested_height as f64)?;
+    provider.set_property(PropertyName::PixelFormatOutput, PixelFormat::Bgra32 as u32 as f64)?;
+    provider.set_property(PropertyName::FrameRate, requested_fps)?;
+
+    // Open and start camera
     provider.open()?;
-    println!("Camera opened successfully.");
-    
-    // Start capture
     provider.start()?;
-    println!("Camera capture started.");
-    
+
+    if !provider.is_started() {
+        eprintln!("Failed to start camera!");
+        return Ok(());
+    }
+
+    // Get real camera properties
+    let real_width = provider.get_property(PropertyName::Width)? as i32;
+    let real_height = provider.get_property(PropertyName::Height)? as i32;
+    let real_fps = provider.get_property(PropertyName::FrameRate)?;
+
+    println!("Camera started successfully, requested resolution: {}x{}, real resolution: {}x{}, requested fps {}, real fps: {}",
+             requested_width, requested_height, real_width, real_height, requested_fps, real_fps);
+
+    // Create directory for captures (using std::fs)
+    std::fs::create_dir_all("./image_capture").map_err(|e| ccap::CcapError::FileOperationFailed(e.to_string()))?;
+
     // Statistics tracking
     let frame_count = Arc::new(Mutex::new(0u32));
-    let start_time = Arc::new(Mutex::new(Instant::now()));
-    
-    // Create a channel for communication
-    let (tx, rx) = mpsc::channel();
-    
-    // Spawn a thread to continuously grab frames
     let frame_count_clone = frame_count.clone();
-    let start_time_clone = start_time.clone();
-    
-    thread::spawn(move || {
-        loop {
-            // Check for stop signal
-            match rx.try_recv() {
-                Ok(_) => break,
-                Err(mpsc::TryRecvError::Disconnected) => break,
-                Err(mpsc::TryRecvError::Empty) => {}
-            }
-            
-            // Grab frame with timeout
-            match provider.grab_frame(100) {
-                Ok(Some(frame)) => {
-                    let mut count = frame_count_clone.lock().unwrap();
-                    *count += 1;
-                    
-                    // Print stats every 30 frames
-                    if *count % 30 == 0 {
-                        let elapsed = start_time_clone.lock().unwrap().elapsed();
-                        let fps = *count as f64 / elapsed.as_secs_f64();
-                        
-                        println!("Frame {}: {}x{}, format: {:?}, FPS: {:.1}",
-                            *count,
-                            frame.width(),
-                            frame.height(), 
-                            frame.pixel_format(),
-                            fps
-                        );
-                        
-                        // TODO: Save every 30th frame (saving not yet implemented)
-                        println!("Frame {} captured: {}x{}, format: {:?} (saving not implemented)", 
-                                *count, frame.width(), frame.height(), frame.pixel_format());
-                    }
-                }
-                Ok(None) => {
-                    // No frame available, continue
-                }
-                Err(e) => {
-                    eprintln!("Error grabbing frame: {}", e);
-                    thread::sleep(Duration::from_millis(10));
-                }
-            }
+
+    // Set frame callback
+    provider.set_new_frame_callback(move |frame| {
+        let mut count = frame_count_clone.lock().unwrap();
+        *count += 1;
+
+        println!("VideoFrame {} grabbed: width = {}, height = {}, bytes: {}", 
+                 frame.index(), frame.width(), frame.height(), frame.data_size());
+
+        // Try to save frame to directory
+        if let Ok(filename) = Utils::dump_frame_to_directory(frame, "./image_capture") {
+            println!("VideoFrame saved to: {}", filename);
+        } else {
+            eprintln!("Failed to save frame!");
         }
-        
-        println!("Frame grabbing thread stopped.");
-    });
-    
-    // Run for 10 seconds
-    println!("Capturing frames for 10 seconds...");
-    thread::sleep(Duration::from_secs(10));
-    
-    // Signal stop
-    let _ = tx.send(());
-    
-    // Wait a bit for thread to finish
-    thread::sleep(Duration::from_millis(100));
-    
-    // Print final statistics
+
+        true // no need to retain the frame
+    })?;
+
+    // Wait for 5 seconds to capture frames
+    println!("Capturing frames for 5 seconds...");
+    thread::sleep(Duration::from_secs(5));
+
+    // Get final count
     let final_count = *frame_count.lock().unwrap();
-    let total_time = start_time.lock().unwrap().elapsed();
-    let avg_fps = final_count as f64 / total_time.as_secs_f64();
+    println!("Captured {} frames, stopping...", final_count);
     
-    println!("Capture completed:");
-    println!("  Total frames: {}", final_count);
-    println!("  Total time: {:.2}s", total_time.as_secs_f64());
-    println!("  Average FPS: {:.1}", avg_fps);
-    
+    // Remove callback before dropping
+    let _ = provider.remove_new_frame_callback();
+
     Ok(())
 }

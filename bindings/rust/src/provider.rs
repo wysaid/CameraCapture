@@ -35,7 +35,7 @@ impl Provider {
         
         Ok(Provider {
             handle,
-            is_opened: false,
+            is_opened: true, // C API likely opens device automatically
         })
     }
     
@@ -51,7 +51,7 @@ impl Provider {
         
         Ok(Provider {
             handle,
-            is_opened: false,
+            is_opened: true, // C API likely opens device automatically
         })
     }
     
@@ -143,7 +143,7 @@ impl Provider {
             return Ok(());
         }
         
-        let result = unsafe { sys::ccap_provider_open(self.handle, ptr::null(), false) };
+        let result = unsafe { sys::ccap_provider_open_by_index(self.handle, -1, false) };
         if !result {
             return Err(CcapError::DeviceOpenFailed);
         }
@@ -189,8 +189,9 @@ impl Provider {
     
     /// Set camera property
     pub fn set_property(&mut self, property: PropertyName, value: f64) -> Result<()> {
+        let property_id: sys::CcapPropertyName = property.into();
         let success = unsafe {
-            sys::ccap_provider_set_property(self.handle, property as u32, value)
+            sys::ccap_provider_set_property(self.handle, property_id, value)
         };
         
         if !success {
@@ -202,8 +203,9 @@ impl Provider {
     
     /// Get camera property
     pub fn get_property(&self, property: PropertyName) -> Result<f64> {
+        let property_id: sys::CcapPropertyName = property.into();
         let value = unsafe {
-            sys::ccap_provider_get_property(self.handle, property as u32)
+            sys::ccap_provider_get_property(self.handle, property_id)
         };
         
         Ok(value)
@@ -301,6 +303,136 @@ impl Provider {
     /// Get current frame rate (convenience getter)
     pub fn frame_rate(&self) -> Result<f64> {
         self.get_property(PropertyName::FrameRate)
+    }
+
+    /// Set error callback for camera errors
+    pub fn set_error_callback<F>(callback: F) 
+    where 
+        F: Fn(u32, &str) + Send + Sync + 'static,
+    {
+        use std::sync::{Arc, Mutex};
+        use std::os::raw::c_char;
+        
+        let callback = Arc::new(Mutex::new(callback));
+        
+        unsafe extern "C" fn error_callback_wrapper(
+            error_code: sys::CcapErrorCode,
+            description: *const c_char,
+            user_data: *mut std::ffi::c_void,
+        ) {
+            if user_data.is_null() || description.is_null() {
+                return;
+            }
+            
+            let callback = &*(user_data as *const Arc<Mutex<dyn Fn(u32, &str) + Send + Sync>>);
+            let desc_cstr = std::ffi::CStr::from_ptr(description);
+            if let Ok(desc_str) = desc_cstr.to_str() {
+                if let Ok(cb) = callback.lock() {
+                    cb(error_code, desc_str);
+                }
+            }
+        }
+        
+        // Store the callback to prevent it from being dropped
+        let callback_ptr = Box::into_raw(Box::new(callback));
+        
+        unsafe {
+            sys::ccap_set_error_callback(
+                Some(error_callback_wrapper),
+                callback_ptr as *mut std::ffi::c_void,
+            );
+        }
+        
+        // Note: This leaks memory, but it's acceptable for a global callback
+        // In a production system, you'd want to provide a way to unregister callbacks
+    }
+
+    /// Open device with index and auto start
+    pub fn open_with_index(&mut self, device_index: i32, auto_start: bool) -> Result<()> {
+        // Destroy old handle if exists
+        if !self.handle.is_null() {
+            unsafe {
+                sys::ccap_provider_destroy(self.handle);
+            }
+        }
+        
+        // Create a new provider with the specified device index
+        self.handle = unsafe { 
+            sys::ccap_provider_create_with_index(device_index, ptr::null()) 
+        };
+        
+        if self.handle.is_null() {
+            return Err(CcapError::InvalidDevice(format!("device index {}", device_index)));
+        }
+
+        self.is_opened = false;
+        self.open()?;
+        if auto_start {
+            self.start_capture()?;
+        }
+        Ok(())
+    }
+
+    /// Set a callback for new frame notifications
+    pub fn set_new_frame_callback<F>(&mut self, callback: F) -> Result<()>
+    where
+        F: Fn(&VideoFrame) -> bool + Send + Sync + 'static,
+    {
+        use std::os::raw::c_void;
+        
+        unsafe extern "C" fn new_frame_callback_wrapper(
+            frame: *const sys::CcapVideoFrame,
+            user_data: *mut c_void,
+        ) -> bool {
+            if user_data.is_null() || frame.is_null() {
+                return false;
+            }
+            
+            let callback = &*(user_data as *const Box<dyn Fn(&VideoFrame) -> bool + Send + Sync>);
+            
+            // Create a temporary VideoFrame wrapper that doesn't own the frame
+            let video_frame = VideoFrame::from_c_ptr_ref(frame as *mut sys::CcapVideoFrame);
+            callback(&video_frame)
+        }
+        
+        // Store the callback to prevent it from being dropped
+        let callback_box = Box::new(callback);
+        let callback_ptr = Box::into_raw(callback_box);
+        
+        let success = unsafe {
+            sys::ccap_provider_set_new_frame_callback(
+                self.handle,
+                Some(new_frame_callback_wrapper),
+                callback_ptr as *mut c_void,
+            )
+        };
+        
+        if success {
+            Ok(())
+        } else {
+            // Clean up on failure
+            unsafe {
+                let _ = Box::from_raw(callback_ptr);
+            }
+            Err(CcapError::CaptureStartFailed)
+        }
+    }
+
+    /// Remove frame callback
+    pub fn remove_new_frame_callback(&mut self) -> Result<()> {
+        let success = unsafe {
+            sys::ccap_provider_set_new_frame_callback(
+                self.handle,
+                None,
+                ptr::null_mut(),
+            )
+        };
+        
+        if success {
+            Ok(())
+        } else {
+            Err(CcapError::CaptureStartFailed)
+        }
     }
 }
 

@@ -1,51 +1,46 @@
-use ccap::{Provider, Result};
-use std::thread;
-use std::time::Duration;
+use ccap::{Provider, Result, Utils};
 
 fn main() -> Result<()> {
-    // Create a camera provider and open the first device
-    let mut provider = Provider::new()?;
+    // Set error callback to receive error notifications
+    Provider::set_error_callback(|error_code, description| {
+        eprintln!("Error occurred - Code: {}, Description: {}", error_code, description);
+    });
+
+    let temp_provider = Provider::new()?;
+    let devices = temp_provider.list_devices()?;
+    let camera_index = Utils::select_camera(&devices)?;
     
-    // Open device with auto-start
+    // Use device index instead of name to avoid issues
+    let mut provider = Provider::with_device(camera_index as i32)?;
     provider.open()?;
-    println!("Camera opened successfully.");
-    
-    // Check if capture is started
-    if provider.is_started() {
-        println!("Camera capture started.");
-    } else {
-        println!("Starting camera capture...");
-        provider.start()?;
+    provider.start()?;
+
+    if !provider.is_started() {
+        eprintln!("Failed to start camera!");
+        return Ok(());
     }
-    
-    // Capture a few frames
-    println!("Capturing frames...");
-    for i in 0..5 {
-        match provider.grab_frame(1000) {
+
+    println!("Camera started successfully.");
+
+    // Capture frames
+    for i in 0..10 {
+        match provider.grab_frame(3000) {
             Ok(Some(frame)) => {
-                let width = frame.width();
-                let height = frame.height();
-                let format = frame.pixel_format();
-                let data_size = frame.data_size();
-                
-                println!("Frame {}: {}x{}, format: {:?}, size: {} bytes", 
-                    i + 1, width, height, format, data_size);
+                println!("VideoFrame {} grabbed: width = {}, height = {}, bytes: {}, format: {:?}", 
+                    frame.index(), frame.width(), frame.height(), frame.data_size(), frame.pixel_format());
             }
             Ok(None) => {
-                println!("Frame {}: No frame available (timeout)", i + 1);
+                eprintln!("Failed to grab frame {}!", i);
+                return Ok(());
             }
             Err(e) => {
-                eprintln!("Frame {}: Error grabbing frame: {}", i + 1, e);
+                eprintln!("Error grabbing frame {}: {}", i, e);
+                return Ok(());
             }
         }
-        
-        // Small delay between captures
-        thread::sleep(Duration::from_millis(100));
     }
-    
-    // Stop capture
+
+    println!("Captured 10 frames, stopping...");
     let _ = provider.stop();
-    println!("Camera capture stopped.");
-    
     Ok(())
 }
