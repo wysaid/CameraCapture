@@ -1,75 +1,65 @@
-use ccap::{Provider, Result, PixelFormat};
+use ccap::{Provider, Result, PixelFormat, Utils, PropertyName, LogLevel};
+use std::fs;
 
 fn main() -> Result<()> {
+    // Enable verbose log to see debug information
+    Utils::set_log_level(LogLevel::Verbose);
+
+    // Set error callback to receive error notifications
+    Provider::set_error_callback(|error_code, description| {
+        eprintln!("Camera Error - Code: {}, Description: {}", error_code, description);
+    });
+
     // Create a camera provider
     let mut provider = Provider::new()?;
-    
-    // List devices
-    let devices = provider.list_devices()?;
-    if devices.is_empty() {
-        eprintln!("No camera devices found.");
+
+    // Open default device
+    provider.open()?;
+    provider.start_capture()?;
+
+    if !provider.is_started() {
+        eprintln!("Failed to start camera!");
         return Ok(());
     }
-    
-    println!("Found {} camera device(s):", devices.len());
-    for (i, device) in devices.iter().enumerate() {
-        println!("  {}: {}", i, device);
+
+    // Print the real resolution and fps after camera started
+    let real_width = provider.get_property(PropertyName::Width)? as u32;
+    let real_height = provider.get_property(PropertyName::Height)? as u32;
+    let real_fps = provider.get_property(PropertyName::FrameRate)?;
+
+    println!("Camera started successfully, real resolution: {}x{}, real fps: {}",
+           real_width, real_height, real_fps);
+
+    // Create capture directory
+    let capture_dir = "./image_capture";
+    if !std::path::Path::new(capture_dir).exists() {
+        fs::create_dir_all(capture_dir)
+            .map_err(|e| ccap::CcapError::InvalidParameter(format!("Failed to create directory: {}", e)))?;
     }
-    
-    // Open the first device
-    provider.open_device(Some(&devices[0]), true)?;
-    println!("Opened device: {}", devices[0]);
-    
-    // Get device info
-    let device_info = provider.device_info()?;
-    println!("Device info:");
-    println!("  Supported pixel formats: {:?}", device_info.supported_pixel_formats);
-    println!("  Supported resolutions: {:?}", device_info.supported_resolutions);
-    
-    // Try to set a common resolution
-    if let Some(res) = device_info.supported_resolutions.first() {
-        provider.set_resolution(res.width, res.height)?;
-        println!("Set resolution to {}x{}", res.width, res.height);
-    }
-    
-    // Try to set RGB24 format if supported
-    if device_info.supported_pixel_formats.contains(&PixelFormat::Rgb24) {
-        provider.set_pixel_format(PixelFormat::Rgb24)?;
-        println!("Set pixel format to RGB24");
-    }
-    
-    // Print current settings
-    let resolution = provider.resolution()?;
-    let pixel_format = provider.pixel_format()?;
-    let frame_rate = provider.frame_rate()?;
-    
-    println!("Current settings:");
-    println!("  Resolution: {}x{}", resolution.0, resolution.1);
-    println!("  Pixel format: {:?}", pixel_format);
-    println!("  Frame rate: {:.2} fps", frame_rate);
-    
-    // Capture and save a frame
-    println!("Grabbing a frame...");
-    match provider.grab_frame(2000) {
-        Ok(Some(frame)) => {
-            println!("Captured frame: {}x{}, format: {:?}, size: {} bytes",
-                frame.width(), frame.height(), frame.pixel_format(), frame.data_size());
-            
-            // TODO: Add frame saving functionality
-            println!("Frame captured successfully (saving not yet implemented)");
-            
-            // TODO: Add frame conversion functionality
-            if frame.pixel_format() != PixelFormat::Rgb24 {
-                println!("Frame format conversion not yet implemented");
+
+    // Capture frames (3000 ms timeout when grabbing frames)
+    let mut frame_count = 0;
+    while let Some(frame) = provider.grab_frame(3000)? {
+        let frame_info = frame.info()?;
+        println!("VideoFrame {} grabbed: width = {}, height = {}, bytes: {}", 
+            frame_info.frame_index, frame_info.width, frame_info.height, frame_info.size_in_bytes);
+        
+        // Save frame to directory
+        match Utils::dump_frame_to_directory(&frame, capture_dir) {
+            Ok(dump_file) => {
+                println!("VideoFrame saved to: {}", dump_file);
+            }
+            Err(e) => {
+                eprintln!("Failed to save frame: {}", e);
             }
         }
-        Ok(None) => {
-            println!("No frame available (timeout)");
-        }
-        Err(e) => {
-            eprintln!("Error grabbing frame: {}", e);
+
+        frame_count += 1;
+        if frame_count >= 10 {
+            println!("Captured 10 frames, stopping...");
+            break;
         }
     }
-    
+
     Ok(())
 }

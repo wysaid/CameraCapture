@@ -62,6 +62,25 @@ impl PixelFormat {
     pub fn from_c_enum(format: sys::CcapPixelFormat) -> Self {
         format.into()
     }
+
+    /// Get string representation of pixel format
+    pub fn as_str(self) -> &'static str {
+        match self {
+            PixelFormat::Unknown => "Unknown",
+            PixelFormat::Nv12 => "NV12",
+            PixelFormat::Nv12F => "NV12F",
+            PixelFormat::I420 => "I420",
+            PixelFormat::I420F => "I420F",
+            PixelFormat::Yuyv => "YUYV",
+            PixelFormat::YuyvF => "YUYV_F",
+            PixelFormat::Uyvy => "UYVY",
+            PixelFormat::UyvyF => "UYVY_F",
+            PixelFormat::Rgb24 => "RGB24",
+            PixelFormat::Bgr24 => "BGR24",
+            PixelFormat::Rgba32 => "RGBA32",
+            PixelFormat::Bgra32 => "BGRA32",
+        }
+    }
 }
 
 impl Into<sys::CcapPixelFormat> for PixelFormat {

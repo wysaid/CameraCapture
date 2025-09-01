@@ -45,6 +45,12 @@ pub enum CcapError {
     /// String conversion error
     StringConversionError(String),
     
+    /// File operation failed
+    FileOperationFailed(String),
+    
+    /// Device not found (alias for NoDeviceFound for compatibility)
+    DeviceNotFound,
+    
     /// Internal error
     InternalError(String),
     
@@ -72,6 +78,8 @@ impl std::fmt::Display for CcapError {
             CcapError::NotSupported => write!(f, "Operation not supported"),
             CcapError::BackendSetFailed => write!(f, "Backend set failed"),
             CcapError::StringConversionError(msg) => write!(f, "String conversion error: {}", msg),
+            CcapError::FileOperationFailed(msg) => write!(f, "File operation failed: {}", msg),
+            CcapError::DeviceNotFound => write!(f, "Device not found"),
             CcapError::InternalError(msg) => write!(f, "Internal error: {}", msg),
             CcapError::Unknown { code } => write!(f, "Unknown error: {}", code),
         }
