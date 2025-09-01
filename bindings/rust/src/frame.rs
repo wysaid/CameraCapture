@@ -42,11 +42,17 @@ impl DeviceInfo {
 /// Video frame wrapper
 pub struct VideoFrame {
     frame: *mut sys::CcapVideoFrame,
+    owns_frame: bool, // Whether we own the frame and should release it
 }
 
 impl VideoFrame {
     pub(crate) fn from_c_ptr(frame: *mut sys::CcapVideoFrame) -> Self {
-        VideoFrame { frame }
+        VideoFrame { frame, owns_frame: true }
+    }
+
+    /// Create frame from raw pointer without owning it (for callbacks)
+    pub(crate) fn from_c_ptr_ref(frame: *mut sys::CcapVideoFrame) -> Self {
+        VideoFrame { frame, owns_frame: false }
     }
 
     /// Get the internal C pointer (for internal use)
@@ -61,7 +67,7 @@ impl VideoFrame {
         if frame.is_null() {
             None
         } else {
-            Some(VideoFrame { frame })
+            Some(VideoFrame { frame, owns_frame: true })
         }
     }
 
@@ -132,12 +138,19 @@ impl VideoFrame {
     pub fn data_size(&self) -> u32 {
         self.info().map(|info| info.size_in_bytes).unwrap_or(0)
     }
+
+    /// Get frame index (convenience method)
+    pub fn index(&self) -> u64 {
+        self.info().map(|info| info.frame_index).unwrap_or(0)
+    }
 }
 
 impl Drop for VideoFrame {
     fn drop(&mut self) {
-        unsafe {
-            sys::ccap_video_frame_release(self.frame);
+        if self.owns_frame {
+            unsafe {
+                sys::ccap_video_frame_release(self.frame);
+            }
         }
     }
 }
