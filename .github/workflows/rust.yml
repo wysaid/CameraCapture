@@ -1,0 +1,119 @@
+name: Rust CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths: [ 'bindings/rust/**' ]
+  pull_request:
+    branches: [ main, develop ]
+    paths: [ 'bindings/rust/**' ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential pkg-config
+
+    - name: Install Rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: stable
+        components: clippy, rustfmt
+
+    - name: Build C library
+      run: |
+        mkdir -p build/Debug
+        cd build/Debug
+        cmake -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF ../..
+        make -j$(nproc)
+
+    - name: Check formatting
+      working-directory: bindings/rust
+      run: cargo fmt -- --check
+
+    - name: Run clippy
+      working-directory: bindings/rust
+      run: cargo clippy --all-targets --all-features -- -D warnings
+
+    - name: Build Rust bindings
+      working-directory: bindings/rust
+      run: cargo build --verbose
+
+    - name: Run tests
+      working-directory: bindings/rust
+      run: cargo test --verbose
+
+    - name: Build examples
+      working-directory: bindings/rust
+      run: |
+        cargo build --example print_camera
+        cargo build --example minimal_example
+        cargo build --example capture_grab
+        cargo build --example capture_callback
+
+  cross-platform:
+    name: Cross-platform Build
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install system dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential pkg-config
+
+    - name: Install system dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        choco install cmake
+
+    - name: Install system dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install cmake
+
+    - name: Install Rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: stable
+
+    - name: Build C library (Ubuntu/macOS)
+      if: matrix.os != 'windows-latest'
+      run: |
+        mkdir -p build/Debug
+        cd build/Debug
+        cmake -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF ../..
+        make -j$(nproc || echo 4)
+
+    - name: Build C library (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        mkdir build/Debug
+        cd build/Debug
+        cmake -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF ../..
+        cmake --build . --config Debug
+
+    - name: Build Rust bindings
+      working-directory: bindings/rust
+      run: cargo build --verbose
+
+    - name: Run tests
+      working-directory: bindings/rust
+      run: cargo test --verbose
