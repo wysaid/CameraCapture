@@ -34,6 +34,7 @@ namespace ccap {
 ProviderImp* createProviderApple();
 ProviderImp* createProviderDirectShow();
 ProviderImp* createProviderV4L2();
+ProviderImp* createProviderAndroid();
 
 // Global error callback storage
 namespace {
@@ -111,6 +112,8 @@ void VideoFrame::detach() {
 ProviderImp* createProvider(std::string_view extraInfo) {
 #if __APPLE__
     return createProviderApple();
+#elif defined(__ANDROID__)
+    return createProviderAndroid();
 #elif defined(_MSC_VER) || defined(_WIN32)
     return createProviderDirectShow();
 #elif defined(__linux__) || defined(__linux) || defined(linux) || defined(__gnu_linux__)
