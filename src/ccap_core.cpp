@@ -25,6 +25,18 @@
 #elif __MINGW32__
 #define ALIGNED_ALLOC(alignment, size) __mingw_aligned_malloc(size, alignment)
 #define ALIGNED_FREE(ptr) __mingw_aligned_free(ptr)
+#elif __ANDROID__
+// Android NDK may not have aligned_alloc, use posix_memalign instead
+#include <cstdlib>
+inline void* android_aligned_alloc(size_t alignment, size_t size) {
+    void* ptr = nullptr;
+    if (posix_memalign(&ptr, alignment, size) == 0) {
+        return ptr;
+    }
+    return nullptr;
+}
+#define ALIGNED_ALLOC(alignment, size) android_aligned_alloc(alignment, size)
+#define ALIGNED_FREE(ptr) std::free(ptr)
 #else
 #define ALIGNED_ALLOC(alignment, size) std::aligned_alloc(alignment, size)
 #define ALIGNED_FREE(ptr) std::free(ptr)

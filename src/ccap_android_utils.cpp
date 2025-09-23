@@ -105,7 +105,7 @@ CameraConfig getRecommendedConfig(const std::string& cameraId) {
     }
     
     // Use YUV420P as default format (most compatible)
-    config.pixelFormat = PixelFormat::YUV420P;
+    config.pixelFormat = PixelFormat::I420;
     config.bufferCount = 3; // Triple buffering
     
     return config;

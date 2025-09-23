@@ -32,6 +32,7 @@ enum AndroidFormat {
     ANDROID_FORMAT_YUV_420_888 = 0x23,
     ANDROID_FORMAT_NV16 = 0x10,
     ANDROID_FORMAT_NV21 = 0x11,
+    ANDROID_FORMAT_YV12 = 0x32315659,  // YV12 format
     ANDROID_FORMAT_RGB_565 = 0x4,
     ANDROID_FORMAT_RGBA_8888 = 0x1
 };
@@ -108,10 +109,9 @@ std::optional<DeviceInfo> ProviderAndroid::getDeviceInfo() const {
     }
 
     DeviceInfo deviceInfo;
-    deviceInfo.name = m_deviceName;
-    deviceInfo.description = "Android Camera " + m_cameraId;
-    deviceInfo.resolutions = m_supportedResolutions;
-    deviceInfo.pixelFormats = {PixelFormat::YUV420P, PixelFormat::NV21, PixelFormat::RGBA};
+    deviceInfo.deviceName = m_deviceName;
+    deviceInfo.supportedResolutions = m_supportedResolutions;
+    deviceInfo.supportedPixelFormats = {PixelFormat::I420, PixelFormat::NV12, PixelFormat::BGRA32};
 
     return deviceInfo;
 }
@@ -130,7 +130,7 @@ void ProviderAndroid::close() {
 bool ProviderAndroid::start() {
     if (!m_isOpened) {
         CCAP_LOG_E("ccap: Camera not opened\n");
-        reportError(ErrorCode::DeviceNotOpen, "Camera not opened");
+        reportError(ErrorCode::DeviceOpenFailed, "Camera not opened");
         return false;
     }
 
@@ -289,7 +289,7 @@ bool ProviderAndroid::processFrame(AndroidBuffer& buffer) {
     frame->pixelFormat = androidFormatToCcapFormat(buffer.format);
     frame->timestamp = buffer.timestamp;
     frame->frameIndex = m_frameIndex++;
-    frame->orientation = FrameOrientation::Portrait; // Default for mobile
+    frame->orientation = FrameOrientation::TopToBottom; // Default for mobile
 
     // Copy image data
     frame->sizeInBytes = buffer.size;
@@ -475,31 +475,29 @@ bool ProviderAndroid::getCameraCharacteristics(const std::string& cameraId) {
 PixelFormat ProviderAndroid::androidFormatToCcapFormat(int32_t androidFormat) {
     switch (androidFormat) {
         case ANDROID_FORMAT_YUV_420_888:
-            return PixelFormat::YUV420P;
+            return PixelFormat::I420;
         case ANDROID_FORMAT_NV21:
-            return PixelFormat::NV21;
-        case ANDROID_FORMAT_NV16:
-            return PixelFormat::NV16;
+            return PixelFormat::NV12; // Use NV12 as substitute for NV21
+        case ANDROID_FORMAT_YV12:
+            return PixelFormat::I420; // YV12 can be treated as I420
         case ANDROID_FORMAT_RGB_565:
-            return PixelFormat::RGB565;
+            return PixelFormat::BGR24; // Use BGR24 as substitute
         case ANDROID_FORMAT_RGBA_8888:
-            return PixelFormat::RGBA;
+            return PixelFormat::BGRA32;
         default:
-            return PixelFormat::YUV420P; // Fallback
+            return PixelFormat::I420; // Fallback
     }
 }
 
 int32_t ProviderAndroid::ccapFormatToAndroidFormat(PixelFormat ccapFormat) {
     switch (ccapFormat) {
-        case PixelFormat::YUV420P:
+        case PixelFormat::I420:
             return ANDROID_FORMAT_YUV_420_888;
-        case PixelFormat::NV21:
-            return ANDROID_FORMAT_NV21;
-        case PixelFormat::NV16:
-            return ANDROID_FORMAT_NV16;
-        case PixelFormat::RGB565:
-            return ANDROID_FORMAT_RGB_565;
-        case PixelFormat::RGBA:
+        case PixelFormat::NV12:
+            return ANDROID_FORMAT_NV21; // Use NV21 as substitute
+        case PixelFormat::BGR24:
+            return ANDROID_FORMAT_RGB_565; // Use RGB565 as substitute
+        case PixelFormat::BGRA32:
             return ANDROID_FORMAT_RGBA_8888;
         default:
             return ANDROID_FORMAT_YUV_420_888; // Fallback
@@ -564,7 +562,7 @@ void ProviderAndroid::handleImageAvailable(jobject image) {
 
 void ProviderAndroid::handleCameraDisconnected() {
     CCAP_LOG_W("ccap: Camera disconnected\n");
-    reportError(ErrorCode::DeviceDisconnected, "Camera disconnected");
+    reportError(ErrorCode::InternalError, "Camera disconnected");
 }
 
 void ProviderAndroid::handleCameraError(int error) {

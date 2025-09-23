@@ -72,7 +72,7 @@ bool checkCameraPermissions(JNIEnv* env, jobject context);
 struct CameraConfig {
     int width = 1280;
     int height = 720;
-    PixelFormat pixelFormat = PixelFormat::YUV420P;
+    PixelFormat pixelFormat = PixelFormat::I420;
     double frameRate = 30.0;
     int bufferCount = 3;
 };

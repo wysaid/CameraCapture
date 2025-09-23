@@ -84,14 +84,15 @@ private:
     const char* getFormatName(int32_t androidFormat);
     std::vector<DeviceInfo::Resolution> getSupportedResolutions(const std::string& cameraId);
 
+    void handleImageAvailable(jobject image);
+    void handleCameraDisconnected();
+    void handleCameraError(int error);
+
+public:
     // JNI callback handlers (called from Java side)
     static void onImageAvailable(JNIEnv* env, jobject thiz, jlong nativePtr, jobject image);
     static void onCameraDisconnected(JNIEnv* env, jobject thiz, jlong nativePtr);
     static void onCameraError(JNIEnv* env, jobject thiz, jlong nativePtr, jint error);
-
-    void handleImageAvailable(jobject image);
-    void handleCameraDisconnected();
-    void handleCameraError(int error);
 
     // Global access functions for JavaVM
     static void setJavaVM(JavaVM* vm);
