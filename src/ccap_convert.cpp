@@ -496,7 +496,7 @@ void yuyvToRgb_common(const uint8_t* src, int srcStride, uint8_t* dst, int dstSt
 
         for (int x = 0; x < width; x += 2) {
             // YUYV format: Y0 U0 Y1 V0 (4 bytes for 2 pixels)
-            int baseIdx = (x / 2) * 4;
+            int baseIdx = x * 2;
             int y0 = srcRow[baseIdx + 0]; // Y0
             int u = srcRow[baseIdx + 1];  // U0
             int y1 = srcRow[baseIdx + 2]; // Y1
@@ -552,7 +552,7 @@ void uyvyToRgb_common(const uint8_t* src, int srcStride, uint8_t* dst, int dstSt
 
         for (int x = 0; x < width; x += 2) {
             // UYVY format: U0 Y0 V0 Y1 (4 bytes for 2 pixels)
-            int baseIdx = (x / 2) * 4;
+            int baseIdx = x * 2;
             int u = srcRow[baseIdx + 0];  // U0
             int y0 = srcRow[baseIdx + 1]; // Y0
             int v = srcRow[baseIdx + 2];  // V0
