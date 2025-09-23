@@ -120,11 +120,12 @@ provider.start();
 
 ### Example Application
 
-See `examples/android/android_camera_example.cpp` for a complete example showing:
+See `examples/android/CcapDemo/` for a complete Android demo application showing:
 - Camera discovery and selection
 - Configuration management
 - Frame capture and processing
 - Proper resource cleanup
+- JNI integration with C API
 
 ## Implementation Details
 

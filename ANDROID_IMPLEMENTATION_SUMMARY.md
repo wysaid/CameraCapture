@@ -46,9 +46,9 @@ The Android backend follows the same proven architecture as existing platform im
 
 ### Documentation & Examples
 
-- **Complete Example**: `examples/android/android_camera_example.cpp`
+- **Complete Demo App**: `examples/android/CcapDemo/` - Full Android application with JNI integration
 - **Integration Guide**: `docs/android_integration.md`
-- **Implementation Details**: `src/README_ANDROID.md`
+- **Implementation Details**: `src/README_ANDROID.md`  
 - **Build Configuration**: `src/CMakeLists_android.txt`
 
 ## Technical Approach
