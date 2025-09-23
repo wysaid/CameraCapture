@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CCAP Demo</string>
+    <string name="camera_permission_required">Camera permission is required</string>
+    <string name="camera_error">Camera error</string>
+    <string name="open_camera">Open Camera</string>
+    <string name="close_camera">Close Camera</string>
+    <string name="start_capture">Start Capture</string>
+    <string name="stop_capture">Stop Capture</string>
+    <string name="camera_status">Status: %s</string>
+    <string name="frame_count">Frames: %d</string>
+    <string name="camera_opened">Camera Opened</string>
+    <string name="camera_closed">Camera Closed</string>
+    <string name="capture_started">Capture Started</string>
+    <string name="capture_stopped">Capture Stopped</string>
+    <string name="no_cameras">No cameras found</string>
+    <string name="select_camera">Select Camera</string>
+</resources>

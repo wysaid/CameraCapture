@@ -1,0 +1,78 @@
+# Android CMake build configuration for ccap library
+# This file shows how to build ccap with Android NDK
+
+cmake_minimum_required(VERSION 3.18.1)
+
+project(ccap_android)
+
+# Set C++ standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Find the Android log library
+find_library(log-lib log)
+
+# Find Android camera2ndk library
+find_library(camera2ndk-lib camera2ndk)
+
+# Find Android mediandk library  
+find_library(mediandk-lib mediandk)
+
+# Include directories
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+# Source files for Android
+set(CCAP_ANDROID_SOURCES
+    ccap_c.cpp
+    ccap_convert.cpp
+    ccap_convert_c.cpp
+    ccap_convert_frame.cpp
+    ccap_convert_neon.cpp
+    ccap_core.cpp
+    ccap_imp.cpp
+    ccap_imp_android.cpp  # Android-specific implementation
+    ccap_utils.cpp
+    ccap_utils_c.cpp
+)
+
+# Create the library
+add_library(ccap_android SHARED ${CCAP_ANDROID_SOURCES})
+
+# Link libraries
+target_link_libraries(ccap_android
+    ${log-lib}
+    ${camera2ndk-lib}
+    ${mediandk-lib}
+    android
+    jnigraphics
+)
+
+# Compiler definitions for Android
+target_compile_definitions(ccap_android PRIVATE
+    __ANDROID__=1
+    CCAP_ANDROID=1
+)
+
+# Compiler flags
+target_compile_options(ccap_android PRIVATE
+    -Wall
+    -Wextra
+    -O2
+    -fvisibility=hidden
+)
+
+# Enable NEON optimizations for ARM
+if(ANDROID_ABI STREQUAL "arm64-v8a" OR ANDROID_ABI STREQUAL "armeabi-v7a")
+    target_compile_definitions(ccap_android PRIVATE CCAP_NEON_ENABLED=1)
+    if(ANDROID_ABI STREQUAL "armeabi-v7a")
+        target_compile_options(ccap_android PRIVATE -mfpu=neon)
+    endif()
+endif()
+
+# Export native symbols for JNI
+set_target_properties(ccap_android PROPERTIES
+    LINK_FLAGS "-Wl,--export-dynamic"
+)

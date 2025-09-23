@@ -1178,8 +1178,7 @@ AVX2_TARGET void yuyvToRgb_avx2_imp(const uint8_t* src, int srcStride, uint8_t* 
         }
 
         // Handle remaining pixels (scalar implementation)
-        for (; x < width; x += 2) {
-            if (x + 1 >= width) break; // YUYV needs to be processed in pairs
+        for (; x + 1 < width; x += 2) {
 
             // YUYV format: Y0 U0 Y1 V0 (4 bytes for 2 pixels)
             int baseIdx = x * 2;
@@ -1405,8 +1404,7 @@ AVX2_TARGET void uyvyToRgb_avx2_imp(const uint8_t* src, int srcStride, uint8_t* 
         }
 
         // Handle remaining pixels (scalar implementation)
-        for (; x < width; x += 2) {
-            if (x + 1 >= width) break; // UYVY requires paired processing
+        for (; x + 1 < width; x += 2) {
 
             // UYVY format: U0 Y0 V0 Y1 (4 bytes for 2 pixels)
             int baseIdx = x * 2;

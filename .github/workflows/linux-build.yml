@@ -45,13 +45,17 @@ jobs:
               -DCCAP_BUILD_TESTS=ON
     
     - name: Build
-      run: cmake --build build/${{ matrix.build_type }} --config ${{ matrix.build_type }} --parallel $(nproc)
+      run: cmake --build build/${{ matrix.build_type }} --config ${{ matrix.build_type }} --parallel "$(nproc)"
     
     - name: Verify GLFW examples build status
       working-directory: build/${{ matrix.build_type }}
       run: |
         echo "Checking built examples:"
-        ls -la | grep -E "(glfw|example)" || echo "No GLFW examples found"
+        if compgen -G "*glfw*" > /dev/null || compgen -G "*example*" > /dev/null; then
+          ls -la *glfw* *example* 2>/dev/null || true
+        else
+          echo "No GLFW examples found"
+        fi
         
         if [ "${{ matrix.build_type }}" = "Release" ]; then
           echo "Release build - checking if GLFW examples were built with system GLFW:"
@@ -124,13 +128,17 @@ jobs:
               -DCCAP_BUILD_TESTS=ON
     
     - name: Build
-      run: cmake --build build/${{ matrix.build_type }} --config ${{ matrix.build_type }} --parallel $(nproc)
+      run: cmake --build build/${{ matrix.build_type }} --config ${{ matrix.build_type }} --parallel "$(nproc)"
     
     - name: Verify build outputs
       working-directory: build/${{ matrix.build_type }}
       run: |
         echo "Checking built examples:"
-        ls -la | grep -E "(glfw|example)" || echo "No examples found"
+        if compgen -G "*glfw*" > /dev/null || compgen -G "*example*" > /dev/null; then
+          ls -la *glfw* *example* 2>/dev/null || true
+        else
+          echo "No examples found"
+        fi
         echo "✓ Build completed successfully"
     
     - name: Run Unit Tests
@@ -186,12 +194,12 @@ jobs:
               -DCCAP_BUILD_TESTS=ON
   
     - name: Build ARM64
-      run: cmake --build build/arm64/${{ matrix.build_type }} --config ${{ matrix.build_type }} --parallel $(nproc)
+      run: cmake --build build/arm64/${{ matrix.build_type }} --config ${{ matrix.build_type }} --parallel "$(nproc)"
 
     - name: Build ARM64 test target (Release only)
       if: matrix.build_type == 'Release'
       run: |
-        cmake --build build/arm64/${{ matrix.build_type }} --config ${{ matrix.build_type }} --target ccap_convert_test --parallel $(nproc)
+        cmake --build build/arm64/${{ matrix.build_type }} --config ${{ matrix.build_type }} --target ccap_convert_test --parallel "$(nproc)"
 
     - name: Install QEMU for ARM64 test emulation (PRs and main push, Release only)
       if: (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && matrix.build_type == 'Release'
@@ -222,7 +230,11 @@ jobs:
       working-directory: build/arm64/${{ matrix.build_type }}
       run: |
         echo "Checking built ARM64 binaries:"
-        ls -la | grep -E "(ccap|example)" || echo "No examples found"
+        if compgen -G "*ccap*" > /dev/null || compgen -G "*example*" > /dev/null; then
+          ls -la *ccap* *example* 2>/dev/null || true
+        else
+          echo "No examples found"
+        fi
         echo "Verifying ARM64 architecture:"
         file libccap.a | grep -q "aarch64" && echo "✓ Library is ARM64" || echo "⚠ Library architecture verification failed"
         if [ -f "0-print_camera" ]; then
@@ -275,7 +287,7 @@ jobs:
               -DCCAP_BUILD_TESTS=ON
     
     - name: Build
-      run: cmake --build build/${{ matrix.build_type }} --config ${{ matrix.build_type }} --parallel $(nproc)
+      run: cmake --build build/${{ matrix.build_type }} --config ${{ matrix.build_type }} --parallel "$(nproc)"
     
     - name: Run Unit Tests
       if: matrix.build_type == 'Release'

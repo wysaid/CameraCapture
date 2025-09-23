@@ -25,6 +25,18 @@
 #elif __MINGW32__
 #define ALIGNED_ALLOC(alignment, size) __mingw_aligned_malloc(size, alignment)
 #define ALIGNED_FREE(ptr) __mingw_aligned_free(ptr)
+#elif __ANDROID__
+// Android NDK may not have aligned_alloc, use posix_memalign instead
+#include <cstdlib>
+inline void* android_aligned_alloc(size_t alignment, size_t size) {
+    void* ptr = nullptr;
+    if (posix_memalign(&ptr, alignment, size) == 0) {
+        return ptr;
+    }
+    return nullptr;
+}
+#define ALIGNED_ALLOC(alignment, size) android_aligned_alloc(alignment, size)
+#define ALIGNED_FREE(ptr) std::free(ptr)
 #else
 #define ALIGNED_ALLOC(alignment, size) std::aligned_alloc(alignment, size)
 #define ALIGNED_FREE(ptr) std::free(ptr)
@@ -34,6 +46,7 @@ namespace ccap {
 ProviderImp* createProviderApple();
 ProviderImp* createProviderDirectShow();
 ProviderImp* createProviderV4L2();
+ProviderImp* createProviderAndroid();
 
 // Global error callback storage
 namespace {
@@ -111,6 +124,8 @@ void VideoFrame::detach() {
 ProviderImp* createProvider(std::string_view extraInfo) {
 #if __APPLE__
     return createProviderApple();
+#elif defined(__ANDROID__)
+    return createProviderAndroid();
 #elif defined(_MSC_VER) || defined(_WIN32)
     return createProviderDirectShow();
 #elif defined(__linux__) || defined(__linux) || defined(linux) || defined(__gnu_linux__)
