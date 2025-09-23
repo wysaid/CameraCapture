@@ -19,7 +19,7 @@ find_library(mediandk-lib mediandk)
 find_library(jnigraphics-lib jnigraphics)
 
 # Get the absolute path to CCAP project root
-get_filename_component(CCAP_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../../" ABSOLUTE)
+get_filename_component(CCAP_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../" ABSOLUTE)
 
 # Include directories
 include_directories(

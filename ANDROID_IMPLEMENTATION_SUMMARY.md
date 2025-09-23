@@ -46,7 +46,7 @@ The Android backend follows the same proven architecture as existing platform im
 
 ### Documentation & Examples
 
-- **Complete Demo App**: `examples/android/CcapDemo/` - Full Android application with JNI integration
+- **Complete Demo App**: `examples/android/` - Full Android application with JNI integration
 - **Integration Guide**: `docs/android_integration.md`
 - **Implementation Details**: `src/README_ANDROID.md`  
 - **Build Configuration**: `src/CMakeLists_android.txt`
@@ -83,6 +83,16 @@ RGBA_8888   → PixelFormat::RGBA
 - Successfully compiles with existing CCAP build system
 - No impact on existing platform implementations
 - All 389 existing tests continue to pass
+
+### Directory Structure Optimization (Latest Update) ✅
+- Simplified Android demo structure: `examples/android/CcapDemo` → `examples/android`
+- Updated all path references across build system components:
+  * CMakeLists.txt CCAP_ROOT_DIR path adjusted
+  * build_android.sh DEMO_DIR path updated
+  * All VSCode tasks path corrections
+  * Documentation references updated
+- Fixed Gradle wrapper corruption and restored build functionality
+- Verified complete build success with proper APK generation (7.1MB app-debug.apk)
 - Compatible with C++17 standard
 
 ### Integration Testing ✅

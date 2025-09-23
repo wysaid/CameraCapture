@@ -115,7 +115,7 @@ CMAKE_VERSION=$(cmake --version | head -n1 | sed 's/cmake version //')
 echo "✅ CMake version: $CMAKE_VERSION"
 
 # Check if gradlew exists in demo project
-DEMO_DIR="examples/android/CcapDemo"
+DEMO_DIR="examples/android"
 if [ ! -f "$DEMO_DIR/gradlew" ]; then
     echo "❌ Android demo project not found at $DEMO_DIR"
     exit 1

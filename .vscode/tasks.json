@@ -829,7 +829,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "cd examples/android/CcapDemo && ./gradlew assembleDebug"
+                "cd examples/android && ./gradlew assembleDebug"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -855,7 +855,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "cd examples/android/CcapDemo && ./gradlew assembleRelease"
+                "cd examples/android && ./gradlew assembleRelease"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -881,7 +881,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "cd examples/android/CcapDemo && ./gradlew installDebug"
+                "cd examples/android && ./gradlew installDebug"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -906,7 +906,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "rm -rf build/android build/android-v7a && if [ -d examples/android/CcapDemo ]; then cd examples/android/CcapDemo && ./gradlew clean; fi"
+                "rm -rf build/android build/android-v7a && if [ -d examples/android ]; then cd examples/android && ./gradlew clean; fi"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"

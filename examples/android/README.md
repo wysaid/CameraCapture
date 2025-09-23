@@ -74,7 +74,7 @@ make -j$(nproc)
 ### 2. 构建Android应用
 
 ```bash
-cd examples/android/CcapDemo
+cd examples/android
 ./gradlew assembleDebug
 ```
 
