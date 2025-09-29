@@ -15,6 +15,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+// CCAP_EXPORT is already defined in ccap_c.h
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -29,7 +31,7 @@ extern "C" {
  * @return Number of characters written (excluding null terminator), or -1 on error
  * @note If buffer is NULL, returns the required buffer size (including null terminator)
  */
-int ccap_pixel_format_to_string(CcapPixelFormat format, char* buffer, size_t buffer_size);
+CCAP_EXPORT int ccap_pixel_format_to_string(CcapPixelFormat format, char* buffer, size_t buffer_size);
 
 /* ========== File Utilities ========== */
 
@@ -44,7 +46,7 @@ int ccap_pixel_format_to_string(CcapPixelFormat format, char* buffer, size_t buf
  *       YUV formats will be saved as .yuv files, RGB formats as .bmp files
  *       This function is for debugging purposes and not performance optimized
  */
-int ccap_dump_frame_to_file(const CcapVideoFrame* frame, const char* filename_no_suffix, 
+CCAP_EXPORT int ccap_dump_frame_to_file(const CcapVideoFrame* frame, const char* filename_no_suffix, 
                             char* output_path, size_t output_path_size);
 
 /**
@@ -58,7 +60,7 @@ int ccap_dump_frame_to_file(const CcapVideoFrame* frame, const char* filename_no
  *       Filename will be generated based on current time and frame index
  *       This function is for debugging purposes and not performance optimized
  */
-int ccap_dump_frame_to_directory(const CcapVideoFrame* frame, const char* directory,
+CCAP_EXPORT int ccap_dump_frame_to_directory(const CcapVideoFrame* frame, const char* directory,
                                  char* output_path, size_t output_path_size);
 
 /**
@@ -73,7 +75,7 @@ int ccap_dump_frame_to_directory(const CcapVideoFrame* frame, const char* direct
  * @param is_top_to_bottom true if data is top-to-bottom, false for bottom-to-top
  * @return true on success, false on failure
  */
-bool ccap_save_rgb_data_as_bmp(const char* filename, const unsigned char* data, 
+CCAP_EXPORT bool ccap_save_rgb_data_as_bmp(const char* filename, const unsigned char* data, 
                                uint32_t width, uint32_t line_offset, uint32_t height,
                                bool is_bgr, bool has_alpha, bool is_top_to_bottom);
 
@@ -83,14 +85,14 @@ bool ccap_save_rgb_data_as_bmp(const char* filename, const unsigned char* data,
  * @brief Free string allocated by ccap C functions
  * @param str String to free (can be NULL)
  */
-void ccap_free_string(char* str);
+CCAP_EXPORT void ccap_free_string(char* str);
 
 /**
  * @brief Duplicate a string (similar to strdup)
  * @param str Source string
  * @return Duplicated string (caller must free with ccap_free_string), or NULL on failure
  */
-char* ccap_strdup(const char* str);
+CCAP_EXPORT char* ccap_strdup(const char* str);
 
 /**
  * @brief Get the length of a string safely
@@ -98,7 +100,7 @@ char* ccap_strdup(const char* str);
  * @param max_len Maximum length to check
  * @return String length, or 0 if str is NULL
  */
-size_t ccap_strnlen(const char* str, size_t max_len);
+CCAP_EXPORT size_t ccap_strnlen(const char* str, size_t max_len);
 
 /* ========== Logging Utilities ========== */
 
@@ -118,7 +120,7 @@ typedef enum {
  * @param level Log level to set
  * @note This affects both C and C++ interfaces logging output
  */
-void ccap_set_log_level(CcapLogLevel level);
+CCAP_EXPORT void ccap_set_log_level(CcapLogLevel level);
 
 #ifdef __cplusplus
 }

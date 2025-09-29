@@ -24,7 +24,7 @@
 // ccap is short for (C)amera(CAP)ture
 namespace ccap
 {
-std::string_view pixelFormatToString(PixelFormat format);
+CCAP_EXPORT std::string_view pixelFormatToString(PixelFormat format);
 
 //////////////////// File Utils ///////////////////
 
@@ -38,7 +38,7 @@ std::string_view pixelFormatToString(PixelFormat format);
  * @return The full path of the saved file if successful, or an empty string if the operation failed.
  * @note Note: This method uses a simple way to save data for debugging purposes. Not performance optimized. Do not use in performance-sensitive code.
  */
-std::string dumpFrameToFile(VideoFrame* frame, std::string_view fileNameWithNoSuffix);
+CCAP_EXPORT std::string dumpFrameToFile(VideoFrame* frame, std::string_view fileNameWithNoSuffix);
 
 /**
  * @brief Saves a Frame as a BMP or YUV file.
@@ -50,7 +50,7 @@ std::string dumpFrameToFile(VideoFrame* frame, std::string_view fileNameWithNoSu
  * @return The full path of the saved file if successful, or an empty string if the operation failed.
  * @note Note: This method uses a simple way to save data for debugging purposes. Not performance optimized. Do not use in performance-sensitive code.
  */
-std::string dumpFrameToDirectory(VideoFrame* frame, std::string_view directory);
+CCAP_EXPORT std::string dumpFrameToDirectory(VideoFrame* frame, std::string_view directory);
 
 /**
  * @brief Save RGB data as BMP file.
@@ -59,7 +59,7 @@ std::string dumpFrameToDirectory(VideoFrame* frame, std::string_view directory);
  * @param isTopToBottom Indicates if the data is in top-to-bottom order.
  * @return true if the operation was successful, false otherwise.
  */
-bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t w, uint32_t lineOffset, uint32_t h, bool isBGR, bool hasAlpha, bool isTopToBottom = false);
+CCAP_EXPORT bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t w, uint32_t lineOffset, uint32_t h, bool isBGR, bool hasAlpha, bool isTopToBottom = false);
 
 //////////////////// Log ////////////////////
 
@@ -91,7 +91,7 @@ enum class LogLevel
     Verbose = Info | kLogLevelVerboseBit,
 };
 
-void setLogLevel(LogLevel level);
+CCAP_EXPORT void setLogLevel(LogLevel level);
 
 #if _CCAP_LOG_ENABLED_
 /// For internal use.

@@ -16,6 +16,34 @@
 #ifndef CCAP_DEF_H
 #define CCAP_DEF_H
 
+// Define CCAP_EXPORT macro for symbol export/import
+#if defined(CCAP_SHARED)
+    #if defined(_WIN32) || defined(__CYGWIN__)
+        #ifdef CCAP_BUILDING_DLL
+            #ifdef __GNUC__
+                #define CCAP_EXPORT __attribute__ ((dllexport))
+            #else
+                #define CCAP_EXPORT __declspec(dllexport)
+            #endif
+        #else
+            #ifdef __GNUC__
+                #define CCAP_EXPORT __attribute__ ((dllimport))
+            #else
+                #define CCAP_EXPORT __declspec(dllimport)
+            #endif
+        #endif
+    #else
+        #if __GNUC__ >= 4
+            #define CCAP_EXPORT __attribute__ ((visibility ("default")))
+        #else
+            #define CCAP_EXPORT
+        #endif
+    #endif
+#else
+    // Static library - no export needed
+    #define CCAP_EXPORT
+#endif
+
 #if __APPLE__
 #include <TargetConditionals.h>
 #if (defined(TARGET_OS_IOS) && TARGET_OS_IOS) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
@@ -289,7 +317,7 @@ std::string_view errorCodeToString(ErrorCode errorCode);
  * @brief Interface for memory allocation, primarily used to allocate the `data` field in `ccap::Frame`.
  * @note If you want to implement your own Allocator, you need to ensure that the allocated memory is 32-byte aligned to enable SIMD instruction set acceleration.
  */
-class Allocator {
+class CCAP_EXPORT Allocator {
 public:
     virtual ~Allocator() = 0;
 
@@ -305,7 +333,7 @@ public:
     virtual size_t size() = 0;
 };
 
-struct VideoFrame {
+struct CCAP_EXPORT VideoFrame {
     VideoFrame();
     ~VideoFrame();
     VideoFrame(const VideoFrame&) = delete;
@@ -383,7 +411,7 @@ struct VideoFrame {
 /**
  * @brief Device information structure. This structure contains some information about the device.
  */
-struct DeviceInfo {
+struct CCAP_EXPORT DeviceInfo {
     std::string deviceName;
 
     /**

@@ -7,6 +7,7 @@ if(NOT DEFINED CMAKE_POLICY_VERSION_MINIMUM)
 endif()
 
 option(CCAP_NO_LOG "Disable logging" OFF)
+option(CCAP_BUILD_SHARED "Build ccap as shared library" OFF)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set(CCAP_IS_ROOT_PROJECT ON)
@@ -117,7 +118,13 @@ else()
     message(STATUS "ccap: AVX2 support not available")
 endif()
 
-add_library(ccap ${LIB_SOURCE})
+if(CCAP_BUILD_SHARED)
+    add_library(ccap SHARED ${LIB_SOURCE})
+    message(STATUS "ccap: Building as shared library")
+else()
+    add_library(ccap STATIC ${LIB_SOURCE})
+    message(STATUS "ccap: Building as static library")
+endif()
 
 # Set library output name with debug suffix for MSVC
 if(MSVC)
@@ -142,6 +149,15 @@ target_compile_definitions(ccap PUBLIC
 if(CCAP_NO_LOG)
     target_compile_definitions(ccap PUBLIC CCAP_NO_LOG=1)
     message(STATUS "ccap: Disable logging")
+endif()
+
+# Configure shared library export definitions
+if(CCAP_BUILD_SHARED)
+    target_compile_definitions(ccap PRIVATE CCAP_BUILDING_SHARED=1)
+    target_compile_definitions(ccap PUBLIC CCAP_SHARED=1)
+    if(WIN32)
+        target_compile_definitions(ccap PRIVATE CCAP_BUILDING_DLL=1)
+    endif()
 endif()
 
 if(APPLE)

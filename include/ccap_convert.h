@@ -16,6 +16,7 @@
 #ifndef CCAP_CONVERT_H
 #define CCAP_CONVERT_H
 
+#include "ccap_def.h"
 #include <algorithm>
 #include <cstdint>
 #include <memory>
@@ -28,40 +29,40 @@
 
 namespace ccap {
 // Check if AVX2 is available. If available, use AVX2 acceleration.
-bool hasAVX2(); // Check if AVX2 is supported by the CPU (hardware related)
+CCAP_EXPORT bool hasAVX2(); // Check if AVX2 is supported by the CPU (hardware related)
 
-bool canUseAVX2(); // Check if AVX2 is enabled, useful for testing
+CCAP_EXPORT bool canUseAVX2(); // Check if AVX2 is enabled, useful for testing
 
 /**
  * @brief Enable or disable AVX2 implementation.
  * @param enable true to enable AVX2, false to disable.
  * @return true if AVX2 is available and enabled, false otherwise.
  */
-bool enableAVX2(bool enable); // Disable AVX2 implementation, useful for testing
+CCAP_EXPORT bool enableAVX2(bool enable); // Disable AVX2 implementation, useful for testing
 
 /// Check if Apple Accelerate is available. If available, use Apple Accelerate acceleration.
-bool hasAppleAccelerate();
+CCAP_EXPORT bool hasAppleAccelerate();
 /// Check if Apple Accelerate is enabled, useful for testing
-bool canUseAppleAccelerate();
+CCAP_EXPORT bool canUseAppleAccelerate();
 /**
  * @brief Enable or disable Apple Accelerate implementation.
  *
  * @param enable true to enable Apple Accelerate, false to disable.
  * @return true if Apple Accelerate is available and enabled, false otherwise.
  */
-bool enableAppleAccelerate(bool enable);
+CCAP_EXPORT bool enableAppleAccelerate(bool enable);
 
 /// Check if NEON is available. If available, use NEON acceleration.
-bool hasNEON();
+CCAP_EXPORT bool hasNEON();
 /// Check if NEON is enabled, useful for testing
-bool canUseNEON();
+CCAP_EXPORT bool canUseNEON();
 /**
  * @brief Enable or disable NEON implementation.
  *
  * @param enable true to enable NEON, false to disable.
  * @return true if NEON is available and enabled, false otherwise.
  */
-bool enableNEON(bool enable);
+CCAP_EXPORT bool enableNEON(bool enable);
 
 enum class ConvertBackend : uint32_t {
     AUTO,            ///< Automatically choose the best available backend
