@@ -138,9 +138,16 @@ jobs:
       shell: bash
       run: |
         # Create symbolic links to make test script work with new build directory structure
-        mkdir -p build
+        mkdir -p build/tests
+        
+        # Create symbolic link for the config directory
         if [ ! -L "build/${{ matrix.config }}" ]; then
           ln -sf "${{ matrix.config }}-${{ matrix.library_type }}" "build/${{ matrix.config }}"
+        fi
+        
+        # Create symbolic link for the tests directory to match expected path structure
+        if [ ! -L "build/tests/${{ matrix.config }}" ]; then
+          ln -sf "../${{ matrix.config }}-${{ matrix.library_type }}/tests/${{ matrix.config }}" "build/tests/${{ matrix.config }}"
         fi
         
         cd scripts
