@@ -12,6 +12,7 @@
 #include "ccap_utils.h"
 #include "ccap_utils_c.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <functional>
@@ -131,11 +132,9 @@ bool ccap_provider_find_device_names_list(CcapProvider* provider, CcapDeviceName
     }
 
     for (size_t i = 0; i < deviceList->deviceCount; ++i) {
-        size_t nameLen = devices[i].size();
-        if (nameLen >= CCAP_MAX_DEVICE_NAME_LENGTH) {
-            nameLen = CCAP_MAX_DEVICE_NAME_LENGTH - 1;
-        }
-        strncpy(deviceList->deviceNames[i], devices[i].c_str(), nameLen);
+        const size_t maxCopyLen = CCAP_MAX_DEVICE_NAME_LENGTH - 1;
+        const size_t nameLen = std::min(devices[i].size(), maxCopyLen);
+        std::copy_n(devices[i].data(), nameLen, deviceList->deviceNames[i]);
         deviceList->deviceNames[i][nameLen] = '\0';
     }
 
@@ -188,11 +187,9 @@ bool ccap_provider_get_device_info(const CcapProvider* provider, CcapDeviceInfo*
     memset(deviceInfo, 0, sizeof(CcapDeviceInfo));
 
     // Copy device name (with bounds checking)
-    size_t deviceNameLen = info.deviceName.size();
-    if (deviceNameLen >= CCAP_MAX_DEVICE_NAME_LENGTH) {
-        deviceNameLen = CCAP_MAX_DEVICE_NAME_LENGTH - 1;
-    }
-    strncpy(deviceInfo->deviceName, info.deviceName.c_str(), deviceNameLen);
+    const size_t deviceNameMaxLen = CCAP_MAX_DEVICE_NAME_LENGTH - 1;
+    const size_t deviceNameLen = std::min(info.deviceName.size(), deviceNameMaxLen);
+    std::copy_n(info.deviceName.data(), deviceNameLen, deviceInfo->deviceName);
     deviceInfo->deviceName[deviceNameLen] = '\0';
 
     // Copy supported pixel formats (with bounds checking)

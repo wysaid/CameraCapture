@@ -29,10 +29,6 @@
 #endif
 
 namespace ccap {
-bool hasAVX2();
-bool canUseAVX2(); // Check if AVX2 is available (hardware supported and not disabled)
-
-bool enableAVX2(bool enable); // Enable or disable AVX2 implementation, useful for testing
 
 // Get detailed AVX2 support information (for debugging)
 const char* getAVX2SupportInfo();

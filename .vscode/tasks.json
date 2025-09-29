@@ -30,13 +30,39 @@
             }
         },
         {
+            "label": "Load Project (Shared)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then cmd.exe /c \" ( if not exist build_shared (mkdir build_shared ) ) & cd build_shared & cmake .. -DCCAP_BUILD_SHARED=ON \"; else mkdir -p build_shared/Debug && pushd build_shared/Debug && cmake ../.. -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_SHARED=ON && popd && mkdir -p build_shared/Release && pushd build_shared/Release && cmake ../.. -DCMAKE_BUILD_TYPE=Release -DCCAP_BUILD_SHARED=ON; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "windows": {
+                "command": "cmd.exe",
+                "args": [
+                    "/c",
+                    "( if not exist build_shared (mkdir build_shared ) ) & cd build_shared & cmake .. -DCCAP_BUILD_SHARED=ON "
+                ],
+                "options": {
+                    "cwd": "${workspaceFolder}"
+                },
+                "problemMatcher": "$msCompile"
+            }
+        },
+        {
             "label": "Clean Project",
             "type": "shell",
             "command": "bash",
             "args": [
                 "-l",
                 "-c",
-                "git clean -fdx build; git clean -fdx examples"
+                "git clean -fdx build build_shared examples"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -47,7 +73,7 @@
                 "command": "cmd",
                 "args": [
                     "/c",
-                    "git clean -fdx build || rmdir /s /q build"
+                    "(git clean -fdx build || rmdir /s /q build) & (git clean -fdx build_shared || rmdir /s /q build_shared)"
                 ],
                 "options": {
                     "cwd": "${workspaceFolder}"
@@ -80,6 +106,20 @@
             "dependsOn": [
                 "Clean Project",
                 "Load Project"
+            ],
+            "dependsOrder": "sequence"
+        },
+        {
+            "label": "Reload Project (Shared)",
+            "type": "shell",
+            "command": "echo",
+            "args": [
+                "Done!",
+            ],
+            "group": "build",
+            "dependsOn": [
+                "Clean Project",
+                "Load Project (Shared)"
             ],
             "dependsOrder": "sequence"
         },
@@ -136,6 +176,58 @@
             }
         },
         {
+            "label": "Build Project (Debug, Shared)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then cmd.exe /c \" cmake --build build_shared --config Debug --parallel %NUMBER_OF_PROCESSORS% \"; else cmake --build build_shared/Debug --config Debug --parallel $(nproc); fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "windows": {
+                "command": "cmd",
+                "args": [
+                    "/c",
+                    "(if not exist build_shared (mkdir build_shared && cd build_shared && cmake .. -DCCAP_BUILD_SHARED=ON) ) & cmake --build build_shared --config Debug --parallel %NUMBER_OF_PROCESSORS%"
+                ],
+                "options": {
+                    "cwd": "${workspaceFolder}"
+                },
+                "problemMatcher": "$msCompile"
+            }
+        },
+        {
+            "label": "Build Project (Release, Shared)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then cmd.exe /c \" cmake --build build_shared --config Release --parallel %NUMBER_OF_PROCESSORS% \"; else cmake --build build_shared/Release --config Release --parallel $(nproc); fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "windows": {
+                "command": "cmd",
+                "args": [
+                    "/c",
+                    "(if not exist build_shared (mkdir build_shared && cd build_shared && cmake .. -DCCAP_BUILD_SHARED=ON) ) & cmake --build build_shared --config Release --parallel %NUMBER_OF_PROCESSORS%"
+                ],
+                "options": {
+                    "cwd": "${workspaceFolder}"
+                },
+                "problemMatcher": "$msCompile"
+            }
+        },
+        {
             "label": "Load And Build Project (Debug)",
             "type": "shell",
             "command": "echo",
@@ -160,6 +252,34 @@
             "dependsOn": [
                 "Load Project",
                 "Build Project (Release)"
+            ],
+            "dependsOrder": "sequence",
+        },
+        {
+            "label": "Load And Build Project (Debug, Shared)",
+            "type": "shell",
+            "command": "echo",
+            "args": [
+                "Load And Build Project (Debug, Shared) - Done",
+            ],
+            "group": "build",
+            "dependsOn": [
+                "Load Project (Shared)",
+                "Build Project (Debug, Shared)"
+            ],
+            "dependsOrder": "sequence",
+        },
+        {
+            "label": "Load And Build Project (Release, Shared)",
+            "type": "shell",
+            "command": "echo",
+            "args": [
+                "Load And Build Project (Release, Shared) - Done",
+            ],
+            "group": "build",
+            "dependsOn": [
+                "Load Project (Shared)",
+                "Build Project (Release, Shared)"
             ],
             "dependsOrder": "sequence",
         },

@@ -16,26 +16,7 @@
 #ifndef CCAP_DEF_H
 #define CCAP_DEF_H
 
-#if __APPLE__
-#include <TargetConditionals.h>
-#if (defined(TARGET_OS_IOS) && TARGET_OS_IOS) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
-#define CCAP_IOS 1
-#else
-#define CCAP_MACOS 1
-#endif
-
-#elif defined(__ANDROID__)
-#define CCAP_ANDROID 1
-#elif defined(WIN32) || defined(_WIN32)
-#define CCAP_WINDOWS 1
-#if defined(_MSC_VER)
-#define CCAP_WINDOWS_MSVC 1
-#endif
-#endif
-
-#if !defined(CCAP_DESKTOP) && (CCAP_WINDOWS || CCAP_MACOS)
-#define CCAP_DESKTOP 1
-#endif
+#include "ccap_config.h"
 
 #include <cstdint>
 #include <functional>
@@ -43,6 +24,11 @@
 #include <string>
 #include <string_view>
 #include <vector>
+
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4251)
+#endif
 
 // ccap is short for (C)amera(CAP)ture
 namespace ccap {
@@ -289,7 +275,7 @@ std::string_view errorCodeToString(ErrorCode errorCode);
  * @brief Interface for memory allocation, primarily used to allocate the `data` field in `ccap::Frame`.
  * @note If you want to implement your own Allocator, you need to ensure that the allocated memory is 32-byte aligned to enable SIMD instruction set acceleration.
  */
-class Allocator {
+class CCAP_EXPORT Allocator {
 public:
     virtual ~Allocator() = 0;
 
@@ -305,7 +291,7 @@ public:
     virtual size_t size() = 0;
 };
 
-struct VideoFrame {
+struct CCAP_EXPORT VideoFrame {
     VideoFrame();
     ~VideoFrame();
     VideoFrame(const VideoFrame&) = delete;
@@ -383,7 +369,7 @@ struct VideoFrame {
 /**
  * @brief Device information structure. This structure contains some information about the device.
  */
-struct DeviceInfo {
+struct CCAP_EXPORT DeviceInfo {
     std::string deviceName;
 
     /**
@@ -403,5 +389,9 @@ struct DeviceInfo {
 };
 
 } // namespace ccap
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 #endif

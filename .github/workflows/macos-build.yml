@@ -9,42 +9,120 @@ on:
 
 jobs:
   build-mac:
-    name: macOS Build
+    name: macOS Build (${{ matrix.config }}-${{ matrix.library_type }})
     runs-on: macos-latest
     strategy:
       matrix:
         config: [Debug, Release]
+        library_type: [static, shared]
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
+      
     - name: Configure CMake
       run: |
-        mkdir -p build/${{ matrix.config }}
-        cd build/${{ matrix.config }}
-        cmake ../.. -DCMAKE_BUILD_TYPE=${{ matrix.config }} -DCCAP_BUILD_TESTS=ON
+        if [ "${{ matrix.library_type }}" = "shared" ]; then
+          SHARED_FLAG="-DCCAP_BUILD_SHARED=ON"
+          echo "Configuring macOS build ${{ matrix.config }} - SHARED LIBRARY"
+        else
+          SHARED_FLAG=""
+          echo "Configuring macOS build ${{ matrix.config }} - STATIC LIBRARY"
+        fi
+        mkdir -p build/${{ matrix.config }}-${{ matrix.library_type }}
+        cd build/${{ matrix.config }}-${{ matrix.library_type }}
+        cmake ../.. -DCMAKE_BUILD_TYPE=${{ matrix.config }} -DCCAP_BUILD_TESTS=ON $SHARED_FLAG
+        
     - name: Build
       run: |
-        cd build/${{ matrix.config }}
+        cd build/${{ matrix.config }}-${{ matrix.library_type }}
         cmake --build . --config ${{ matrix.config }} --parallel
+        
+    - name: Verify library type
+      working-directory: build/${{ matrix.config }}-${{ matrix.library_type }}
+      run: |
+        echo "Checking built libraries:"
+        ls -la | grep -E "ccap" || echo "No ccap libraries found"
+        
+        # Verify library type
+        if [ "${{ matrix.library_type }}" = "shared" ]; then
+          if [ -f "libccap.dylib" ]; then
+            echo "✓ macOS shared library libccap.dylib successfully built"
+            echo "Exported symbols check:"
+            nm -gU libccap.dylib | grep "ccap_provider_create" && echo "✓ C symbols exported" || echo "✗ C symbols not found"
+            nm -gU libccap.dylib | grep "_ZN4ccap" | head -2 && echo "✓ C++ symbols exported" || echo "✗ C++ symbols not found"
+          else
+            echo "✗ macOS shared library not found"
+            exit 1
+          fi
+        else
+          if [ -f "libccap.a" ]; then
+            echo "✓ macOS static library libccap.a successfully built"
+          else
+            echo "✗ macOS static library not found"
+            exit 1
+          fi
+        fi
+        
+    - name: Test shared library linking (macOS)
+      if: matrix.library_type == 'shared'
+      working-directory: build/${{ matrix.config }}-${{ matrix.library_type }}
+      run: |
+        echo "Testing macOS shared library linking..."
+        
+        # Create a simple test program
+        cat > test_shared.cpp << 'EOF'
+        #include "ccap_c.h"
+        #include <stdio.h>
+        int main() {
+            const char* version = ccap_get_version();
+            printf("Library version: %s\n", version ? version : "unknown");
+            CcapProvider* provider = ccap_provider_create();
+            if (provider) {
+                printf("Provider created successfully\n");
+                ccap_provider_destroy(provider);
+                return 0;
+            }
+            return 1;
+        }
+        EOF
+        
+        # Compile and run with shared library
+        clang++ -I../../include test_shared.cpp -L. -lccap -o test_shared
+        DYLD_LIBRARY_PATH=. ./test_shared
+        echo "✓ macOS shared library linking test passed"
       
     - name: Run Unit Tests
       run: |
+        # Create symbolic links to make test script work with new build directory structure
+        mkdir -p build
+        if [ ! -L "build/${{ matrix.config }}" ]; then
+          ln -sf "${{ matrix.config }}-${{ matrix.library_type }}" "build/${{ matrix.config }}"
+        fi
+        
         cd scripts
         if [ "${{ matrix.config }}" == "Debug" ]; then
+          # Set library path for shared library tests
+          if [ "${{ matrix.library_type }}" = "shared" ]; then
+            export DYLD_LIBRARY_PATH="$PWD/../build/${{ matrix.config }}-${{ matrix.library_type }}:$DYLD_LIBRARY_PATH"
+          fi
           ./run_tests.sh --functional --skip-build
         else
+          # Set library path for shared library tests
+          if [ "${{ matrix.library_type }}" = "shared" ]; then
+            export DYLD_LIBRARY_PATH="$PWD/../build/${{ matrix.config }}-${{ matrix.library_type }}:$DYLD_LIBRARY_PATH"
+          fi
           ./run_tests.sh --performance --skip-build
         fi
       
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ccap-macOS-${{ matrix.config }}
+        name: ccap-macOS-${{ matrix.config }}-${{ matrix.library_type }}
         path: |
-          build/${{ matrix.config }}/libccap.a
-          build/${{ matrix.config }}/0-print_camera
-          build/${{ matrix.config }}/1-minimal_example
-          build/${{ matrix.config }}/2-capture_grab
-          build/${{ matrix.config }}/3-capture_callback
-          build/${{ matrix.config }}/*_results.xml
+          build/${{ matrix.config }}-${{ matrix.library_type }}/libccap.*
+          build/${{ matrix.config }}-${{ matrix.library_type }}/0-print_camera
+          build/${{ matrix.config }}-${{ matrix.library_type }}/1-minimal_example
+          build/${{ matrix.config }}-${{ matrix.library_type }}/2-capture_grab
+          build/${{ matrix.config }}-${{ matrix.library_type }}/3-capture_callback
+          build/${{ matrix.config }}-${{ matrix.library_type }}/*_results.xml
         if-no-files-found: error

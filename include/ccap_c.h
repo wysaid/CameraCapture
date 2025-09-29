@@ -18,6 +18,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "ccap_config.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -87,19 +89,7 @@ typedef enum {
 /** @brief Error callback function type for C interface */
 typedef void (*CcapErrorCallback)(CcapErrorCode errorCode, const char* errorDescription, void* userData);
 
-/* ========== Constants ========== */
-
-/** @brief Maximum number of camera devices */
-#define CCAP_MAX_DEVICES 32
-
-/** @brief Maximum length for device name including null terminator */
-#define CCAP_MAX_DEVICE_NAME_LENGTH 128
-
-/** @brief Maximum number of supported pixel formats */
-#define CCAP_MAX_PIXEL_FORMATS 32
-
-/** @brief Maximum number of supported resolutions */
-#define CCAP_MAX_RESOLUTIONS 64
+/* ========== Constants (defined in ccap_config.h) ========== */
 
 /* ========== Data Structures ========== */
 
@@ -147,7 +137,7 @@ typedef bool (*CcapNewFrameCallback)(const CcapVideoFrame* frame, void* userData
  * @brief Create a new camera provider instance
  * @return Pointer to CcapProvider instance, or NULL on failure
  */
-CcapProvider* ccap_provider_create(void);
+CCAP_EXPORT CcapProvider* ccap_provider_create(void);
 
 /**
  * @brief Create a camera provider and open specified device
@@ -155,7 +145,7 @@ CcapProvider* ccap_provider_create(void);
  * @param extraInfo Extra information (currently unused, can be NULL)
  * @return Pointer to CcapProvider instance, or NULL on failure
  */
-CcapProvider* ccap_provider_create_with_device(const char* deviceName, const char* extraInfo);
+CCAP_EXPORT CcapProvider* ccap_provider_create_with_device(const char* deviceName, const char* extraInfo);
 
 /**
  * @brief Create a camera provider and open device by index
@@ -163,13 +153,13 @@ CcapProvider* ccap_provider_create_with_device(const char* deviceName, const cha
  * @param extraInfo Extra information (currently unused, can be NULL)
  * @return Pointer to CcapProvider instance, or NULL on failure
  */
-CcapProvider* ccap_provider_create_with_index(int deviceIndex, const char* extraInfo);
+CCAP_EXPORT CcapProvider* ccap_provider_create_with_index(int deviceIndex, const char* extraInfo);
 
 /**
  * @brief Destroy a camera provider instance and release all resources
  * @param provider Pointer to CcapProvider instance
  */
-void ccap_provider_destroy(CcapProvider* provider);
+CCAP_EXPORT void ccap_provider_destroy(CcapProvider* provider);
 
 /* ========== Device Discovery ========== */
 
@@ -179,7 +169,7 @@ void ccap_provider_destroy(CcapProvider* provider);
  * @param deviceList Output parameter for device names list
  * @return true on success, false on failure
  */
-bool ccap_provider_find_device_names_list(CcapProvider* provider, CcapDeviceNamesList* deviceList);
+CCAP_EXPORT bool ccap_provider_find_device_names_list(CcapProvider* provider, CcapDeviceNamesList* deviceList);
 
 /* ========== Device Management ========== */
 
@@ -190,7 +180,7 @@ bool ccap_provider_find_device_names_list(CcapProvider* provider, CcapDeviceName
  * @param autoStart Whether to start capturing automatically
  * @return true on success, false on failure
  */
-bool ccap_provider_open(CcapProvider* provider, const char* deviceName, bool autoStart);
+CCAP_EXPORT bool ccap_provider_open(CcapProvider* provider, const char* deviceName, bool autoStart);
 
 /**
  * @brief Open a camera device by index
@@ -199,14 +189,14 @@ bool ccap_provider_open(CcapProvider* provider, const char* deviceName, bool aut
  * @param autoStart Whether to start capturing automatically
  * @return true on success, false on failure
  */
-bool ccap_provider_open_by_index(CcapProvider* provider, int deviceIndex, bool autoStart);
+CCAP_EXPORT bool ccap_provider_open_by_index(CcapProvider* provider, int deviceIndex, bool autoStart);
 
 /**
  * @brief Check if camera device is opened
  * @param provider Pointer to CcapProvider instance
  * @return true if opened, false otherwise
  */
-bool ccap_provider_is_opened(const CcapProvider* provider);
+CCAP_EXPORT bool ccap_provider_is_opened(const CcapProvider* provider);
 
 /**
  * @brief Get device information
@@ -214,13 +204,13 @@ bool ccap_provider_is_opened(const CcapProvider* provider);
  * @param deviceInfo Output parameter for device information
  * @return true on success, false on failure
  */
-bool ccap_provider_get_device_info(const CcapProvider* provider, CcapDeviceInfo* deviceInfo);
+CCAP_EXPORT bool ccap_provider_get_device_info(const CcapProvider* provider, CcapDeviceInfo* deviceInfo);
 
 /**
  * @brief Close camera device
  * @param provider Pointer to CcapProvider instance
  */
-void ccap_provider_close(CcapProvider* provider);
+CCAP_EXPORT void ccap_provider_close(CcapProvider* provider);
 
 /* ========== Capture Control ========== */
 
@@ -229,20 +219,20 @@ void ccap_provider_close(CcapProvider* provider);
  * @param provider Pointer to CcapProvider instance
  * @return true on success, false on failure
  */
-bool ccap_provider_start(CcapProvider* provider);
+CCAP_EXPORT bool ccap_provider_start(CcapProvider* provider);
 
 /**
  * @brief Stop frame capturing
  * @param provider Pointer to CcapProvider instance
  */
-void ccap_provider_stop(CcapProvider* provider);
+CCAP_EXPORT void ccap_provider_stop(CcapProvider* provider);
 
 /**
  * @brief Check if capture is started
  * @param provider Pointer to CcapProvider instance
  * @return true if started, false otherwise
  */
-bool ccap_provider_is_started(const CcapProvider* provider);
+CCAP_EXPORT bool ccap_provider_is_started(const CcapProvider* provider);
 
 /* ========== Property Configuration ========== */
 
@@ -253,7 +243,7 @@ bool ccap_provider_is_started(const CcapProvider* provider);
  * @param value Property value
  * @return true on success, false on failure
  */
-bool ccap_provider_set_property(CcapProvider* provider, CcapPropertyName prop, double value);
+CCAP_EXPORT bool ccap_provider_set_property(CcapProvider* provider, CcapPropertyName prop, double value);
 
 /**
  * @brief Get camera property
@@ -261,7 +251,7 @@ bool ccap_provider_set_property(CcapProvider* provider, CcapPropertyName prop, d
  * @param prop Property name
  * @return Property value, or NaN on failure
  */
-double ccap_provider_get_property(CcapProvider* provider, CcapPropertyName prop);
+CCAP_EXPORT double ccap_provider_get_property(CcapProvider* provider, CcapPropertyName prop);
 
 /* ========== Frame Capture ========== */
 
@@ -272,7 +262,7 @@ double ccap_provider_get_property(CcapProvider* provider, CcapPropertyName prop)
  * @return Pointer to CcapVideoFrame, or NULL on failure/timeout
  * @note The returned frame must be released using ccap_video_frame_release
  */
-CcapVideoFrame* ccap_provider_grab(CcapProvider* provider, uint32_t timeoutMs);
+CCAP_EXPORT CcapVideoFrame* ccap_provider_grab(CcapProvider* provider, uint32_t timeoutMs);
 
 /**
  * @brief Set callback for new frame notifications (asynchronous)
@@ -281,7 +271,7 @@ CcapVideoFrame* ccap_provider_grab(CcapProvider* provider, uint32_t timeoutMs);
  * @param userData User data passed to callback
  * @return true on success, false on failure
  */
-bool ccap_provider_set_new_frame_callback(CcapProvider* provider, CcapNewFrameCallback callback, void* userData);
+CCAP_EXPORT bool ccap_provider_set_new_frame_callback(CcapProvider* provider, CcapNewFrameCallback callback, void* userData);
 
 /* ========== Frame Management ========== */
 
@@ -291,13 +281,13 @@ bool ccap_provider_set_new_frame_callback(CcapProvider* provider, CcapNewFrameCa
  * @param frameInfo Output parameter for frame information
  * @return true on success, false on failure
  */
-bool ccap_video_frame_get_info(const CcapVideoFrame* frame, CcapVideoFrameInfo* frameInfo);
+CCAP_EXPORT bool ccap_video_frame_get_info(const CcapVideoFrame* frame, CcapVideoFrameInfo* frameInfo);
 
 /**
  * @brief Release a video frame
  * @param frame Pointer to CcapVideoFrame instance
  */
-void ccap_video_frame_release(CcapVideoFrame* frame);
+CCAP_EXPORT void ccap_video_frame_release(CcapVideoFrame* frame);
 
 /* ========== Advanced Configuration ========== */
 
@@ -306,14 +296,14 @@ void ccap_video_frame_release(CcapVideoFrame* frame);
  * @param provider Pointer to CcapProvider instance
  * @param size Maximum number of available frames
  */
-void ccap_provider_set_max_available_frame_size(CcapProvider* provider, uint32_t size);
+CCAP_EXPORT void ccap_provider_set_max_available_frame_size(CcapProvider* provider, uint32_t size);
 
 /**
  * @brief Set maximum number of frames in internal cache
  * @param provider Pointer to CcapProvider instance
  * @param size Maximum number of cached frames
  */
-void ccap_provider_set_max_cache_frame_size(CcapProvider* provider, uint32_t size);
+CCAP_EXPORT void ccap_provider_set_max_cache_frame_size(CcapProvider* provider, uint32_t size);
 
 
 
@@ -326,7 +316,7 @@ void ccap_provider_set_max_cache_frame_size(CcapProvider* provider, uint32_t siz
  * @return true on success, false on failure
  * @note This callback will be used by all provider instances
  */
-bool ccap_set_error_callback(CcapErrorCallback callback, void* userData);
+CCAP_EXPORT bool ccap_set_error_callback(CcapErrorCallback callback, void* userData);
 
 /* ========== Utility Functions ========== */
 
@@ -335,27 +325,27 @@ bool ccap_set_error_callback(CcapErrorCallback callback, void* userData);
  * @param errorCode The error code to convert
  * @return Error description string
  */
-const char* ccap_error_code_to_string(CcapErrorCode errorCode);
+CCAP_EXPORT const char* ccap_error_code_to_string(CcapErrorCode errorCode);
 
 /**
  * @brief Get library version string
  * @return Version string
  */
-const char* ccap_get_version(void);
+CCAP_EXPORT const char* ccap_get_version(void);
 
 /**
  * @brief Check if a pixel format has RGB color
  * @param format Pixel format
  * @return true if RGB format, false otherwise
  */
-bool ccap_pixel_format_is_rgb(CcapPixelFormat format);
+CCAP_EXPORT bool ccap_pixel_format_is_rgb(CcapPixelFormat format);
 
 /**
  * @brief Check if a pixel format has YUV color
  * @param format Pixel format
  * @return true if YUV format, false otherwise
  */
-bool ccap_pixel_format_is_yuv(CcapPixelFormat format);
+CCAP_EXPORT bool ccap_pixel_format_is_yuv(CcapPixelFormat format);
 
 #ifdef __cplusplus
 }

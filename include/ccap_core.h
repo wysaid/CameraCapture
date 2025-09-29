@@ -28,7 +28,7 @@
 // ccap is short for (C)amera(CAP)ture
 namespace ccap {
 /// A default allocator
-class DefaultAllocator : public Allocator {
+class CCAP_EXPORT DefaultAllocator : public Allocator {
 public:
     ~DefaultAllocator() override;
     void resize(size_t size) override;
@@ -56,7 +56,7 @@ class ProviderImp;
  * @note This class is not thread-safe. It is recommended to use it in a single thread.
  *       If you need to use it in multiple threads, consider using a mutex or other synchronization methods.
  */
-class Provider final {
+class CCAP_EXPORT Provider final {
 public:
     /// @brief Default constructor. The camera device is not opened yet.
     ///        You can use the `open` method to open a camera device later.
@@ -236,13 +236,13 @@ private:
  *       Keep the callback implementation lightweight to avoid blocking camera operations.
  *       This callback will be used by all Provider instances.
  */
-void setErrorCallback(ErrorCallback callback);
+CCAP_EXPORT void setErrorCallback(ErrorCallback callback);
 
 /**
  * @brief Gets the current error callback function.
  * @return The current error callback, or nullptr if none is set.
  */
-ErrorCallback getErrorCallback();
+CCAP_EXPORT ErrorCallback getErrorCallback();
 
 } // namespace ccap
 

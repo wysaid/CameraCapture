@@ -9,12 +9,13 @@ on:
 
 jobs:
   build:
-    name: Windows Build
+    name: Windows Build (${{ matrix.config }}-${{ matrix.library_type }})
     runs-on: windows-latest
     
     strategy:
       matrix:
         config: [Debug, Release]
+        library_type: [static, shared]
         
     steps:
     - name: Checkout repository
@@ -25,34 +26,173 @@ jobs:
       
     - name: Configure CMake
       run: |
-        mkdir -p build
-        cd build
-        cmake .. -G "Visual Studio 17 2022" -A x64 -DCCAP_BUILD_TESTS=ON
+        $SHARED_FLAG = ""
+        if ("${{ matrix.library_type }}" -eq "shared") {
+          $SHARED_FLAG = "-DCCAP_BUILD_SHARED=ON"
+          Write-Host "Configuring Windows build ${{ matrix.config }} - SHARED LIBRARY (DLL)"
+        } else {
+          Write-Host "Configuring Windows build ${{ matrix.config }} - STATIC LIBRARY"
+        }
+        mkdir -p "build/${{ matrix.config }}-${{ matrix.library_type }}"
+        cd "build/${{ matrix.config }}-${{ matrix.library_type }}"
+        cmake ../.. -G "Visual Studio 17 2022" -A x64 -DCCAP_BUILD_TESTS=ON $SHARED_FLAG
       
     - name: Build
       run: |
-        cd build
+        cd "build/${{ matrix.config }}-${{ matrix.library_type }}"
         cmake --build . --config ${{ matrix.config }} --parallel
-      
-    - name: Run Unit Tests
+        
+    - name: Verify library type
       shell: bash
+      working-directory: build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}
       run: |
-        cd scripts
-        if [ "${{ matrix.config }}" == "Debug" ]; then
-          ./run_tests.sh --functional --skip-build
+        echo "Checking built libraries:"
+        ls -la | grep -E "ccap" || echo "No ccap libraries found"
+        
+        # Verify library type
+        # Debug versions have 'd' suffix, Release versions don't
+        if [ "${{ matrix.config }}" = "Debug" ]; then
+          LIB_BASENAME="ccapd"
+          DLL_NAME="ccapd.dll"
         else
-          ./run_tests.sh --performance --skip-build
+          LIB_BASENAME="ccap"
+          DLL_NAME="ccap.dll"
+        fi
+        
+        if [ "${{ matrix.library_type }}" = "shared" ]; then
+          if [ -f "$DLL_NAME" ]; then
+            echo "✓ Windows shared library $DLL_NAME successfully built"
+            # Check if import library exists
+            if [ -f "${LIB_BASENAME}.lib" ]; then
+              echo "✓ Windows import library ${LIB_BASENAME}.lib also created"
+            fi
+          else
+            echo "✗ Windows shared library $DLL_NAME not found"
+            exit 1
+          fi
+        else
+          if [ -f "${LIB_BASENAME}.lib" ]; then
+            echo "✓ Windows static library ${LIB_BASENAME}.lib successfully built"
+          else
+            echo "✗ Windows static library ${LIB_BASENAME}.lib not found"
+            exit 1
+          fi
+        fi
+        
+    - name: Test shared library linking (Windows)
+      if: matrix.library_type == 'shared'
+      shell: bash
+      working-directory: build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}
+      run: |
+        echo "Testing Windows shared library linking..."
+        
+        # Create a simple test program
+        cat > test_shared.cpp << 'EOF'
+        #include "ccap_c.h"
+        #include <stdio.h>
+        int main() {
+            const char* version = ccap_get_version();
+            printf("Library version: %s\n", version ? version : "unknown");
+            CcapProvider* provider = ccap_provider_create();
+            if (provider) {
+                printf("Provider created successfully\n");
+                ccap_provider_destroy(provider);
+                return 0;
+            }
+            return 1;
+        }
+        EOF
+        
+        # Find Visual Studio compiler
+        VCVARS_PATH=$(find "/c/Program Files/Microsoft Visual Studio" -name "vcvars64.bat" 2>/dev/null | head -n1)
+        if [ -z "$VCVARS_PATH" ]; then
+          VCVARS_PATH=$(find "/c/Program Files (x86)/Microsoft Visual Studio" -name "vcvars64.bat" 2>/dev/null | head -n1)
+        fi
+        
+        if [ -n "$VCVARS_PATH" ]; then
+          echo "Using Visual Studio environment from: $VCVARS_PATH"
+          # Convert path for cmd
+          VCVARS_WIN_PATH=$(echo "$VCVARS_PATH" | sed 's|/c/|C:/|g' | sed 's|/|\\|g')
+          
+          # Determine library names based on config
+          if [ "${{ matrix.config }}" = "Debug" ]; then
+            LIB_NAME="ccapd.lib"
+            DLL_NAME="ccapd.dll"
+          else
+            LIB_NAME="ccap.lib"
+            DLL_NAME="ccap.dll"
+          fi
+          
+          # Create a temporary batch file to avoid quote escaping issues
+          cat > compile_test.bat << EOF
+        @echo off
+        call "$VCVARS_WIN_PATH"
+        set "INCLUDE_DIR=%GITHUB_WORKSPACE%\\include"
+        if not exist "%INCLUDE_DIR%" (
+          echo Include directory not found: %INCLUDE_DIR%
+          exit /b 1
+        )
+        cl /I"%INCLUDE_DIR%" test_shared.cpp $LIB_NAME /Fe:test_shared.exe
+        EOF
+          
+          # Execute the batch file
+          cmd //c compile_test.bat
+          
+          # Ensure DLL is available beside the test executable
+          if [ ! -f "./$DLL_NAME" ]; then
+            DLL_PATH=$(find .. -name "$DLL_NAME" -print -quit)
+            if [ -z "$DLL_PATH" ]; then
+              echo "✗ Windows shared library $DLL_NAME not found for runtime"
+              exit 1
+            fi
+            cp "$DLL_PATH" .
+          fi
+          ./test_shared.exe
+          echo "✓ Windows shared library linking test passed"
+        else
+          echo "⚠ Visual Studio compiler not found, skipping link test"
         fi
       
+    - name: Run Unit Tests  
+      shell: bash
+      run: |
+        # Create symbolic links to make test script work with new build directory structure
+        mkdir -p build/tests
+        
+        # Create symbolic link for the config directory
+        if [ ! -L "build/${{ matrix.config }}" ]; then
+          ln -sf "${{ matrix.config }}-${{ matrix.library_type }}" "build/${{ matrix.config }}"
+        fi
+        
+        # Create symbolic link for the tests directory to match expected path structure
+        if [ ! -L "build/tests/${{ matrix.config }}" ]; then
+          ln -sf "../${{ matrix.config }}-${{ matrix.library_type }}/tests/${{ matrix.config }}" "build/tests/${{ matrix.config }}"
+        fi
+        
+        cd scripts
+        if [ "${{ matrix.config }}" == "Debug" ]; then
+          # Set library path for shared library tests
+          if [ "${{ matrix.library_type }}" = "shared" ]; then
+            export PATH="$PWD/../build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}:$PATH"
+          fi
+          ./run_tests.sh --functional --skip-build
+        else
+          # Set library path for shared library tests
+          if [ "${{ matrix.library_type }}" = "shared" ]; then
+            export PATH="$PWD/../build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}:$PATH"
+          fi
+          ./run_tests.sh --performance --skip-build
+        fi
+        
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ccap-windows-${{ matrix.config }}
+        name: ccap-windows-${{ matrix.config }}-${{ matrix.library_type }}
         path: |
-          build/${{ matrix.config }}/ccap.lib
-          build/${{ matrix.config }}/0-print_camera.exe
-          build/${{ matrix.config }}/1-minimal_example.exe
-          build/${{ matrix.config }}/2-capture_grab.exe
-          build/${{ matrix.config }}/3-capture_callback.exe
-          build/${{ matrix.config }}/*_results.xml
+          build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}/ccap*.*
+          build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}/0-print_camera.exe
+          build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}/1-minimal_example.exe
+          build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}/2-capture_grab.exe
+          build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}/3-capture_callback.exe
+          build/${{ matrix.config }}-${{ matrix.library_type }}/*_results.xml
         if-no-files-found: error

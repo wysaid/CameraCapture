@@ -16,6 +16,7 @@
 #ifndef CCAP_CONVERT_H
 #define CCAP_CONVERT_H
 
+#include "ccap_def.h"
 #include <algorithm>
 #include <cstdint>
 #include <memory>
@@ -28,40 +29,40 @@
 
 namespace ccap {
 // Check if AVX2 is available. If available, use AVX2 acceleration.
-bool hasAVX2(); // Check if AVX2 is supported by the CPU (hardware related)
+CCAP_EXPORT bool hasAVX2(); // Check if AVX2 is supported by the CPU (hardware related)
 
-bool canUseAVX2(); // Check if AVX2 is enabled, useful for testing
+CCAP_EXPORT bool canUseAVX2(); // Check if AVX2 is enabled, useful for testing
 
 /**
  * @brief Enable or disable AVX2 implementation.
  * @param enable true to enable AVX2, false to disable.
  * @return true if AVX2 is available and enabled, false otherwise.
  */
-bool enableAVX2(bool enable); // Disable AVX2 implementation, useful for testing
+CCAP_EXPORT bool enableAVX2(bool enable); // Disable AVX2 implementation, useful for testing
 
 /// Check if Apple Accelerate is available. If available, use Apple Accelerate acceleration.
-bool hasAppleAccelerate();
+CCAP_EXPORT bool hasAppleAccelerate();
 /// Check if Apple Accelerate is enabled, useful for testing
-bool canUseAppleAccelerate();
+CCAP_EXPORT bool canUseAppleAccelerate();
 /**
  * @brief Enable or disable Apple Accelerate implementation.
  *
  * @param enable true to enable Apple Accelerate, false to disable.
  * @return true if Apple Accelerate is available and enabled, false otherwise.
  */
-bool enableAppleAccelerate(bool enable);
+CCAP_EXPORT bool enableAppleAccelerate(bool enable);
 
 /// Check if NEON is available. If available, use NEON acceleration.
-bool hasNEON();
+CCAP_EXPORT bool hasNEON();
 /// Check if NEON is enabled, useful for testing
-bool canUseNEON();
+CCAP_EXPORT bool canUseNEON();
 /**
  * @brief Enable or disable NEON implementation.
  *
  * @param enable true to enable NEON, false to disable.
  * @return true if NEON is available and enabled, false otherwise.
  */
-bool enableNEON(bool enable);
+CCAP_EXPORT bool enableNEON(bool enable);
 
 enum class ConvertBackend : uint32_t {
     AUTO,            ///< Automatically choose the best available backend
@@ -80,7 +81,7 @@ enum class ConvertBackend : uint32_t {
  *
  * @return ConvertBackend
  */
-ConvertBackend getConvertBackend();
+CCAP_EXPORT ConvertBackend getConvertBackend();
 
 /**
  * @brief Set the Convert Backend.
@@ -91,7 +92,7 @@ ConvertBackend getConvertBackend();
  * Note: When setting ConvertBackend::AVX2, Apple Accelerate will be automatically disabled.
  * Note: When setting ConvertBackend::NEON, Apple Accelerate and AVX2 will be automatically disabled.
  */
-bool setConvertBackend(ConvertBackend backend);
+CCAP_EXPORT bool setConvertBackend(ConvertBackend backend);
 
 /// @brief YUV 601 video-range to RGB (includes video range preprocessing)
 inline void yuv2rgb601v(int y, int u, int v, int& r, int& g, int& b) {
@@ -184,7 +185,7 @@ inline YuvToRgbFunc getYuvToRgbFunc(bool is601, bool isFullRange) {
 
 // swapRB indicates whether to swap Red and Blue channels
 template <int inputChannels, int outputChannels, int swapRB>
-void colorShuffle(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height);
+CCAP_EXPORT void colorShuffle(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height);
 
 inline void rgbaToBgra(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height) {
     colorShuffle<4, 4, true>(src, srcStride, dst, dstStride, width, height);
@@ -228,81 +229,81 @@ constexpr auto bgrToRgb = rgbToBgr;
 
 //////////// yuv color to rgb color /////////////
 
-void nv12ToBgr24(const uint8_t* srcY, int srcYStride,
+CCAP_EXPORT void nv12ToBgr24(const uint8_t* srcY, int srcYStride,
                  const uint8_t* srcUV, int srcUVStride,
                  uint8_t* dst, int dstStride,
                  int width, int height, ConvertFlag flag = ConvertFlag::Default);
 
-void nv12ToRgb24(const uint8_t* srcY, int srcYStride,
+CCAP_EXPORT void nv12ToRgb24(const uint8_t* srcY, int srcYStride,
                  const uint8_t* srcUV, int srcUVStride,
                  uint8_t* dst, int dstStride,
                  int width, int height, ConvertFlag flag = ConvertFlag::Default);
 
-void nv12ToBgra32(const uint8_t* srcY, int srcYStride,
+CCAP_EXPORT void nv12ToBgra32(const uint8_t* srcY, int srcYStride,
                   const uint8_t* srcUV, int srcUVStride,
                   uint8_t* dst, int dstStride,
                   int width, int height, ConvertFlag flag = ConvertFlag::Default);
 
-void nv12ToRgba32(const uint8_t* srcY, int srcYStride,
+CCAP_EXPORT void nv12ToRgba32(const uint8_t* srcY, int srcYStride,
                   const uint8_t* srcUV, int srcUVStride,
                   uint8_t* dst, int dstStride,
                   int width, int height, ConvertFlag flag = ConvertFlag::Default);
 
-void i420ToBgr24(const uint8_t* srcY, int srcYStride,
+CCAP_EXPORT void i420ToBgr24(const uint8_t* srcY, int srcYStride,
                  const uint8_t* srcU, int srcUStride,
                  const uint8_t* srcV, int srcVStride,
                  uint8_t* dst, int dstStride,
                  int width, int height, ConvertFlag flag = ConvertFlag::Default);
 
-void i420ToRgb24(const uint8_t* srcY, int srcYStride,
+CCAP_EXPORT void i420ToRgb24(const uint8_t* srcY, int srcYStride,
                  const uint8_t* srcU, int srcUStride,
                  const uint8_t* srcV, int srcVStride,
                  uint8_t* dst, int dstStride,
                  int width, int height, ConvertFlag flag = ConvertFlag::Default);
 
-void i420ToBgra32(const uint8_t* srcY, int srcYStride,
+CCAP_EXPORT void i420ToBgra32(const uint8_t* srcY, int srcYStride,
                   const uint8_t* srcU, int srcUStride,
                   const uint8_t* srcV, int srcVStride,
                   uint8_t* dst, int dstStride,
                   int width, int height, ConvertFlag flag = ConvertFlag::Default);
 
-void i420ToRgba32(const uint8_t* srcY, int srcYStride,
+CCAP_EXPORT void i420ToRgba32(const uint8_t* srcY, int srcYStride,
                   const uint8_t* srcU, int srcUStride,
                   const uint8_t* srcV, int srcVStride,
                   uint8_t* dst, int dstStride,
                   int width, int height, ConvertFlag flag = ConvertFlag::Default);
 
 // YUYV (YUV 4:2:2 packed) conversion functions
-void yuyvToBgr24(const uint8_t* src, int srcStride,
+CCAP_EXPORT void yuyvToBgr24(const uint8_t* src, int srcStride,
                  uint8_t* dst, int dstStride,
                  int width, int height, ConvertFlag flag = ConvertFlag::Default);
 
-void yuyvToRgb24(const uint8_t* src, int srcStride,
+CCAP_EXPORT void yuyvToRgb24(const uint8_t* src, int srcStride,
                  uint8_t* dst, int dstStride,
                  int width, int height, ConvertFlag flag = ConvertFlag::Default);
 
-void yuyvToBgra32(const uint8_t* src, int srcStride,
+CCAP_EXPORT void yuyvToBgra32(const uint8_t* src, int srcStride,
                   uint8_t* dst, int dstStride,
                   int width, int height, ConvertFlag flag = ConvertFlag::Default);
 
-void yuyvToRgba32(const uint8_t* src, int srcStride,
+CCAP_EXPORT void yuyvToRgba32(const uint8_t* src, int srcStride,
                   uint8_t* dst, int dstStride,
                   int width, int height, ConvertFlag flag = ConvertFlag::Default);
 
 // UYVY (YUV 4:2:2 packed) conversion functions
-void uyvyToBgr24(const uint8_t* src, int srcStride,
+CCAP_EXPORT void uyvyToBgr24(const uint8_t* src, int srcStride,
                  uint8_t* dst, int dstStride,
                  int width, int height, ConvertFlag flag = ConvertFlag::Default);
 
-void uyvyToRgb24(const uint8_t* src, int srcStride,
+CCAP_EXPORT void uyvyToRgb24(const uint8_t* src, int srcStride,
                  uint8_t* dst, int dstStride,
                  int width, int height, ConvertFlag flag = ConvertFlag::Default);
 
-void uyvyToBgra32(const uint8_t* src, int srcStride,
+CCAP_EXPORT void uyvyToBgra32(const uint8_t* src, int srcStride,
                   uint8_t* dst, int dstStride,
                   int width, int height, ConvertFlag flag = ConvertFlag::Default);
 
-void uyvyToRgba32(const uint8_t* src, int srcStride,
+CCAP_EXPORT void uyvyToRgba32(const uint8_t* src, int srcStride,
                   uint8_t* dst, int dstStride,
                   int width, int height, ConvertFlag flag = ConvertFlag::Default);
 
@@ -310,9 +311,9 @@ class Allocator;
 /// @brief Used to store some intermediate results, avoiding repeated memory allocation.
 /// If no shared memory allocator is set externally, use the default allocator.
 /// @return A shared pointer to the current shared memory allocator. (Will not be nullptr)
-std::shared_ptr<ccap::Allocator> getSharedAllocator();
+CCAP_EXPORT std::shared_ptr<ccap::Allocator> getSharedAllocator();
 /// @brief Release the shared memory allocator.
-void resetSharedAllocator();
+CCAP_EXPORT void resetSharedAllocator();
 } // namespace ccap
 
 #endif // CCAP_CONVERT_H

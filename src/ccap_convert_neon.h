@@ -11,8 +11,7 @@
 
 #include <cstdint>
 
-// Forward declare ConvertFlag
-enum class ConvertFlag;
+#include "ccap_convert.h"
 
 // NEON support detection for ARM64 platforms
 #if (defined(__aarch64__) || defined(_M_ARM64)) && \
@@ -55,7 +54,6 @@ inline bool hasNEON_() { return false; }
 #endif // ENABLE_NEON_IMP
 
 namespace ccap {
-bool hasNEON();
 
 #if ENABLE_NEON_IMP
 
