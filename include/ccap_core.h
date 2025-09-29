@@ -236,13 +236,13 @@ private:
  *       Keep the callback implementation lightweight to avoid blocking camera operations.
  *       This callback will be used by all Provider instances.
  */
-void setErrorCallback(ErrorCallback callback);
+CCAP_EXPORT void setErrorCallback(ErrorCallback callback);
 
 /**
  * @brief Gets the current error callback function.
  * @return The current error callback, or nullptr if none is set.
  */
-ErrorCallback getErrorCallback();
+CCAP_EXPORT ErrorCallback getErrorCallback();
 
 } // namespace ccap
 

@@ -106,7 +106,7 @@ jobs:
         
         # Create a simple test program
         cat > test_shared.cpp << 'EOF'
-        #include "../../include/ccap_c.h"
+        #include "ccap_c.h"
         #include <stdio.h>
         int main() {
             const char* version = ccap_get_version();
