@@ -4,4 +4,4 @@ build/
 dev.cmake
 /install
 build-*
-build_shared/test_build*
+build_shared/
