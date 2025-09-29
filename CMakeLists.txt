@@ -153,7 +153,6 @@ endif()
 
 # Configure shared library export definitions
 if(CCAP_BUILD_SHARED)
-    target_compile_definitions(ccap PRIVATE CCAP_BUILDING_SHARED=1)
     target_compile_definitions(ccap PUBLIC CCAP_SHARED=1)
     if(WIN32)
         target_compile_definitions(ccap PRIVATE CCAP_BUILDING_DLL=1)
