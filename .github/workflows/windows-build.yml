@@ -33,18 +33,18 @@ jobs:
         } else {
           Write-Host "Configuring Windows build ${{ matrix.config }} - STATIC LIBRARY"
         }
-        mkdir -p build
-        cd build
-        cmake .. -G "Visual Studio 17 2022" -A x64 -DCCAP_BUILD_TESTS=ON $SHARED_FLAG
+        mkdir -p "build/${{ matrix.config }}-${{ matrix.library_type }}"
+        cd "build/${{ matrix.config }}-${{ matrix.library_type }}"
+        cmake ../.. -G "Visual Studio 17 2022" -A x64 -DCCAP_BUILD_TESTS=ON $SHARED_FLAG
       
     - name: Build
       run: |
-        cd build
+        cd "build/${{ matrix.config }}-${{ matrix.library_type }}"
         cmake --build . --config ${{ matrix.config }} --parallel
         
     - name: Verify library type
       shell: bash
-      working-directory: build/${{ matrix.config }}
+      working-directory: build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}
       run: |
         echo "Checking built libraries:"
         ls -la | grep -E "ccap" || echo "No ccap libraries found"
@@ -73,7 +73,7 @@ jobs:
     - name: Test shared library linking (Windows)
       if: matrix.library_type == 'shared'
       shell: bash
-      working-directory: build/${{ matrix.config }}
+      working-directory: build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}
       run: |
         echo "Testing Windows shared library linking..."
         
@@ -116,33 +116,39 @@ jobs:
           echo "⚠ Visual Studio compiler not found, skipping link test"
         fi
       
-    - name: Run Unit Tests
+    - name: Run Unit Tests  
       shell: bash
       run: |
+        # Create symbolic links to make test script work with new build directory structure
+        mkdir -p build
+        if [ ! -L "build/${{ matrix.config }}" ]; then
+          ln -sf "${{ matrix.config }}-${{ matrix.library_type }}" "build/${{ matrix.config }}"
+        fi
+        
         cd scripts
         if [ "${{ matrix.config }}" == "Debug" ]; then
           # Set library path for shared library tests
           if [ "${{ matrix.library_type }}" = "shared" ]; then
-            export PATH="$PWD/../build/${{ matrix.config }}:$PATH"
+            export PATH="$PWD/../build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}:$PATH"
           fi
           ./run_tests.sh --functional --skip-build
         else
           # Set library path for shared library tests
           if [ "${{ matrix.library_type }}" = "shared" ]; then
-            export PATH="$PWD/../build/${{ matrix.config }}:$PATH"
+            export PATH="$PWD/../build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}:$PATH"
           fi
           ./run_tests.sh --performance --skip-build
         fi
-      
+        
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: ccap-windows-${{ matrix.config }}-${{ matrix.library_type }}
         path: |
-          build/${{ matrix.config }}/ccap.*
-          build/${{ matrix.config }}/0-print_camera.exe
-          build/${{ matrix.config }}/1-minimal_example.exe
-          build/${{ matrix.config }}/2-capture_grab.exe
-          build/${{ matrix.config }}/3-capture_callback.exe
-          build/${{ matrix.config }}/*_results.xml
+          build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}/ccap.*
+          build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}/0-print_camera.exe
+          build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}/1-minimal_example.exe
+          build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}/2-capture_grab.exe
+          build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}/3-capture_callback.exe
+          build/${{ matrix.config }}-${{ matrix.library_type }}/*_results.xml
         if-no-files-found: error

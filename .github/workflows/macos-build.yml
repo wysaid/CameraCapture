@@ -93,6 +93,12 @@ jobs:
       
     - name: Run Unit Tests
       run: |
+        # Create symbolic links to make test script work with new build directory structure
+        mkdir -p build
+        if [ ! -L "build/${{ matrix.config }}" ]; then
+          ln -sf "${{ matrix.config }}-${{ matrix.library_type }}" "build/${{ matrix.config }}"
+        fi
+        
         cd scripts
         if [ "${{ matrix.config }}" == "Debug" ]; then
           # Set library path for shared library tests

@@ -129,6 +129,12 @@ jobs:
     - name: Run Unit Tests
       if: matrix.build_type == 'Release'
       run: |
+        # Create symbolic links to make test script work with new build directory structure
+        mkdir -p build
+        if [ ! -L "build/${{ matrix.build_type }}" ]; then
+          ln -sf "${{ matrix.build_type }}-${{ matrix.library_type }}" "build/${{ matrix.build_type }}"
+        fi
+        
         cd scripts
         # Set library type specific environment if needed
         if [ "${{ matrix.library_type }}" = "shared" ]; then
@@ -222,6 +228,12 @@ jobs:
     - name: Run Unit Tests
       if: matrix.build_type == 'Release'
       run: |
+        # Create symbolic links to make test script work with new build directory structure
+        mkdir -p build
+        if [ ! -L "build/${{ matrix.build_type }}" ]; then
+          ln -sf "${{ matrix.build_type }}-${{ matrix.library_type }}" "build/${{ matrix.build_type }}"
+        fi
+        
         cd scripts
         # Set library type specific environment if needed
         if [ "${{ matrix.library_type }}" = "shared" ]; then
@@ -425,6 +437,12 @@ jobs:
     - name: Run Unit Tests
       if: matrix.build_type == 'Release'
       run: |
+        # Create symbolic links to make test script work with new build directory structure
+        mkdir -p build
+        if [ ! -L "build/${{ matrix.build_type }}" ]; then
+          ln -sf "${{ matrix.build_type }}-${{ matrix.library_type }}" "build/${{ matrix.build_type }}"
+        fi
+        
         cd scripts
         # Set library type specific environment if needed
         if [ "${{ matrix.library_type }}" = "shared" ]; then
