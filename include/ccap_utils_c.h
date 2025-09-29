@@ -79,29 +79,6 @@ CCAP_EXPORT bool ccap_save_rgb_data_as_bmp(const char* filename, const unsigned 
                                uint32_t width, uint32_t line_offset, uint32_t height,
                                bool is_bgr, bool has_alpha, bool is_top_to_bottom);
 
-/* ========== Memory Utilities ========== */
-
-/**
- * @brief Free string allocated by ccap C functions
- * @param str String to free (can be NULL)
- */
-CCAP_EXPORT void ccap_free_string(char* str);
-
-/**
- * @brief Duplicate a string (similar to strdup)
- * @param str Source string
- * @return Duplicated string (caller must free with ccap_free_string), or NULL on failure
- */
-CCAP_EXPORT char* ccap_strdup(const char* str);
-
-/**
- * @brief Get the length of a string safely
- * @param str String to measure (can be NULL)
- * @param max_len Maximum length to check
- * @return String length, or 0 if str is NULL
- */
-CCAP_EXPORT size_t ccap_strnlen(const char* str, size_t max_len);
-
 /* ========== Logging Utilities ========== */
 
 /**

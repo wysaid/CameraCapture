@@ -105,39 +105,6 @@ bool ccap_save_rgb_data_as_bmp(const char* filename, const unsigned char* data,
                                   is_bgr, has_alpha, is_top_to_bottom);
 }
 
-/* ========== Memory Utilities ========== */
-
-void ccap_free_string(char* str) {
-    if (str) {
-        std::free(str);
-    }
-}
-
-char* ccap_strdup(const char* str) {
-    if (!str) {
-        return nullptr;
-    }
-
-    size_t len = std::strlen(str);
-    char* result = static_cast<char*>(std::malloc(len + 1));
-    if (result) {
-        std::memcpy(result, str, len + 1);
-    }
-    return result;
-}
-
-size_t ccap_strnlen(const char* str, size_t max_len) {
-    if (!str) {
-        return 0;
-    }
-
-    size_t len = 0;
-    while (len < max_len && str[len] != '\0') {
-        len++;
-    }
-    return len;
-}
-
 /* ========== Logging Utilities ========== */
 
 void ccap_set_log_level(CcapLogLevel level) {
