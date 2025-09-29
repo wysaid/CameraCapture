@@ -138,8 +138,15 @@ jobs:
           # Execute the batch file
           cmd //c compile_test.bat
           
-          # Copy DLL to current directory and run
-          cp "$DLL_NAME" .
+          # Ensure DLL is available beside the test executable
+          if [ ! -f "./$DLL_NAME" ]; then
+            DLL_PATH=$(find .. -name "$DLL_NAME" -print -quit)
+            if [ -z "$DLL_PATH" ]; then
+              echo "✗ Windows shared library $DLL_NAME not found for runtime"
+              exit 1
+            fi
+            cp "$DLL_PATH" .
+          fi
           ./test_shared.exe
           echo "✓ Windows shared library linking test passed"
         else
