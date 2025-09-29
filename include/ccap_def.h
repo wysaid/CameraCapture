@@ -72,6 +72,11 @@
 #include <string_view>
 #include <vector>
 
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4251)
+#endif
+
 // ccap is short for (C)amera(CAP)ture
 namespace ccap {
 enum PixelFormatConstants : uint32_t {
@@ -431,5 +436,9 @@ struct CCAP_EXPORT DeviceInfo {
 };
 
 } // namespace ccap
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 #endif
