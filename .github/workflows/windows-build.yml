@@ -123,8 +123,15 @@ jobs:
             DLL_NAME="ccap.dll"
           fi
           
-          # Compile with Visual Studio
-          cmd //c "\"$VCVARS_WIN_PATH\" && cl /I..\\..\\include test_shared.cpp $LIB_NAME /Fe:test_shared.exe"
+          # Create a temporary batch file to avoid quote escaping issues
+          cat > compile_test.bat << EOF
+        @echo off
+        call "$VCVARS_WIN_PATH"
+        cl /I..\\..\\include test_shared.cpp $LIB_NAME /Fe:test_shared.exe
+        EOF
+          
+          # Execute the batch file
+          cmd //c compile_test.bat
           
           # Copy DLL to current directory and run
           cp "$DLL_NAME" .
