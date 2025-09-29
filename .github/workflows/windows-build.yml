@@ -50,22 +50,31 @@ jobs:
         ls -la | grep -E "ccap" || echo "No ccap libraries found"
         
         # Verify library type
+        # Debug versions have 'd' suffix, Release versions don't
+        if [ "${{ matrix.config }}" = "Debug" ]; then
+          LIB_BASENAME="ccapd"
+          DLL_NAME="ccapd.dll"
+        else
+          LIB_BASENAME="ccap"
+          DLL_NAME="ccap.dll"
+        fi
+        
         if [ "${{ matrix.library_type }}" = "shared" ]; then
-          if [ -f "ccap.dll" ]; then
-            echo "✓ Windows shared library ccap.dll successfully built"
+          if [ -f "$DLL_NAME" ]; then
+            echo "✓ Windows shared library $DLL_NAME successfully built"
             # Check if import library exists
-            if [ -f "ccap.lib" ]; then
-              echo "✓ Windows import library ccap.lib also created"
+            if [ -f "${LIB_BASENAME}.lib" ]; then
+              echo "✓ Windows import library ${LIB_BASENAME}.lib also created"
             fi
           else
-            echo "✗ Windows shared library not found"
+            echo "✗ Windows shared library $DLL_NAME not found"
             exit 1
           fi
         else
-          if [ -f "ccap.lib" ]; then
-            echo "✓ Windows static library ccap.lib successfully built"
+          if [ -f "${LIB_BASENAME}.lib" ]; then
+            echo "✓ Windows static library ${LIB_BASENAME}.lib successfully built"
           else
-            echo "✗ Windows static library not found"
+            echo "✗ Windows static library ${LIB_BASENAME}.lib not found"
             exit 1
           fi
         fi
@@ -105,11 +114,20 @@ jobs:
           # Convert path for cmd
           VCVARS_WIN_PATH=$(echo "$VCVARS_PATH" | sed 's|/c/|C:/|g' | sed 's|/|\\|g')
           
+          # Determine library names based on config
+          if [ "${{ matrix.config }}" = "Debug" ]; then
+            LIB_NAME="ccapd.lib"
+            DLL_NAME="ccapd.dll"
+          else
+            LIB_NAME="ccap.lib"
+            DLL_NAME="ccap.dll"
+          fi
+          
           # Compile with Visual Studio
-          cmd //c "\"$VCVARS_WIN_PATH\" && cl /I..\\..\\include test_shared.cpp ccap.lib /Fe:test_shared.exe"
+          cmd //c "\"$VCVARS_WIN_PATH\" && cl /I..\\..\\include test_shared.cpp $LIB_NAME /Fe:test_shared.exe"
           
           # Copy DLL to current directory and run
-          cp ccap.dll .
+          cp "$DLL_NAME" .
           ./test_shared.exe
           echo "✓ Windows shared library linking test passed"
         else
@@ -145,7 +163,7 @@ jobs:
       with:
         name: ccap-windows-${{ matrix.config }}-${{ matrix.library_type }}
         path: |
-          build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}/ccap.*
+          build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}/ccap*.*
           build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}/0-print_camera.exe
           build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}/1-minimal_example.exe
           build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}/2-capture_grab.exe
