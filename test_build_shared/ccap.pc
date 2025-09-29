@@ -1,0 +1,14 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=/usr/local/lib
+includedir=/usr/local/include
+
+Name: ccap
+Description: Cross-platform camera capture library
+Version: 1.1.0
+URL: https://github.com/wysaid/CameraCapture
+Cflags: -I${includedir}
+Libs: -L${libdir} -lccap
+
+# Platform-specific libraries
+Libs.private: -lpthread
