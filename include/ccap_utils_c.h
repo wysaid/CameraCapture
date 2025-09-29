@@ -15,7 +15,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-// CCAP_EXPORT is already defined in ccap_c.h
+// CCAP_EXPORT is defined in ccap_config.h (included by ccap_c.h)
 
 #ifdef __cplusplus
 extern "C" {

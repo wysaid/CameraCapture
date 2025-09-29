@@ -18,33 +18,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-// Define CCAP_EXPORT macro for C interface
-#if defined(CCAP_SHARED)
-    #if defined(_WIN32) || defined(__CYGWIN__)
-        #ifdef CCAP_BUILDING_DLL
-            #ifdef __GNUC__
-                #define CCAP_EXPORT __attribute__ ((dllexport))
-            #else
-                #define CCAP_EXPORT __declspec(dllexport)
-            #endif
-        #else
-            #ifdef __GNUC__
-                #define CCAP_EXPORT __attribute__ ((dllimport))
-            #else
-                #define CCAP_EXPORT __declspec(dllimport)
-            #endif
-        #endif
-    #else
-        #if __GNUC__ >= 4
-            #define CCAP_EXPORT __attribute__ ((visibility ("default")))
-        #else
-            #define CCAP_EXPORT
-        #endif
-    #endif
-#else
-    // Static library - no export needed
-    #define CCAP_EXPORT
-#endif
+#include "ccap_config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -115,19 +89,7 @@ typedef enum {
 /** @brief Error callback function type for C interface */
 typedef void (*CcapErrorCallback)(CcapErrorCode errorCode, const char* errorDescription, void* userData);
 
-/* ========== Constants ========== */
-
-/** @brief Maximum number of camera devices */
-#define CCAP_MAX_DEVICES 32
-
-/** @brief Maximum length for device name including null terminator */
-#define CCAP_MAX_DEVICE_NAME_LENGTH 128
-
-/** @brief Maximum number of supported pixel formats */
-#define CCAP_MAX_PIXEL_FORMATS 32
-
-/** @brief Maximum number of supported resolutions */
-#define CCAP_MAX_RESOLUTIONS 64
+/* ========== Constants (defined in ccap_config.h) ========== */
 
 /* ========== Data Structures ========== */
 

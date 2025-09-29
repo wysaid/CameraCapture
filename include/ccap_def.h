@@ -16,54 +16,7 @@
 #ifndef CCAP_DEF_H
 #define CCAP_DEF_H
 
-// Define CCAP_EXPORT macro for symbol export/import
-#if defined(CCAP_SHARED)
-    #if defined(_WIN32) || defined(__CYGWIN__)
-        #ifdef CCAP_BUILDING_DLL
-            #ifdef __GNUC__
-                #define CCAP_EXPORT __attribute__ ((dllexport))
-            #else
-                #define CCAP_EXPORT __declspec(dllexport)
-            #endif
-        #else
-            #ifdef __GNUC__
-                #define CCAP_EXPORT __attribute__ ((dllimport))
-            #else
-                #define CCAP_EXPORT __declspec(dllimport)
-            #endif
-        #endif
-    #else
-        #if __GNUC__ >= 4
-            #define CCAP_EXPORT __attribute__ ((visibility ("default")))
-        #else
-            #define CCAP_EXPORT
-        #endif
-    #endif
-#else
-    // Static library - no export needed
-    #define CCAP_EXPORT
-#endif
-
-#if __APPLE__
-#include <TargetConditionals.h>
-#if (defined(TARGET_OS_IOS) && TARGET_OS_IOS) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
-#define CCAP_IOS 1
-#else
-#define CCAP_MACOS 1
-#endif
-
-#elif defined(__ANDROID__)
-#define CCAP_ANDROID 1
-#elif defined(WIN32) || defined(_WIN32)
-#define CCAP_WINDOWS 1
-#if defined(_MSC_VER)
-#define CCAP_WINDOWS_MSVC 1
-#endif
-#endif
-
-#if !defined(CCAP_DESKTOP) && (CCAP_WINDOWS || CCAP_MACOS)
-#define CCAP_DESKTOP 1
-#endif
+#include "ccap_config.h"
 
 #include <cstdint>
 #include <functional>

@@ -126,12 +126,6 @@ inline bool verboseLogEnabled() { return globalLogLevel & kLogLevelVerboseBit; }
 #define CCAP_LOG_V(...) CCAP_LOG(LogLevel::Verbose, __VA_ARGS__)
 #else
 
-#if __cplusplus >= 201703L
-#define CCAP_CONSTEXPR constexpr
-#else
-#define CCAP_CONSTEXPR
-#endif
-
 inline CCAP_CONSTEXPR bool errorLogEnabled() { return false; }
 inline CCAP_CONSTEXPR bool warningLogEnabled() { return false; }
 inline CCAP_CONSTEXPR bool infoLogEnabled() { return false; }
