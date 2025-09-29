@@ -13,7 +13,6 @@
 
 #include <cassert>
 #include <cstring>
-#include <limits>
 
 namespace ccap {
 bool inplaceConvertFrameYUV2RGBColor(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip) { /// (NV12/I420/YUYV/UYVY) -> (BGR24/BGRA32)
@@ -228,9 +227,7 @@ bool inplaceConvertFrame(VideoFrame* frame, PixelFormat toFormat, bool verticalF
     if (ret) {
         assert(frame->pixelFormat == toFormat);
         assert(frame->allocator != nullptr && frame->data[0] == frame->allocator->data());
-        const size_t bufferSize = frame->allocator->size();
-        frame->sizeInBytes = bufferSize > std::numeric_limits<uint32_t>::max() ?
-            std::numeric_limits<uint32_t>::max() : static_cast<uint32_t>(bufferSize);
+        frame->sizeInBytes = frame->allocator->size();
     }
     return ret;
 }
