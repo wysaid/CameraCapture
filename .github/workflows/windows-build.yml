@@ -127,7 +127,12 @@ jobs:
           cat > compile_test.bat << EOF
         @echo off
         call "$VCVARS_WIN_PATH"
-        cl /I..\\..\\include test_shared.cpp $LIB_NAME /Fe:test_shared.exe
+        set "INCLUDE_DIR=%GITHUB_WORKSPACE%\\include"
+        if not exist "%INCLUDE_DIR%" (
+          echo Include directory not found: %INCLUDE_DIR%
+          exit /b 1
+        )
+        cl /I"%INCLUDE_DIR%" test_shared.cpp $LIB_NAME /Fe:test_shared.exe
         EOF
           
           # Execute the batch file
