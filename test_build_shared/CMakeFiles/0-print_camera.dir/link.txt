@@ -1,1 +1,0 @@
-/usr/bin/c++  -std=c++17 -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/0-print_camera.dir/link.d "CMakeFiles/0-print_camera.dir/examples/desktop/0-print_camera.cpp.o" -o 0-print_camera  -Wl,-rpath,/home/runner/work/CameraCapture/CameraCapture/test_build_shared libcommon_utils.a libccap.so

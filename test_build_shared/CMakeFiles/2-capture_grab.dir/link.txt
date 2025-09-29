@@ -1,1 +1,0 @@
-/usr/bin/c++  -std=c++17 -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/2-capture_grab.dir/link.d "CMakeFiles/2-capture_grab.dir/examples/desktop/2-capture_grab.cpp.o" -o 2-capture_grab  -Wl,-rpath,/home/runner/work/CameraCapture/CameraCapture/test_build_shared libcommon_utils.a libccap.so

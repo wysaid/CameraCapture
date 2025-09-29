@@ -1,1 +1,0 @@
-/usr/bin/c++  -std=c++17 -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/3-capture_callback_c.dir/link.d "CMakeFiles/3-capture_callback_c.dir/examples/desktop/3-capture_callback_c.c.o" -o 3-capture_callback_c  libcommon_utils.a libccap.a

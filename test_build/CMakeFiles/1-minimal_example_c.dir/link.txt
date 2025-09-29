@@ -1,1 +1,0 @@
-/usr/bin/c++  -std=c++17 -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/1-minimal_example_c.dir/link.d "CMakeFiles/1-minimal_example_c.dir/examples/desktop/1-minimal_example_c.c.o" -o 1-minimal_example_c  libcommon_utils.a libccap.a
