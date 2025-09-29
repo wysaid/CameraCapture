@@ -113,54 +113,54 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Static library builds (existing)
+          # Static library builds (updated naming)
           - os: macos-latest
             name: macOS Static
-            artifact_name: ccap-macos-universal
+            artifact_name: ccap-macos-universal-static
             build_type: Release
             shared: false
             
           - os: windows-latest
             name: Windows Static
-            artifact_name: ccap-msvc-x86_64
+            artifact_name: ccap-msvc-x86_64-static
             build_type: Release
             shared: false
             
           - os: ubuntu-latest
             name: Linux Static
-            artifact_name: ccap-linux-x86_64
+            artifact_name: ccap-linux-x86_64-static
             build_type: Release
             shared: false
             
           - os: ubuntu-latest
             name: Linux ARM64 Static
-            artifact_name: ccap-linux-arm64
+            artifact_name: ccap-linux-arm64-static
             build_type: Release
             arch: arm64
             shared: false
             
-          # Dynamic library builds (new)
+          # Shared library builds (updated naming)
           - os: macos-latest
-            name: macOS Dynamic
-            artifact_name: ccap-macos-universal-dynamic
+            name: macOS Shared
+            artifact_name: ccap-macos-universal-shared
             build_type: Release
             shared: true
             
           - os: windows-latest
-            name: Windows Dynamic
-            artifact_name: ccap-msvc-x86_64-dynamic
+            name: Windows Shared
+            artifact_name: ccap-msvc-x86_64-shared
             build_type: Release
             shared: true
             
           - os: ubuntu-latest
-            name: Linux Dynamic
-            artifact_name: ccap-linux-x86_64-dynamic
+            name: Linux Shared
+            artifact_name: ccap-linux-x86_64-shared
             build_type: Release
             shared: true
             
           - os: ubuntu-latest
-            name: Linux ARM64 Dynamic
-            artifact_name: ccap-linux-arm64-dynamic
+            name: Linux ARM64 Shared
+            artifact_name: ccap-linux-arm64-shared
             build_type: Release
             arch: arm64
             shared: true
@@ -446,17 +446,17 @@ jobs:
         
         ### 📦 Downloads
         
-        **Static Library Packages (Traditional - for static linking):**
-        - **macOS** (Universal Binary - supports Intel & Apple Silicon): `ccap-macos-universal.tar.gz`
-        - **Windows** (MSVC x64 - includes Debug and Release versions): `ccap-msvc-x86_64.zip`
-        - **Linux x86_64** (compatible with most distributions): `ccap-linux-x86_64.tar.gz`
-        - **Linux ARM64** (compatible with Raspberry Pi, ARM servers, and other ARM64 boards): `ccap-linux-arm64.tar.gz`
+        **Static Library Packages (for static linking):**
+        - **macOS** (Universal Binary - supports Intel & Apple Silicon): `ccap-macos-universal-static.tar.gz`
+        - **Windows** (MSVC x64 - includes Debug and Release versions): `ccap-msvc-x86_64-static.zip`
+        - **Linux x86_64** (compatible with most distributions): `ccap-linux-x86_64-static.tar.gz`
+        - **Linux ARM64** (compatible with Raspberry Pi, ARM servers, and other ARM64 boards): `ccap-linux-arm64-static.tar.gz`
         
-        **Dynamic Library Packages (New - for dynamic linking):**
-        - **macOS** (Universal Binary - supports Intel & Apple Silicon): `ccap-macos-universal-dynamic.tar.gz`
-        - **Windows** (MSVC x64 - includes Debug and Release versions): `ccap-msvc-x86_64-dynamic.zip`
-        - **Linux x86_64** (compatible with most distributions): `ccap-linux-x86_64-dynamic.tar.gz`
-        - **Linux ARM64** (compatible with Raspberry Pi, ARM servers, and other ARM64 boards): `ccap-linux-arm64-dynamic.tar.gz`
+        **Shared Library Packages (for dynamic linking):**
+        - **macOS** (Universal Binary - supports Intel & Apple Silicon): `ccap-macos-universal-shared.tar.gz`
+        - **Windows** (MSVC x64 - includes Debug and Release versions): `ccap-msvc-x86_64-shared.zip`
+        - **Linux x86_64** (compatible with most distributions): `ccap-linux-x86_64-shared.tar.gz`
+        - **Linux ARM64** (compatible with Raspberry Pi, ARM servers, and other ARM64 boards): `ccap-linux-arm64-shared.tar.gz`
         
         ### 📁 Package Contents
         
@@ -467,8 +467,8 @@ jobs:
           - Linux x86_64: `lib/libccap.a` (x86_64)
           - Linux ARM64: `lib/libccap.a` (ARM64)
           
-        **Dynamic Library Packages:**
-        - **Library Files**: Dynamic library files for runtime linking
+        **Shared Library Packages:**
+        - **Library Files**: Shared library files for runtime linking
           - Windows: `lib/ccap.dll` + `lib/ccap_import.lib` (Release), `lib/ccapd.dll` + `lib/ccapd_import.lib` (Debug)
           - macOS: `lib/libccap.dylib` (Universal Binary)
           - Linux x86_64: `lib/libccap.so` (x86_64)
@@ -487,7 +487,7 @@ jobs:
         
         ### 🔧 Usage
         
-        **For Static Linking (Traditional):**
+        **For Static Linking:**
         1. Download the appropriate static library package
         2. Extract to your project directory
         3. Add the `include` directory to your compiler's include path
@@ -499,8 +499,8 @@ jobs:
            - **Linux ARM64**: Link `lib/libccap.a`
         5. Refer to example code in the `examples` directory
         
-        **For Dynamic Linking (New):**
-        1. Download the appropriate dynamic library package
+        **For Shared Linking:**
+        1. Download the appropriate shared library package
         2. Extract to your project directory
         3. Add the `include` directory to your compiler's include path
         4. Link and configure runtime libraries:
@@ -559,15 +559,15 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📦 Included Files:" >> $GITHUB_STEP_SUMMARY
         echo "**Static Library Packages:**" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-macos-universal.tar.gz" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-msvc-x86_64.zip (includes Debug and Release versions)" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-linux-x86_64.tar.gz" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-linux-arm64.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-macos-universal-static.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-msvc-x86_64-static.zip (includes Debug and Release versions)" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-linux-x86_64-static.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-linux-arm64-static.tar.gz" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Dynamic Library Packages:**" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-macos-universal-dynamic.tar.gz" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-msvc-x86_64-dynamic.zip (includes Debug and Release versions)" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-linux-x86_64-dynamic.tar.gz" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-linux-arm64-dynamic.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "**Shared Library Packages:**" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-macos-universal-shared.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-msvc-x86_64-shared.zip (includes Debug and Release versions)" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-linux-x86_64-shared.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-linux-arm64-shared.tar.gz" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "Release page: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.release_type.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
