@@ -113,26 +113,57 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Static library builds (updated naming)
           - os: macos-latest
-            name: macOS
-            artifact_name: ccap-macos-universal
+            name: macOS Static
+            artifact_name: ccap-macos-universal-static
             build_type: Release
+            shared: false
             
           - os: windows-latest
-            name: Windows
-            artifact_name: ccap-msvc-x86_64
+            name: Windows Static
+            artifact_name: ccap-msvc-x86_64-static
             build_type: Release
+            shared: false
             
           - os: ubuntu-latest
-            name: Linux
-            artifact_name: ccap-linux-x86_64
+            name: Linux Static
+            artifact_name: ccap-linux-x86_64-static
             build_type: Release
+            shared: false
             
           - os: ubuntu-latest
-            name: Linux ARM64
-            artifact_name: ccap-linux-arm64
+            name: Linux ARM64 Static
+            artifact_name: ccap-linux-arm64-static
             build_type: Release
             arch: arm64
+            shared: false
+            
+          # Shared library builds (updated naming)
+          - os: macos-latest
+            name: macOS Shared
+            artifact_name: ccap-macos-universal-shared
+            build_type: Release
+            shared: true
+            
+          - os: windows-latest
+            name: Windows Shared
+            artifact_name: ccap-msvc-x86_64-shared
+            build_type: Release
+            shared: true
+            
+          - os: ubuntu-latest
+            name: Linux Shared
+            artifact_name: ccap-linux-x86_64-shared
+            build_type: Release
+            shared: true
+            
+          - os: ubuntu-latest
+            name: Linux ARM64 Shared
+            artifact_name: ccap-linux-arm64-shared
+            build_type: Release
+            arch: arm64
+            shared: true
             
     runs-on: ${{ matrix.os }}
     
@@ -154,9 +185,17 @@ jobs:
     - name: Configure CMake
       shell: bash
       run: |
+        # Set shared library flag based on matrix configuration
+        SHARED_FLAG=""
+        if [ "${{ matrix.shared }}" = "true" ]; then
+          SHARED_FLAG="-DCCAP_BUILD_SHARED=ON"
+        else
+          SHARED_FLAG="-DCCAP_BUILD_SHARED=OFF"
+        fi
+        
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           # Windows: Use multi-config generator (Visual Studio)
-          cmake -B build -G "Visual Studio 17 2022" -A x64 -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF
+          cmake -B build -G "Visual Studio 17 2022" -A x64 -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF $SHARED_FLAG
         elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
           # Linux: Use single-config generator
           if [ "${{ matrix.arch }}" = "arm64" ]; then
@@ -166,14 +205,14 @@ jobs:
               -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
               -DCMAKE_SYSTEM_NAME=Linux \
               -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
-              -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF
+              -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF $SHARED_FLAG
           else
             # Regular Linux x86_64
-            cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF
+            cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF $SHARED_FLAG
           fi
         else
           # macOS: Use single-config generator with universal binary
-          cmake -B build -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64' -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF
+          cmake -B build -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64' -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF $SHARED_FLAG
         fi
         
     - name: Build project
@@ -215,9 +254,14 @@ jobs:
         # Copy Release version library files, keeping ccap.lib name
         cp build/Release/ccap.lib package/lib/ccap.lib || echo "Release static library not found"
         
-        # Copy dynamic libraries (if exist)
-        cp build/Debug/ccapd.dll package/lib/ccapd.dll || echo "Debug dynamic library not found"
-        cp build/Release/ccap.dll package/lib/ccap.dll || echo "Release dynamic library not found"
+        # Copy shared libraries (if shared build)
+        if [ "${{ matrix.shared }}" = "true" ]; then
+          cp build/Debug/ccapd.dll package/lib/ccapd.dll || echo "Debug shared library not found"
+          cp build/Release/ccap.dll package/lib/ccap.dll || echo "Release shared library not found"
+          # Also copy import libraries for DLLs
+          cp build/Debug/ccapd.lib package/lib/ccapd_import.lib || echo "Debug import library not found"  
+          cp build/Release/ccap.lib package/lib/ccap_import.lib || echo "Release import library not found"
+        fi
         
         # Copy example programs (both versions in examples directory)
         mkdir -p package/examples/Debug
@@ -229,11 +273,13 @@ jobs:
       if: matrix.os == 'macos-latest'
       shell: bash
       run: |
-        # Copy static library
-        cp build/libccap.a package/lib/ || echo "Static library not found"
-        
-        # Copy dynamic library (if exists)
-        cp build/libccap.dylib package/lib/ || echo "Dynamic library not found"
+        if [ "${{ matrix.shared }}" = "true" ]; then
+          # Copy shared library
+          cp build/libccap.dylib package/lib/ || echo "Shared library not found"
+        else
+          # Copy static library
+          cp build/libccap.a package/lib/ || echo "Static library not found"
+        fi
         
         # Copy example programs
         find build -name "*-print_camera" -exec cp {} package/examples/ \; || echo "Examples not found"
@@ -246,11 +292,13 @@ jobs:
       if: matrix.os == 'ubuntu-latest' && matrix.arch != 'arm64'
       shell: bash
       run: |
-        # Copy static library
-        cp build/libccap.a package/lib/ || echo "Static library not found"
-        
-        # Copy dynamic library (if exists)
-        cp build/libccap.so package/lib/ || echo "Dynamic library not found"
+        if [ "${{ matrix.shared }}" = "true" ]; then
+          # Copy shared library
+          cp build/libccap.so package/lib/ || echo "Shared library not found"
+        else
+          # Copy static library
+          cp build/libccap.a package/lib/ || echo "Static library not found"
+        fi
         
         # Copy example programs
         find build -name "0-print_camera" -exec cp {} package/examples/ \; || echo "Examples not found"
@@ -263,11 +311,13 @@ jobs:
       if: matrix.os == 'ubuntu-latest' && matrix.arch == 'arm64'
       shell: bash
       run: |
-        # Copy static library
-        cp build/libccap.a package/lib/ || echo "Static library not found"
-        
-        # Copy dynamic library (if exists)
-        cp build/libccap.so package/lib/ || echo "Dynamic library not found"
+        if [ "${{ matrix.shared }}" = "true" ]; then
+          # Copy shared library
+          cp build/libccap.so package/lib/ || echo "Shared library not found"
+        else
+          # Copy static library
+          cp build/libccap.a package/lib/ || echo "Static library not found"
+        fi
         
         # Copy example programs (ARM64 cross-compiled)
         find build -name "0-print_camera" -exec cp {} package/examples/ \; || echo "Examples not found"
@@ -396,19 +446,35 @@ jobs:
         
         ### 📦 Downloads
         
-        **Supported Platforms:**
-        - **macOS** (Universal Binary - supports Intel & Apple Silicon): `ccap-macos-universal.tar.gz`
-        - **Windows** (MSVC x64 - includes Debug and Release versions): `ccap-msvc-x86_64.zip`
-        - **Linux x86_64** (compatible with most distributions): `ccap-linux-x86_64.tar.gz`
-        - **Linux ARM64** (compatible with Raspberry Pi, ARM servers, and other ARM64 boards): `ccap-linux-arm64.tar.gz`
+        **Static Library Packages (for static linking):**
+        - **macOS** (Universal Binary - supports Intel & Apple Silicon): `ccap-macos-universal-static.tar.gz`
+        - **Windows** (MSVC x64 - includes Debug and Release versions): `ccap-msvc-x86_64-static.zip`
+        - **Linux x86_64** (compatible with most distributions): `ccap-linux-x86_64-static.tar.gz`
+        - **Linux ARM64** (compatible with Raspberry Pi, ARM servers, and other ARM64 boards): `ccap-linux-arm64-static.tar.gz`
+        
+        **Shared Library Packages (for dynamic linking):**
+        - **macOS** (Universal Binary - supports Intel & Apple Silicon): `ccap-macos-universal-shared.tar.gz`
+        - **Windows** (MSVC x64 - includes Debug and Release versions): `ccap-msvc-x86_64-shared.zip`
+        - **Linux x86_64** (compatible with most distributions): `ccap-linux-x86_64-shared.tar.gz`
+        - **Linux ARM64** (compatible with Raspberry Pi, ARM servers, and other ARM64 boards): `ccap-linux-arm64-shared.tar.gz`
         
         ### 📁 Package Contents
         
+        **Static Library Packages:**
         - **Library Files**: Static library files for linking
           - Windows: `lib/ccap.lib` (Release version) and `lib/ccapd.lib` (Debug version)
           - macOS: `lib/libccap.a` (Universal Binary)
           - Linux x86_64: `lib/libccap.a` (x86_64)
           - Linux ARM64: `lib/libccap.a` (ARM64)
+          
+        **Shared Library Packages:**
+        - **Library Files**: Shared library files for runtime linking
+          - Windows: `lib/ccap.dll` + `lib/ccap_import.lib` (Release), `lib/ccapd.dll` + `lib/ccapd_import.lib` (Debug)
+          - macOS: `lib/libccap.dylib` (Universal Binary)
+          - Linux x86_64: `lib/libccap.so` (x86_64)
+          - Linux ARM64: `lib/libccap.so` (ARM64)
+        
+        **All Packages Include:**
         - **Header Files**: Complete C++ API header files
         - **Example Programs**: 5 complete usage examples
           - Windows: `examples/Release/` and `examples/Debug/` directories contain corresponding versions
@@ -421,7 +487,8 @@ jobs:
         
         ### 🔧 Usage
         
-        1. Download the appropriate platform package
+        **For Static Linking:**
+        1. Download the appropriate static library package
         2. Extract to your project directory
         3. Add the `include` directory to your compiler's include path
         4. Link the corresponding library file:
@@ -430,6 +497,18 @@ jobs:
            - **macOS**: Link `lib/libccap.a`
            - **Linux x86_64**: Link `lib/libccap.a`
            - **Linux ARM64**: Link `lib/libccap.a`
+        5. Refer to example code in the `examples` directory
+        
+        **For Shared Linking:**
+        1. Download the appropriate shared library package
+        2. Extract to your project directory
+        3. Add the `include` directory to your compiler's include path
+        4. Link and configure runtime libraries:
+           - **Windows Debug**: Link `lib/ccapd_import.lib`, ensure `lib/ccapd.dll` is in PATH or app directory
+           - **Windows Release**: Link `lib/ccap_import.lib`, ensure `lib/ccap.dll` is in PATH or app directory  
+           - **macOS**: Link `lib/libccap.dylib`, ensure dylib is in DYLD_LIBRARY_PATH or install location
+           - **Linux x86_64**: Link `lib/libccap.so`, ensure so is in LD_LIBRARY_PATH or install location
+           - **Linux ARM64**: Link `lib/libccap.so`, ensure so is in LD_LIBRARY_PATH or install location
         5. Refer to example code in the `examples` directory
         
         ### 📋 System Requirements
@@ -479,9 +558,16 @@ jobs:
         echo "> 🛡️ **This release was only created after ALL tests passed successfully!**" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📦 Included Files:" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-macos-universal.tar.gz" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-msvc-x86_64.zip (includes Debug and Release versions)" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-linux-x86_64.tar.gz" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-linux-arm64.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "**Static Library Packages:**" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-macos-universal-static.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-msvc-x86_64-static.zip (includes Debug and Release versions)" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-linux-x86_64-static.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-linux-arm64-static.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Shared Library Packages:**" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-macos-universal-shared.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-msvc-x86_64-shared.zip (includes Debug and Release versions)" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-linux-x86_64-shared.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-linux-arm64-shared.tar.gz" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "Release page: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.release_type.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
