@@ -81,7 +81,7 @@ enum class ConvertBackend : uint32_t {
  *
  * @return ConvertBackend
  */
-ConvertBackend getConvertBackend();
+CCAP_EXPORT ConvertBackend getConvertBackend();
 
 /**
  * @brief Set the Convert Backend.
@@ -92,7 +92,7 @@ ConvertBackend getConvertBackend();
  * Note: When setting ConvertBackend::AVX2, Apple Accelerate will be automatically disabled.
  * Note: When setting ConvertBackend::NEON, Apple Accelerate and AVX2 will be automatically disabled.
  */
-bool setConvertBackend(ConvertBackend backend);
+CCAP_EXPORT bool setConvertBackend(ConvertBackend backend);
 
 /// @brief YUV 601 video-range to RGB (includes video range preprocessing)
 inline void yuv2rgb601v(int y, int u, int v, int& r, int& g, int& b) {
@@ -185,7 +185,7 @@ inline YuvToRgbFunc getYuvToRgbFunc(bool is601, bool isFullRange) {
 
 // swapRB indicates whether to swap Red and Blue channels
 template <int inputChannels, int outputChannels, int swapRB>
-void colorShuffle(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height);
+CCAP_EXPORT void colorShuffle(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height);
 
 inline void rgbaToBgra(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height) {
     colorShuffle<4, 4, true>(src, srcStride, dst, dstStride, width, height);
