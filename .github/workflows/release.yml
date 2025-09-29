@@ -254,10 +254,10 @@ jobs:
         # Copy Release version library files, keeping ccap.lib name
         cp build/Release/ccap.lib package/lib/ccap.lib || echo "Release static library not found"
         
-        # Copy dynamic libraries (if shared build)
+        # Copy shared libraries (if shared build)
         if [ "${{ matrix.shared }}" = "true" ]; then
-          cp build/Debug/ccapd.dll package/lib/ccapd.dll || echo "Debug dynamic library not found"
-          cp build/Release/ccap.dll package/lib/ccap.dll || echo "Release dynamic library not found"
+          cp build/Debug/ccapd.dll package/lib/ccapd.dll || echo "Debug shared library not found"
+          cp build/Release/ccap.dll package/lib/ccap.dll || echo "Release shared library not found"
           # Also copy import libraries for DLLs
           cp build/Debug/ccapd.lib package/lib/ccapd_import.lib || echo "Debug import library not found"  
           cp build/Release/ccap.lib package/lib/ccap_import.lib || echo "Release import library not found"
@@ -274,8 +274,8 @@ jobs:
       shell: bash
       run: |
         if [ "${{ matrix.shared }}" = "true" ]; then
-          # Copy dynamic library
-          cp build/libccap.dylib package/lib/ || echo "Dynamic library not found"
+          # Copy shared library
+          cp build/libccap.dylib package/lib/ || echo "Shared library not found"
         else
           # Copy static library
           cp build/libccap.a package/lib/ || echo "Static library not found"
@@ -293,8 +293,8 @@ jobs:
       shell: bash
       run: |
         if [ "${{ matrix.shared }}" = "true" ]; then
-          # Copy dynamic library
-          cp build/libccap.so package/lib/ || echo "Dynamic library not found"
+          # Copy shared library
+          cp build/libccap.so package/lib/ || echo "Shared library not found"
         else
           # Copy static library
           cp build/libccap.a package/lib/ || echo "Static library not found"
@@ -312,8 +312,8 @@ jobs:
       shell: bash
       run: |
         if [ "${{ matrix.shared }}" = "true" ]; then
-          # Copy dynamic library
-          cp build/libccap.so package/lib/ || echo "Dynamic library not found"
+          # Copy shared library
+          cp build/libccap.so package/lib/ || echo "Shared library not found"
         else
           # Copy static library
           cp build/libccap.a package/lib/ || echo "Static library not found"
