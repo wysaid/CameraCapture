@@ -71,7 +71,7 @@ void colorShuffle_apple(const uint8_t* src, int srcStride, uint8_t* dst, int dst
         }
     }
 
-    if (sharedAllocator) { // 执行一次翻转, 把最终结果写入到 dst, 即使两步操作, 依然比普通 cpu 操作快很多.
+    if (sharedAllocator) { // Perform vertical flip and write the final result to dst. Even with two-step operation, it's still much faster than regular CPU operations.
         verticalFlip_apple((const uint8_t*)dstBuffer.data, dstStride, dst, dstStride, height);
     }
 }
@@ -105,7 +105,7 @@ void verticalFlip_apple(const uint8_t* src, int srcStride, uint8_t* dst, int dst
 //         const uint8_t* row = rgbaSrc + y * srcStride;
 //         for (int x = 0; x < width; ++x) {
 //             if (row[x * 4 + alphaOffset] != 0xff) { // Check alpha channel
-//                 // 打印一下当前像素的坐标以及 rgb 值
+//                 // Print current pixel coordinates and RGB values
 //                 auto r = row[x * 4 + 0];
 //                 auto g = row[x * 4 + 1];
 //                 auto b = row[x * 4 + 2];
@@ -124,8 +124,8 @@ void nv12ToArgb32_apple_imp(const uint8_t* srcY, int srcYStride,
                             const vImage_YpCbCrToARGBMatrix* matrix,
                             const vImage_YpCbCrPixelRange* range,
                             const uint8_t permuteMap[4]) {
-    assert(width > 0 && height != 0); // 内部实现
-    // 构造 vImage_Buffer
+    assert(width > 0 && height != 0); // Internal implementation
+    // Construct vImage_Buffer
     vImage_Buffer dstBuffer;
     std::shared_ptr<ccap::Allocator> sharedAllocator = ccap::getSharedAllocator();
     assert(sharedAllocator != nullptr);
@@ -144,21 +144,21 @@ void nv12ToArgb32_apple_imp(const uint8_t* srcY, int srcYStride,
     vImage_Buffer yBuffer = { (void*)srcY, (vImagePixelCount)realHeight, (vImagePixelCount)width, (size_t)srcYStride };
     vImage_Buffer uvBuffer = { (void*)srcUV, (vImagePixelCount)(realHeight / 2), (vImagePixelCount)(width / 2), (size_t)srcUVStride };
 
-    // 生成转换描述
+    // Generate conversion descriptor
     vImage_YpCbCrToARGB info;
     vImage_Error err = vImageConvert_YpCbCrToARGB_GenerateConversion(matrix, range, &info,
-                                                                     kvImage420Yp8_CbCr8, // NV12 格式
-                                                                     kvImageARGB8888,     // 输出格式
+                                                                     kvImage420Yp8_CbCr8, // NV12 format
+                                                                     kvImageARGB8888,     // Output format
                                                                      kvImageNoFlags);
     if (err != kvImageNoError) {
         CCAP_LOG_E("vImageConvert_YpCbCrToARGB_GenerateConversion failed: %zu", err);
         return;
     }
 
-    // 执行 NV12 到 BGRA8888 的转换
+    // Execute NV12 to BGRA8888 conversion
     err = vImageConvert_420Yp8_CbCr8ToARGB8888(&yBuffer, &uvBuffer, &dstBuffer, &info,
-                                               permuteMap, // 没有预乘 alpha
-                                               255,        // alpha 通道全不透明
+                                               permuteMap, // No premultiplied alpha
+                                               255,        // Alpha channel fully opaque
                                                kvImageNoFlags);
 
     if (err != kvImageNoError) {
@@ -166,7 +166,7 @@ void nv12ToArgb32_apple_imp(const uint8_t* srcY, int srcYStride,
         return;
     }
 
-    if (height < 0) { // 完成翻转以及像素重排, 把最终结果写入到 dst, 即使两步操作, 依然比普通 cpu 操作快很多.
+    if (height < 0) { // Complete flip and pixel reordering, write final result to dst. Even with two-step operation, it's still much faster than regular CPU operations.
         verticalFlip_apple((const uint8_t*)dstBuffer.data, dstStride, dst, dstStride, realHeight);
     }
 }
@@ -200,7 +200,7 @@ void nv12ToRgbColor_apple(const uint8_t* srcY, int srcYStride,
 
     const auto* range = (flag & ConvertFlag::FullRange) ? &fullRange : &videoRange;
 
-    // 选择色彩空间矩阵（通常 NV12 是 BT.601，视频范围）
+    // Select color space matrix (typically NV12 uses BT.601, video range)
     const vImage_YpCbCrToARGBMatrix* matrix = (flag & ConvertFlag::BT601) ? kvImage_YpCbCrToARGBMatrix_ITU_R_601_4 : kvImage_YpCbCrToARGBMatrix_ITU_R_709_2;
 
     auto allocator = ccap::getSharedAllocator();
@@ -209,12 +209,12 @@ void nv12ToRgbColor_apple(const uint8_t* srcY, int srcYStride,
     auto argbStride = (4 * width + 31) & ~31; // 32-byte alignment
 
     if (!hasAlpha && allocator->size() < argbStride * realHeight) {
-        allocator->resize(argbStride * realHeight); // 确保分配器有足够的空间
+        allocator->resize(argbStride * realHeight); // Ensure allocator has sufficient space
     }
 
-    uint8_t* argbData = hasAlpha ? dst : allocator->data(); // 如果没有 alpha 通道, 使用共享分配器的数据
+    uint8_t* argbData = hasAlpha ? dst : allocator->data(); // If no alpha channel, use shared allocator data
 
-    uint8_t permuteMap[4]; /// 从 ARGB 转到其他格式.
+    uint8_t permuteMap[4]; /// Convert from ARGB to other formats.
     if (ccap::pixelFormatInclude(targetPixelFormat, ccap::kPixelFormatBGRBit)) {
         // BGR or BGRA
         permuteMap[0] = 3; // B
@@ -280,8 +280,8 @@ void i420ToBgra32_apple_imp(const uint8_t* srcY, int srcYStride,
                             const vImage_YpCbCrToARGBMatrix* matrix,
                             const vImage_YpCbCrPixelRange* range,
                             const uint8_t permuteMap[4]) {
-    assert(width > 0 && height != 0); // 内部实现
-    // 构造 vImage_Buffer
+    assert(width > 0 && height != 0); // Internal implementation
+    // Construct vImage_Buffer
     vImage_Buffer dstBuffer;
     std::shared_ptr<ccap::Allocator> sharedAllocator = ccap::getSharedAllocator();
     assert(sharedAllocator != nullptr);
@@ -304,8 +304,8 @@ void i420ToBgra32_apple_imp(const uint8_t* srcY, int srcYStride,
 
     vImage_YpCbCrToARGB info;
     vImage_Error err = vImageConvert_YpCbCrToARGB_GenerateConversion(matrix, range, &info,
-                                                                     kvImage420Yp8_Cb8_Cr8, // I420 格式
-                                                                     kvImageARGB8888,       // 输出格式
+                                                                     kvImage420Yp8_Cb8_Cr8, // I420 format
+                                                                     kvImageARGB8888,       // Output format
                                                                      kvImageNoFlags);
     if (err != kvImageNoError) {
         CCAP_LOG_E("vImageConvert_YpCbCrToARGB_GenerateConversion failed: %zu", err);
@@ -319,7 +319,7 @@ void i420ToBgra32_apple_imp(const uint8_t* srcY, int srcYStride,
         return;
     }
 
-    if (height < 0) { // 完成翻转以及像素重排, 把最终结果写入到 dst, 即使两步操作, 依然比普通 cpu 操作快很多.
+    if (height < 0) { // Complete flip and pixel reordering, write final result to dst. Even with two-step operation, it's still much faster than regular CPU operations.
         verticalFlip_apple((const uint8_t*)dstBuffer.data, dstStride, dst, dstStride, realHeight);
     }
 }
@@ -358,12 +358,12 @@ void i420ToRgbColor_apple(const uint8_t* srcY, int srcYStride,
     auto argbStride = (4 * width + 31) & ~31; // 32-byte alignment
 
     if (!hasAlpha && allocator->size() < argbStride * realHeight) {
-        allocator->resize(argbStride * realHeight); // 确保分配器有足够的空间
+        allocator->resize(argbStride * realHeight); // Ensure allocator has sufficient space
     }
 
-    uint8_t* argbData = hasAlpha ? dst : allocator->data(); // 如果没有 alpha 通道, 使用共享分配器的数据
+    uint8_t* argbData = hasAlpha ? dst : allocator->data(); // If no alpha channel, use shared allocator data
 
-    uint8_t permuteMap[4]; /// 从 ARGB 转到其他格式.
+    uint8_t permuteMap[4]; /// Convert from ARGB to other formats.
     if (ccap::pixelFormatInclude(targetPixelFormat, ccap::kPixelFormatBGRBit)) {
         // BGR or BGRA
         permuteMap[0] = 3; // B

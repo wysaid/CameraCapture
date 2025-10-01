@@ -118,7 +118,7 @@ void colorShuffle(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride
     }
 #endif
 
-    // 如果 height < 0，则反向写入 dst，src 顺序读取
+    // If height < 0, write to dst in reverse order while reading src sequentially
     if (height < 0) {
         height = -height;
         dst = dst + (height - 1) * dstStride;
@@ -166,7 +166,7 @@ template void colorShuffle<3, 3, true>(const uint8_t* src, int srcStride, uint8_
 
 template <bool isBgrColor, bool hasAlpha>
 void nv12ToRgb_common(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV, int srcUVStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
-    // 如果 height < 0，则反向写入 dst，src 顺序读取
+    // If height < 0, write to dst in reverse order while reading src sequentially
     if (height < 0) {
         height = -height;
         dst = dst + (height - 1) * dstStride;
@@ -222,7 +222,7 @@ void nv12ToRgb_common(const uint8_t* srcY, int srcYStride, const uint8_t* srcUV,
 
 template <bool isBgrColor, bool hasAlpha>
 void i420ToRgb_common(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int srcUStride, const uint8_t* srcV, int srcVStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
-    // 如果 height < 0，则反向写入 dst，src 顺序读取
+    // If height < 0, write to dst in reverse order while reading src sequentially
     if (height < 0) {
         height = -height;
         dst = dst + (height - 1) * dstStride;
@@ -478,7 +478,7 @@ void i420ToRgba32(const uint8_t* srcY, int srcYStride, const uint8_t* srcU, int 
 
 template <bool isBgrColor, bool hasAlpha>
 void yuyvToRgb_common(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
-    // 如果 height < 0，则反向写入 dst，src 顺序读取
+    // If height < 0, write to dst in reverse order while reading src sequentially
     if (height < 0) {
         height = -height;
         dst = dst + (height - 1) * dstStride;
@@ -534,7 +534,7 @@ void yuyvToRgb_common(const uint8_t* src, int srcStride, uint8_t* dst, int dstSt
 
 template <bool isBgrColor, bool hasAlpha>
 void uyvyToRgb_common(const uint8_t* src, int srcStride, uint8_t* dst, int dstStride, int width, int height, ConvertFlag flag) {
-    // 如果 height < 0，则反向写入 dst，src 顺序读取
+    // If height < 0, write to dst in reverse order while reading src sequentially
     if (height < 0) {
         height = -height;
         dst = dst + (height - 1) * dstStride;

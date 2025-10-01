@@ -17,7 +17,7 @@
 namespace ccap {
 bool inplaceConvertFrameYUV2RGBColor(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip) { /// (NV12/I420/YUYV/UYVY) -> (BGR24/BGRA32)
 
-    /// TODO: 这里修正一下 toFormat, 只支持 YUV -> (BGR24/BGRA24). 简化一下 SDK 的设计. 后续再完善.
+    /// TODO: Fix toFormat here, only support YUV -> (BGR24/BGRA32). Simplify SDK design. Will improve later.
 
     auto inputFormat = frame->pixelFormat;
     assert((inputFormat & kPixelFormatYUVColorBit) != 0 && (toFormat & kPixelFormatYUVColorBit) == 0);
@@ -25,7 +25,7 @@ bool inplaceConvertFrameYUV2RGBColor(VideoFrame* frame, PixelFormat toFormat, bo
     bool isInputYUYV = pixelFormatInclude(inputFormat, PixelFormat::YUYV);
     bool isInputUYVY = pixelFormatInclude(inputFormat, PixelFormat::UYVY);
     bool outputHasAlpha = toFormat & kPixelFormatAlphaColorBit;
-    bool isOutputBGR = toFormat & kPixelFormatBGRBit; // 不是 BGR 就是 RGB
+    bool isOutputBGR = toFormat & kPixelFormatBGRBit; // If not BGR, then RGB
 
     uint8_t* inputData0 = frame->data[0];
     uint8_t* inputData1 = frame->data[1];
@@ -47,7 +47,7 @@ bool inplaceConvertFrameYUV2RGBColor(VideoFrame* frame, PixelFormat toFormat, bo
     frame->stride[2] = 0;
     frame->pixelFormat = toFormat;
 
-    if (isInputNV12) { // NV12 -> BGR24, libyuv 里面的 RGB24 实际上是 BGR24
+    if (isInputNV12) { // NV12 -> BGR24, RGB24 in libyuv is actually BGR24
 
         if (outputHasAlpha) {
             if (isOutputBGR) {
@@ -121,7 +121,7 @@ bool inplaceConvertFrameYUV2RGBColor(VideoFrame* frame, PixelFormat toFormat, bo
 }
 
 bool inplaceConvertFrameRGB(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip) {
-    // rgb(a) 互转
+    // RGB(A) interconversion
 
     uint8_t* inputBytes = frame->data[0];
     int inputLineSize = frame->stride[0];
@@ -150,7 +150,7 @@ bool inplaceConvertFrameRGB(VideoFrame* frame, PixelFormat toFormat, bool vertic
         if (inputChannelCount == 4) // RGBA <-> BGRA
         {
 #if ENABLE_LIBYUV
-            const uint8_t kShuffleMap[4] = { 2, 1, 0, 3 }; // RGBA->BGRA 或 BGRA->RGBA
+            const uint8_t kShuffleMap[4] = { 2, 1, 0, 3 }; // RGBA->BGRA or BGRA->RGBA
             libyuv::ARGBShuffle(inputBytes, inputLineSize, outputBytes, newLineSize, kShuffleMap, frame->width, height);
 #else
             rgbaToBgra(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, height);
@@ -190,7 +190,7 @@ inline bool inplaceConvertFrameImp(VideoFrame* frame, PixelFormat toFormat, bool
             frame->allocator->resize(srcStride * height);
             auto* dst = frame->allocator->data();
             frame->data[0] = dst;
-            /// 反向读取
+            /// Read in reverse order
             src = src + srcStride * (height - 1);
             srcStride = -srcStride;
             for (uint32_t i = 0; i < height; ++i) {

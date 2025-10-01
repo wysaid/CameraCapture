@@ -164,7 +164,7 @@ inline ConvertFlag operator|(ConvertFlag lhs, ConvertFlag rhs) {
     return static_cast<ConvertFlag>(static_cast<int>(lhs) | static_cast<int>(rhs));
 }
 
-// 定义YUV到RGB转换函数指针类型
+// Define YUV to RGB conversion function pointer type
 typedef void (*YuvToRgbFunc)(int y, int u, int v, int& r, int& g, int& b);
 
 inline YuvToRgbFunc getYuvToRgbFunc(bool is601, bool isFullRange) {
