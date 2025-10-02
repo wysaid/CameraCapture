@@ -739,10 +739,60 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
 
 - (BOOL)start {
     if (_session && _opened && ![_session isRunning]) {
+        CGSize targetResolution = _resolution;
         CCAP_NSLOG_V(@"ccap: CameraCaptureObjc start");
         [_session startRunning];
+        
+        // If the format was changed by session start, restore it
+        if (_device && _device.activeFormat && targetResolution.width > 0 && targetResolution.height > 0) {
+            CMVideoDimensions afterStart = CMVideoFormatDescriptionGetDimensions(_device.activeFormat.formatDescription);
+            if (afterStart.width != targetResolution.width || afterStart.height != targetResolution.height) {
+                CCAP_NSLOG_V(@"ccap: Session start changed format from %gx%g, restoring", targetResolution.width, targetResolution.height);
+                [self setCameraResolution:targetResolution];
+            }
+        }
     }
     return [_session isRunning];
+}
+
+- (void)setCameraResolution:(CGSize)targetResolution {
+    if (!_device) return;
+    
+    NSError* error = nil;
+    if ([_device lockForConfiguration:&error]) {
+        AVCaptureDeviceFormat* bestFormat = nil;
+        double closestDistance = 1e9;
+        
+        for (AVCaptureDeviceFormat* format in _device.formats) {
+            CMVideoDimensions dimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription);
+            
+            /// If we find an exact match, use it immediately
+            if (dimensions.width == targetResolution.width && dimensions.height == targetResolution.height) {
+                bestFormat = format;
+                break;
+            }
+            
+            /// Otherwise, calculate distance for closest match
+            double distance = std::abs(dimensions.width - targetResolution.width) + std::abs(dimensions.height - targetResolution.height);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                bestFormat = format;
+            }
+        }
+        
+        if (bestFormat) {
+            [_device setActiveFormat:bestFormat];
+            CMVideoDimensions actualDimensions = CMVideoFormatDescriptionGetDimensions(bestFormat.formatDescription);
+            CCAP_NSLOG_V(@"ccap: Restored device format to: %dx%d", actualDimensions.width, actualDimensions.height);
+            
+            // Update internal resolution tracking
+            _resolution = CGSizeMake(actualDimensions.width, actualDimensions.height);
+        }
+        
+        [_device unlockForConfiguration];
+    } else {
+        CCAP_NSLOG_W(@"ccap: Failed to lock device for format restoration: %@", error.localizedDescription);
+    }
 }
 
 - (void)stop {
