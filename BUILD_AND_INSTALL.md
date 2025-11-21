@@ -5,8 +5,8 @@ This document describes how to build, install, and use the ccap library.
 ## Prerequisites
 
 - **macOS**: Xcode Command Line Tools or full Xcode
-- **Windows**: Visual Studio 2019+ or Build Tools for Visual Studio
-- **Common**: CMake 3.14+
+- **Windows**: Visual Studio 2019+ or Build Tools for Visual Studio (including VS 2025/MSVC 2026)
+- **Common**: CMake 3.14+ (CMake 3.31+ recommended for MSVC 2025/2026 support)
 
 ## Quick Start
 
