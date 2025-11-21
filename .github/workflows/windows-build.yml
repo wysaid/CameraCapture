@@ -258,6 +258,7 @@ jobs:
           # Download VS installer
           # Note: This URL points to the preview version. When VS 2025 is officially released,
           # verify and update the URL from Microsoft's official documentation.
+          # If the URL becomes unavailable, the error handling below will catch it and skip the build.
           $installerUrl = "https://aka.ms/vs/18/pre/vs_BuildTools.exe"
           $installerPath = "$env:TEMP\vs_buildtools.exe"
           
