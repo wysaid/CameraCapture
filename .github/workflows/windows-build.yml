@@ -254,6 +254,8 @@ jobs:
           Write-Host "Installing Visual Studio 2025 Build Tools Preview..."
           
           # Download VS installer
+          # Note: This URL points to the preview version. Update to stable URL when VS 2025 is officially released:
+          # Stable URL will likely be: https://aka.ms/vs/18/release/vs_BuildTools.exe
           $installerUrl = "https://aka.ms/vs/18/pre/vs_BuildTools.exe"
           $installerPath = "$env:TEMP\vs_buildtools.exe"
           
@@ -482,4 +484,5 @@ jobs:
           build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}/2-capture_grab.exe
           build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}/3-capture_callback.exe
           build/${{ matrix.config }}-${{ matrix.library_type }}/*_results.xml
+        # Use 'warn' instead of 'error' since VS 2025 build is optional (may not be available on all runners)
         if-no-files-found: warn
