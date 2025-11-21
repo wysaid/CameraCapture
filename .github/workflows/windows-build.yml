@@ -1,5 +1,10 @@
 name: Windows Build
 
+# This workflow builds the project on Windows with multiple Visual Studio versions:
+# - build-vs2022: Uses Visual Studio 2022 (stable)
+# - build-vs2025: Uses Visual Studio 2025/MSVC 2026 (preview, auto-installs if needed)
+# Both jobs test Debug/Release builds with static/shared library configurations.
+
 on:
   push:
     branches: [ main, ci_test ]
@@ -19,7 +24,7 @@ jobs:
         
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       
     - name: Setup Visual Studio environment
       uses: microsoft/setup-msbuild@v1.1
