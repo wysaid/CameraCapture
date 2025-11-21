@@ -229,6 +229,8 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Setup latest CMake
+      # Use @latest to ensure CMake 3.31+ is available, which is required for VS 2025 support
+      # VS 2025 is very new and requires the latest CMake version
       uses: lukka/get-cmake@latest
       
     - name: Setup Visual Studio 2025 Preview
@@ -254,8 +256,8 @@ jobs:
           Write-Host "Installing Visual Studio 2025 Build Tools Preview..."
           
           # Download VS installer
-          # Note: This URL points to the preview version. Update to stable URL when VS 2025 is officially released:
-          # Stable URL will likely be: https://aka.ms/vs/18/release/vs_BuildTools.exe
+          # Note: This URL points to the preview version. When VS 2025 is officially released,
+          # verify and update the URL from Microsoft's official documentation.
           $installerUrl = "https://aka.ms/vs/18/pre/vs_BuildTools.exe"
           $installerPath = "$env:TEMP\vs_buildtools.exe"
           
