@@ -58,9 +58,8 @@ public:
 
     virtual HRESULT STDMETHODCALLTYPE SetCallback(ISampleGrabberCB * pCallback, long WhichMethodToCallback) = 0;
 };
-EXTERN_C const CLSID CLSID_SampleGrabber;
-EXTERN_C const IID IID_ISampleGrabber;
-EXTERN_C const CLSID CLSID_NullRenderer;
+// Note: CLSID_SampleGrabber, IID_ISampleGrabber, CLSID_NullRenderer are defined in ccap_imp_windows.cpp
+// using DEFINE_GUID to avoid strmiids.lib dependency
 
 namespace ccap {
 class ProviderDirectShow : public ProviderImp, public ISampleGrabberCB {
