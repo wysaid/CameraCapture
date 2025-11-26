@@ -355,13 +355,11 @@ endif()
 # Windows-specific libraries
 if(WIN32)
     target_link_libraries(test_ccap_cpp 
-        strmiids
         ole32
         oleaut32
         uuid
     )
     target_link_libraries(test_ccap_c 
-        strmiids
         ole32
         oleaut32
         uuid
