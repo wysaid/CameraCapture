@@ -185,6 +185,7 @@ if [ "$RUN_FUNCTIONAL" = true ]; then
 
             echo -e "${BLUE}Building Debug tests...${NC}"
             cmake --build . --config Debug --target ccap_convert_test --parallel $(detectCores)
+            cmake --build . --config Debug --target ccap_guid_test --parallel $(detectCores)
             cd ..
         else
             # Linux/Mac: use separate Debug directory
@@ -256,6 +257,7 @@ if [ "$RUN_FUNCTIONAL" = true ]; then
 
     if isWindows; then
         TEST_EXECUTABLE="./tests/Debug/ccap_convert_test.exe"
+        GUID_TEST_EXECUTABLE="./tests/Debug/ccap_guid_test.exe"
     else
         TEST_EXECUTABLE="./Debug/tests/ccap_convert_test"
     fi
@@ -284,6 +286,25 @@ if [ "$RUN_FUNCTIONAL" = true ]; then
     else
         echo -e "${RED}Error: ccap_convert_test executable not found at $TEST_EXECUTABLE${NC}"
         TEST_RESULT=1
+    fi
+
+    # Run GUID verification tests (Windows only)
+    if isWindows && [ -f "$GUID_TEST_EXECUTABLE" ]; then
+        echo ""
+        echo -e "${YELLOW}Running GUID verification tests (Windows only)...${NC}"
+        "$GUID_TEST_EXECUTABLE" $GTEST_FAIL_FAST_PARAM --gtest_output=xml:guid_test_results_debug.xml
+        GUID_TEST_RESULT=$?
+
+        if [ $GUID_TEST_RESULT -eq 0 ]; then
+            echo -e "${GREEN}✓ GUID verification tests PASSED${NC}"
+        else
+            echo -e "${RED}✗ GUID verification tests FAILED${NC}"
+            TEST_RESULT=1
+            if [ "$EXIT_WHEN_FAILED" = true ]; then
+                echo -e "${RED}❌ Exiting due to --exit-when-failed flag${NC}"
+                exit 1
+            fi
+        fi
     fi
 
     popd

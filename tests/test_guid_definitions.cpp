@@ -282,9 +282,10 @@ TEST_F(GuidDefinitionsTest, MEDIASUBTYPE_YUYV_FourCC) {
 TEST_F(GuidDefinitionsTest, CLSID_SampleGrabber_CanCreate) {
     // Initialize COM
     HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
-    bool comInitialized = SUCCEEDED(hr) || hr == RPC_E_CHANGED_MODE;
+    bool weInitializedCom = SUCCEEDED(hr);
+    bool comAvailable = weInitializedCom || hr == RPC_E_CHANGED_MODE;
 
-    if (comInitialized) {
+    if (comAvailable) {
         IUnknown* pUnknown = nullptr;
         hr = CoCreateInstance(CCAP_CLSID_SampleGrabber, nullptr, CLSCTX_INPROC_SERVER, IID_IUnknown, (void**)&pUnknown);
 
@@ -302,16 +303,20 @@ TEST_F(GuidDefinitionsTest, CLSID_SampleGrabber_CanCreate) {
             std::cout << "         This is expected on some Windows versions where qedit.dll is not available" << std::endl;
         }
 
-        CoUninitialize();
+        // Only call CoUninitialize if we actually initialized COM
+        if (weInitializedCom) {
+            CoUninitialize();
+        }
     }
 }
 
 TEST_F(GuidDefinitionsTest, CLSID_NullRenderer_CanCreate) {
     // Initialize COM
     HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
-    bool comInitialized = SUCCEEDED(hr) || hr == RPC_E_CHANGED_MODE;
+    bool weInitializedCom = SUCCEEDED(hr);
+    bool comAvailable = weInitializedCom || hr == RPC_E_CHANGED_MODE;
 
-    if (comInitialized) {
+    if (comAvailable) {
         IUnknown* pUnknown = nullptr;
         hr = CoCreateInstance(CCAP_CLSID_NullRenderer, nullptr, CLSCTX_INPROC_SERVER, IID_IUnknown, (void**)&pUnknown);
 
@@ -326,7 +331,10 @@ TEST_F(GuidDefinitionsTest, CLSID_NullRenderer_CanCreate) {
             std::cout << "         This is expected on some Windows versions where qedit.dll is not available" << std::endl;
         }
 
-        CoUninitialize();
+        // Only call CoUninitialize if we actually initialized COM
+        if (weInitializedCom) {
+            CoUninitialize();
+        }
     }
 }
 

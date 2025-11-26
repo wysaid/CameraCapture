@@ -37,8 +37,6 @@
 #include <initguid.h>
 #include "ccap_dshow_guids.h"
 
-// clang-format on
-
 /// @see <https://doxygen.reactos.org/d9/dce/structtagVIDEOINFOHEADER2.html>
 typedef struct tagVIDEOINFOHEADER2 {
     RECT rcSource;
