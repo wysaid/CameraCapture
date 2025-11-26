@@ -454,7 +454,7 @@ gcc -std=c99 your_code.c -o your_app \
 
 ```cmd
 cl your_code.c /I"path\to\ccap\include" \
-   /link "path\to\ccap\lib\ccap.lib" strmiids.lib ole32.lib oleaut32.lib uuid.lib
+   /link "path\to\ccap\lib\ccap.lib" ole32.lib oleaut32.lib uuid.lib
 ```
 
 ##### Linux

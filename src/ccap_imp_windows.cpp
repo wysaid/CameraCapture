@@ -25,15 +25,17 @@
 #include <cmath>
 #include <guiddef.h>
 #include <immintrin.h> // AVX2
-#include <initguid.h>
 #include <vector>
 
 #if _CCAP_LOG_ENABLED_
 #include <deque>
 #endif
 
-// The following libraries need to be linked
-#pragma comment(lib, "strmiids.lib")
+// Include initguid.h before our GUID definitions header so that DEFINE_GUID
+// actually defines the GUIDs (rather than just declaring them as extern).
+// This avoids the need to link against strmiids.lib.
+#include <initguid.h>
+#include "ccap_dshow_guids.h"
 
 /// @see <https://doxygen.reactos.org/d9/dce/structtagVIDEOINFOHEADER2.html>
 typedef struct tagVIDEOINFOHEADER2 {
@@ -82,10 +84,6 @@ typedef struct _DXVA_ExtendedFormat {
 #define DXVA_NominalRange_Wide 2   // 0-255
 #define DXVA_NominalRange_0_255 2
 #define DXVA_NominalRange_16_235 1
-#endif
-
-#ifndef MEDIASUBTYPE_I420
-DEFINE_GUID(MEDIASUBTYPE_I420, 0x30323449, 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71);
 #endif
 
 using namespace ccap;

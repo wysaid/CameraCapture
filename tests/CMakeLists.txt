@@ -80,6 +80,39 @@ target_link_libraries(
     gtest_main
 )
 
+# GUID definition verification test (Windows only)
+# This test verifies that locally defined GUIDs match strmiids.lib values
+if(WIN32)
+    add_executable(
+        ccap_guid_test
+        test_guid_definitions.cpp
+    )
+
+    target_link_libraries(
+        ccap_guid_test
+        gtest
+        gtest_main
+        strmiids  # Link against strmiids.lib to get reference GUID values
+        ole32     # For CoCreateInstance, CoInitializeEx
+    )
+
+    set_target_properties(ccap_guid_test PROPERTIES
+        CXX_STANDARD 17
+        CXX_STANDARD_REQUIRED ON
+    )
+
+    if(MSVC)
+        target_compile_options(ccap_guid_test PRIVATE
+            /MP
+            /std:c++17
+            /Zc:__cplusplus
+            /bigobj
+            /wd4996
+            /D_CRT_SECURE_NO_WARNINGS
+        )
+    endif()
+endif()
+
 # Performance test executable - should be compiled in Release mode
 add_executable(
     ccap_performance_test
@@ -108,6 +141,9 @@ if(NOT CMAKE_CROSSCOMPILING)
     # Defer discovery to test time to avoid executing the binary during configure
     gtest_discover_tests(ccap_convert_test DISCOVERY_MODE PRE_TEST)
     gtest_discover_tests(ccap_performance_test DISCOVERY_MODE PRE_TEST)
+    if(WIN32)
+        gtest_discover_tests(ccap_guid_test DISCOVERY_MODE PRE_TEST)
+    endif()
 else()
     message(STATUS "CMAKE_CROSSCOMPILING is ON: skipping GoogleTest discovery at configure time.")
 endif()
