@@ -1,9 +1,10 @@
 name: Windows Build
 
-# This workflow builds the project on Windows with multiple Visual Studio versions:
+# This workflow builds the project on Windows with multiple compilers:
 # - build-vs2022: Uses Visual Studio 2022 (stable)
-# - build-vs2025: Uses Visual Studio 2025/MSVC 2026 (preview, auto-installs if needed)
-# Both jobs test Debug/Release builds with static/shared library configurations.
+# - build-vs2026: Uses Visual Studio 2026 (preview, auto-installs if needed)
+# - build-mingw: Uses MinGW-w64 (latest version)
+# All jobs test Debug/Release builds with static/shared library configurations.
 
 on:
   push:
@@ -215,8 +216,8 @@ jobs:
           build/${{ matrix.config }}-${{ matrix.library_type }}/*_results.xml
         if-no-files-found: error
 
-  build-vs2025:
-    name: Windows Build VS2025/MSVC2026 (${{ matrix.config }}-${{ matrix.library_type }})
+  build-vs2026:
+    name: Windows Build VS2026 (${{ matrix.config }}-${{ matrix.library_type }})
     runs-on: windows-latest
     
     strategy:
@@ -229,35 +230,35 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Setup latest CMake
-      # Use @latest to ensure CMake 3.31+ is available, which is required for VS 2025 support
-      # VS 2025 is very new and requires the latest CMake version
+      # Use @latest to ensure CMake 3.31+ is available, which is required for VS 2026 support
+      # VS 2026 is very new and requires the latest CMake version
       uses: lukka/get-cmake@latest
       
-    - name: Setup Visual Studio 2025 Preview
+    - name: Setup Visual Studio 2026 Preview
       shell: pwsh
       run: |
-        Write-Host "Checking for Visual Studio 2025..."
+        Write-Host "Checking for Visual Studio 2026..."
         
-        # Check if VS 2025 is available
-        $vs2025Path = "C:\Program Files\Microsoft Visual Studio\2025"
-        $vs2025PreviewPath = "C:\Program Files\Microsoft Visual Studio\2025\Preview"
+        # Check if VS 2026 is available
+        $vs2026Path = "C:\Program Files\Microsoft Visual Studio\2026"
+        $vs2026PreviewPath = "C:\Program Files\Microsoft Visual Studio\2026\Preview"
         
-        if (Test-Path $vs2025PreviewPath) {
-          Write-Host "Visual Studio 2025 Preview found at: $vs2025PreviewPath"
-          echo "VS_2025_AVAILABLE=true" >> $env:GITHUB_ENV
-        } elseif (Test-Path $vs2025Path) {
-          Write-Host "Visual Studio 2025 found at: $vs2025Path"
-          echo "VS_2025_AVAILABLE=true" >> $env:GITHUB_ENV
+        if (Test-Path $vs2026PreviewPath) {
+          Write-Host "Visual Studio 2026 Preview found at: $vs2026PreviewPath"
+          echo "VS_2026_AVAILABLE=true" >> $env:GITHUB_ENV
+        } elseif (Test-Path $vs2026Path) {
+          Write-Host "Visual Studio 2026 found at: $vs2026Path"
+          echo "VS_2026_AVAILABLE=true" >> $env:GITHUB_ENV
         } else {
-          Write-Host "Visual Studio 2025 not found on this runner"
+          Write-Host "Visual Studio 2026 not found on this runner"
           Write-Host "Available Visual Studio installations:"
           Get-ChildItem "C:\Program Files\Microsoft Visual Studio" -Directory -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_.FullName }
           Write-Host ""
-          Write-Host "Installing Visual Studio 2025 Build Tools Preview..."
+          Write-Host "Installing Visual Studio 2026 Build Tools Preview..."
           
           # Download VS installer
           # Note: Using aka.ms redirect URL per Microsoft's standard distribution method.
-          # This URL points to the preview version. When VS 2025 is officially released,
+          # This URL points to the preview version. When VS 2026 is officially released,
           # verify and update the URL from Microsoft's official documentation.
           # If the URL becomes unavailable, the error handling below will catch it and skip the build.
           $installerUrl = "https://aka.ms/vs/18/pre/vs_BuildTools.exe"
@@ -268,8 +269,8 @@ jobs:
             Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath -ErrorAction Stop
             Write-Host "Download completed"
             
-            # Install VS 2025 Build Tools with required components
-            Write-Host "Installing Visual Studio 2025 Build Tools (this may take several minutes)..."
+            # Install VS 2026 Build Tools with required components
+            Write-Host "Installing Visual Studio 2026 Build Tools (this may take several minutes)..."
             $arguments = @(
               "--quiet",
               "--wait",
@@ -284,29 +285,29 @@ jobs:
             
             # Exit codes: 0 = success, 3010 = success with reboot required (common for VS installers)
             if ($process.ExitCode -eq 0 -or $process.ExitCode -eq 3010) {
-              Write-Host "Visual Studio 2025 Build Tools installed successfully"
-              echo "VS_2025_AVAILABLE=true" >> $env:GITHUB_ENV
+              Write-Host "Visual Studio 2026 Build Tools installed successfully"
+              echo "VS_2026_AVAILABLE=true" >> $env:GITHUB_ENV
             } else {
               Write-Host "Installation failed with exit code: $($process.ExitCode)"
-              Write-Host "Will skip VS2025 builds"
-              echo "VS_2025_AVAILABLE=false" >> $env:GITHUB_ENV
+              Write-Host "Will skip VS2026 builds"
+              echo "VS_2026_AVAILABLE=false" >> $env:GITHUB_ENV
             }
           } catch {
             Write-Host "Error during installation: $_"
-            Write-Host "Will skip VS2025 builds"
-            echo "VS_2025_AVAILABLE=false" >> $env:GITHUB_ENV
+            Write-Host "Will skip VS2026 builds"
+            echo "VS_2026_AVAILABLE=false" >> $env:GITHUB_ENV
           }
         }
       
-    - name: Configure CMake with VS2025
-      if: env.VS_2025_AVAILABLE == 'true'
+    - name: Configure CMake with VS2026
+      if: env.VS_2026_AVAILABLE == 'true'
       run: |
         $SHARED_FLAG = ""
         if ("${{ matrix.library_type }}" -eq "shared") {
           $SHARED_FLAG = "-DCCAP_BUILD_SHARED=ON"
-          Write-Host "Configuring Windows build ${{ matrix.config }} with VS2025/MSVC2026 - SHARED LIBRARY (DLL)"
+          Write-Host "Configuring Windows build ${{ matrix.config }} with VS2026 - SHARED LIBRARY (DLL)"
         } else {
-          Write-Host "Configuring Windows build ${{ matrix.config }} with VS2025/MSVC2026 - STATIC LIBRARY"
+          Write-Host "Configuring Windows build ${{ matrix.config }} with VS2026 - STATIC LIBRARY"
         }
         
         # Check CMake version
@@ -315,29 +316,29 @@ jobs:
         mkdir -p "build/${{ matrix.config }}-${{ matrix.library_type }}"
         cd "build/${{ matrix.config }}-${{ matrix.library_type }}"
         
-        # Try Visual Studio 18 2025 generator
+        # Try Visual Studio 18 2026 generator
         try {
-          Write-Host "Attempting to use Visual Studio 18 2025 generator..."
-          cmake ../.. -G "Visual Studio 18 2025" -A x64 -DCCAP_BUILD_TESTS=ON $SHARED_FLAG
+          Write-Host "Attempting to use Visual Studio 18 2026 generator..."
+          cmake ../.. -G "Visual Studio 18 2026" -A x64 -DCCAP_BUILD_TESTS=ON $SHARED_FLAG
         } catch {
-          Write-Host "Visual Studio 18 2025 generator not available, trying alternative detection..."
+          Write-Host "Visual Studio 18 2026 generator not available, trying alternative detection..."
           cmake ../.. -A x64 -DCCAP_BUILD_TESTS=ON $SHARED_FLAG
         }
         
     - name: Skip message
-      if: env.VS_2025_AVAILABLE != 'true'
+      if: env.VS_2026_AVAILABLE != 'true'
       run: |
-        Write-Host "Visual Studio 2025 is not available on this runner"
-        Write-Host "Skipping VS2025/MSVC2026 build"
+        Write-Host "Visual Studio 2026 is not available on this runner"
+        Write-Host "Skipping VS2026 build"
         
     - name: Build
-      if: env.VS_2025_AVAILABLE == 'true'
+      if: env.VS_2026_AVAILABLE == 'true'
       run: |
         cd "build/${{ matrix.config }}-${{ matrix.library_type }}"
         cmake --build . --config ${{ matrix.config }} --parallel
         
     - name: Verify library type
-      if: env.VS_2025_AVAILABLE == 'true'
+      if: env.VS_2026_AVAILABLE == 'true'
       shell: bash
       working-directory: build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}
       run: |
@@ -356,7 +357,7 @@ jobs:
         
         if [ "${{ matrix.library_type }}" = "shared" ]; then
           if [ -f "$DLL_NAME" ]; then
-            echo "✓ Windows shared library $DLL_NAME successfully built with VS2025/MSVC2026"
+            echo "✓ Windows shared library $DLL_NAME successfully built with VS2026"
             # Check if import library exists
             if [ -f "${LIB_BASENAME}.lib" ]; then
               echo "✓ Windows import library ${LIB_BASENAME}.lib also created"
@@ -367,19 +368,19 @@ jobs:
           fi
         else
           if [ -f "${LIB_BASENAME}.lib" ]; then
-            echo "✓ Windows static library ${LIB_BASENAME}.lib successfully built with VS2025/MSVC2026"
+            echo "✓ Windows static library ${LIB_BASENAME}.lib successfully built with VS2026"
           else
             echo "✗ Windows static library ${LIB_BASENAME}.lib not found"
             exit 1
           fi
         fi
         
-    - name: Test shared library linking (Windows VS2025)
-      if: env.VS_2025_AVAILABLE == 'true' && matrix.library_type == 'shared'
+    - name: Test shared library linking (Windows VS2026)
+      if: env.VS_2026_AVAILABLE == 'true' && matrix.library_type == 'shared'
       shell: bash
       working-directory: build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}
       run: |
-        echo "Testing Windows shared library linking with VS2025/MSVC2026..."
+        echo "Testing Windows shared library linking with VS2026..."
         
         # Create a simple test program
         cat > test_shared.cpp << 'EOF'
@@ -398,11 +399,11 @@ jobs:
         }
         EOF
         
-        # Find Visual Studio 2025 compiler
-        VCVARS_PATH=$(find "/c/Program Files/Microsoft Visual Studio/2025" -name "vcvars64.bat" 2>/dev/null | head -n1)
+        # Find Visual Studio 2026 compiler
+        VCVARS_PATH=$(find "/c/Program Files/Microsoft Visual Studio/2026" -name "vcvars64.bat" 2>/dev/null | head -n1)
         
         if [ -n "$VCVARS_PATH" ]; then
-          echo "Using Visual Studio 2025 environment from: $VCVARS_PATH"
+          echo "Using Visual Studio 2026 environment from: $VCVARS_PATH"
           # Convert path for cmd
           VCVARS_WIN_PATH=$(echo "$VCVARS_PATH" | sed 's|/c/|C:/|g' | sed 's|/|\\|g')
           
@@ -440,13 +441,13 @@ jobs:
             cp "$DLL_PATH" .
           fi
           ./test_shared.exe
-          echo "✓ Windows shared library linking test with VS2025/MSVC2026 passed"
+          echo "✓ Windows shared library linking test with VS2026 passed"
         else
-          echo "⚠ Visual Studio 2025 compiler not found, skipping link test"
+          echo "⚠ Visual Studio 2026 compiler not found, skipping link test"
         fi
       
     - name: Run Unit Tests  
-      if: env.VS_2025_AVAILABLE == 'true'
+      if: env.VS_2026_AVAILABLE == 'true'
       shell: bash
       run: |
         # Create symbolic links to make test script work with new build directory structure
@@ -478,10 +479,10 @@ jobs:
         fi
         
     - name: Upload artifacts
-      if: env.VS_2025_AVAILABLE == 'true'
+      if: env.VS_2026_AVAILABLE == 'true'
       uses: actions/upload-artifact@v4
       with:
-        name: ccap-windows-vs2025-${{ matrix.config }}-${{ matrix.library_type }}
+        name: ccap-windows-vs2026-${{ matrix.config }}-${{ matrix.library_type }}
         path: |
           build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}/ccap*.*
           build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}/0-print_camera.exe
@@ -489,5 +490,138 @@ jobs:
           build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}/2-capture_grab.exe
           build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}/3-capture_callback.exe
           build/${{ matrix.config }}-${{ matrix.library_type }}/*_results.xml
-        # Use 'warn' instead of 'error' since VS 2025 build is optional (may not be available on all runners)
+        # Use 'warn' instead of 'error' since VS 2026 build is optional (may not be available on all runners)
+        if-no-files-found: warn
+
+  build-mingw:
+    name: Windows Build MinGW (${{ matrix.config }}-${{ matrix.library_type }})
+    runs-on: windows-latest
+    
+    strategy:
+      matrix:
+        config: [Debug, Release]
+        library_type: [static, shared]
+        
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup MinGW-w64
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: >-
+          mingw-w64-x86_64-toolchain
+          mingw-w64-x86_64-cmake
+          mingw-w64-x86_64-ninja
+          make
+          
+    - name: Configure CMake with MinGW
+      shell: msys2 {0}
+      run: |
+        SHARED_FLAG=""
+        if [ "${{ matrix.library_type }}" = "shared" ]; then
+          SHARED_FLAG="-DCCAP_BUILD_SHARED=ON"
+          echo "Configuring Windows build ${{ matrix.config }} with MinGW - SHARED LIBRARY (DLL)"
+        else
+          echo "Configuring Windows build ${{ matrix.config }} with MinGW - STATIC LIBRARY"
+        fi
+        
+        # Check compiler version
+        gcc --version
+        cmake --version
+        
+        mkdir -p "build/${{ matrix.config }}-${{ matrix.library_type }}"
+        cd "build/${{ matrix.config }}-${{ matrix.library_type }}"
+        cmake ../.. -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.config }} -DCCAP_BUILD_TESTS=ON $SHARED_FLAG
+        
+    - name: Build
+      shell: msys2 {0}
+      run: |
+        cd "build/${{ matrix.config }}-${{ matrix.library_type }}"
+        cmake --build . --parallel
+        
+    - name: Verify library type
+      shell: msys2 {0}
+      working-directory: build/${{ matrix.config }}-${{ matrix.library_type }}
+      run: |
+        echo "Checking built libraries:"
+        ls -la | grep -E "ccap" || echo "No ccap libraries found"
+        
+        if [ "${{ matrix.library_type }}" = "shared" ]; then
+          # MinGW shared libraries use .dll extension
+          if [ -f "libccap.dll" ]; then
+            echo "✓ Windows shared library libccap.dll successfully built with MinGW"
+          else
+            echo "✗ Windows shared library libccap.dll not found"
+            exit 1
+          fi
+        else
+          # MinGW static libraries use .a extension
+          if [ -f "libccap.a" ]; then
+            echo "✓ Windows static library libccap.a successfully built with MinGW"
+          else
+            echo "✗ Windows static library libccap.a not found"
+            exit 1
+          fi
+        fi
+        
+    - name: Test shared library linking (Windows MinGW)
+      if: matrix.library_type == 'shared'
+      shell: msys2 {0}
+      working-directory: build/${{ matrix.config }}-${{ matrix.library_type }}
+      run: |
+        echo "Testing Windows shared library linking with MinGW..."
+        
+        # Create a simple test program
+        cat > test_shared.cpp << 'EOF'
+        #include "ccap_c.h"
+        #include <stdio.h>
+        int main() {
+            const char* version = ccap_get_version();
+            printf("Library version: %s\n", version ? version : "unknown");
+            CcapProvider* provider = ccap_provider_create();
+            if (provider) {
+                printf("Provider created successfully\n");
+                ccap_provider_destroy(provider);
+                return 0;
+            }
+            return 1;
+        }
+        EOF
+        
+        # Compile and run with shared library
+        g++ -I../../include test_shared.cpp -L. -lccap -o test_shared.exe
+        ./test_shared.exe
+        echo "✓ Windows shared library linking test with MinGW passed"
+      
+    - name: Run Unit Tests
+      if: matrix.config == 'Release'
+      shell: msys2 {0}
+      run: |
+        # Create symbolic links to make test script work with new build directory structure
+        mkdir -p build
+        if [ ! -L "build/${{ matrix.config }}" ]; then
+          ln -sf "${{ matrix.config }}-${{ matrix.library_type }}" "build/${{ matrix.config }}"
+        fi
+        
+        cd scripts
+        # Set library path for shared library tests
+        if [ "${{ matrix.library_type }}" = "shared" ]; then
+          export PATH="$PWD/../build/${{ matrix.config }}-${{ matrix.library_type }}:$PATH"
+        fi
+        ./run_tests.sh --functional --skip-build
+        
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ccap-windows-mingw-${{ matrix.config }}-${{ matrix.library_type }}
+        path: |
+          build/${{ matrix.config }}-${{ matrix.library_type }}/libccap.*
+          build/${{ matrix.config }}-${{ matrix.library_type }}/0-print_camera.exe
+          build/${{ matrix.config }}-${{ matrix.library_type }}/1-minimal_example.exe
+          build/${{ matrix.config }}-${{ matrix.library_type }}/2-capture_grab.exe
+          build/${{ matrix.config }}-${{ matrix.library_type }}/3-capture_callback.exe
+          build/${{ matrix.config }}-${{ matrix.library_type }}/*_results.xml
         if-no-files-found: warn

@@ -203,12 +203,12 @@ cmake --build .
 
 | 平台 | 编译器 | 系统要求 |
 |------|--------|----------|
-| **Windows** | MSVC 2019+（包括 2025/2026） | DirectShow |
+| **Windows** | MSVC 2019+（包括 2026）/ MinGW-w64 | DirectShow |
 | **macOS** | Xcode 11+ | macOS 10.13+ |
 | **iOS** | Xcode 11+ | iOS 13.0+ |
 | **Linux** | GCC 7+ / Clang 6+ | V4L2 (Linux 2.6+) |
 
-**构建要求**：CMake 3.14+（推荐使用 3.31+ 以支持 MSVC 2025/2026），C++17（C++ 接口），C99（C 接口）
+**构建要求**：CMake 3.14+（推荐使用 3.31+ 以支持 MSVC 2026），C++17（C++ 接口），C99（C 接口）
 
 ### 支持的 Linux 发行版
 
