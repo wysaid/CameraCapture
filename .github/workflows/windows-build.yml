@@ -2,7 +2,7 @@ name: Windows Build
 
 # This workflow builds the project on Windows with multiple compilers:
 # - build-vs2022: Uses Visual Studio 2022 (stable)
-# - build-vs2026: Uses Visual Studio 2026 (preview, auto-installs if needed)
+# - build-vs2026: Uses Visual Studio 2026 (when available on GitHub runners, skips gracefully if not)
 # - build-mingw: Uses MinGW-w64 (latest version)
 # All jobs test Debug/Release builds with static/shared library configurations.
 
@@ -226,78 +226,57 @@ jobs:
         library_type: [static, shared]
         
     steps:
+    - name: Check for Visual Studio 2026
+      id: check-vs2026
+      shell: pwsh
+      run: |
+        Write-Host "Checking for Visual Studio 2026 on this runner..."
+        
+        # Check if VS 2026 is available (stable or preview)
+        $vs2026Path = "C:\Program Files\Microsoft Visual Studio\2026"
+        $vs2026PreviewPath = "C:\Program Files\Microsoft Visual Studio\2026\Preview"
+        $vs2026EnterprisePath = "C:\Program Files\Microsoft Visual Studio\2026\Enterprise"
+        $vs2026ProfessionalPath = "C:\Program Files\Microsoft Visual Studio\2026\Professional"
+        $vs2026CommunityPath = "C:\Program Files\Microsoft Visual Studio\2026\Community"
+        
+        $found = $false
+        if (Test-Path $vs2026PreviewPath) {
+          Write-Host "✓ Visual Studio 2026 Preview found at: $vs2026PreviewPath"
+          $found = $true
+        } elseif (Test-Path $vs2026EnterprisePath) {
+          Write-Host "✓ Visual Studio 2026 Enterprise found at: $vs2026EnterprisePath"
+          $found = $true
+        } elseif (Test-Path $vs2026ProfessionalPath) {
+          Write-Host "✓ Visual Studio 2026 Professional found at: $vs2026ProfessionalPath"
+          $found = $true
+        } elseif (Test-Path $vs2026CommunityPath) {
+          Write-Host "✓ Visual Studio 2026 Community found at: $vs2026CommunityPath"
+          $found = $true
+        } elseif (Test-Path $vs2026Path) {
+          Write-Host "✓ Visual Studio 2026 found at: $vs2026Path"
+          $found = $true
+        }
+        
+        if ($found) {
+          echo "VS_2026_AVAILABLE=true" >> $env:GITHUB_ENV
+        } else {
+          Write-Host "ℹ Visual Studio 2026 is not available on this GitHub runner yet."
+          Write-Host "Available Visual Studio installations:"
+          Get-ChildItem "C:\Program Files\Microsoft Visual Studio" -Directory -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "  - $($_.FullName)" }
+          Write-Host ""
+          Write-Host "⏭ Skipping VS2026 build - this job will complete successfully without running the build."
+          Write-Host "Once GitHub adds VS2026 to their runners, this job will automatically start building."
+          echo "VS_2026_AVAILABLE=false" >> $env:GITHUB_ENV
+        }
+        
     - name: Checkout repository
+      if: env.VS_2026_AVAILABLE == 'true'
       uses: actions/checkout@v4
       
     - name: Setup latest CMake
+      if: env.VS_2026_AVAILABLE == 'true'
       # Use @latest to ensure CMake 3.31+ is available, which is required for VS 2026 support
-      # VS 2026 is very new and requires the latest CMake version
       uses: lukka/get-cmake@latest
-      
-    - name: Setup Visual Studio 2026 Preview
-      shell: pwsh
-      run: |
-        Write-Host "Checking for Visual Studio 2026..."
-        
-        # Check if VS 2026 is available
-        $vs2026Path = "C:\Program Files\Microsoft Visual Studio\2026"
-        $vs2026PreviewPath = "C:\Program Files\Microsoft Visual Studio\2026\Preview"
-        
-        if (Test-Path $vs2026PreviewPath) {
-          Write-Host "Visual Studio 2026 Preview found at: $vs2026PreviewPath"
-          echo "VS_2026_AVAILABLE=true" >> $env:GITHUB_ENV
-        } elseif (Test-Path $vs2026Path) {
-          Write-Host "Visual Studio 2026 found at: $vs2026Path"
-          echo "VS_2026_AVAILABLE=true" >> $env:GITHUB_ENV
-        } else {
-          Write-Host "Visual Studio 2026 not found on this runner"
-          Write-Host "Available Visual Studio installations:"
-          Get-ChildItem "C:\Program Files\Microsoft Visual Studio" -Directory -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_.FullName }
-          Write-Host ""
-          Write-Host "Installing Visual Studio 2026 Build Tools Preview..."
-          
-          # Download VS installer
-          # Note: Using aka.ms redirect URL per Microsoft's standard distribution method.
-          # This URL points to the preview version. When VS 2026 is officially released,
-          # verify and update the URL from Microsoft's official documentation.
-          # If the URL becomes unavailable, the error handling below will catch it and skip the build.
-          $installerUrl = "https://aka.ms/vs/18/pre/vs_BuildTools.exe"
-          $installerPath = "$env:TEMP\vs_buildtools.exe"
-          
-          Write-Host "Downloading installer from: $installerUrl"
-          try {
-            Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath -ErrorAction Stop
-            Write-Host "Download completed"
-            
-            # Install VS 2026 Build Tools with required components
-            Write-Host "Installing Visual Studio 2026 Build Tools (this may take several minutes)..."
-            $arguments = @(
-              "--quiet",
-              "--wait",
-              "--norestart",
-              "--nocache",
-              "--add", "Microsoft.VisualStudio.Workload.VCTools",
-              "--add", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
-              "--add", "Microsoft.VisualStudio.Component.Windows11SDK.22621"
-            )
-            
-            $process = Start-Process -FilePath $installerPath -ArgumentList $arguments -Wait -PassThru -NoNewWindow
-            
-            # Exit codes: 0 = success, 3010 = success with reboot required (common for VS installers)
-            if ($process.ExitCode -eq 0 -or $process.ExitCode -eq 3010) {
-              Write-Host "Visual Studio 2026 Build Tools installed successfully"
-              echo "VS_2026_AVAILABLE=true" >> $env:GITHUB_ENV
-            } else {
-              Write-Host "Installation failed with exit code: $($process.ExitCode)"
-              Write-Host "Will skip VS2026 builds"
-              echo "VS_2026_AVAILABLE=false" >> $env:GITHUB_ENV
-            }
-          } catch {
-            Write-Host "Error during installation: $_"
-            Write-Host "Will skip VS2026 builds"
-            echo "VS_2026_AVAILABLE=false" >> $env:GITHUB_ENV
-          }
-        }
       
     - name: Configure CMake with VS2026
       if: env.VS_2026_AVAILABLE == 'true'
@@ -324,12 +303,6 @@ jobs:
           Write-Host "Visual Studio 18 2026 generator not available, trying alternative detection..."
           cmake ../.. -A x64 -DCCAP_BUILD_TESTS=ON $SHARED_FLAG
         }
-        
-    - name: Skip message
-      if: env.VS_2026_AVAILABLE != 'true'
-      run: |
-        Write-Host "Visual Studio 2026 is not available on this runner"
-        Write-Host "Skipping VS2026 build"
         
     - name: Build
       if: env.VS_2026_AVAILABLE == 'true'
