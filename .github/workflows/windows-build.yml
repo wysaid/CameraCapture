@@ -226,6 +226,9 @@ jobs:
         library_type: [static, shared]
         
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
     - name: Check for Visual Studio 2026
       id: check-vs2026
       shell: pwsh
@@ -269,10 +272,6 @@ jobs:
           echo "VS_2026_AVAILABLE=false" >> $env:GITHUB_ENV
         }
         
-    - name: Checkout repository
-      if: env.VS_2026_AVAILABLE == 'true'
-      uses: actions/checkout@v4
-      
     - name: Setup latest CMake
       if: env.VS_2026_AVAILABLE == 'true'
       # Use @latest to ensure CMake 3.31+ is available, which is required for VS 2026 support
