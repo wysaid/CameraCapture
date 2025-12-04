@@ -19,6 +19,9 @@
 - [系统要求](#系统要求)
 - [示例代码](#示例代码)
 - [API 参考](#api-参考)
+- [测试](#测试)
+- [构建和安装](#构建和安装)
+- [许可证](#许可证)
 
 ## 特性
 
@@ -471,5 +474,32 @@ gcc -std=c99 your_code.c -o your_app \
 C 接口的详细使用说明和示例请参见：[C 接口文档](./docs/C_Interface.md)
 
 **额外的 C 工具函数**：如需像素格式字符串转换和文件 I/O 功能，还需包含：
+
 - `#include <ccap_utils_c.h>` - 提供 `ccap_pixel_format_to_string()`、`ccap_dump_frame_to_file()` 等函数
 - `#include <ccap_convert_c.h>` - 提供像素格式转换函数
+
+## 测试
+
+完整的测试套件包含 50+ 测试用例，覆盖所有功能：
+
+- 多后端测试（CPU、AVX2、Apple Accelerate、NEON）
+- 性能基准测试和精度验证
+- 像素格式转换 95%+ 精度
+
+```bash
+./scripts/run_tests.sh
+```
+
+## 构建和安装
+
+完整的构建和安装说明请参见 [BUILD_AND_INSTALL.md](./BUILD_AND_INSTALL.md)。
+
+```bash
+git clone https://github.com/wysaid/CameraCapture.git
+cd CameraCapture
+./scripts/build_and_install.sh
+```
+
+## 许可证
+
+MIT 许可证。详情请参见 [LICENSE](./LICENSE)。

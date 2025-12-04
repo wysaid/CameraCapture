@@ -64,14 +64,14 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "[Aa][Rr][Mm]64|[Aa][Aa][Rr][Cc]h64" OR
     
     message(STATUS "ccap: Building for ARM64 architecture")
     
-    # Windows ARM64 特定设置
+    # Windows ARM64 specific settings
     if(WIN32 AND MSVC)
         # MSVC 在 ARM64 上自动启用 NEON，添加预处理器定义
         add_compile_definitions(_M_ARM64=1)
         message(STATUS "ccap: NEON support enabled for Windows ARM64")
     endif()
     
-    # macOS ARM64 特定设置
+    # macOS ARM64 specific settings
     if(APPLE)
         # Ensure a valid deployment target for macOS arm64
         if(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS "11.0")
@@ -94,7 +94,7 @@ endif()
 
 include(CheckCXXCompilerFlag)
 
-# 检查是否支持AVX2
+# Check if AVX2 is supported
 if(MSVC)
     check_cxx_compiler_flag("/arch:AVX2" CCAP_SUPPORTS_AVX2)
 else()

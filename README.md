@@ -386,32 +386,6 @@ provider.set(ccap::PropertyName::PixelFormatOutput,
              static_cast<double>(ccap::PixelFormat::BGR24));
 ```
 
-## Testing
-
-Comprehensive test suite with 50+ test cases covering all functionality:
-
-- Multi-backend testing (CPU, AVX2, Apple Accelerate, NEON)
-- Performance benchmarks and accuracy validation  
-- 95%+ precision for pixel format conversions
-
-```bash
-./scripts/run_tests.sh
-```
-
-## Build and Install
-
-See [BUILD_AND_INSTALL.md](./BUILD_AND_INSTALL.md) for complete instructions.
-
-```bash
-git clone https://github.com/wysaid/CameraCapture.git
-cd CameraCapture
-./scripts/build_and_install.sh
-```
-
-## License
-
-MIT License. See [LICENSE](./LICENSE) for details.
-
 ### C Language Interface
 
 ccap provides a complete pure C language interface for C projects or scenarios requiring language bindings.
@@ -584,5 +558,32 @@ gcc -std=c99 your_code.c -o your_app \
 For detailed usage instructions and examples of the C interface, see: [C Interface Documentation](./docs/C_Interface.md)
 
 **Additional C Utilities**: For pixel format string conversion and file I/O functions, also include:
+
 - `#include <ccap_utils_c.h>` - provides `ccap_pixel_format_to_string()`, `ccap_dump_frame_to_file()`
 - `#include <ccap_convert_c.h>` - provides pixel format conversion functions
+
+## Testing
+
+Comprehensive test suite with 50+ test cases covering all functionality:
+
+- Multi-backend testing (CPU, AVX2, Apple Accelerate, NEON)
+- Performance benchmarks and accuracy validation  
+- 95%+ precision for pixel format conversions
+
+```bash
+./scripts/run_tests.sh
+```
+
+## Build and Install
+
+See [BUILD_AND_INSTALL.md](./BUILD_AND_INSTALL.md) for complete instructions.
+
+```bash
+git clone https://github.com/wysaid/CameraCapture.git
+cd CameraCapture
+./scripts/build_and_install.sh
+```
+
+## License
+
+MIT License. See [LICENSE](./LICENSE) for details.
