@@ -173,7 +173,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
                                                                 position:AVCaptureDevicePositionUnspecified];
     if (infoLogEnabled()) {
         static dispatch_once_t onceToken;
-        dispatch_once(&onceToken, ^{ NSLog(@"ccap: Available camera devices: %@", discoverySession.devices); });
+        dispatch_once(&onceToken, ^{ CCAP_NSLOG_I(@"ccap: Available camera devices: %@", discoverySession.devices); });
     }
 
     std::vector<std::string_view> virtualDevicePatterns = {
@@ -385,7 +385,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
                 auto info = getPixelFormatInfo([format unsignedIntValue]);
                 [arr addObject:[NSString stringWithFormat:@"%@ (%s)", info.name, info.description.c_str()]];
             }
-            NSLog(@"ccap: Supported pixel format: %@", arr);
+            CCAP_NSLOG_I(@"ccap: Supported pixel format: %@", arr);
         }
 
         OSType preferredFormat = _cvPixelFormat;
@@ -488,7 +488,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
             }
             [formatInfo appendString:@"\n"];
         }
-        NSLog(@"%@", formatInfo);
+        CCAP_NSLOG_I(@"%@", formatInfo);
     }
 
     if (auto fps = _provider->getFrameProperty().fps; fps > 0.0) {
@@ -638,9 +638,9 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
 
                     if (infoLogEnabled()) {
                         if (std::abs(fps - desiredFps) > 0.01) {
-                            NSLog(@"ccap: Set fps to %g, but actual fps is %g", desiredFps, fps);
+                            CCAP_NSLOG_I(@"ccap: Set fps to %g, but actual fps is %g", desiredFps, fps);
                         } else {
-                            NSLog(@"ccap: Set fps to %g", fps);
+                            CCAP_NSLOG_I(@"ccap: Set fps to %g", fps);
                         }
                     }
                 } else {
@@ -992,7 +992,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
             fps = std::round(s_durations.size() / sum * 10) / 10.0;
         }
 
-        NSLog(@"ccap: New frame available: %ux%u, bytes %u, Data address: %p, fps: %g", newFrame->width, newFrame->height,
+        CCAP_NSLOG_V(@"ccap: New frame available: %ux%u, bytes %u, Data address: %p, fps: %g", newFrame->width, newFrame->height,
               newFrame->sizeInBytes, newFrame->data[0], fps);
     }
 
