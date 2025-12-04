@@ -159,7 +159,7 @@ endif()
 
 if(APPLE)
     target_compile_options(ccap PRIVATE -fobjc-arc)
-    target_link_libraries(ccap
+    target_link_libraries(ccap PUBLIC
         "-framework Foundation"
         "-framework AVFoundation"
         "-framework CoreVideo"
