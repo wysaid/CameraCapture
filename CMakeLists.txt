@@ -82,9 +82,7 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "[Aa][Rr][Mm]64|[Aa][Aa][Rr][Cc]h64" OR
     endif()
 endif()
 
-if(NOT MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-endif()
+
 
 file(GLOB LIB_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h)
 
@@ -160,7 +158,7 @@ if(CCAP_BUILD_SHARED)
 endif()
 
 if(APPLE)
-    target_compile_options(ccap PUBLIC -fobjc-arc)
+    target_compile_options(ccap PRIVATE -fobjc-arc)
     target_link_libraries(ccap
         "-framework Foundation"
         "-framework AVFoundation"
@@ -183,7 +181,7 @@ else()
 endif()
 
 if(MSVC)
-    target_compile_options(ccap PUBLIC
+    target_compile_options(ccap PRIVATE
         /MP
         $<$<COMPILE_LANGUAGE:CXX>:/std:c++17>
         $<$<COMPILE_LANGUAGE:CXX>:/Zc:__cplusplus>
@@ -197,7 +195,7 @@ if(MSVC)
     endif()
 
 else()
-    target_compile_options(ccap PUBLIC $<$<COMPILE_LANGUAGE:CXX>:-std=c++17>)
+    target_compile_options(ccap PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-std=c++17>)
 endif()
 
 # ############### Examples ################
