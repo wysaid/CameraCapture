@@ -188,11 +188,7 @@ if(MSVC)
         $<$<COMPILE_LANGUAGE:CXX>:/Zc:preprocessor>
     )
 
-    if(CCAP_IS_ROOT_PROJECT)
-        target_compile_options(ccap PUBLIC /source-charset:utf-8)
-    else()
-        target_compile_options(ccap PRIVATE /source-charset:utf-8)
-    endif()
+    target_compile_options(ccap PRIVATE /source-charset:utf-8)
 
 else()
     target_compile_options(ccap PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-std=c++17>)
