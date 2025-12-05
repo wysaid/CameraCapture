@@ -155,7 +155,7 @@ enum class ConvertFlag {
     BT709 = 0x2,                  ///< Use BT.709 color space
     FullRange = 0x10,             ///< Use full range color space
     VideoRange = 0x20,            ///< Use video range color space
-    Default = BT601 | VideoRange, ///< Default conversion: BT.601 full range
+    Default = BT601 | VideoRange, ///< Default conversion: BT.601 video range
 };
 
 inline bool operator&(ConvertFlag lhs, ConvertFlag rhs) { return static_cast<bool>(static_cast<int>(lhs) & static_cast<int>(rhs)); }

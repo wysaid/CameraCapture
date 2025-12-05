@@ -66,7 +66,7 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "[Aa][Rr][Mm]64|[Aa][Aa][Rr][Cc]h64" OR
     
     # Windows ARM64 specific settings
     if(WIN32 AND MSVC)
-        # MSVC 在 ARM64 上自动启用 NEON，添加预处理器定义
+        # MSVC automatically enables NEON on ARM64, add preprocessor definition
         add_compile_definitions(_M_ARM64=1)
         message(STATUS "ccap: NEON support enabled for Windows ARM64")
     endif()
