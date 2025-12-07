@@ -13,7 +13,7 @@ fi
 NEW_VERSION=$1
 
 # Extract major, minor, patch from version string
-IFS='.' read -r -a VERSION_PARTS <<< "$NEW_VERSION"
+IFS='.' read -r -a VERSION_PARTS <<<"$NEW_VERSION"
 MAJOR=${VERSION_PARTS[0]}
 MINOR=${VERSION_PARTS[1]}
 PATCH=${VERSION_PARTS[2]}
@@ -32,7 +32,7 @@ fi
 echo "Updating version to $NEW_VERSION (Major: $MAJOR, Minor: $MINOR, Patch: $PATCH)..."
 
 # Get the project root directory (assuming script is in scripts/ folder)
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Cross-platform sed in-place editing function
@@ -54,12 +54,12 @@ update_file() {
     local expr=$1
     local file=$2
     local description=$3
-    
+
     if [ ! -f "$file" ]; then
         echo "⚠️  $file not found, skipping $description"
         return 0
     fi
-    
+
     if sed_inplace "$expr" "$file"; then
         echo "✅ Updated $description"
     else

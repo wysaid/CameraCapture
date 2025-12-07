@@ -36,6 +36,28 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 # Change to project root
 cd "$PROJECT_ROOT"
 
+# Check current branch and auto-enable dry-run if not on main branch
+CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || git rev-parse --abbrev-ref HEAD)
+MAIN_BRANCHES=("main" "master")
+IS_MAIN_BRANCH=false
+
+for branch in "${MAIN_BRANCHES[@]}"; do
+    if [ "$CURRENT_BRANCH" = "$branch" ]; then
+        IS_MAIN_BRANCH=true
+        break
+    fi
+done
+
+# Auto-enable dry-run if not on main branch
+if [ "$IS_MAIN_BRANCH" = false ]; then
+    if [ "$DRY_RUN" = false ]; then
+        echo -e "${YELLOW}⚠️  Not on main branch (current: $CURRENT_BRANCH)${NC}"
+        echo -e "${YELLOW}   Automatically enabling DRY-RUN mode for safety${NC}"
+        echo ""
+        DRY_RUN=true
+    fi
+fi
+
 # Helper function to get the appropriate GitHub remote
 # Priority: URL containing github.com > first available remote
 get_github_remote() {
@@ -69,6 +91,7 @@ echo -e "${BLUE}═════════════════════�
 echo -e "${BLUE}          CameraCapture Release Script${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
 echo ""
+echo -e "  Current branch: ${GREEN}$CURRENT_BRANCH${NC}"
 echo -e "  Using remote: ${GREEN}$GITHUB_REMOTE${NC} ($(git remote get-url "$GITHUB_REMOTE"))"
 echo ""
 
@@ -346,7 +369,25 @@ echo -e "  Release version: ${GREEN}$CURRENT_VERSION${NC}"
 echo -e "  Release tag: ${GREEN}$RELEASE_TAG${NC}"
 echo ""
 echo -e "${BLUE}Next steps:${NC}"
-echo -e "  1. GitHub Actions will automatically build and create a release"
-echo -e "  2. Monitor the workflow at: https://github.com/wysaid/CameraCapture/actions"
-echo -e "  3. Verify the release at: https://github.com/wysaid/CameraCapture/releases/tag/$RELEASE_TAG"
+if [ "$DRY_RUN" = true ]; then
+    echo -e "  ${YELLOW}This was a DRY-RUN. No actual changes were made.${NC}"
+    if [ "$IS_MAIN_BRANCH" = false ]; then
+        echo ""
+        echo -e "${YELLOW}⚠️  IMPORTANT: Release can only be executed from the main branch!${NC}"
+        echo -e "  Current branch: ${RED}$CURRENT_BRANCH${NC}"
+        echo -e "  Required branch: ${GREEN}main${NC} or ${GREEN}master${NC}"
+        echo ""
+        echo -e "${BLUE}To perform an actual release:${NC}"
+        echo -e "  1. Switch to the main branch: ${GREEN}git checkout main${NC}"
+        echo -e "  2. Ensure you have the latest changes: ${GREEN}git pull${NC}"
+        echo -e "  3. Run the release script again: ${GREEN}./scripts/release.sh${NC}"
+        echo ""
+    else
+        echo -e "  To perform an actual release: ${GREEN}./scripts/release.sh${NC} (without --dry-run)"
+    fi
+else
+    echo -e "  1. GitHub Actions will automatically build and create a release"
+    echo -e "  2. Monitor the workflow at: https://github.com/wysaid/CameraCapture/actions"
+    echo -e "  3. Verify the release at: https://github.com/wysaid/CameraCapture/releases/tag/$RELEASE_TAG"
+fi
 echo ""
