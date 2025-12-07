@@ -400,13 +400,19 @@ std::vector<std::string> ProviderDirectShow::findDeviceNames() {
 
     enumerateDevices([&](IMoniker* moniker, std::string_view name) {
         // Try to bind device, check if available
-        IBaseFilter* filter = nullptr;
-        HRESULT hr = moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&filter);
-        if (SUCCEEDED(hr) && filter) {
-            m_allDeviceNames.emplace_back(name.data(), name.size());
-            filter->Release();
-        } else {
-            CCAP_LOG_I("ccap: \"%s\" is not a valid video capture device, removed\n", name.data());
+        // Use SEH to catch crashes from buggy drivers (e.g., unplugged devices like Oculus Quest 3)
+        __try {
+            IBaseFilter* filter = nullptr;
+            HRESULT hr = moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&filter);
+            if (SUCCEEDED(hr) && filter) {
+                m_allDeviceNames.emplace_back(name.data(), name.size());
+                filter->Release();
+            } else {
+                CCAP_LOG_I("ccap: \"%s\" is not a valid video capture device, removed\n", name.data());
+            }
+        } __except (EXCEPTION_EXECUTE_HANDLER) {
+            // Catch crashes from buggy camera drivers (e.g., when camera is physically unplugged)
+            CCAP_LOG_W("ccap: \"%s\" caused an exception during device binding, skipping\n", name.data());
         }
         // Unavailable devices are not added to the list
         return false; // Continue enumeration
@@ -660,19 +666,29 @@ bool ProviderDirectShow::open(std::string_view deviceName) {
 
     enumerateDevices([&](IMoniker* moniker, std::string_view name) {
         if (deviceName.empty() || deviceName == name) {
-            auto hr = moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&m_deviceFilter);
-            if (SUCCEEDED(hr)) {
-                CCAP_LOG_V("ccap: Using video capture device: %s\n", name.data());
-                m_deviceName = name;
-                found = true;
-                return true; // stop enumeration when returning true
-            } else {
+            // Use SEH to catch crashes from buggy drivers (e.g., unplugged devices like Oculus Quest 3)
+            __try {
+                auto hr = moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&m_deviceFilter);
+                if (SUCCEEDED(hr)) {
+                    CCAP_LOG_V("ccap: Using video capture device: %s\n", name.data());
+                    m_deviceName = name;
+                    found = true;
+                    return true; // stop enumeration when returning true
+                } else {
+                    if (!deviceName.empty()) {
+                        reportError(ErrorCode::InvalidDevice, "\"" + std::string(deviceName) + "\" is not a valid video capture device, bind failed");
+                        return true; // stop enumeration when returning true
+                    }
+
+                    CCAP_LOG_I("ccap: bind \"%s\" failed(result=%x), try next device...\n", name.data(), hr);
+                }
+            } __except (EXCEPTION_EXECUTE_HANDLER) {
+                // Catch crashes from buggy camera drivers (e.g., when camera is physically unplugged)
+                CCAP_LOG_W("ccap: \"%s\" caused an exception during device binding, skipping\n", name.data());
                 if (!deviceName.empty()) {
-                    reportError(ErrorCode::InvalidDevice, "\"" + std::string(deviceName) + "\" is not a valid video capture device, bind failed");
+                    reportError(ErrorCode::InvalidDevice, "\"" + std::string(deviceName) + "\" caused an exception during binding");
                     return true; // stop enumeration when returning true
                 }
-
-                CCAP_LOG_I("ccap: bind \"%s\" failed(result=%x), try next device...\n", name.data(), hr);
             }
         }
         // continue enumerating when returning false
