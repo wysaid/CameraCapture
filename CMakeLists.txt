@@ -22,7 +22,29 @@ if(CCAP_IS_ROOT_PROJECT)
     set(CMAKE_FETCHCONTENT_BASE_DIR "${CMAKE_SOURCE_DIR}/build" CACHE PATH "FetchContent base dir" FORCE)
 endif()
 
-project(ccap VERSION 1.1.0 LANGUAGES C CXX)
+# Read version from header file
+set(CCAP_CONFIG_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/include/ccap_config.h")
+if(EXISTS "${CCAP_CONFIG_HEADER}")
+    file(READ "${CCAP_CONFIG_HEADER}" ver_h)
+    string(REGEX MATCH "#define CCAP_VERSION_MAJOR ([0-9]+)" _ "${ver_h}")
+    set(ver_major ${CMAKE_MATCH_1})
+    string(REGEX MATCH "#define CCAP_VERSION_MINOR ([0-9]+)" _ "${ver_h}")
+    set(ver_minor ${CMAKE_MATCH_1})
+    string(REGEX MATCH "#define CCAP_VERSION_PATCH ([0-9]+)" _ "${ver_h}")
+    set(ver_patch ${CMAKE_MATCH_1})
+
+    if("${ver_major}" STREQUAL "" OR "${ver_minor}" STREQUAL "" OR "${ver_patch}" STREQUAL "")
+        set(PROJECT_VERSION "0.0.9999")
+        message(WARNING "Could not parse version from ${CCAP_CONFIG_HEADER}, using default version ${PROJECT_VERSION}")
+    else()
+        set(PROJECT_VERSION "${ver_major}.${ver_minor}.${ver_patch}")
+    endif()
+else()
+    set(PROJECT_VERSION "0.0.9999")
+    message(WARNING "${CCAP_CONFIG_HEADER} not found, using default version ${PROJECT_VERSION}")
+endif()
+
+project(ccap VERSION ${PROJECT_VERSION} LANGUAGES C CXX)
 
 # Installation options
 option(CCAP_INSTALL "Generate installation target" ${CCAP_IS_ROOT_PROJECT})

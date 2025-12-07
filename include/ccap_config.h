@@ -12,6 +12,13 @@
 #ifndef CCAP_CONFIG_H
 #define CCAP_CONFIG_H
 
+/* ========== Version Information ========== */
+
+#define CCAP_VERSION_MAJOR 1
+#define CCAP_VERSION_MINOR 3
+#define CCAP_VERSION_PATCH 2
+#define CCAP_VERSION_STRING "1.3.2"
+
 /* ========== Export/Import Macro Definitions ========== */
 
 // Define CCAP_EXPORT macro for symbol export/import
