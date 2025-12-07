@@ -205,28 +205,22 @@ jobs:
       if: failure() && github.event_name == 'pull_request'
       uses: actions/github-script@v7
       with:
-        script: |
-          const fs = require('fs');
+        script: >-
           github.rest.issues.createComment({
             issue_number: context.issue.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
-            body: `❌ **Version Consistency Check Failed**
-
-This PR has version inconsistencies. Please ensure all version-related files are synchronized.
-
-**Expected version from \`include/ccap_config.h\`:** \`${{ steps.header_version.outputs.version }}\`
-
-**Files to check:**
-- ✅/❌ \`ccap.podspec\` - Expected version: \`${{ steps.header_version.outputs.version }}\`
-- ✅/❌ \`conanfile.py\` - Expected version: \`${{ steps.header_version.outputs.version }}\`
-- ✅/❌ \`BUILD_AND_INSTALL.md\` - Expected version: \`${{ steps.header_version.outputs.version }}\`
-
-**To fix this:**
-Use the version update script:
-\`\`\`bash
-./scripts/update_version.sh ${{ steps.header_version.outputs.version }}
-\`\`\`
-
-Or manually update each file to match the version in \`include/ccap_config.h\`.`
+            body: "❌ **Version Consistency Check Failed**\n\n" +
+                  "This PR has version inconsistencies. Please ensure all version-related files are synchronized.\n\n" +
+                  "**Expected version from `include/ccap_config.h`:** `${{ steps.header_version.outputs.version }}`\n\n" +
+                  "**Files to check:**\n" +
+                  "- ✅/❌ `ccap.podspec` - Expected version: `${{ steps.header_version.outputs.version }}`\n" +
+                  "- ✅/❌ `conanfile.py` - Expected version: `${{ steps.header_version.outputs.version }}`\n" +
+                  "- ✅/❌ `BUILD_AND_INSTALL.md` - Expected version: `${{ steps.header_version.outputs.version }}`\n\n" +
+                  "**To fix this:**\n" +
+                  "Use the version update script:\n" +
+                  "```bash\n" +
+                  "./scripts/update_version.sh ${{ steps.header_version.outputs.version }}\n" +
+                  "```\n\n" +
+                  "Or manually update each file to match the version in `include/ccap_config.h`."
           });
