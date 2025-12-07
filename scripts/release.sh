@@ -17,20 +17,20 @@ NC='\033[0m' # No Color
 DRY_RUN=false
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -n|--dry-run)
-            DRY_RUN=true
-            shift
-            ;;
-        *)
-            echo "Unknown option: $1"
-            echo "Usage: $0 [-n|--dry-run]"
-            exit 1
-            ;;
+    -n | --dry-run)
+        DRY_RUN=true
+        shift
+        ;;
+    *)
+        echo "Unknown option: $1"
+        echo "Usage: $0 [-n|--dry-run]"
+        exit 1
+        ;;
     esac
 done
 
 # Get the project root directory (assuming script is in scripts/ folder)
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Change to project root
@@ -63,19 +63,19 @@ fi
 get_github_remote() {
     # First, try to find a remote with github.com in the URL
     local github_remote=$(git remote -v | grep 'github\.com' | awk '{print $1}' | head -1)
-    
+
     if [ -n "$github_remote" ]; then
         echo "$github_remote"
         return 0
     fi
-    
+
     # Fallback: return first available remote
     local first_remote=$(git remote | head -1)
     if [ -n "$first_remote" ]; then
         echo "$first_remote"
         return 0
     fi
-    
+
     # No remotes found
     return 1
 }
@@ -213,7 +213,7 @@ echo -e "${BLUE}Step 3: Checking git repository status...${NC}"
 echo ""
 
 # Check if we are in a git repository
-if ! git rev-parse --git-dir > /dev/null 2>&1; then
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
     echo -e "${RED}❌ Error: Not in a git repository${NC}"
     exit 1
 fi
@@ -279,14 +279,14 @@ echo ""
 compare_versions() {
     local v1=$1
     local v2=$2
-    
+
     # Convert versions to comparable format (e.g., 1.2.3 -> 001002003)
     local v1_parts=(${v1//./ })
     local v2_parts=(${v2//./ })
-    
+
     local v1_num=$(printf "%03d%03d%03d" ${v1_parts[0]} ${v1_parts[1]} ${v1_parts[2]})
     local v2_num=$(printf "%03d%03d%03d" ${v2_parts[0]} ${v2_parts[1]} ${v2_parts[2]})
-    
+
     if [ "$v1_num" -gt "$v2_num" ]; then
         echo "greater"
     elif [ "$v1_num" -eq "$v2_num" ]; then
@@ -298,7 +298,7 @@ compare_versions() {
 
 if [ "$LATEST_TAG" != "0.0.0" ]; then
     COMPARE=$(compare_versions "$CURRENT_VERSION" "$LATEST_TAG")
-    
+
     if [ "$COMPARE" = "equal" ]; then
         echo -e "${RED}❌ Error: Version is not higher than the latest release!${NC}"
         echo -e "  Current: $CURRENT_VERSION, Latest: $LATEST_TAG"
@@ -308,7 +308,7 @@ if [ "$LATEST_TAG" != "0.0.0" ]; then
         echo -e "  Current: $CURRENT_VERSION, Latest: $LATEST_TAG"
         exit 1
     fi
-    
+
     echo -e "  Latest version: $LATEST_TAG"
     echo -e "  Current version: $CURRENT_VERSION"
     echo -e "${GREEN}✅ Version is higher than the latest release${NC}"
