@@ -80,7 +80,7 @@ jobs:
           exit 1
         fi
 
-        PODSPEC_VERSION=$(grep 's.version' ccap.podspec | sed 's/.*"\([^"]*\)".*/\1/')
+        PODSPEC_VERSION=$(grep 's\.version\s*=' ccap.podspec | sed 's/.*"\([^"]*\)".*/\1/')
         
         if [ -z "$PODSPEC_VERSION" ]; then
           echo "❌ Could not extract version from ccap.podspec"
