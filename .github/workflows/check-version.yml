@@ -105,8 +105,9 @@ jobs:
         EXPECTED_VERSION: ${{ steps.header_version.outputs.version }}
       run: |
         if [ ! -f "conanfile.py" ]; then
-          echo "❌ conanfile.py not found!"
-          exit 1
+          echo "⚠️  conanfile.py not found, skipping (Conan support may be in development)"
+          echo "conan_version=" >> $GITHUB_OUTPUT
+          exit 0
         fi
 
         CONAN_VERSION=$(grep 'version = ' conanfile.py | head -1 | sed 's/.*"\([^"]*\)".*/\1/')

@@ -37,9 +37,13 @@ echo "Updated include/ccap_config.h"
 sed -i "" "s/s.version      = \".*\"/s.version      = \"$NEW_VERSION\"/" "$PROJECT_ROOT/ccap.podspec"
 echo "Updated ccap.podspec"
 
-# 3. Update conanfile.py
-sed -i "" "s/version = \".*\"/version = \"$NEW_VERSION\"/" "$PROJECT_ROOT/conanfile.py"
-echo "Updated conanfile.py"
+# 3. Update conanfile.py (optional file)
+if [ -f "$PROJECT_ROOT/conanfile.py" ]; then
+    sed -i "" "s/version = \".*\"/version = \"$NEW_VERSION\"/" "$PROJECT_ROOT/conanfile.py"
+    echo "Updated conanfile.py"
+else
+    echo "⚠️  conanfile.py not found, skipping (Conan support may be in development)"
+fi
 
 # 4. Update BUILD_AND_INSTALL.md
 sed -i "" "s/Current version: .*/Current version: $NEW_VERSION/" "$PROJECT_ROOT/BUILD_AND_INSTALL.md"
