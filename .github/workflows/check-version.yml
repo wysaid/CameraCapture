@@ -1,0 +1,231 @@
+name: Check Version Consistency
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - version_manage
+    paths:
+      - 'include/ccap_config.h'
+      - 'ccap.podspec'
+      - 'conanfile.py'
+      - 'BUILD_AND_INSTALL.md'
+      - '.github/workflows/check-version.yml'
+  
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'include/ccap_config.h'
+      - 'ccap.podspec'
+      - 'conanfile.py'
+      - 'BUILD_AND_INSTALL.md'
+
+jobs:
+  check-version:
+    name: Verify Version Consistency
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Extract version from ccap_config.h
+      id: header_version
+      shell: bash
+      run: |
+        if [ ! -f "include/ccap_config.h" ]; then
+          echo "❌ include/ccap_config.h not found!"
+          exit 1
+        fi
+
+        # Extract version numbers from header file
+        MAJOR=$(grep "#define CCAP_VERSION_MAJOR" include/ccap_config.h | awk '{print $3}')
+        MINOR=$(grep "#define CCAP_VERSION_MINOR" include/ccap_config.h | awk '{print $3}')
+        PATCH=$(grep "#define CCAP_VERSION_PATCH" include/ccap_config.h | awk '{print $3}')
+        VERSION_STRING=$(grep "#define CCAP_VERSION_STRING" include/ccap_config.h | sed 's/.*"\([^"]*\)".*/\1/')
+
+        if [ -z "$MAJOR" ] || [ -z "$MINOR" ] || [ -z "$PATCH" ] || [ -z "$VERSION_STRING" ]; then
+          echo "❌ Could not parse version macros from include/ccap_config.h"
+          echo "MAJOR=$MAJOR, MINOR=$MINOR, PATCH=$PATCH, VERSION_STRING=$VERSION_STRING"
+          exit 1
+        fi
+
+        HEADER_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+        
+        echo "Header version: $HEADER_VERSION"
+        echo "Version string: $VERSION_STRING"
+        
+        if [ "$HEADER_VERSION" != "$VERSION_STRING" ]; then
+          echo "❌ Version mismatch in header file!"
+          echo "Calculated: $HEADER_VERSION, String: $VERSION_STRING"
+          exit 1
+        fi
+
+        echo "version=$HEADER_VERSION" >> $GITHUB_OUTPUT
+        echo "major=$MAJOR" >> $GITHUB_OUTPUT
+        echo "minor=$MINOR" >> $GITHUB_OUTPUT
+        echo "patch=$PATCH" >> $GITHUB_OUTPUT
+
+    - name: Check ccap.podspec version
+      id: podspec_version
+      shell: bash
+      env:
+        EXPECTED_VERSION: ${{ steps.header_version.outputs.version }}
+      run: |
+        if [ ! -f "ccap.podspec" ]; then
+          echo "❌ ccap.podspec not found!"
+          exit 1
+        fi
+
+        PODSPEC_VERSION=$(grep 's.version' ccap.podspec | sed 's/.*"\([^"]*\)".*/\1/')
+        
+        if [ -z "$PODSPEC_VERSION" ]; then
+          echo "❌ Could not extract version from ccap.podspec"
+          exit 1
+        fi
+
+        echo "podspec_version=$PODSPEC_VERSION" >> $GITHUB_OUTPUT
+        echo "Podspec version: $PODSPEC_VERSION"
+        
+        if [ "$PODSPEC_VERSION" != "$EXPECTED_VERSION" ]; then
+          echo "❌ Version mismatch in ccap.podspec!"
+          echo "Expected: $EXPECTED_VERSION, Found: $PODSPEC_VERSION"
+          exit 1
+        fi
+        
+        echo "✅ Podspec version matches"
+
+    - name: Check conanfile.py version
+      id: conan_version
+      shell: bash
+      env:
+        EXPECTED_VERSION: ${{ steps.header_version.outputs.version }}
+      run: |
+        if [ ! -f "conanfile.py" ]; then
+          echo "❌ conanfile.py not found!"
+          exit 1
+        fi
+
+        CONAN_VERSION=$(grep 'version = ' conanfile.py | head -1 | sed 's/.*"\([^"]*\)".*/\1/')
+        
+        if [ -z "$CONAN_VERSION" ]; then
+          echo "❌ Could not extract version from conanfile.py"
+          exit 1
+        fi
+
+        echo "conan_version=$CONAN_VERSION" >> $GITHUB_OUTPUT
+        echo "Conan version: $CONAN_VERSION"
+        
+        if [ "$CONAN_VERSION" != "$EXPECTED_VERSION" ]; then
+          echo "❌ Version mismatch in conanfile.py!"
+          echo "Expected: $EXPECTED_VERSION, Found: $CONAN_VERSION"
+          exit 1
+        fi
+        
+        echo "✅ Conan version matches"
+
+    - name: Check BUILD_AND_INSTALL.md version
+      id: doc_version
+      shell: bash
+      env:
+        EXPECTED_VERSION: ${{ steps.header_version.outputs.version }}
+      run: |
+        if [ ! -f "BUILD_AND_INSTALL.md" ]; then
+          echo "❌ BUILD_AND_INSTALL.md not found!"
+          exit 1
+        fi
+
+        DOC_VERSION=$(grep 'Current version:' BUILD_AND_INSTALL.md | head -1 | sed 's/.*: \([^ ]*\).*/\1/')
+        
+        if [ -z "$DOC_VERSION" ]; then
+          echo "❌ Could not extract version from BUILD_AND_INSTALL.md"
+          exit 1
+        fi
+
+        echo "doc_version=$DOC_VERSION" >> $GITHUB_OUTPUT
+        echo "Documentation version: $DOC_VERSION"
+        
+        if [ "$DOC_VERSION" != "$EXPECTED_VERSION" ]; then
+          echo "❌ Version mismatch in BUILD_AND_INSTALL.md!"
+          echo "Expected: $EXPECTED_VERSION, Found: $DOC_VERSION"
+          exit 1
+        fi
+        
+        echo "✅ Documentation version matches"
+
+    - name: Check CMakeLists.txt version
+      id: cmake_version
+      shell: bash
+      env:
+        EXPECTED_VERSION: ${{ steps.header_version.outputs.version }}
+      run: |
+        if [ ! -f "CMakeLists.txt" ]; then
+          echo "❌ CMakeLists.txt not found!"
+          exit 1
+        fi
+
+        # CMakeLists.txt reads version from header file dynamically,
+        # so we only need to verify it exists and contains the version reading logic
+        if ! grep -q "file(READ.*ccap_config.h" CMakeLists.txt; then
+          echo "⚠️ Warning: CMakeLists.txt does not read version from header file"
+        else
+          echo "✅ CMakeLists.txt correctly reads version from header file"
+        fi
+
+    - name: Generate report
+      if: always()
+      shell: bash
+      run: |
+        echo "## 📋 Version Consistency Check Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### ✅ Extracted Versions" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Component | Version |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|---------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Header (ccap_config.h) | ${{ steps.header_version.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Podspec (ccap.podspec) | ${{ steps.podspec_version.outputs.podspec_version }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Conan (conanfile.py) | ${{ steps.conan_version.outputs.conan_version }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Documentation (BUILD_AND_INSTALL.md) | ${{ steps.doc_version.outputs.doc_version }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🎯 Details" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Header Version Breakdown:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Major: ${{ steps.header_version.outputs.major }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Minor: ${{ steps.header_version.outputs.minor }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Patch: ${{ steps.header_version.outputs.patch }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Single Source of Truth:**" >> $GITHUB_STEP_SUMMARY
+        echo "All version information is derived from \`include/ccap_config.h\`" >> $GITHUB_STEP_SUMMARY
+
+    - name: Post comment on PR
+      if: failure() && github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `❌ **Version Consistency Check Failed**
+
+This PR has version inconsistencies. Please ensure all version-related files are synchronized.
+
+**Expected version from \`include/ccap_config.h\`:** \`${{ steps.header_version.outputs.version }}\`
+
+**Files to check:**
+- ✅/❌ \`ccap.podspec\` - Expected version: \`${{ steps.header_version.outputs.version }}\`
+- ✅/❌ \`conanfile.py\` - Expected version: \`${{ steps.header_version.outputs.version }}\`
+- ✅/❌ \`BUILD_AND_INSTALL.md\` - Expected version: \`${{ steps.header_version.outputs.version }}\`
+
+**To fix this:**
+Use the version update script:
+\`\`\`bash
+./scripts/update_version.sh ${{ steps.header_version.outputs.version }}
+\`\`\`
+
+Or manually update each file to match the version in \`include/ccap_config.h\`.`
+          });
