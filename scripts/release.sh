@@ -162,6 +162,7 @@ if [ -n "$CONAN_VERSION" ]; then
     VERSIONS+=("$CONAN_VERSION")
 fi
 
+CONSISTENT=true
 for version in "${VERSIONS[@]}"; do
     if [ "$version" != "$HEADER_VERSION" ]; then
         echo -e "${RED}❌ Version mismatch detected!${NC}"
