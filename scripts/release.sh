@@ -36,9 +36,40 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 # Change to project root
 cd "$PROJECT_ROOT"
 
+# Helper function to get the appropriate GitHub remote
+# Priority: URL containing github.com > first available remote
+get_github_remote() {
+    # First, try to find a remote with github.com in the URL
+    local github_remote=$(git remote -v | grep 'github\.com' | awk '{print $1}' | head -1)
+    
+    if [ -n "$github_remote" ]; then
+        echo "$github_remote"
+        return 0
+    fi
+    
+    # Fallback: return first available remote
+    local first_remote=$(git remote | head -1)
+    if [ -n "$first_remote" ]; then
+        echo "$first_remote"
+        return 0
+    fi
+    
+    # No remotes found
+    return 1
+}
+
+# Get the GitHub remote to use for pushing
+GITHUB_REMOTE=$(get_github_remote)
+if [ -z "$GITHUB_REMOTE" ]; then
+    echo -e "${RED}❌ Error: No git remote found!${NC}"
+    exit 1
+fi
+
 echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
 echo -e "${BLUE}          CameraCapture Release Script${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+echo ""
+echo -e "  Using remote: ${GREEN}$GITHUB_REMOTE${NC} ($(git remote get-url "$GITHUB_REMOTE"))"
 echo ""
 
 if [ "$DRY_RUN" = true ]; then
@@ -280,7 +311,7 @@ if [ "$DRY_RUN" = true ]; then
     echo ""
     echo -e "${BLUE}What would be executed:${NC}"
     echo -e "  ${BLUE}git tag -a $RELEASE_TAG -m \"Release $CURRENT_VERSION\"${NC}"
-    echo -e "  ${BLUE}git push github $RELEASE_TAG${NC}"
+    echo -e "  ${BLUE}git push $GITHUB_REMOTE $RELEASE_TAG${NC}"
     exit 0
 fi
 
@@ -293,7 +324,7 @@ fi
 echo -e "${GREEN}✅ Tag created: $RELEASE_TAG${NC}"
 
 # Push tag to remote
-if ! git push github "$RELEASE_TAG"; then
+if ! git push "$GITHUB_REMOTE" "$RELEASE_TAG"; then
     echo -e "${RED}❌ Error: Failed to push tag to remote${NC}"
     echo -e "  Cleaning up local tag..."
     git tag -d "$RELEASE_TAG"
