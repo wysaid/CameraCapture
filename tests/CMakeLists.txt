@@ -205,3 +205,67 @@ else()
         -O3
     )
 endif()
+
+# ============================================================
+# Interactive Device Hot-plug Test
+# Tests crash prevention when enumerating unplugged devices
+# with buggy drivers (Windows DirectShow)
+# This test requires manual interaction and is NOT part of
+# the automated test suite
+# ============================================================
+
+add_executable(
+    ccap_device_hotplug_test
+    test_device_hotplug.cpp
+)
+
+target_link_libraries(
+    ccap_device_hotplug_test
+    ccap
+)
+
+set_target_properties(ccap_device_hotplug_test PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+)
+
+# Platform-specific compile options
+if(MSVC)
+    target_compile_options(ccap_device_hotplug_test PRIVATE
+        /MP
+        /std:c++17
+        /Zc:__cplusplus
+        /Zc:preprocessor
+        /source-charset:utf-8
+        /bigobj
+        /wd4996
+        /D_CRT_SECURE_NO_WARNINGS
+    )
+else()
+    target_compile_options(ccap_device_hotplug_test PRIVATE
+        -std=c++17
+    )
+endif()
+
+# Add a custom target to run this interactive test manually
+# Usage: cmake --build . --target run_device_hotplug_test
+if(WIN32)
+    add_custom_target(run_device_hotplug_testg_test
+        COMMAND ${CMAKE_COMMAND} -E echo "=========================================="
+        COMMAND ${CMAKE_COMMAND} -E echo "Running Device Hot-plug Interactive Test"
+        COMMAND ${CMAKE_COMMAND} -E echo "=========================================="
+        COMMAND $<TARGET_FILE:ccap_device_hotplug_test>
+        DEPENDS ccap_device_hotplug_test
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "Running interactive device hot-plug test (buggy driver crash prevention)"
+    )
+endif()
+
+message(STATUS "Device hot-plug interactive test configured: ccap_device_hotplug_test")
+if(WIN32)
+    message(STATUS "  Run manually with: cmake --build . --target run_device_hotplug_test")
+    message(STATUS "  Or execute: ${CMAKE_BINARY_DIR}/tests/Debug/ccap_device_hotplug_test.exe")
+else()
+    message(STATUS "  Run manually with: ./ccap_device_hotplug_test")
+endif()
+
