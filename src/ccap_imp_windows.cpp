@@ -91,6 +91,58 @@ using namespace ccap;
 namespace {
 constexpr FrameOrientation kDefaultFrameOrientation = FrameOrientation::BottomToTop;
 
+#if defined(_MSC_VER) || (defined(__MINGW64__) && defined(__SEH__))
+#define CCAP_SEH_SUPPORTED 1
+#else
+#define CCAP_SEH_SUPPORTED 0
+#endif
+
+enum class DeviceBindResult {
+    Success = 0,
+    Failed = 1,
+    Exception = 2
+};
+
+/// Bind moniker to filter with SEH protection for device validation
+DeviceBindResult tryBindMonikerToFilter(IMoniker* moniker, std::string_view name) {
+#if CCAP_SEH_SUPPORTED
+    __try {
+#endif
+        IBaseFilter* filter = nullptr;
+        HRESULT hr = moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&filter);
+        if (SUCCEEDED(hr) && filter) {
+            filter->Release();
+            return DeviceBindResult::Success;
+        } else {
+            CCAP_LOG_I("ccap: \"%s\" is not a valid video capture device, removed\n", name.data());
+            return DeviceBindResult::Failed;
+        }
+#if CCAP_SEH_SUPPORTED
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        CCAP_LOG_W("ccap: \"%s\" caused an exception during device binding, skipping\n", name.data());
+        return DeviceBindResult::Exception;
+    }
+#endif
+}
+
+/// Bind moniker to device filter with SEH protection for device opening
+DeviceBindResult tryBindMonikerForOpen(IMoniker* moniker, IBaseFilter** deviceFilter) {
+#if CCAP_SEH_SUPPORTED
+    __try {
+#endif
+        HRESULT hr = moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)deviceFilter);
+        if (SUCCEEDED(hr)) {
+            return DeviceBindResult::Success;
+        } else {
+            return DeviceBindResult::Failed;
+        }
+#if CCAP_SEH_SUPPORTED
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return DeviceBindResult::Exception;
+    }
+#endif
+}
+
 // Release the format block for a media type.
 void freeMediaType(AM_MEDIA_TYPE& mt) {
     if (mt.cbFormat != 0) {
@@ -400,21 +452,12 @@ std::vector<std::string> ProviderDirectShow::findDeviceNames() {
 
     enumerateDevices([&](IMoniker* moniker, std::string_view name) {
         // Try to bind device, check if available
-        // Use SEH to catch crashes from buggy drivers (e.g., unplugged devices like Oculus Quest 3)
-        __try {
-            IBaseFilter* filter = nullptr;
-            HRESULT hr = moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&filter);
-            if (SUCCEEDED(hr) && filter) {
-                m_allDeviceNames.emplace_back(name.data(), name.size());
-                filter->Release();
-            } else {
-                CCAP_LOG_I("ccap: \"%s\" is not a valid video capture device, removed\n", name.data());
-            }
-        } __except (EXCEPTION_EXECUTE_HANDLER) {
-            // Catch crashes from buggy camera drivers (e.g., when camera is physically unplugged)
-            CCAP_LOG_W("ccap: \"%s\" caused an exception during device binding, skipping\n", name.data());
+        // Use helper function with SEH to catch crashes from exception-throwing devices
+        DeviceBindResult result = tryBindMonikerToFilter(moniker, name);
+        if (result == DeviceBindResult::Success) {
+            m_allDeviceNames.emplace_back(name.data(), name.size());
         }
-        // Unavailable devices are not added to the list
+        // Unavailable devices (Failed or Exception) are not added to the list
         return false; // Continue enumeration
     });
 
@@ -666,28 +709,29 @@ bool ProviderDirectShow::open(std::string_view deviceName) {
 
     enumerateDevices([&](IMoniker* moniker, std::string_view name) {
         if (deviceName.empty() || deviceName == name) {
-            // Use SEH to catch crashes from buggy drivers (e.g., unplugged devices like Oculus Quest 3)
-            __try {
-                auto hr = moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&m_deviceFilter);
-                if (SUCCEEDED(hr)) {
-                    CCAP_LOG_V("ccap: Using video capture device: %s\n", name.data());
-                    m_deviceName = name;
-                    found = true;
-                    return true; // stop enumeration when returning true
-                } else {
-                    if (!deviceName.empty()) {
-                        reportError(ErrorCode::InvalidDevice, "\"" + std::string(deviceName) + "\" is not a valid video capture device, bind failed");
-                        return true; // stop enumeration when returning true
-                    }
-
-                    CCAP_LOG_I("ccap: bind \"%s\" failed(result=%x), try next device...\n", name.data(), hr);
-                }
-            } __except (EXCEPTION_EXECUTE_HANDLER) {
-                // Catch crashes from buggy camera drivers (e.g., when camera is physically unplugged)
-                CCAP_LOG_W("ccap: \"%s\" caused an exception during device binding, skipping\n", name.data());
-                if (!deviceName.empty()) {
+            // Use helper function with SEH to catch crashes from exception-throwing devices
+            DeviceBindResult result = tryBindMonikerForOpen(moniker, &m_deviceFilter);
+            
+            if (result == DeviceBindResult::Success) {
+                // Success - save device name and stop enumeration
+                CCAP_LOG_V("ccap: Using video capture device: %s\n", name.data());
+                m_deviceName = name;
+                found = true;
+                return true;
+            } else if (!deviceName.empty()) {
+                // Specific device was requested but failed
+                if (result == DeviceBindResult::Exception) {
                     reportError(ErrorCode::InvalidDevice, "\"" + std::string(deviceName) + "\" caused an exception during binding");
-                    return true; // stop enumeration when returning true
+                } else {
+                    reportError(ErrorCode::InvalidDevice, "\"" + std::string(deviceName) + "\" is not a valid video capture device, bind failed");
+                }
+                return true; // stop enumeration
+            } else {
+                // No specific device requested and this one failed - log and continue trying next device
+                if (result == DeviceBindResult::Exception) {
+                    CCAP_LOG_W("ccap: \"%s\" caused an exception during device binding, skipping\n", name.data());
+                } else {
+                    CCAP_LOG_I("ccap: bind \"%s\" failed, try next device...\n", name.data());
                 }
             }
         }
