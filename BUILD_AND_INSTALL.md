@@ -250,6 +250,6 @@ git clean -fdx install/
 
 ## Version Information
 
-Current version: 1.3.2
+Current version: 1.4.1
 
 This is the first official release of the ccap project, including complete CMake configuration and cross-platform build support.

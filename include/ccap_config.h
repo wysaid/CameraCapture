@@ -15,9 +15,9 @@
 /* ========== Version Information ========== */
 
 #define CCAP_VERSION_MAJOR 1
-#define CCAP_VERSION_MINOR 3
-#define CCAP_VERSION_PATCH 2
-#define CCAP_VERSION_STRING "1.3.2"
+#define CCAP_VERSION_MINOR 4
+#define CCAP_VERSION_PATCH 1
+#define CCAP_VERSION_STRING "1.4.1"
 
 /* ========== Export/Import Macro Definitions ========== */
 
