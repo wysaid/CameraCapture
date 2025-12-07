@@ -5,7 +5,7 @@ import os
 
 class CcapConan(ConanFile):
     name = "ccap"
-    version = "1.4.1"
+    version = "1.3.2"
     license = "MIT"
     author = "wysaid (this@wysaid.org)"
     url = "https://github.com/wysaid/CameraCapture"
