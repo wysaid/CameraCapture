@@ -24,18 +24,12 @@
 
 #include "ccap.h"
 
+#include <algorithm>
 #include <chrono>
 #include <iostream>
 #include <string>
 #include <thread>
 #include <vector>
-
-#ifdef _WIN32
-#include <conio.h> // For _kbhit() and _getch()
-#else
-#include <termios.h>
-#include <unistd.h>
-#endif
 
 namespace {
 

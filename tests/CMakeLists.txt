@@ -250,7 +250,7 @@ endif()
 # Add a custom target to run this interactive test manually
 # Usage: cmake --build . --target run_device_hotplug_test
 if(WIN32)
-    add_custom_target(run_device_hotplug_testg_test
+    add_custom_target(run_device_hotplug_test
         COMMAND ${CMAKE_COMMAND} -E echo "=========================================="
         COMMAND ${CMAKE_COMMAND} -E echo "Running Device Hot-plug Interactive Test"
         COMMAND ${CMAKE_COMMAND} -E echo "=========================================="
