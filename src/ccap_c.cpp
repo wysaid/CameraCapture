@@ -398,8 +398,7 @@ const char* ccap_error_code_to_string(CcapErrorCode errorCode) {
 }
 
 const char* ccap_get_version(void) {
-    // You may want to define this version string elsewhere
-    return "1.0.0";
+    return CCAP_VERSION_STRING;
 }
 
 bool ccap_pixel_format_is_rgb(CcapPixelFormat format) {

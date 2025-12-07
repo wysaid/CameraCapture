@@ -190,12 +190,11 @@ int main() {
 
 | 示例 | 描述 | 语言 | 平台 |
 |------|------|------|------|
-| [0-print_camera](./examples/desktop/0-print_camera.cpp) | 列出可用相机 | C++ | 桌面端 |
-| [0-print_camera_c](./examples/desktop/0-print_camera_c.c) | 列出可用相机 | C | 桌面端 |
-| [1-minimal_example](./examples/desktop/1-minimal_example.cpp) | 基本帧捕获 | C++ | 桌面端 |
-| [2-capture_grab](./examples/desktop/2-capture_grab.cpp) | 连续捕获 | C++ | 桌面端 |
-| [3-capture_callback](./examples/desktop/3-capture_callback.cpp) | 回调式捕获 | C++ | 桌面端 |
-| [4-example_with_glfw](./examples/desktop/4-example_with_glfw.cpp) | OpenGL 渲染 | C++ | 桌面端 |
+| [0-print_camera](./examples/desktop/0-print_camera.cpp) / [0-print_camera_c](./examples/desktop/0-print_camera_c.c) | 列出可用相机 | C++ / C | 桌面端 |
+| [1-minimal_example](./examples/desktop/1-minimal_example.cpp) / [1-minimal_example_c](./examples/desktop/1-minimal_example_c.c) | 基本帧捕获 | C++ / C | 桌面端 |
+| [2-capture_grab](./examples/desktop/2-capture_grab.cpp) / [2-capture_grab_c](./examples/desktop/2-capture_grab_c.c) | 连续捕获 | C++ / C | 桌面端 |
+| [3-capture_callback](./examples/desktop/3-capture_callback.cpp) / [3-capture_callback_c](./examples/desktop/3-capture_callback_c.c) | 回调式捕获 | C++ / C | 桌面端 |
+| [4-example_with_glfw](./examples/desktop/4-example_with_glfw.cpp) / [4-example_with_glfw_c](./examples/desktop/4-example_with_glfw_c.c) | OpenGL 渲染 | C++ / C | 桌面端 |
 | [iOS Demo](./examples/) | iOS 应用程序 | Objective-C++ | iOS |
 
 ### 构建和运行示例
@@ -209,6 +208,14 @@ cmake --build .
 ./0-print_camera
 ./1-minimal_example
 ```
+
+```bash
+# 运行纯 C 版本（如果你启用了 C 示例构建）
+./0-print_camera_c
+./1-minimal_example_c
+```
+
+> 说明：每个桌面示例均包含 C++ (.cpp) 和纯 C (.c) 两个版本。C 语言版本对应的文件名带有 `_c` 后缀（例如 `1-minimal_example_c.c`）。
 
 ## API 参考
 

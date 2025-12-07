@@ -140,6 +140,7 @@ int main() {
 ```
 
 Available error codes include:
+
 - `ErrorCode::NoDeviceFound` - No camera device found
 - `ErrorCode::InvalidDevice` - Invalid device name or index  
 - `ErrorCode::DeviceOpenFailed` - Camera open failed
@@ -226,12 +227,11 @@ int main() {
 
 | Example | Description | Language | Platform |
 |---------|-------------|----------|----------|
-| [0-print_camera](./examples/desktop/0-print_camera.cpp) | List available cameras | C++ | Desktop |
-| [0-print_camera_c](./examples/desktop/0-print_camera_c.c) | List available cameras | C | Desktop |
-| [1-minimal_example](./examples/desktop/1-minimal_example.cpp) | Basic frame capture | C++ | Desktop |
-| [2-capture_grab](./examples/desktop/2-capture_grab.cpp) | Continuous capture | C++ | Desktop |
-| [3-capture_callback](./examples/desktop/3-capture_callback.cpp) | Callback-based capture | C++ | Desktop |
-| [4-example_with_glfw](./examples/desktop/4-example_with_glfw.cpp) | OpenGL rendering | C++ | Desktop |
+| [0-print_camera](./examples/desktop/0-print_camera.cpp) / [0-print_camera_c](./examples/desktop/0-print_camera_c.c) | List available cameras | C++ / C | Desktop |
+| [1-minimal_example](./examples/desktop/1-minimal_example.cpp) / [1-minimal_example_c](./examples/desktop/1-minimal_example_c.c) | Basic frame capture | C++ / C | Desktop |
+| [2-capture_grab](./examples/desktop/2-capture_grab.cpp) / [2-capture_grab_c](./examples/desktop/2-capture_grab_c.c) | Continuous capture | C++ / C | Desktop |
+| [3-capture_callback](./examples/desktop/3-capture_callback.cpp) / [3-capture_callback_c](./examples/desktop/3-capture_callback_c.c) | Callback-based capture | C++ / C | Desktop |
+| [4-example_with_glfw](./examples/desktop/4-example_with_glfw.cpp) / [4-example_with_glfw_c](./examples/desktop/4-example_with_glfw_c.c) | OpenGL rendering | C++ / C | Desktop |
 | [iOS Demo](./examples/) | iOS application | Objective-C++ | iOS |
 
 ### Build and Run Examples
@@ -244,7 +244,13 @@ cmake --build .
 # Run examples
 ./0-print_camera
 ./1-minimal_example
+
+# Run the pure C variants (if you built C examples)
+./0-print_camera_c
+./1-minimal_example_c
 ```
+
+> Note: Each desktop example is available in both C++ (.cpp) and pure C (.c) variants. Use the filenames with a trailing `_c` (e.g. `1-minimal_example_c.c`) for the C versions.
 
 ## API Reference
 
