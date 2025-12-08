@@ -1,0 +1,1 @@
+/home/runner/work/CameraCapture/.codeql-scratch/dbs/cpp/working/autobuild/bin/c++ -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/2-capture_grab.dir/link.d "CMakeFiles/2-capture_grab.dir/examples/desktop/2-capture_grab.cpp.o" -o 2-capture_grab  libcommon_utils.a libccap.a
