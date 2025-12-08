@@ -898,6 +898,39 @@
                 "command": ".\\4-example_with_glfw_c.exe",
                 "problemMatcher": "$msCompile"
             }
+        },
+        {
+            "label": "Run Device Hot-plug Test (Debug)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./ccap_device_hotplug_test.exe; else ./ccap_device_hotplug_test; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/tests/Debug"
+            },
+            "group": "test",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Debug)"
+            ],
+            "windows": {
+                "command": ".\\ccap_device_hotplug_test.exe",
+                "options": {
+                    "cwd": "${workspaceFolder}/build/tests/Debug"
+                },
+                "problemMatcher": "$msCompile"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated",
+                "showReuseMessage": false,
+                "clear": true
+            }
         }
     ]
 }
