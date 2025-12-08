@@ -1,2 +1,0 @@
-/usr/bin/ar qc libcommon_utils.a CMakeFiles/common_utils.dir/examples/desktop/utils/helper.cpp.o
-/usr/bin/ranlib libcommon_utils.a
