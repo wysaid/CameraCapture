@@ -40,112 +40,112 @@
 - `enableConvertBackend()` - Enable backend
 - `disableConvertBackend()` - Disable backend
 
-#### 7. 内存管理
-- `getSharedAllocator()` - 获取共享内存分配器
-- `resetSharedAllocator()` - 重置共享内存分配器
-- `Allocator::size()` - 分配器大小追踪
+#### 7. Memory Management
+- `getSharedAllocator()` - Get shared memory allocator
+- `resetSharedAllocator()` - Reset shared memory allocator
+- `Allocator::size()` - Allocator size tracking
 
-## 🏗️ 测试架构
+## 🏗️ Test Architecture
 
-### 核心测试文件
-1. **test_accuracy.cpp** - 精度和往返转换测试
-2. **test_color_conversions.cpp** - 颜色格式转换测试
-3. **test_yuv_conversions.cpp** - YUV转换和像素函数测试
-4. **test_platform_features.cpp** - 平台特性和内存管理测试
+### Core Test Files
+1. **test_accuracy.cpp** - Accuracy and round-trip conversion tests
+2. **test_color_conversions.cpp** - Color format conversion tests
+3. **test_yuv_conversions.cpp** - YUV conversion and pixel function tests
+4. **test_platform_features.cpp** - Platform features and memory management tests
 
-### 支持文件
-1. **test_backend_manager.h** - 统一后端管理
-2. **test_utils.h/cpp** - 测试工具类
+### Support Files
+1. **test_backend_manager.h** - Unified backend management
+2. **test_utils.h/cpp** - Test utility classes
 
-## 🎯 后端覆盖
+## 🎯 Backend Coverage
 
-所有主要测试都覆盖了以下后端：
-- **CPU** - 标准CPU实现
-- **AVX2** - Intel AVX2优化实现
-- **AppleAccelerate** - Apple硬件加速实现
+All major tests cover the following backends:
+- **CPU** - Standard CPU implementation
+- **AVX2** - Intel AVX2 optimized implementation
+- **AppleAccelerate** - Apple hardware acceleration implementation
 
-## 🧪 测试类型
+## 🧪 Test Types
 
-### 1. 功能测试
-- 基本转换功能验证
-- 参数范围检查
-- 错误处理测试
+### 1. Functional Tests
+- Basic conversion functionality verification
+- Parameter range checking
+- Error handling tests
 
-### 2. 精度测试
-- 往返转换精度验证
-- 已知值转换检查
-- 极值处理测试
+### 2. Accuracy Tests
+- Round-trip conversion accuracy verification
+- Known value conversion checking
+- Extreme value handling tests
 
-### 3. 性能测试
-- 大图像处理 (512x384)
-- 小图像处理 (8x8, 2x2)
-- 边界条件测试
+### 3. Performance Tests
+- Large image processing (512x384)
+- Small image processing (8x8, 2x2)
+- Boundary condition tests
 
-### 4. 后端一致性测试
-- 不同后端结果一致性
-- 后端切换功能
-- 硬件检测准确性
+### 4. Backend Consistency Tests
+- Result consistency across different backends
+- Backend switching functionality
+- Hardware detection accuracy
 
-### 5. 内存管理测试
-- 分配器生命周期
-- 内存泄漏检测
-- 线程安全基础测试
+### 5. Memory Management Tests
+- Allocator lifecycle
+- Memory leak detection
+- Basic thread safety tests
 
-## 📋 测试详情
+## 📋 Test Details
 
-### YUV像素转换测试
-- BT.601/BT.709标准支持
-- 视频范围/全范围支持
-- 极值处理和夹取
-- 函数指针正确性
+### YUV Pixel Conversion Tests
+- BT.601/BT.709 standard support
+- Video range/full range support
+- Extreme value handling and clamping
+- Function pointer correctness
 
-### 颜色格式转换测试
-- RGBA ↔ BGRA 转换
-- RGB ↔ BGR 转换
-- Alpha通道处理
-- 通道顺序验证
+### Color Format Conversion Tests
+- RGBA ↔ BGRA conversion
+- RGB ↔ BGR conversion
+- Alpha channel handling
+- Channel order verification
 
-### 后端管理测试
-- 硬件能力检测
-- 后端切换功能
-- AUTO后端选择
-- 无效后端处理
+### Backend Management Tests
+- Hardware capability detection
+- Backend switching functionality
+- AUTO backend selection
+- Invalid backend handling
 
-### 内存管理测试
-- 共享分配器获取
-- 分配器重置功能
-- 大内存分配处理
-- 多次重置稳定性
+### Memory Management Tests
+- Shared allocator acquisition
+- Allocator reset functionality
+- Large memory allocation handling
+- Multiple reset stability
 
-## ✅ 质量保证
+## ✅ Quality Assurance
 
-### 代码组织
-- 模块化测试结构
-- 清晰的测试命名
-- 统一的错误消息格式
-- 完整的后端验证
+### Code Organization
+- Modular test structure
+- Clear test naming
+- Unified error message format
+- Complete backend verification
 
-### 错误处理
-- 详细的失败信息
-- 后端信息包含在错误中
-- 边界条件覆盖
-- 异常情况处理
+### Error Handling
+- Detailed failure information
+- Backend information included in errors
+- Boundary condition coverage
+- Exception handling
 
-### 维护性
-- 易于扩展的测试架构
-- 统一的测试工具
-- 清晰的文档和注释
-- 简化的构建配置
+### Maintainability
+- Easy-to-extend test architecture
+- Unified test utilities
+- Clear documentation and comments
+- Simplified build configuration
 
-## 🎉 总结
+## 🎉 Summary
 
-ccap_convert库的单元测试已经实现了**全面的接口覆盖**，包括：
+The ccap_convert library unit tests have achieved **comprehensive interface coverage**, including:
 
-- ✅ 所有主要转换函数
-- ✅ 完整的后端管理功能  
-- ✅ 内存管理接口
-- ✅ 平台特性检测
-- ✅ 错误处理和边界条件
-- ✅ 多后端一致性验证
+- ✅ All major conversion functions
+- ✅ Complete backend management functionality  
+- ✅ Memory management interfaces
+- ✅ Platform feature detection
+- ✅ Error handling and boundary conditions
+- ✅ Multi-backend consistency verification
 
-测试套件从原来的19个冗余文件优化为4个核心文件，提供了更好的代码组织、更清晰的测试结构，以及100%的测试通过率。
+The test suite has been optimized from 19 redundant files to 4 core files, providing better code organization, clearer test structure, and a 100% test pass rate.

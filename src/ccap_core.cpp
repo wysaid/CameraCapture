@@ -64,7 +64,7 @@ void DefaultAllocator::resize(size_t size) {
 
     if (m_data) ALIGNED_FREE(m_data);
 
-    // 32字节对齐，满足主流SIMD指令集需求(AVX)
+    // 32-byte alignment to meet mainstream SIMD instruction set requirements (AVX)
     size_t alignedSize = (size + 31) & ~size_t(31);
     m_data = static_cast<uint8_t*>(ALIGNED_ALLOC(32, alignedSize));
     if (!m_data) {
