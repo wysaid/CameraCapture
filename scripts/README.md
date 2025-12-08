@@ -1,135 +1,135 @@
-# 构建脚本说明
+# Build Scripts Documentation
 
-这个目录包含了 ccap 项目的各种构建和测试脚本。
+This directory contains various build and test scripts for the ccap project.
 
-**所有脚本都支持从任意目录用绝对路径执行！**
+**All scripts support execution from any directory using absolute paths!**
 
-## 主要脚本
+## Main Scripts
 
-### 构建脚本
+### Build Scripts
 
-- **`build.sh`** - 通用构建脚本，支持多种架构
+- **`build.sh`** - Universal build script supporting multiple architectures
 
   ```bash
-  # 构建原生架构版本（推荐）
+  # Build native architecture version (recommended)
   /path/to/ccap/scripts/build.sh native Debug
   
-  # 构建ARM64版本
+  # Build ARM64 version
   /path/to/ccap/scripts/build.sh arm64 Debug
   
-  # 构建x86_64版本
+  # Build x86_64 version
   /path/to/ccap/scripts/build.sh x86_64 Debug
   
-  # 构建通用版本（两种架构都构建）
+  # Build universal version (both architectures)
   /path/to/ccap/scripts/build.sh universal Release
   ```
 
-- **`build_arm64.sh`** - 专门构建ARM64版本
+- **`build_arm64.sh`** - Dedicated ARM64 build script
 
   ```bash
   /path/to/ccap/scripts/build_arm64.sh Debug
   ```
 
-- **`build_x86_64.sh`** - 专门构建x86_64版本
+- **`build_x86_64.sh`** - Dedicated x86_64 build script
 
   ```bash
   /path/to/ccap/scripts/build_x86_64.sh Debug
   ```
 
-### 测试脚本
+### Test Scripts
 
-- **`test_arch.sh`** - 架构检测测试
+- **`test_arch.sh`** - Architecture detection test
 
   ```bash
   /path/to/ccap/scripts/test_arch.sh
   ```
 
-### Windows 构建
+### Windows Build
 
-- **`build.sh`** - 通用构建脚本，支持多种架构
+- **`build.sh`** - Universal build script supporting multiple architectures
 
 ```bash
-# 构建原生架构版本（推荐）
+# Build native architecture version (recommended)
 /path/to/ccap/scripts/build.sh native Debug
 
-# 构建ARM64版本
+# Build ARM64 version
 /path/to/ccap/scripts/build.sh arm64 Debug
 
-# 构建x86_64版本
+# Build x86_64 version
 /path/to/ccap/scripts/build.sh x86_64 Debug
 
-# 构建通用版本（两种架构都构建）
+# Build universal version (both architectures)
 /path/to/ccap/scripts/build.sh universal Release
 ```
 
-- **`build_arm64.sh`** - 专门构建ARM64版本
+- **`build_arm64.sh`** - Dedicated ARM64 build script
 
 ```bash
 /path/to/ccap/scripts/build_arm64.sh Debug
 ```
 
-- **`build_x86_64.sh`** - 专门构建x86_64版本
+- **`build_x86_64.sh`** - Dedicated x86_64 build script
 
 ```bash
 /path/to/ccap/scripts/build_x86_64.sh Debug
 ```
 
-### 测试脚本
+### Test Scripts
 
-- **`test_arch.sh`** - 架构检测测试
+- **`test_arch.sh`** - Architecture detection test
 
 ```bash
 /path/to/ccap/scripts/test_arch.sh
 ```
 
-这个脚本会检测当前系统和编译器的架构支持情况，帮助调试NEON等特性的检测问题。
+This script detects the current system and compiler architecture support, helping debug NEON feature detection issues.
 
-- **`verify_neon.sh`** - NEON支持验证
+- **`verify_neon.sh`** - NEON support verification
 
 ```bash
 /path/to/ccap/scripts/verify_neon.sh
 ```
 
-这个脚本专门验证NEON指令集的编译时和运行时检测，展示ccap在不同架构上的NEON支持状态。
+This script specifically verifies compile-time and runtime detection of NEON instruction set, demonstrating ccap's NEON support status on different architectures.
 
-## 路径处理技术
+## Path Handling Technique
 
-所有脚本都使用以下技术确保可以从任何目录执行：
+All scripts use the following technique to ensure they can be executed from any directory:
 
 ```bash
-# 获取脚本所在的真实目录路径
+# Get the real directory path where the script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 ```
 
-这意味着你可以：
+This means you can:
 
-- 在项目根目录执行：`./scripts/build.sh`
-- 在任何其他目录执行：`/absolute/path/to/ccap/scripts/build.sh`
-- 通过符号链接执行脚本
+- Execute from project root: `./scripts/build.sh`
+- Execute from any other directory: `/absolute/path/to/ccap/scripts/build.sh`
+- Execute via symbolic links
 
-## 使用建议
+## Usage Recommendations
 
-1. **日常开发**：使用 `build.sh native Debug`
-2. **测试特定架构**：使用对应的专门脚本
-3. **发布构建**：使用 `build.sh universal Release`
-4. **调试架构问题**：先运行 `test_arch.sh`
+1. **Daily Development**: Use `build.sh native Debug`
+2. **Test Specific Architecture**: Use the corresponding dedicated script
+3. **Release Build**: Use `build.sh universal Release`
+4. **Debug Architecture Issues**: Run `test_arch.sh` first
 
-## 目录结构
+## Directory Structure
 
 ```
 scripts/
-├── README.md           # 本文件
-├── build.sh           # 通用构建脚本
-├── build_arm64.sh     # ARM64专用构建脚本
-├── build_x86_64.sh    # x86_64专用构建脚本
-├── test_arch.sh       # 架构检测测试脚本
-└── verify_neon.sh     # NEON支持验证脚本
+├── README.md           # This file
+├── build.sh           # Universal build script
+├── build_arm64.sh     # ARM64-specific build script
+├── build_x86_64.sh    # x86_64-specific build script
+├── test_arch.sh       # Architecture detection test script
+└── verify_neon.sh     # NEON support verification script
 ```
 
-## 注意事项
+## Notes
 
-- 在Intel Mac上编译ARM64版本的二进制文件无法直接运行，但可以用于交叉编译
-- 在Apple Silicon Mac上编译x86_64版本需要Rosetta 2支持
-- 所有脚本都支持Debug和Release两种构建类型
-- 现在已修正CMakeLists.txt，只有显式请求时才强制ARM64架构
+- ARM64 binaries compiled on Intel Mac cannot run directly but can be used for cross-compilation
+- Compiling x86_64 version on Apple Silicon Mac requires Rosetta 2 support
+- All scripts support both Debug and Release build types
+- CMakeLists.txt has been fixed to only force ARM64 architecture when explicitly requested

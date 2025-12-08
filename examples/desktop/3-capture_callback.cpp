@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
         cwd = std::filesystem::current_path().string();
     }
 
-    /// 在 cwd 目录下创建一个 capture 目录
+    /// Create a capture directory under the cwd directory
     std::string captureDir = cwd + "/image_capture";
     if (!std::filesystem::exists(captureDir)) {
         std::filesystem::create_directory(captureDir);

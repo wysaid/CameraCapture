@@ -1,41 +1,41 @@
 # ccap C Interface
 
-本文档描述了如何使用 ccap 库的纯 C 语言接口。
+This document describes how to use the pure C language interface of the ccap library.
 
-## 概述
+## Overview
 
-ccap 的 C 接口为 C 语言程序提供了完整的相机捕获功能，包括：
+The ccap C interface provides complete camera capture functionality for C language programs, including:
 
-- 设备发现和管理
-- 相机配置和控制
-- 同步和异步帧捕获
-- 内存管理
+- Device discovery and management
+- Camera configuration and control
+- Synchronous and asynchronous frame capture
+- Memory management
 
-## 核心概念
+## Core Concepts
 
-### 不透明指针 (Opaque Pointers)
+### Opaque Pointers
 
-C 接口使用不透明指针来隐藏 C++ 对象的实现细节：
+The C interface uses opaque pointers to hide C++ object implementation details:
 
-- `CcapProvider*` - 封装 `ccap::Provider` 对象
-- `CcapVideoFrame*` - 封装 `ccap::VideoFrame` 共享指针
+- `CcapProvider*` - Encapsulates `ccap::Provider` object
+- `CcapVideoFrame*` - Encapsulates `ccap::VideoFrame` shared pointer
 
-### 内存管理
+### Memory Management
 
-C 接口遵循以下内存管理原则：
+The C interface follows these memory management principles:
 
-1. **创建与销毁**: 所有通过 `ccap_xxx_create()` 创建的对象必须通过对应的 `ccap_xxx_destroy()` 释放
-2. **数组释放**: 返回的字符串数组和结构体数组有专门的释放函数
-3. **帧管理**: 通过 `ccap_provider_grab()` 获取的帧必须通过 `ccap_video_frame_release()` 释放
+1. **Creation and Destruction**: All objects created via `ccap_xxx_create()` must be released via the corresponding `ccap_xxx_destroy()`
+2. **Array Release**: String arrays and struct arrays returned have dedicated release functions
+3. **Frame Management**: Frames acquired via `ccap_provider_grab()` must be released via `ccap_video_frame_release()`
 
-## 基本使用流程
+## Basic Usage Flow
 
-### 1. 创建 Provider
+### 1. Create Provider
 
 ```c
 #include "ccap_c.h"
 
-// 创建 provider
+// Create provider
 CcapProvider* provider = ccap_provider_create();
 if (!provider) {
     printf("Failed to create provider\n");
@@ -43,10 +43,10 @@ if (!provider) {
 }
 ```
 
-### 2. 设备发现
+### 2. Device Discovery
 
 ```c
-// 查找可用设备
+// Find available devices
 CcapDeviceNamesList deviceList;
 if (ccap_provider_find_device_names_list(provider, &deviceList)) {
     printf("Found %zu devices:\n", deviceList.deviceCount);
@@ -56,34 +56,34 @@ if (ccap_provider_find_device_names_list(provider, &deviceList)) {
 }
 ```
 
-### 3. 打开设备
+### 3. Open Device
 
 ```c
-// 打开默认设备
+// Open default device
 if (!ccap_provider_open(provider, NULL, false)) {
     printf("Failed to open camera\n");
     ccap_provider_destroy(provider);
     return -1;
 }
 
-// 或者按索引打开
+// Or open by index
 // ccap_provider_open_by_index(provider, 0, false);
 ```
 
-### 4. 配置相机属性
+### 4. Configure Camera Properties
 
 ```c
-// 设置分辨率和帧率
+// Set resolution and frame rate
 ccap_provider_set_property(provider, CCAP_PROPERTY_WIDTH, 640);
 ccap_provider_set_property(provider, CCAP_PROPERTY_HEIGHT, 480);
 ccap_provider_set_property(provider, CCAP_PROPERTY_FRAME_RATE, 30.0);
 
-// 设置像素格式
+// Set pixel format
 ccap_provider_set_property(provider, CCAP_PROPERTY_PIXEL_FORMAT_OUTPUT, 
                           CCAP_PIXEL_FORMAT_BGR24);
 ```
 
-### 5. 开始捕获
+### 5. Start Capture
 
 ```c
 if (!ccap_provider_start(provider)) {
@@ -92,12 +92,12 @@ if (!ccap_provider_start(provider)) {
 }
 ```
 
-### 6. 帧捕获
+### 6. Frame Capture
 
-#### 同步方式 (grab)
+#### Synchronous Method (grab)
 
 ```c
-// 抓取一帧 (超时 1 秒)
+// Grab one frame (1 second timeout)
 CcapVideoFrame* frame = ccap_provider_grab(provider, 1000);
 if (frame) {
     CcapVideoFrameInfo frameInfo;
@@ -106,59 +106,59 @@ if (frame) {
                frameInfo.width, frameInfo.height, 
                frameInfo.pixelFormat, frameInfo.sizeInBytes);
         
-        // 访问帧数据
-        uint8_t* data = frameInfo.data[0];  // 第一个平面的数据
-        uint32_t stride = frameInfo.stride[0];  // 第一个平面的步长
+        // Access frame data
+        uint8_t* data = frameInfo.data[0];  // Data of the first plane
+        uint32_t stride = frameInfo.stride[0];  // Stride of the first plane
     }
     
-    // 释放帧
+    // Release frame
     ccap_video_frame_release(frame);
 }
 ```
 
-#### 异步方式 (callback)
+#### Asynchronous Method (callback)
 
 ```c
-// 回调函数
+// Callback function
 bool frame_callback(const CcapVideoFrame* frame, void* userData) {
     CcapVideoFrameInfo frameInfo;
     if (ccap_video_frame_get_info(frame, &frameInfo)) {
         printf("Callback frame: %dx%d\n", frameInfo.width, frameInfo.height);
     }
     
-    // 返回 false 保留帧供 grab() 使用
-    // 返回 true 消费帧 (grab() 将不会获取到此帧)
+    // Return false to keep the frame for grab() use
+    // Return true to consume the frame (grab() will not get this frame)
     return false;
 }
 
-// 设置回调
+// Set callback
 ccap_provider_set_new_frame_callback(provider, frame_callback, NULL);
 ```
 
-### 7. 清理资源
+### 7. Cleanup Resources
 
 ```c
-// 停止捕获
+// Stop capture
 ccap_provider_stop(provider);
 
-// 关闭设备
+// Close device
 ccap_provider_close(provider);
 
-// 销毁 provider
+// Destroy provider
 ccap_provider_destroy(provider);
 ```
 
-## 完整示例
+## Complete Example
 
-参见 `examples/ccap_c_example.c` 获取完整的使用示例。
+See `examples/ccap_c_example.c` for a complete usage example.
 
-## 编译和链接
+## Build and Link
 
-### 使用 CMake
+### Using CMake
 
-1. 确保 ccap 库已经构建并安装
-2. 复制 `examples/CMakeLists_c_example.txt` 为 `CMakeLists.txt`
-3. 构建:
+1. Ensure the ccap library is built and installed
+2. Copy `examples/CMakeLists_c_example.txt` as `CMakeLists.txt`
+3. Build:
 
 ```bash
 mkdir build
@@ -168,7 +168,7 @@ make
 ./ccap_c_example
 ```
 
-### 手动编译
+### Manual Compilation
 
 #### macOS
 
@@ -196,100 +196,100 @@ gcc -std=c99 ccap_c_example.c -o ccap_c_example \
     -lpthread
 ```
 
-## API 参考
+## API Reference
 
-### 数据类型
+### Data Types
 
-- `CcapProvider*` - Provider 对象指针
-- `CcapVideoFrame*` - 视频帧对象指针
-- `CcapPixelFormat` - 像素格式枚举
-- `CcapPropertyName` - 属性名枚举
-- `CcapVideoFrameInfo` - 帧信息结构体
-- `CcapDeviceInfo` - 设备信息结构体
+- `CcapProvider*` - Provider object pointer
+- `CcapVideoFrame*` - Video frame object pointer
+- `CcapPixelFormat` - Pixel format enumeration
+- `CcapPropertyName` - Property name enumeration
+- `CcapVideoFrameInfo` - Frame information structure
+- `CcapDeviceInfo` - Device information structure
 
-### 主要函数
+### Main Functions
 
-#### Provider 生命周期
-- `ccap_provider_create()` - 创建 provider
-- `ccap_provider_destroy()` - 销毁 provider
+#### Provider Lifecycle
+- `ccap_provider_create()` - Create provider
+- `ccap_provider_destroy()` - Destroy provider
 
-#### 设备管理
-- `ccap_provider_find_device_names_list()` - 查找设备
-- `ccap_provider_open()` - 打开设备
-- `ccap_provider_close()` - 关闭设备
-- `ccap_provider_is_opened()` - 检查是否已打开
+#### Device Management
+- `ccap_provider_find_device_names_list()` - Find devices
+- `ccap_provider_open()` - Open device
+- `ccap_provider_close()` - Close device
+- `ccap_provider_is_opened()` - Check if opened
 
-#### 捕获控制
-- `ccap_provider_start()` - 开始捕获
-- `ccap_provider_stop()` - 停止捕获
-- `ccap_provider_is_started()` - 检查是否正在捕获
+#### Capture Control
+- `ccap_provider_start()` - Start capture
+- `ccap_provider_stop()` - Stop capture
+- `ccap_provider_is_started()` - Check if capturing
 
-#### 帧获取
-- `ccap_provider_grab()` - 同步获取帧
-- `ccap_provider_set_new_frame_callback()` - 设置异步回调
+#### Frame Acquisition
+- `ccap_provider_grab()` - Synchronously acquire frame
+- `ccap_provider_set_new_frame_callback()` - Set asynchronous callback
 
-#### 属性配置
-- `ccap_provider_set_property()` - 设置属性
-- `ccap_provider_get_property()` - 获取属性
+#### Property Configuration
+- `ccap_provider_set_property()` - Set property
+- `ccap_provider_get_property()` - Get property
 
-## 错误处理
+## Error Handling
 
-C 接口使用以下错误处理策略：
+The C interface uses the following error handling strategy:
 
-1. **返回值**: 大多数函数返回 `bool` 类型，`true` 表示成功，`false` 表示失败
-2. **空指针**: 当操作失败时，指针返回函数返回 `NULL`
-3. **NaN**: 数值返回函数在失败时返回 `NaN`
-4. **错误回调**: 可以设置错误回调函数来接收详细的错误信息
+1. **Return Values**: Most functions return `bool` type, `true` indicates success, `false` indicates failure
+2. **Null Pointers**: Pointer-returning functions return `NULL` when operations fail
+3. **NaN**: Numeric-returning functions return `NaN` on failure
+4. **Error Callback**: An error callback function can be set to receive detailed error information
 
-### 错误回调
+### Error Callback
 
-从 v1.2.0 开始，ccap 支持设置错误回调函数来接收详细的错误信息：
+Starting from v1.2.0, ccap supports setting an error callback function to receive detailed error information:
 
-#### 错误码
+#### Error Codes
 
 ```c
 typedef enum {
-    CCAP_ERROR_NONE = 0,                        // 无错误
-    CCAP_ERROR_NO_DEVICE_FOUND = 0x1001,       // 未找到相机设备
-    CCAP_ERROR_INVALID_DEVICE = 0x1002,        // 设备名称或索引无效
-    CCAP_ERROR_DEVICE_OPEN_FAILED = 0x1003,    // 相机设备打开失败
-    CCAP_ERROR_DEVICE_START_FAILED = 0x1004,   // 相机启动失败
-    CCAP_ERROR_UNSUPPORTED_RESOLUTION = 0x2001, // 不支持的分辨率
-    CCAP_ERROR_UNSUPPORTED_PIXEL_FORMAT = 0x2002, // 不支持的像素格式
-    CCAP_ERROR_FRAME_CAPTURE_TIMEOUT = 0x3001, // 帧捕获超时
-    CCAP_ERROR_FRAME_CAPTURE_FAILED = 0x3002,  // 帧捕获失败
-    // 更多错误码...
+    CCAP_ERROR_NONE = 0,                        // No error
+    CCAP_ERROR_NO_DEVICE_FOUND = 0x1001,       // No camera device found
+    CCAP_ERROR_INVALID_DEVICE = 0x1002,        // Invalid device name or index
+    CCAP_ERROR_DEVICE_OPEN_FAILED = 0x1003,    // Camera device open failed
+    CCAP_ERROR_DEVICE_START_FAILED = 0x1004,   // Camera start failed
+    CCAP_ERROR_UNSUPPORTED_RESOLUTION = 0x2001, // Unsupported resolution
+    CCAP_ERROR_UNSUPPORTED_PIXEL_FORMAT = 0x2002, // Unsupported pixel format
+    CCAP_ERROR_FRAME_CAPTURE_TIMEOUT = 0x3001, // Frame capture timeout
+    CCAP_ERROR_FRAME_CAPTURE_FAILED = 0x3002,  // Frame capture failed
+    // More error codes...
 } CcapErrorCode;
 ```
 
-#### 错误回调函数
+#### Error Callback Function
 
 ```c
-// 错误回调函数类型
+// Error callback function type
 typedef void (*CcapErrorCallback)(CcapErrorCode errorCode, const char* errorDescription, void* userData);
 
-// 设置错误回调
+// Set error callback
 bool ccap_set_error_callback(CcapErrorCallback callback, void* userData);
 
-// 获取错误码描述
+// Get error code description
 const char* ccap_error_code_to_string(CcapErrorCode errorCode);
 ```
 
-#### 使用示例
+#### Usage Example
 
 ```c
-// 错误回调函数
+// Error callback function
 void error_callback(CcapErrorCode errorCode, const char* errorDescription, void* userData) {
     printf("Camera Error - Code: %d, Description: %s\n", (int)errorCode, errorDescription);
 }
 
 int main() {
-    // 设置错误回调
+    // Set error callback
     ccap_set_error_callback(error_callback, NULL);
     
     CcapProvider* provider = ccap_provider_create();
     
-    // 执行相机操作，如果出错会调用回调函数
+    // Perform camera operations, callback will be called if errors occur
     if (!ccap_provider_open_by_index(provider, 0, true)) {
         printf("Failed to open camera\n");
     }
@@ -299,16 +299,16 @@ int main() {
 }
 ```
 
-## 注意事项
+## Notes
 
-1. **线程安全**: C 接口不是线程安全的，需要外部同步
-2. **异常处理**: 所有 C++ 异常都被捕获并转换为错误返回值
-3. **内存对齐**: 帧数据保证 32 字节对齐，支持 SIMD 优化
-4. **生命周期**: 确保所有创建的对象都被正确释放，避免内存泄漏
+1. **Thread Safety**: The C interface is not thread-safe, external synchronization is required
+2. **Exception Handling**: All C++ exceptions are caught and converted to error return values
+3. **Memory Alignment**: Frame data is guaranteed to be 32-byte aligned, supporting SIMD optimization
+4. **Lifecycle**: Ensure all created objects are properly released to avoid memory leaks
 
-## 与 C++ 接口的对应关系
+## Correspondence with C++ Interface
 
-| C 接口 | C++ 接口 |
+| C Interface | C++ Interface |
 |--------|----------|
 | `CcapProvider*` | `ccap::Provider` |
 | `CcapVideoFrame*` | `std::shared_ptr<ccap::VideoFrame>` |

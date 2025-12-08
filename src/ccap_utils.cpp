@@ -46,7 +46,7 @@ bool saveRgbDataAsBMP(const char* filename, const unsigned char* data, uint32_t 
 
     auto lineSize = hasAlpha ? w * 4 : ((w * 3 + 3) / 4) * 4; // 4 bytes aligned when no alpha.
 
-    /// 先在 dataCopy 里面处理一遍, 之后一次性写入到文件, 减少耗时
+    /// Process in dataCopy first, then write to file at once to reduce time consumption
     std::vector<uint8_t> tmpData(lineSize * h);
     auto* dataCopy = tmpData.data();
 

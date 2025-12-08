@@ -120,7 +120,7 @@ private:
     std::chrono::steady_clock::time_point m_startTime{};
     bool m_firstFrameArrived = false;
 
-    // 状态变量
+    // State variables
     bool m_didSetup{ false };
     bool m_isOpened{ false };
     bool m_isRunning{ false };

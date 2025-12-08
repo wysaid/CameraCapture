@@ -225,8 +225,8 @@ bool inplaceConvertFrameYUV2YUV(VideoFrame* frame, PixelFormat toFormat, bool ve
     bool isInputI420 = pixelFormatInclude(frame->pixelFormat, PixelFormat::I420);
     bool isOutputI420 = pixelFormatInclude(toFormat, PixelFormat::I420);
 
-    assert(!(isInputNV12 && isOutputNV12)); // 相同类型不应该进来
-    assert(!(isInputI420 && isOutputI420)); // 相同类型不应该进来
+    assert(!(isInputNV12 && isOutputNV12)); // Same type should not come here
+    assert(!(isInputI420 && isOutputI420)); // Same type should not come here
     uint8_t* inputData0 = frame->data[0];
     uint8_t* inputData1 = frame->data[1];
     uint8_t* inputData2 = frame->data[2];
@@ -236,7 +236,7 @@ bool inplaceConvertFrameYUV2YUV(VideoFrame* frame, PixelFormat toFormat, bool ve
     int width = frame->width;
     int height = verticalFlip ? -frame->height : frame->height;
 
-    // NV12/I420 都是 YUV420P 格式
+    // NV12/I420 are both YUV420P format
     frame->allocator->resize(stride0 * frame->height + (stride1 + stride2) * frame->height / 2);
     frame->data[0] = frame->allocator->data();
 
