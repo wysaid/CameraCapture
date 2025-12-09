@@ -399,6 +399,12 @@ std::vector<std::string> ProviderDirectShow::findDeviceNames() {
     }
 
     enumerateDevices([&](IMoniker* moniker, std::string_view name) {
+#ifdef CCAP_WIN_NO_DEVICE_VERIFY
+        // Skip device verification to avoid crashes from buggy camera drivers
+        // Device properties are already verified in enumerateDevices()
+        m_allDeviceNames.emplace_back(name.data(), name.size());
+        CCAP_LOG_I("ccap: \"%s\" added without verification (CCAP_WIN_NO_DEVICE_VERIFY enabled)\n", name.data());
+#else
         // Try to bind device, check if available
         IBaseFilter* filter = nullptr;
         HRESULT hr = moniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&filter);
@@ -408,6 +414,7 @@ std::vector<std::string> ProviderDirectShow::findDeviceNames() {
         } else {
             CCAP_LOG_I("ccap: \"%s\" is not a valid video capture device, removed\n", name.data());
         }
+#endif
         // Unavailable devices are not added to the list
         return false; // Continue enumeration
     });

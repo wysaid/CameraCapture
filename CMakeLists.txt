@@ -8,6 +8,7 @@ endif()
 
 option(CCAP_NO_LOG "Disable logging" OFF)
 option(CCAP_BUILD_SHARED "Build ccap as shared library" OFF)
+option(CCAP_WIN_NO_DEVICE_VERIFY "Skip device verification on Windows (for buggy camera drivers)" OFF)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set(CCAP_IS_ROOT_PROJECT ON)
@@ -169,6 +170,11 @@ target_compile_definitions(ccap PUBLIC
 if(CCAP_NO_LOG)
     target_compile_definitions(ccap PUBLIC CCAP_NO_LOG=1)
     message(STATUS "ccap: Disable logging")
+endif()
+
+if(CCAP_WIN_NO_DEVICE_VERIFY)
+    target_compile_definitions(ccap PRIVATE CCAP_WIN_NO_DEVICE_VERIFY=1)
+    message(STATUS "ccap: Skip device verification on Windows (for buggy camera drivers)")
 endif()
 
 # Configure shared library export definitions
