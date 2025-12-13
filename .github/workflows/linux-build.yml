@@ -24,7 +24,7 @@ jobs:
     - name: Install base dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake build-essential gcc
+        sudo apt-get install -y cmake build-essential gcc libasan6
         
     - name: Install GLFW (for Release builds only)
       if: matrix.build_type == 'Release'
@@ -176,7 +176,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake build-essential clang libglfw3-dev
+        sudo apt-get install -y cmake build-essential clang libglfw3-dev libasan6
         
     - name: Setup compiler
       run: |
@@ -397,7 +397,7 @@ jobs:
     
     - name: Install dependencies
       run: |
-        dnf install -y cmake gcc-c++ make
+        dnf install -y cmake gcc-c++ make libasan
         
     - name: Configure CMake
       run: |
