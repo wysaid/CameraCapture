@@ -133,8 +133,8 @@ AVX2_TARGET void colorShuffle_avx2(const uint8_t* src, int srcStride, uint8_t* d
     }
 
     alignas(32) uint8_t shuffleData[32];
-    constexpr uint32_t inputPatchSize = inputChannels == 4 ? 8 : 10;
-    constexpr uint32_t outputPatchSize = outputChannels == 4 ? 8 : 10;
+    constexpr uint32_t inputPatchSize = inputChannels == 4 ? 8 : (inputChannels == 3 && outputChannels == 3 ? 5 : 10);
+    constexpr uint32_t outputPatchSize = outputChannels == 4 ? 8 : (inputChannels == 3 && outputChannels == 3 ? 5 : 10);
     constexpr uint32_t patchSize = inputPatchSize < outputPatchSize ? inputPatchSize : outputPatchSize;
 
     for (int i = 0; i < patchSize; ++i) {
@@ -218,17 +218,12 @@ AVX2_TARGET void colorShuffle_avx2(const uint8_t* src, int srcStride, uint8_t* d
                 _mm_store_si128((__m128i*)remainBuffer, result_hi);           // Temporarily store, 16 bytes
                 memcpy(dstRow + x * outputChannels + 12, remainBuffer, 12);   // Manual alignment, overwrite extra 4 bytes, fill remaining 12 bytes, exactly 24 bytes
             } else if constexpr (inputChannels == 3 && outputChannels == 3) { // 3 -> 3
-                /// Split into 15 + 15, reading 30 bytes each time
-                __m128i pixels_lo = _mm_loadu_si128((__m128i*)(srcRow + x * inputChannels));
-                __m128i pixels_hi = _mm_loadu_si128((__m128i*)(srcRow + x * inputChannels + 15));
+                /// Process 5 pixels at a time (15 bytes), reading 16 bytes each time
+                __m128i pixels = _mm_loadu_si128((__m128i*)(srcRow + x * inputChannels));
 
-                __m128i result_lo = _mm_shuffle_epi8(pixels_lo, shuffle128); // Only the first 15 bytes are useful
-                __m128i result_hi = _mm_shuffle_epi8(pixels_hi, shuffle128); // Only the first 15 bytes are useful
+                __m128i result = _mm_shuffle_epi8(pixels, shuffle128); // Only the first 15 bytes are useful
 
-                _mm_storeu_si128((__m128i*)(dstRow + x * outputChannels), result_lo); // Write 16 bytes, but only the first 15 bytes are useful
-                alignas(16) uint8_t remainBuffer[16];
-                _mm_store_si128((__m128i*)remainBuffer, result_hi);         // Temporarily store, 15 bytes
-                memcpy(dstRow + x * outputChannels + 15, remainBuffer, 15); // Manual alignment, overwrite extra 1 byte, fill remaining 15 bytes, exactly 30 bytes
+                _mm_storeu_si128((__m128i*)(dstRow + x * outputChannels), result); // Write 16 bytes, but only the first 15 bytes are useful
             } else {                                                        // 4 -> 4
                 __m256i pixels = _mm256_loadu_si256((const __m256i*)(srcRow + x * inputChannels));
                 __m256i result = _mm256_shuffle_epi8(pixels, shuffle256);
