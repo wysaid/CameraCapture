@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="css/style.css">
     <!-- marked.js for markdown rendering - using specific version for stability -->
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js" crossorigin="anonymous"></script>
+    <!-- DOMPurify for HTML sanitization to prevent XSS -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
     <header>
@@ -117,6 +119,22 @@
                 };
             }
 
+            // Sanitize HTML to prevent XSS attacks
+            function sanitizeHtml(html) {
+                if (typeof DOMPurify !== 'undefined') {
+                    return DOMPurify.sanitize(html, {
+                        USE_PROFILES: { html: true },
+                        ALLOWED_TAGS: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'br', 'hr', 
+                                       'ul', 'ol', 'li', 'pre', 'code', 'blockquote',
+                                       'table', 'thead', 'tbody', 'tr', 'th', 'td',
+                                       'a', 'strong', 'em', 'del', 'img'],
+                        ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'id']
+                    });
+                }
+                // Fallback: return as-is if DOMPurify not available
+                return html;
+            }
+
             // Fetch and render markdown documentation
             function loadDocumentation() {
                 var lang = getCurrentLang();
@@ -135,15 +153,13 @@
                         return response;
                     })
                     .then(function(response) {
-                        if (!response.ok) {
-                            throw new Error('Failed to load documentation');
-                        }
                         return response.text();
                     })
                     .then(function(markdown) {
-                        // Render markdown to HTML using marked.js
-                        var html = marked.parse(markdown);
-                        document.getElementById('doc-content').innerHTML = html;
+                        // Render markdown to HTML using marked.js and sanitize
+                        var rawHtml = marked.parse(markdown);
+                        var safeHtml = sanitizeHtml(rawHtml);
+                        document.getElementById('doc-content').innerHTML = safeHtml;
                         
                         // Generate sidebar navigation from headings
                         generateSidebar();
