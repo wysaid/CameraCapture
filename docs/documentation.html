@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation - ccap</title>
+    <meta name="description" content="Complete documentation for the ccap cross-platform camera capture library.">
+    <link rel="canonical" href="https://ccap.work/documentation.html">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <a href="index.html" class="logo">ccap</a>
+            <button class="mobile-menu-toggle" aria-label="Toggle menu">☰</button>
+            <ul class="nav-links">
+                <li><a href="index.html#download"><span class="lang-en">Download</span><span class="lang-zh">下载</span></a></li>
+                <li><a href="index.html#features"><span class="lang-en">Features</span><span class="lang-zh">特性</span></a></li>
+                <li><a href="index.html#quickstart"><span class="lang-en">Quick Start</span><span class="lang-zh">快速开始</span></a></li>
+                <li><a href="documentation.html"><span class="lang-en">Documentation</span><span class="lang-zh">文档</span></a></li>
+                <li><a href="https://github.com/wysaid/CameraCapture">GitHub</a></li>
+                <li><button class="lang-switch" onclick="ccap.toggleLanguage()">🌐 中文</button></li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="doc-layout">
+        <aside class="doc-sidebar">
+            <h3 class="lang-en">Getting Started</h3>
+            <h3 class="lang-zh">快速开始</h3>
+            <ul>
+                <li><a href="#overview" class="active"><span class="lang-en">Overview</span><span class="lang-zh">概述</span></a></li>
+                <li><a href="#installation"><span class="lang-en">Installation</span><span class="lang-zh">安装</span></a></li>
+                <li><a href="#basic-usage"><span class="lang-en">Basic Usage</span><span class="lang-zh">基本用法</span></a></li>
+            </ul>
+            
+            <h3>API Reference</h3>
+            <ul>
+                <li><a href="#cpp-api">C++ API</a></li>
+                <li><a href="#c-interface">C Interface</a></li>
+                <li><a href="#opencv-integration">OpenCV Integration</a></li>
+            </ul>
+            
+            <h3 class="lang-en">Configuration</h3>
+            <h3 class="lang-zh">配置</h3>
+            <ul>
+                <li><a href="#cmake-options"><span class="lang-en">CMake Options</span><span class="lang-zh">CMake 选项</span></a></li>
+                <li><a href="#properties"><span class="lang-en">Properties</span><span class="lang-zh">属性</span></a></li>
+                <li><a href="#pixel-formats"><span class="lang-en">Pixel Formats</span><span class="lang-zh">像素格式</span></a></li>
+            </ul>
+            
+            <h3 class="lang-en">Platform Guides</h3>
+            <h3 class="lang-zh">平台指南</h3>
+            <ul>
+                <li><a href="#windows">Windows</a></li>
+                <li><a href="#macos">macOS</a></li>
+                <li><a href="#linux">Linux</a></li>
+                <li><a href="#ios">iOS</a></li>
+            </ul>
+        </aside>
+
+        <main class="doc-content">
+            <!-- Overview Section -->
+            <section id="overview">
+                <h1 class="lang-en">ccap Documentation</h1>
+                <h1 class="lang-zh">ccap 文档</h1>
+                
+                <p class="lang-en">
+                    <strong>ccap</strong> is a high-performance, lightweight cross-platform camera capture library 
+                    with hardware-accelerated pixel format conversion. It provides both modern C++ and pure C99 
+                    interfaces for maximum compatibility.
+                </p>
+                <p class="lang-zh">
+                    <strong>ccap</strong> 是一个高性能、轻量级的跨平台相机捕获库，支持硬件加速的像素格式转换。
+                    它同时提供现代 C++ 和纯 C99 接口，以实现最大兼容性。
+                </p>
+
+                <h2 class="lang-en">Key Features</h2>
+                <h2 class="lang-zh">主要特性</h2>
+                <ul>
+                    <li class="lang-en">Zero external dependencies - uses only system frameworks</li>
+                    <li class="lang-zh">零外部依赖 - 仅使用系统框架</li>
+                    <li class="lang-en">Hardware-accelerated format conversion (AVX2, Apple Accelerate, NEON)</li>
+                    <li class="lang-zh">硬件加速格式转换（AVX2、Apple Accelerate、NEON）</li>
+                    <li class="lang-en">Cross-platform: Windows, macOS, iOS, Linux</li>
+                    <li class="lang-zh">跨平台：Windows、macOS、iOS、Linux</li>
+                    <li class="lang-en">Dual API: Modern C++17 and pure C99</li>
+                    <li class="lang-zh">双 API：现代 C++17 和纯 C99</li>
+                </ul>
+            </section>
+
+            <!-- Installation Section -->
+            <section id="installation">
+                <h2 class="lang-en">Installation</h2>
+                <h2 class="lang-zh">安装</h2>
+
+                <h3 class="lang-en">Build from Source</h3>
+                <h3 class="lang-zh">从源码构建</h3>
+                <pre><code>git clone https://github.com/wysaid/CameraCapture.git
+cd CameraCapture
+./scripts/build_and_install.sh</code></pre>
+
+                <h3>CMake FetchContent</h3>
+                <pre><code>include(FetchContent)
+FetchContent_Declare(
+    ccap
+    GIT_REPOSITORY https://github.com/wysaid/CameraCapture.git
+    GIT_TAG main
+)
+FetchContent_MakeAvailable(ccap)
+
+target_link_libraries(your_app PRIVATE ccap::ccap)</code></pre>
+
+                <h3>Homebrew (macOS)</h3>
+                <pre><code>brew tap wysaid/ccap
+brew install ccap</code></pre>
+            </section>
+
+            <!-- Basic Usage Section -->
+            <section id="basic-usage">
+                <h2 class="lang-en">Basic Usage</h2>
+                <h2 class="lang-zh">基本用法</h2>
+
+                <h3>C++ Example</h3>
+                <pre><code>#include &lt;ccap.h&gt;
+
+int main() {
+    ccap::Provider provider;
+    
+    // List available cameras
+    auto devices = provider.findDeviceNames();
+    for (size_t i = 0; i < devices.size(); ++i) {
+        printf("[%zu] %s\n", i, devices[i].c_str());
+    }
+    
+    // Open and start camera
+    if (provider.open("", true)) {
+        auto frame = provider.grab(3000);
+        if (frame) {
+            printf("Captured: %dx%d\n", frame->width, frame->height);
+        }
+    }
+    return 0;
+}</code></pre>
+            </section>
+
+            <!-- C++ API Section -->
+            <section id="cpp-api">
+                <h2>C++ API Reference</h2>
+
+                <h3>ccap::Provider</h3>
+                <pre><code>class Provider {
+public:
+    // Device discovery
+    std::vector&lt;std::string&gt; findDeviceNames();
+    
+    // Device management
+    bool open(std::string_view deviceName, bool autoStart = true);
+    bool open(int deviceIndex, bool autoStart = true);
+    bool isOpened() const;
+    void close();
+    
+    // Capture control
+    bool start();
+    void stop();
+    bool isStarted() const;
+    
+    // Frame capture
+    std::shared_ptr&lt;VideoFrame&gt; grab(uint32_t timeoutInMs = 0xffffffff);
+    void setNewFrameCallback(std::function&lt;bool(const std::shared_ptr&lt;VideoFrame&gt;&)&gt; callback);
+    
+    // Property configuration
+    bool set(PropertyName prop, double value);
+    template&lt;class T&gt; bool set(PropertyName prop, T value);
+    double get(PropertyName prop);
+    
+    // Device info
+    std::optional&lt;DeviceInfo&gt; getDeviceInfo() const;
+};</code></pre>
+
+                <h3>ccap::VideoFrame</h3>
+                <pre><code>struct VideoFrame {
+    uint8_t* data[3] = {};              // Raw pixel data planes
+    uint32_t stride[3] = {};            // Stride for each plane
+    
+    PixelFormat pixelFormat = PixelFormat::Unknown;
+    uint32_t width = 0;
+    uint32_t height = 0;
+    uint32_t sizeInBytes = 0;
+    uint64_t timestamp = 0;             // Timestamp in nanoseconds
+    uint64_t frameIndex = 0;
+    FrameOrientation orientation = FrameOrientation::Default;
+    
+    std::shared_ptr&lt;Allocator&gt; allocator;
+    void* nativeHandle = nullptr;
+};</code></pre>
+
+                <h3 class="lang-en">Property Configuration</h3>
+                <h3 class="lang-zh">属性配置</h3>
+                <pre><code>// Set specific resolution
+provider.set(ccap::PropertyName::Width, 1920);
+provider.set(ccap::PropertyName::Height, 1080);
+
+// Set camera's internal format
+provider.set(ccap::PropertyName::PixelFormatInternal, 
+             static_cast&lt;double&gt;(ccap::PixelFormat::NV12));
+
+// Set camera's output format
+provider.set(ccap::PropertyName::PixelFormatOutput, 
+             static_cast&lt;double&gt;(ccap::PixelFormat::BGR24));</code></pre>
+            </section>
+
+            <!-- C Interface Section -->
+            <section id="c-interface">
+                <h2>C Interface</h2>
+                
+                <p class="lang-en">
+                    ccap provides a complete pure C language interface for C projects or scenarios requiring language bindings.
+                </p>
+                <p class="lang-zh">
+                    ccap 为 C 项目或需要语言绑定的场景提供完整的纯 C 语言接口。
+                </p>
+
+                <h3 class="lang-en">Provider Lifecycle</h3>
+                <h3 class="lang-zh">Provider 生命周期</h3>
+                <pre><code>// Create and destroy Provider
+CcapProvider* ccap_provider_create(void);
+void ccap_provider_destroy(CcapProvider* provider);
+
+// Device discovery
+bool ccap_provider_find_device_names_list(CcapProvider* provider, 
+                                          CcapDeviceNamesList* deviceList);
+
+// Device management
+bool ccap_provider_open(CcapProvider* provider, const char* deviceName, bool autoStart);
+bool ccap_provider_open_by_index(CcapProvider* provider, int deviceIndex, bool autoStart);
+void ccap_provider_close(CcapProvider* provider);
+
+// Capture control
+bool ccap_provider_start(CcapProvider* provider);
+void ccap_provider_stop(CcapProvider* provider);</code></pre>
+
+                <h3 class="lang-en">Frame Capture</h3>
+                <h3 class="lang-zh">帧捕获</h3>
+                <pre><code>// Synchronous frame capture
+CcapVideoFrame* ccap_provider_grab(CcapProvider* provider, uint32_t timeoutMs);
+void ccap_video_frame_release(CcapVideoFrame* frame);
+
+// Get frame information
+typedef struct {
+    uint8_t* data[3];
+    uint32_t stride[3];
+    uint32_t width;
+    uint32_t height;
+    uint32_t sizeInBytes;
+    uint64_t timestamp;
+    uint64_t frameIndex;
+    CcapPixelFormat pixelFormat;
+    CcapFrameOrientation orientation;
+} CcapVideoFrameInfo;
+
+bool ccap_video_frame_get_info(const CcapVideoFrame* frame, CcapVideoFrameInfo* info);</code></pre>
+
+                <h3 class="lang-en">Error Handling</h3>
+                <h3 class="lang-zh">错误处理</h3>
+                <pre><code>// Error callback function
+typedef void (*CcapErrorCallback)(CcapErrorCode errorCode, 
+                                  const char* errorDescription, 
+                                  void* userData);
+
+// Set error callback
+bool ccap_set_error_callback(CcapErrorCallback callback, void* userData);
+
+// Get error description
+const char* ccap_error_code_to_string(CcapErrorCode errorCode);</code></pre>
+            </section>
+
+            <!-- OpenCV Integration Section -->
+            <section id="opencv-integration">
+                <h2>OpenCV Integration</h2>
+                <pre><code>#include &lt;ccap_opencv.h&gt;
+
+auto frame = provider.grab();
+cv::Mat mat = ccap::convertRgbFrameToMat(*frame);</code></pre>
+            </section>
+
+            <!-- CMake Options Section -->
+            <section id="cmake-options">
+                <h2 class="lang-en">CMake Build Options</h2>
+                <h2 class="lang-zh">CMake 构建选项</h2>
+
+                <h3>CCAP_NO_LOG</h3>
+                <p class="lang-en">Disable logging throughout the library. Default: OFF</p>
+                <p class="lang-zh">禁用库中的所有日志记录。默认：OFF</p>
+                <pre><code>cmake -B build -DCCAP_NO_LOG=ON</code></pre>
+
+                <h3>CCAP_BUILD_SHARED</h3>
+                <p class="lang-en">Build ccap as a shared library instead of static. Default: OFF</p>
+                <p class="lang-zh">将 ccap 构建为共享库而非静态库。默认：OFF</p>
+                <pre><code>cmake -B build -DCCAP_BUILD_SHARED=ON</code></pre>
+
+                <h3>CCAP_BUILD_EXAMPLES</h3>
+                <p class="lang-en">Build example programs. Default: ON (when root project)</p>
+                <p class="lang-zh">构建示例程序。默认：ON（当作为根项目时）</p>
+                <pre><code>cmake -B build -DCCAP_BUILD_EXAMPLES=ON</code></pre>
+
+                <h3>CCAP_BUILD_TESTS</h3>
+                <p class="lang-en">Build unit tests. Default: OFF</p>
+                <p class="lang-zh">构建单元测试。默认：OFF</p>
+                <pre><code>cmake -B build -DCCAP_BUILD_TESTS=ON</code></pre>
+
+                <h3>CCAP_WIN_NO_DEVICE_VERIFY</h3>
+                <p class="lang-en">Skip device verification during enumeration on Windows. Useful for compatibility with problematic drivers. Default: OFF</p>
+                <p class="lang-zh">在 Windows 上跳过设备枚举期间的验证。适用于有问题的驱动程序。默认：OFF</p>
+                <pre><code>cmake -B build -DCCAP_WIN_NO_DEVICE_VERIFY=ON</code></pre>
+            </section>
+
+            <!-- Properties Section -->
+            <section id="properties">
+                <h2 class="lang-en">Properties</h2>
+                <h2 class="lang-zh">属性</h2>
+
+                <table class="requirements-table">
+                    <thead>
+                        <tr>
+                            <th><span class="lang-en">Property</span><span class="lang-zh">属性</span></th>
+                            <th><span class="lang-en">Description</span><span class="lang-zh">描述</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>Width</code></td>
+                            <td><span class="lang-en">Frame width in pixels</span><span class="lang-zh">帧宽度（像素）</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>Height</code></td>
+                            <td><span class="lang-en">Frame height in pixels</span><span class="lang-zh">帧高度（像素）</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>FrameRate</code></td>
+                            <td><span class="lang-en">Capture frame rate</span><span class="lang-zh">捕获帧率</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>PixelFormatInternal</code></td>
+                            <td><span class="lang-en">Camera's internal pixel format</span><span class="lang-zh">相机内部像素格式</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>PixelFormatOutput</code></td>
+                            <td><span class="lang-en">Output pixel format (with conversion)</span><span class="lang-zh">输出像素格式（带转换）</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>FrameOrientation</code></td>
+                            <td><span class="lang-en">Frame orientation/rotation</span><span class="lang-zh">帧方向/旋转</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Pixel Formats Section -->
+            <section id="pixel-formats">
+                <h2 class="lang-en">Pixel Formats</h2>
+                <h2 class="lang-zh">像素格式</h2>
+
+                <table class="requirements-table">
+                    <thead>
+                        <tr>
+                            <th><span class="lang-en">Format</span><span class="lang-zh">格式</span></th>
+                            <th><span class="lang-en">Description</span><span class="lang-zh">描述</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>NV12</code></td><td>YUV 4:2:0 semi-planar</td></tr>
+                        <tr><td><code>NV12f</code></td><td>YUV 4:2:0 semi-planar (full range)</td></tr>
+                        <tr><td><code>I420</code></td><td>YUV 4:2:0 planar</td></tr>
+                        <tr><td><code>I420f</code></td><td>YUV 4:2:0 planar (full range)</td></tr>
+                        <tr><td><code>RGB24</code></td><td>24-bit RGB</td></tr>
+                        <tr><td><code>BGR24</code></td><td>24-bit BGR</td></tr>
+                        <tr><td><code>RGBA32</code></td><td>32-bit RGBA</td></tr>
+                        <tr><td><code>BGRA32</code></td><td>32-bit BGRA</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Platform: Windows -->
+            <section id="windows">
+                <h2>Windows</h2>
+                <p class="lang-en">Uses DirectShow for camera access. Requires MSVC 2019 or later.</p>
+                <p class="lang-zh">使用 DirectShow 访问相机。需要 MSVC 2019 或更高版本。</p>
+
+                <h3 class="lang-en">Compilation</h3>
+                <h3 class="lang-zh">编译</h3>
+                <pre><code>cl your_code.c /I"path\to\ccap\include" ^
+   /link "path\to\ccap\lib\ccap.lib" ole32.lib oleaut32.lib uuid.lib</code></pre>
+            </section>
+
+            <!-- Platform: macOS -->
+            <section id="macos">
+                <h2>macOS</h2>
+                <p class="lang-en">Uses AVFoundation for camera access. Requires Xcode 11+ and macOS 10.13+.</p>
+                <p class="lang-zh">使用 AVFoundation 访问相机。需要 Xcode 11+ 和 macOS 10.13+。</p>
+
+                <h3 class="lang-en">Compilation</h3>
+                <h3 class="lang-zh">编译</h3>
+                <pre><code>gcc -std=c99 your_code.c -o your_app \
+    -I/path/to/ccap/include \
+    -L/path/to/ccap/lib -lccap \
+    -framework Foundation -framework AVFoundation \
+    -framework CoreMedia -framework CoreVideo</code></pre>
+            </section>
+
+            <!-- Platform: Linux -->
+            <section id="linux">
+                <h2>Linux</h2>
+                <p class="lang-en">Uses V4L2 for camera access. Requires GCC 7+ or Clang 6+.</p>
+                <p class="lang-zh">使用 V4L2 访问相机。需要 GCC 7+ 或 Clang 6+。</p>
+
+                <h3 class="lang-en">Compilation</h3>
+                <h3 class="lang-zh">编译</h3>
+                <pre><code>gcc -std=c99 your_code.c -o your_app \
+    -I/path/to/ccap/include \
+    -L/path/to/ccap/lib -lccap \
+    -lpthread</code></pre>
+            </section>
+
+            <!-- Platform: iOS -->
+            <section id="ios">
+                <h2>iOS</h2>
+                <p class="lang-en">Uses AVFoundation for camera access. Requires Xcode 11+ and iOS 13.0+.</p>
+                <p class="lang-zh">使用 AVFoundation 访问相机。需要 Xcode 11+ 和 iOS 13.0+。</p>
+
+                <h3 class="lang-en">CocoaPods</h3>
+                <pre><code>pod 'ccap'</code></pre>
+
+                <h3 class="lang-en">Camera Permission</h3>
+                <h3 class="lang-zh">相机权限</h3>
+                <p class="lang-en">Add the following to your Info.plist:</p>
+                <p class="lang-zh">在 Info.plist 中添加以下内容：</p>
+                <pre><code>&lt;key&gt;NSCameraUsageDescription&lt;/key&gt;
+&lt;string&gt;This app requires camera access to capture video.&lt;/string&gt;</code></pre>
+            </section>
+        </main>
+    </div>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4 class="lang-en">Download</h4>
+                    <h4 class="lang-zh">下载</h4>
+                    <ul>
+                        <li><a href="https://github.com/wysaid/CameraCapture/releases"><span class="lang-en">Releases</span><span class="lang-zh">版本发布</span></a></li>
+                        <li><a href="https://github.com/wysaid/CameraCapture/releases/latest"><span class="lang-en">Latest Release</span><span class="lang-zh">最新版本</span></a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4 class="lang-en">Documentation</h4>
+                    <h4 class="lang-zh">文档</h4>
+                    <ul>
+                        <li><a href="#overview"><span class="lang-en">Overview</span><span class="lang-zh">概述</span></a></li>
+                        <li><a href="#c-interface">C Interface</a></li>
+                        <li><a href="#cmake-options"><span class="lang-en">CMake Options</span><span class="lang-zh">CMake 选项</span></a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4 class="lang-en">Community</h4>
+                    <h4 class="lang-zh">社区</h4>
+                    <ul>
+                        <li><a href="https://github.com/wysaid/CameraCapture">GitHub</a></li>
+                        <li><a href="https://github.com/wysaid/CameraCapture/issues">Issues</a></li>
+                        <li><a href="https://github.com/wysaid/CameraCapture/pulls">Pull Requests</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4 class="lang-en">License</h4>
+                    <h4 class="lang-zh">许可证</h4>
+                    <ul>
+                        <li><a href="https://github.com/wysaid/CameraCapture/blob/main/LICENSE">MIT License</a></li>
+                        <li>© 2025 Wang Yang</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>ccap - Cross-Platform Camera Capture Library</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script>
+        // Highlight active sidebar link based on scroll position
+        (function() {
+            const sections = document.querySelectorAll('section[id]');
+            const sidebarLinks = document.querySelectorAll('.doc-sidebar a');
+            
+            function updateActiveLink() {
+                let currentSection = '';
+                sections.forEach(function(section) {
+                    const sectionTop = section.offsetTop;
+                    if (window.pageYOffset >= sectionTop - 100) {
+                        currentSection = section.getAttribute('id');
+                    }
+                });
+                
+                sidebarLinks.forEach(function(link) {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === '#' + currentSection) {
+                        link.classList.add('active');
+                    }
+                });
+            }
+            
+            window.addEventListener('scroll', updateActiveLink);
+            updateActiveLink();
+        })();
+    </script>
+</body>
+</html>
