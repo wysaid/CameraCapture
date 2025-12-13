@@ -572,7 +572,7 @@ bool ProviderDirectShow::createStream() {
             VIDEOINFOHEADER* videoHeader = (VIDEOINFOHEADER*)mediaType->pbFormat;
             m_frameProp.width = videoHeader->bmiHeader.biWidth;
             m_frameProp.height = videoHeader->bmiHeader.biHeight;
-            m_frameProp.fps = 10000000.0 / videoHeader->AvgTimePerFrame;
+            m_frameProp.fps = videoHeader->AvgTimePerFrame != 0 ? 10000000.0 / videoHeader->AvgTimePerFrame : 0;
             auto pixFormatInfo = findPixelFormatInfo(mediaType->subtype);
             auto subtype = mediaType->subtype;
 
@@ -778,7 +778,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
                 m_inputOrientation = FrameOrientation::BottomToTop;
             }
             
-            m_frameProp.fps = 10000000.0 / vih->AvgTimePerFrame;
+            m_frameProp.fps = vih->AvgTimePerFrame != 0 ? 10000000.0 / vih->AvgTimePerFrame : 0;
             if (info.pixelFormat != PixelFormat::Unknown) {
                 m_frameProp.cameraPixelFormat = info.pixelFormat;
             }
