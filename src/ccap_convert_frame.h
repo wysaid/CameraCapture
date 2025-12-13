@@ -30,11 +30,18 @@
 /// - Assertion failure in debug builds
 /// - Undefined behavior
 
+// Export internal functions only when building tests
+#ifdef CCAP_BUILD_TESTS
+    #define CCAP_TEST_EXPORT CCAP_EXPORT
+#else
+    #define CCAP_TEST_EXPORT
+#endif
+
 namespace ccap {
 
-bool inplaceConvertFrame(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip);
-bool inplaceConvertFrameRGB(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip);
-bool inplaceConvertFrameYUV2RGBColor(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip);
+CCAP_TEST_EXPORT bool inplaceConvertFrame(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip);
+CCAP_TEST_EXPORT bool inplaceConvertFrameRGB(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip);
+CCAP_TEST_EXPORT bool inplaceConvertFrameYUV2RGBColor(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip);
 
 } // namespace ccap
 
