@@ -118,6 +118,8 @@ private:
     std::vector<std::string> m_allDeviceNames;
 
     std::chrono::steady_clock::time_point m_startTime{};
+    FrameOrientation m_inputOrientation = FrameOrientation::TopToBottom;
+    
     bool m_firstFrameArrived = false;
 
     // State variables
