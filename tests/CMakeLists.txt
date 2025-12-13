@@ -72,12 +72,20 @@ add_executable(
     test_color_conversions.cpp
     test_yuv_conversions.cpp
     test_platform_features.cpp
+    test_frame_conversions.cpp
 )
 
 target_link_libraries(
     ccap_convert_test
     ccap_test_utils
     gtest_main
+)
+
+# Add src directory to include path for internal API testing
+target_include_directories(
+    ccap_convert_test
+    PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
 )
 
 # GUID definition verification test (Windows only)
