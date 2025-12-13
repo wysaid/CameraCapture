@@ -461,11 +461,13 @@
             display: block;
         }
 
-        html[lang="en"] .lang-en-inline {
+        html[lang="en"] .lang-en-inline,
+        html[lang="en"] span.lang-en {
             display: inline;
         }
 
-        html[lang="zh"] .lang-zh-inline {
+        html[lang="zh"] .lang-zh-inline,
+        html[lang="zh"] span.lang-zh {
             display: inline;
         }
     </style>
@@ -732,12 +734,9 @@ target_link_libraries(your_app ccap::ccap)</pre>
             <table class="requirements-table">
                 <thead>
                     <tr>
-                        <th class="lang-en">Platform</th>
-                        <th class="lang-zh">平台</th>
-                        <th class="lang-en">Compiler</th>
-                        <th class="lang-zh">编译器</th>
-                        <th class="lang-en">Requirements</th>
-                        <th class="lang-zh">要求</th>
+                        <th><span class="lang-en">Platform</span><span class="lang-zh">平台</span></th>
+                        <th><span class="lang-en">Compiler</span><span class="lang-zh">编译器</span></th>
+                        <th><span class="lang-en">Requirements</span><span class="lang-zh">要求</span></th>
                     </tr>
                 </thead>
                 <tbody>
