@@ -7,8 +7,8 @@
     <meta name="description" content="Complete documentation for the ccap cross-platform camera capture library.">
     <link rel="canonical" href="https://ccap.work/documentation.html">
     <link rel="stylesheet" href="css/style.css">
-    <!-- marked.js for markdown rendering -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- marked.js for markdown rendering - using specific version for stability -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
     <header>
@@ -91,32 +91,57 @@
     <script src="js/main.js"></script>
     <script>
         (function() {
+            // Configure marked.js with sanitization options
+            if (typeof marked !== 'undefined') {
+                marked.setOptions({
+                    breaks: true,
+                    gfm: true
+                });
+            }
+
             // Get the current language
             function getCurrentLang() {
                 return document.documentElement.getAttribute('lang') || 'en';
             }
 
+            // Debounce utility to prevent excessive calls
+            function debounce(func, wait) {
+                var timeout;
+                return function() {
+                    var context = this;
+                    var args = arguments;
+                    clearTimeout(timeout);
+                    timeout = setTimeout(function() {
+                        func.apply(context, args);
+                    }, wait);
+                };
+            }
+
             // Fetch and render markdown documentation
             function loadDocumentation() {
                 var lang = getCurrentLang();
-                var mdFile = lang === 'zh' ? 'content/documentation.zh.md' : 'content/documentation.md';
+                var primaryFile = lang === 'zh' ? 'content/documentation.zh.md' : 'content/documentation.md';
+                var fallbackFile = 'content/documentation.md';
                 
-                fetch(mdFile)
+                fetch(primaryFile)
                     .then(function(response) {
-                        if (!response.ok) {
+                        if (!response.ok && lang === 'zh') {
                             // Fallback to English if Chinese version not found
-                            if (lang === 'zh') {
-                                return fetch('content/documentation.md');
-                            }
+                            return fetch(fallbackFile);
+                        }
+                        if (!response.ok) {
                             throw new Error('Failed to load documentation');
                         }
                         return response;
                     })
                     .then(function(response) {
+                        if (!response.ok) {
+                            throw new Error('Failed to load documentation');
+                        }
                         return response.text();
                     })
                     .then(function(markdown) {
-                        // Render markdown to HTML
+                        // Render markdown to HTML using marked.js
                         var html = marked.parse(markdown);
                         document.getElementById('doc-content').innerHTML = html;
                         
@@ -211,13 +236,17 @@
                 updateActiveLink();
             }
 
-            // Listen for language changes
+            // Debounced version of loadDocumentation to prevent excessive calls
+            var debouncedLoadDocumentation = debounce(loadDocumentation, 100);
+
+            // Listen for language changes with debouncing
             var observer = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mutation) {
-                    if (mutation.type === 'attributes' && mutation.attributeName === 'lang') {
-                        loadDocumentation();
-                    }
+                var langChanged = mutations.some(function(mutation) {
+                    return mutation.type === 'attributes' && mutation.attributeName === 'lang';
                 });
+                if (langChanged) {
+                    debouncedLoadDocumentation();
+                }
             });
             
             observer.observe(document.documentElement, {
