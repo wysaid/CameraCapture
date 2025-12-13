@@ -32,8 +32,8 @@
         updateLanguageButton();
     }
 
-    // Code tabs
-    function showCode(lang) {
+    // Code tabs - pass event from onclick handler
+    function showCode(lang, evt) {
         document.querySelectorAll('.code-content').forEach(function(el) {
             el.classList.remove('active');
         });
@@ -44,9 +44,18 @@
         if (codeElement) {
             codeElement.classList.add('active');
         }
-        if (event && event.target) {
-            event.target.classList.add('active');
+        // Use passed event or fallback to window.event for older browsers
+        var targetEvent = evt || window.event;
+        if (targetEvent && targetEvent.target) {
+            targetEvent.target.classList.add('active');
         }
+    }
+
+    // HTML escaping utility to prevent XSS
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     // GitHub Release API
@@ -60,6 +69,7 @@
         }
 
         var xhr = new XMLHttpRequest();
+        xhr.timeout = 10000; // 10 second timeout
         xhr.open('GET', 'https://api.github.com/repos/' + GITHUB_REPO + '/releases/latest', true);
         xhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
         xhr.onload = function() {
@@ -70,6 +80,13 @@
                 } catch (e) {
                     callback(null);
                 }
+            } else if (xhr.status === 403) {
+                // Rate limit exceeded
+                console.warn('GitHub API rate limit exceeded');
+                callback(null);
+            } else if (xhr.status === 404) {
+                // No releases found
+                callback(null);
             } else {
                 callback(null);
             }
@@ -77,7 +94,37 @@
         xhr.onerror = function() {
             callback(null);
         };
+        xhr.ontimeout = function() {
+            console.warn('GitHub API request timed out');
+            callback(null);
+        };
         xhr.send();
+    }
+
+    // URL validation for GitHub assets
+    function isValidGitHubUrl(url) {
+        if (!url || typeof url !== 'string') return false;
+        try {
+            var parsed = new URL(url);
+            return parsed.protocol === 'https:' && 
+                   (parsed.hostname === 'github.com' || parsed.hostname.endsWith('.github.com'));
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // Render a platform download section
+    function renderPlatformSection(platformName, icon, assets) {
+        var html = '<div class="download-platform">';
+        html += '<div class="platform-icon">' + escapeHtml(icon) + '</div>';
+        html += '<h4>' + escapeHtml(platformName) + '</h4>';
+        assets.forEach(function(asset) {
+            if (isValidGitHubUrl(asset.browser_download_url)) {
+                html += '<a href="' + escapeHtml(asset.browser_download_url) + '" class="download-link">' + escapeHtml(asset.name) + '</a>';
+            }
+        });
+        html += '</div>';
+        return html;
     }
 
     function updateDownloadSection() {
@@ -86,9 +133,10 @@
 
         fetchLatestRelease(function(release) {
             if (release) {
-                // Update version display
+                // Update version display with escaped content
+                var safeTagName = escapeHtml(release.tag_name || 'Latest');
                 versionElements.forEach(function(el) {
-                    el.textContent = release.tag_name;
+                    el.textContent = release.tag_name || 'Latest';
                 });
 
                 // Build download links
@@ -106,7 +154,7 @@
                     };
 
                     assets.forEach(function(asset) {
-                        var name = asset.name.toLowerCase();
+                        var name = (asset.name || '').toLowerCase();
                         if (name.indexOf('windows') !== -1 || name.indexOf('win') !== -1) {
                             platforms.windows.push(asset);
                         } else if (name.indexOf('macos') !== -1 || name.indexOf('darwin') !== -1 || name.indexOf('mac') !== -1) {
@@ -123,43 +171,19 @@
                     html += '<div class="download-grid">';
 
                     if (platforms.windows.length > 0) {
-                        html += '<div class="download-platform">';
-                        html += '<div class="platform-icon">🪟</div>';
-                        html += '<h4>Windows</h4>';
-                        platforms.windows.forEach(function(asset) {
-                            html += '<a href="' + asset.browser_download_url + '" class="download-link">' + asset.name + '</a>';
-                        });
-                        html += '</div>';
+                        html += renderPlatformSection('Windows', '🪟', platforms.windows);
                     }
 
                     if (platforms.macos.length > 0) {
-                        html += '<div class="download-platform">';
-                        html += '<div class="platform-icon">🍎</div>';
-                        html += '<h4>macOS</h4>';
-                        platforms.macos.forEach(function(asset) {
-                            html += '<a href="' + asset.browser_download_url + '" class="download-link">' + asset.name + '</a>';
-                        });
-                        html += '</div>';
+                        html += renderPlatformSection('macOS', '🍎', platforms.macos);
                     }
 
                     if (platforms.linux.length > 0) {
-                        html += '<div class="download-platform">';
-                        html += '<div class="platform-icon">🐧</div>';
-                        html += '<h4>Linux</h4>';
-                        platforms.linux.forEach(function(asset) {
-                            html += '<a href="' + asset.browser_download_url + '" class="download-link">' + asset.name + '</a>';
-                        });
-                        html += '</div>';
+                        html += renderPlatformSection('Linux', '🐧', platforms.linux);
                     }
 
                     if (platforms.ios.length > 0) {
-                        html += '<div class="download-platform">';
-                        html += '<div class="platform-icon">📱</div>';
-                        html += '<h4>iOS</h4>';
-                        platforms.ios.forEach(function(asset) {
-                            html += '<a href="' + asset.browser_download_url + '" class="download-link">' + asset.name + '</a>';
-                        });
-                        html += '</div>';
+                        html += renderPlatformSection('iOS', '📱', platforms.ios);
                     }
 
                     if (platforms.other.length > 0) {
@@ -167,15 +191,19 @@
                         html += '<div class="platform-icon">📦</div>';
                         html += '<h4 class="lang-en">Other</h4><h4 class="lang-zh">其他</h4>';
                         platforms.other.forEach(function(asset) {
-                            html += '<a href="' + asset.browser_download_url + '" class="download-link">' + asset.name + '</a>';
+                            if (isValidGitHubUrl(asset.browser_download_url)) {
+                                html += '<a href="' + escapeHtml(asset.browser_download_url) + '" class="download-link">' + escapeHtml(asset.name) + '</a>';
+                            }
                         });
                         html += '</div>';
                     }
 
                     html += '</div>';
 
+                    // Safe URLs for footer links (GITHUB_REPO is a constant)
+                    var safeTagName = escapeHtml(release.tag_name || '');
                     html += '<div class="download-footer">';
-                    html += '<a href="https://github.com/' + GITHUB_REPO + '/releases/tag/' + release.tag_name + '" class="btn btn-outline">';
+                    html += '<a href="https://github.com/' + GITHUB_REPO + '/releases/tag/' + safeTagName + '" class="btn btn-outline">';
                     html += '<span class="lang-en">View Release Notes</span><span class="lang-zh">查看版本说明</span>';
                     html += '</a>';
                     html += '<a href="https://github.com/' + GITHUB_REPO + '/releases" class="btn btn-outline">';
@@ -185,8 +213,8 @@
 
                     downloadContainer.innerHTML = html;
                     
-                    // Re-apply language after updating content
-                    initLanguage();
+                    // Apply language display to newly added content only
+                    applyLanguageToElement(downloadContainer);
                 }
             } else {
                 // Fallback if API fails
@@ -196,9 +224,23 @@
                 if (downloadContainer) {
                     downloadContainer.innerHTML = '<p class="lang-en">Unable to fetch release info. Please visit <a href="https://github.com/' + GITHUB_REPO + '/releases">GitHub Releases</a>.</p>' +
                         '<p class="lang-zh">无法获取版本信息，请访问 <a href="https://github.com/' + GITHUB_REPO + '/releases">GitHub Releases</a>。</p>';
-                    initLanguage();
+                    applyLanguageToElement(downloadContainer);
                 }
             }
+        });
+    }
+
+    // Apply language display to a specific element and its children
+    function applyLanguageToElement(element) {
+        var currentLang = document.documentElement.getAttribute('lang') || 'en';
+        var langEnElements = element.querySelectorAll('.lang-en');
+        var langZhElements = element.querySelectorAll('.lang-zh');
+        
+        langEnElements.forEach(function(el) {
+            el.style.display = currentLang === 'en' ? '' : 'none';
+        });
+        langZhElements.forEach(function(el) {
+            el.style.display = currentLang === 'zh' ? '' : 'none';
         });
     }
 
