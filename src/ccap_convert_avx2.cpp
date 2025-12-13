@@ -181,11 +181,21 @@ AVX2_TARGET void colorShuffle_avx2(const uint8_t* src, int srcStride, uint8_t* d
         shuffle128 = _mm_load_si128((__m128i*)shuffleData);
     }
 
+    // Different cases require different boundary conditions to avoid reading beyond allocated memory:
+    // - 3->4: reads 16 bytes from x*3+12, needs x*3+27 < width*3, i.e., x+9 < width
+    // - 3->3: reads 16 bytes from x*3, needs x*3+15 < width*3, i.e., x+5 < width  
+    // - 4->3: reads 16 bytes from x*4+16, needs x*4+31 < width*4, i.e., x+8 <= width
+    // - 4->4: reads 32 bytes from x*4, needs x*4+31 < width*4, i.e., x+8 <= width
+    constexpr uint32_t loopBoundary = (inputChannels == 3 && outputChannels == 4) ? (patchSize + 2) :
+                                      (inputChannels == 3 && outputChannels == 3) ? (patchSize + 1) :
+                                                                                    patchSize;
+
     for (int y = 0; y < height; ++y) {
         const uint8_t* srcRow = src + y * srcStride;
         uint8_t* dstRow = dst + y * dstStride;
         uint32_t x = 0;
-        while (x + patchSize <= (uint32_t)width) {
+        
+        while (x + loopBoundary <= (uint32_t)width) {
             // _mm256_shuffle_epi8 can’t move these bytes across 16-byte lanes of the vector.
             // @see issue <https://stackoverflow.com/questions/77149094/how-to-use-mm256-shuffle-epi8-to-order-elements>
             if constexpr (outputChannels == 4 && inputChannels == 3) { // 3 -> 4, need to split channels

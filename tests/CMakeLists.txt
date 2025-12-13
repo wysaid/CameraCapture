@@ -73,6 +73,7 @@ add_executable(
     test_yuv_conversions.cpp
     test_platform_features.cpp
     test_frame_conversions.cpp
+    test_boundary_conditions.cpp
 )
 
 target_link_libraries(
