@@ -105,6 +105,7 @@ jobs:
           if [ "${{ matrix.library_type }}" = "shared" ]; then
             export DYLD_LIBRARY_PATH="$PWD/../build/${{ matrix.config }}-${{ matrix.library_type }}:$DYLD_LIBRARY_PATH"
           fi
+          # Run tests with AddressSanitizer enabled by default (improves memory error detection)
           ./run_tests.sh --functional --skip-build
         else
           # Set library path for shared library tests

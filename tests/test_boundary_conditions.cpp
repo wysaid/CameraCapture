@@ -66,9 +66,15 @@ protected:
                        width, height);
         
         // Verify conversion correctness at various positions
-        std::vector<int> testPositions = {0, 1, width/2, width-2, width-1};
+        std::vector<int> testPositions;
+        testPositions.push_back(0);
+        if (width > 1) testPositions.push_back(1);
+        if (width > 2) testPositions.push_back(width/2);
+        if (width > 2) testPositions.push_back(width-2);
+        if (width > 1) testPositions.push_back(width-1);
+        
         for (int x : testPositions) {
-            if (x >= width) continue;
+            if (x < 0 || x >= width) continue;
             
             for (int y = 0; y < height; ++y) {
                 const uint8_t* srcPixel = src.data() + y * src.stride() + x * 3;
@@ -118,9 +124,15 @@ protected:
                         width, height);
         
         // Verify conversion
-        std::vector<int> testPositions = {0, 1, width/2, width-2, width-1};
+        std::vector<int> testPositions;
+        testPositions.push_back(0);
+        if (width > 1) testPositions.push_back(1);
+        if (width > 2) testPositions.push_back(width/2);
+        if (width > 2) testPositions.push_back(width-2);
+        if (width > 1) testPositions.push_back(width-1);
+        
         for (int x : testPositions) {
-            if (x >= width) continue;
+            if (x < 0 || x >= width) continue;
             
             for (int y = 0; y < height; ++y) {
                 const uint8_t* srcPixel = src.data() + y * src.stride() + x * 3;
