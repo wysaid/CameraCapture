@@ -230,16 +230,12 @@
     }
 
     // Apply language display to a specific element and its children
+    // This clears any inline styles that might override CSS rules
     function applyLanguageToElement(element) {
-        var currentLang = document.documentElement.getAttribute('lang') || 'en';
-        var langEnElements = element.querySelectorAll('.lang-en');
-        var langZhElements = element.querySelectorAll('.lang-zh');
-        
-        langEnElements.forEach(function(el) {
-            el.style.display = currentLang === 'en' ? '' : 'none';
-        });
-        langZhElements.forEach(function(el) {
-            el.style.display = currentLang === 'zh' ? '' : 'none';
+        // Clear any inline display styles so CSS rules take effect
+        var langElements = element.querySelectorAll('.lang-en, .lang-zh');
+        langElements.forEach(function(el) {
+            el.style.display = '';
         });
     }
 

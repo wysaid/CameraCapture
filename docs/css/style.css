@@ -616,25 +616,48 @@ footer {
 
 /* Language Support */
 .lang-en, .lang-zh {
-    display: none;
+    display: none !important;
 }
 
 html[lang="en"] .lang-en {
-    display: block;
+    display: block !important;
 }
 
 html[lang="zh"] .lang-zh {
-    display: block;
+    display: block !important;
 }
 
+/* Inline elements */
 html[lang="en"] .lang-en-inline,
-html[lang="en"] span.lang-en {
-    display: inline;
+html[lang="en"] span.lang-en,
+html[lang="en"] a.lang-en,
+html[lang="en"] button.lang-en {
+    display: inline !important;
 }
 
 html[lang="zh"] .lang-zh-inline,
-html[lang="zh"] span.lang-zh {
-    display: inline;
+html[lang="zh"] span.lang-zh,
+html[lang="zh"] a.lang-zh,
+html[lang="zh"] button.lang-zh {
+    display: inline !important;
+}
+
+/* List items */
+html[lang="en"] li.lang-en {
+    display: list-item !important;
+}
+
+html[lang="zh"] li.lang-zh {
+    display: list-item !important;
+}
+
+/* Flex children */
+html[lang="en"] .lang-en.flex-item {
+    display: flex !important;
+}
+
+html[lang="zh"] .lang-zh.flex-item {
+    display: flex !important;
 }
 
 /* Documentation page specific styles */
@@ -737,6 +760,75 @@ html[lang="zh"] span.lang-zh {
     background: none;
     padding: 0;
     color: inherit;
+}
+
+/* Markdown-rendered content styling */
+.doc-content ul, .doc-content ol {
+    margin-bottom: 16px;
+    padding-left: 24px;
+}
+
+.doc-content li {
+    margin-bottom: 8px;
+    line-height: 1.7;
+}
+
+.doc-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.doc-content th,
+.doc-content td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.doc-content th {
+    background: var(--bg-secondary);
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.doc-content tr:last-child td {
+    border-bottom: none;
+}
+
+.doc-content tr:hover {
+    background: var(--bg-secondary);
+}
+
+.doc-content blockquote {
+    border-left: 4px solid var(--primary-color);
+    padding: 12px 20px;
+    margin: 16px 0;
+    background: var(--bg-secondary);
+    border-radius: 0 8px 8px 0;
+}
+
+.doc-content blockquote p {
+    margin-bottom: 0;
+}
+
+.doc-content a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.doc-content a:hover {
+    text-decoration: underline;
+}
+
+.doc-loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-light);
 }
 
 /* Responsive Design */
