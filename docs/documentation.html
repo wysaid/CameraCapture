@@ -500,7 +500,7 @@ cv::Mat mat = ccap::convertRgbFrameToMat(*frame);</code></pre>
                 let currentSection = '';
                 sections.forEach(function(section) {
                     const sectionTop = section.offsetTop;
-                    if (window.pageYOffset >= sectionTop - 100) {
+                    if (window.scrollY >= sectionTop - 100) {
                         currentSection = section.getAttribute('id');
                     }
                 });

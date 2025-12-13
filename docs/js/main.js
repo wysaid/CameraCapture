@@ -44,10 +44,9 @@
         if (codeElement) {
             codeElement.classList.add('active');
         }
-        // Use passed event or fallback to window.event for older browsers
-        var targetEvent = evt || window.event;
-        if (targetEvent && targetEvent.target) {
-            targetEvent.target.classList.add('active');
+        // Use the passed event parameter
+        if (evt && evt.target) {
+            evt.target.classList.add('active');
         }
     }
 
@@ -133,10 +132,10 @@
 
         fetchLatestRelease(function(release) {
             if (release) {
-                // Update version display with escaped content
-                var safeTagName = escapeHtml(release.tag_name || 'Latest');
+                // Update version display (textContent is safe, no need for escaping)
+                var tagName = release.tag_name || 'Latest';
                 versionElements.forEach(function(el) {
-                    el.textContent = release.tag_name || 'Latest';
+                    el.textContent = tagName;
                 });
 
                 // Build download links
