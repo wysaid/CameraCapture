@@ -16,8 +16,8 @@
 
 #define CCAP_VERSION_MAJOR 1
 #define CCAP_VERSION_MINOR 3
-#define CCAP_VERSION_PATCH 3
-#define CCAP_VERSION_STRING "1.3.3"
+#define CCAP_VERSION_PATCH 4
+#define CCAP_VERSION_STRING "1.3.4"
 
 /* ========== Export/Import Macro Definitions ========== */
 

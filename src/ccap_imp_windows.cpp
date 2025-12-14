@@ -572,7 +572,7 @@ bool ProviderDirectShow::createStream() {
             VIDEOINFOHEADER* videoHeader = (VIDEOINFOHEADER*)mediaType->pbFormat;
             m_frameProp.width = videoHeader->bmiHeader.biWidth;
             m_frameProp.height = videoHeader->bmiHeader.biHeight;
-            m_frameProp.fps = 10000000.0 / videoHeader->AvgTimePerFrame;
+            m_frameProp.fps = videoHeader->AvgTimePerFrame != 0 ? 10000000.0 / videoHeader->AvgTimePerFrame : 0;
             auto pixFormatInfo = findPixelFormatInfo(mediaType->subtype);
             auto subtype = mediaType->subtype;
 
@@ -727,6 +727,7 @@ bool ProviderDirectShow::open(std::string_view deviceName) {
     m_isOpened = true;
     m_isRunning = false;
     m_frameIndex = 0;
+    m_firstFrameArrived = false;
     return true;
 }
 
@@ -757,9 +758,27 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
         if (SUCCEEDED(hr)) {
             VIDEOINFOHEADER* vih = (VIDEOINFOHEADER*)mt.pbFormat;
             m_frameProp.width = vih->bmiHeader.biWidth;
-            m_frameProp.height = vih->bmiHeader.biHeight;
-            m_frameProp.fps = 10000000.0 / vih->AvgTimePerFrame;
+            // biHeight may be negative. Negative height indicates top-to-bottom orientation.
+            // Positive height indicates bottom-to-top orientation (standard Windows DIB format).
+            m_frameProp.height = abs(vih->bmiHeader.biHeight);
+            
+            // For YUV formats, always assume TopToBottom orientation regardless of biHeight
+            // This fixes issues with some virtual cameras (like OBS) that report positive biHeight
+            // but actually deliver TopToBottom data
             auto info = findPixelFormatInfo(mt.subtype);
+            bool isYUVFormat = (info.pixelFormat & kPixelFormatYUVColorBit) != 0;
+            
+            if (isYUVFormat) {
+                // YUV data is typically TopToBottom, ignore biHeight sign
+                m_inputOrientation = FrameOrientation::TopToBottom;
+                CCAP_LOG_V("ccap: YUV format detected, using TopToBottom orientation (biHeight=%d)\n", vih->bmiHeader.biHeight);
+            } else if (vih->bmiHeader.biHeight < 0) {
+                m_inputOrientation = FrameOrientation::TopToBottom;
+            } else {
+                m_inputOrientation = FrameOrientation::BottomToTop;
+            }
+            
+            m_frameProp.fps = vih->AvgTimePerFrame != 0 ? 10000000.0 / vih->AvgTimePerFrame : 0;
             if (info.pixelFormat != PixelFormat::Unknown) {
                 m_frameProp.cameraPixelFormat = info.pixelFormat;
             }
@@ -781,7 +800,6 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     uint32_t bufferLen = mediaSample->GetActualDataLength();
     bool isInputYUV = (m_frameProp.cameraPixelFormat & kPixelFormatYUVColorBit);
     bool isOutputYUV = (m_frameProp.outputPixelFormat & kPixelFormatYUVColorBit);
-    auto inputOrientation = isInputYUV ? FrameOrientation::TopToBottom : FrameOrientation::BottomToTop;
 
     newFrame->pixelFormat = m_frameProp.cameraPixelFormat;
     newFrame->width = m_frameProp.width;
@@ -789,7 +807,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     newFrame->orientation = isOutputYUV ? FrameOrientation::TopToBottom : m_frameOrientation;
     newFrame->nativeHandle = mediaSample;
 
-    bool shouldFlip = newFrame->orientation != inputOrientation && !isOutputYUV;
+    bool shouldFlip = newFrame->orientation != m_inputOrientation && !isOutputYUV;
     bool shouldConvert = m_frameProp.cameraPixelFormat != m_frameProp.outputPixelFormat;
     bool zeroCopy = !shouldConvert && !shouldFlip;
 
