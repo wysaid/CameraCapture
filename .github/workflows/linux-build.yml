@@ -24,7 +24,7 @@ jobs:
     - name: Install base dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake build-essential gcc
+        sudo apt-get install -y cmake build-essential gcc libasan6
         
     - name: Install GLFW (for Release builds only)
       if: matrix.build_type == 'Release'
@@ -140,6 +140,7 @@ jobs:
         if [ "${{ matrix.library_type }}" = "shared" ]; then
           export LD_LIBRARY_PATH="$PWD/../build/${{ matrix.build_type }}-${{ matrix.library_type }}:$LD_LIBRARY_PATH"
         fi
+        # Run tests with AddressSanitizer enabled by default (improves memory error detection)
         ./run_tests.sh --functional --exit-when-failed
 
     - name: Upload artifacts
@@ -175,7 +176,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake build-essential clang libglfw3-dev
+        sudo apt-get install -y cmake build-essential clang libglfw3-dev libasan6
         
     - name: Setup compiler
       run: |
@@ -239,6 +240,8 @@ jobs:
         if [ "${{ matrix.library_type }}" = "shared" ]; then
           export LD_LIBRARY_PATH="$PWD/../build/${{ matrix.build_type }}-${{ matrix.library_type }}:$LD_LIBRARY_PATH"
         fi
+        # Run tests with AddressSanitizer enabled by default
+        # This helps catch memory errors early in CI
         ./run_tests.sh --functional --exit-when-failed
 
     - name: Upload artifacts
@@ -394,7 +397,7 @@ jobs:
     
     - name: Install dependencies
       run: |
-        dnf install -y cmake gcc-c++ make
+        dnf install -y cmake gcc-c++ make libasan
         
     - name: Configure CMake
       run: |
@@ -448,6 +451,8 @@ jobs:
         if [ "${{ matrix.library_type }}" = "shared" ]; then
           export LD_LIBRARY_PATH="$PWD/../build/${{ matrix.build_type }}-${{ matrix.library_type }}:$LD_LIBRARY_PATH"
         fi
+        # Run tests with AddressSanitizer enabled by default
+        # This helps catch memory errors early in CI
         ./run_tests.sh --functional --exit-when-failed
     
     - name: Upload artifacts

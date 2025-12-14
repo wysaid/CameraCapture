@@ -19,6 +19,12 @@ bool inplaceConvertFrameYUV2RGBColor(VideoFrame* frame, PixelFormat toFormat, bo
 
     /// TODO: Fix toFormat here, only support YUV -> (BGR24/BGRA32). Simplify SDK design. Will improve later.
 
+    // ASSERTION: Ensure frame->data[0] points to EXTERNAL memory, not allocator->data()
+    // This validates the design constraint: VideoFrame should only be converted once
+    assert(frame->allocator == nullptr || frame->data[0] != frame->allocator->data() && 
+           "DESIGN VIOLATION: frame->data[0] must point to external memory (e.g., camera buffer), not allocator memory. "
+           "Each VideoFrame should only be converted ONCE using inplaceConvertFrame*() functions.");
+
     auto inputFormat = frame->pixelFormat;
     assert((inputFormat & kPixelFormatYUVColorBit) != 0 && (toFormat & kPixelFormatYUVColorBit) == 0);
     bool isInputNV12 = pixelFormatInclude(inputFormat, PixelFormat::NV12);
@@ -122,6 +128,12 @@ bool inplaceConvertFrameYUV2RGBColor(VideoFrame* frame, PixelFormat toFormat, bo
 
 bool inplaceConvertFrameRGB(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip) {
     // RGB(A) interconversion
+    
+    // ASSERTION: Ensure frame->data[0] points to EXTERNAL memory, not allocator->data()
+    // This validates the design constraint: VideoFrame should only be converted once
+    assert(frame->allocator == nullptr || frame->data[0] != frame->allocator->data() && 
+           "DESIGN VIOLATION: frame->data[0] must point to external memory (e.g., camera buffer), not allocator memory. "
+           "Each VideoFrame should only be converted ONCE using inplaceConvertFrame*() functions.");
 
     uint8_t* inputBytes = frame->data[0];
     int inputLineSize = frame->stride[0];
@@ -157,7 +169,7 @@ bool inplaceConvertFrameRGB(VideoFrame* frame, PixelFormat toFormat, bool vertic
 #endif
         } else // RGB <-> BGR
         {
-            rgbaToBgra(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, height);
+            rgbToBgr(inputBytes, inputLineSize, outputBytes, newLineSize, frame->width, height);
         }
     } else /// Different number of channels, only 4 channels <-> 3 channels
     {
@@ -181,6 +193,12 @@ bool inplaceConvertFrameRGB(VideoFrame* frame, PixelFormat toFormat, bool vertic
 }
 
 inline bool inplaceConvertFrameImp(VideoFrame* frame, PixelFormat toFormat, bool verticalFlip) {
+    // ASSERTION: Ensure frame->data[0] points to EXTERNAL memory, not allocator->data()
+    // This validates the design constraint: VideoFrame should only be converted once
+    assert(frame->allocator == nullptr || frame->data[0] != frame->allocator->data() && 
+           "DESIGN VIOLATION: frame->data[0] must point to external memory (e.g., camera buffer), not allocator memory. "
+           "Each VideoFrame should only be converted ONCE using inplaceConvertFrame*() functions.");
+
     if (frame->pixelFormat == toFormat) {
         if (verticalFlip && (toFormat & kPixelFormatRGBColorBit)) { // flip upside down
             int srcStride = (int)frame->stride[0];
