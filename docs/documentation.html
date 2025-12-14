@@ -11,6 +11,13 @@
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js" crossorigin="anonymous"></script>
     <!-- DOMPurify for HTML sanitization to prevent XSS -->
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js" crossorigin="anonymous"></script>
+    <!-- Highlight.js for syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs2015.min.css" crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/cpp.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/shell.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/cmake.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
     <header>
@@ -97,7 +104,11 @@
             if (typeof marked !== 'undefined') {
                 marked.setOptions({
                     breaks: true,
-                    gfm: true
+                    gfm: true,
+                    highlight: function(code, lang) {
+                        // Don't highlight here, let hljs do it after sanitization
+                        return code;
+                    }
                 });
             }
 
@@ -123,12 +134,13 @@
             function sanitizeHtml(html) {
                 if (typeof DOMPurify !== 'undefined') {
                     return DOMPurify.sanitize(html, {
-                        USE_PROFILES: { html: true },
                         ALLOWED_TAGS: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'br', 'hr', 
                                        'ul', 'ol', 'li', 'pre', 'code', 'blockquote',
                                        'table', 'thead', 'tbody', 'tr', 'th', 'td',
-                                       'a', 'strong', 'em', 'del', 'img'],
-                        ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'id']
+                                       'a', 'strong', 'em', 'del', 'img', 'span', 'div'],
+                        ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'id'],
+                        KEEP_CONTENT: true,
+                        ALLOW_DATA_ATTR: false
                     });
                 }
                 // Fallback: return as-is if DOMPurify not available
@@ -160,6 +172,21 @@
                         var rawHtml = marked.parse(markdown);
                         var safeHtml = sanitizeHtml(rawHtml);
                         document.getElementById('doc-content').innerHTML = safeHtml;
+                        
+                        // Apply syntax highlighting to code blocks
+                        // Use setTimeout to ensure DOM is fully updated
+                        setTimeout(function() {
+                            if (typeof hljs !== 'undefined') {
+                                var codeBlocks = document.querySelectorAll('#doc-content pre code');
+                                console.log('Found ' + codeBlocks.length + ' code blocks to highlight');
+                                codeBlocks.forEach(function(block) {
+                                    console.log('Highlighting block with class:', block.className);
+                                    hljs.highlightElement(block);
+                                });
+                            } else {
+                                console.error('hljs is not loaded!');
+                            }
+                        }, 0);
                         
                         // Generate sidebar navigation from headings
                         generateSidebar();

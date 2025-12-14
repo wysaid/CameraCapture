@@ -8,6 +8,13 @@
     <meta name="keywords" content="camera capture, C++, C, cross-platform, Windows, macOS, iOS, Linux, DirectShow, AVFoundation, V4L2">
     <link rel="canonical" href="https://ccap.work/">
     <link rel="stylesheet" href="css/style.css">
+    <!-- Highlight.js for syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs2015.min.css" crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/cpp.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/c.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/cmake.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
     <header>
@@ -178,59 +185,59 @@
             
             <div class="code-block">
                 <div id="code-cpp" class="code-content active">
-<pre><span class="comment">// C++ Example</span>
-<span class="keyword">#include</span> <span class="string">&lt;ccap.h&gt;</span>
+<pre><code class="language-cpp">// C++ Example
+#include &lt;ccap.h&gt;
 
-<span class="type">int</span> <span class="function">main</span>() {
+int main() {
     ccap::Provider provider;
     
-    <span class="comment">// List available cameras</span>
-    <span class="keyword">auto</span> devices = provider.<span class="function">findDeviceNames</span>();
-    <span class="keyword">for</span> (<span class="type">size_t</span> i = <span class="number">0</span>; i &lt; devices.<span class="function">size</span>(); ++i) {
-        <span class="function">printf</span>(<span class="string">"[%zu] %s\n"</span>, i, devices[i].<span class="function">c_str</span>());
+    // List available cameras
+    auto devices = provider.findDeviceNames();
+    for (size_t i = 0; i &lt; devices.size(); ++i) {
+        printf("[%zu] %s\n", i, devices[i].c_str());
     }
     
-    <span class="comment">// Open and start camera</span>
-    <span class="keyword">if</span> (provider.<span class="function">open</span>(<span class="string">""</span>, <span class="keyword">true</span>)) {
-        <span class="keyword">auto</span> frame = provider.<span class="function">grab</span>(<span class="number">3000</span>);
-        <span class="keyword">if</span> (frame) {
-            <span class="function">printf</span>(<span class="string">"Captured: %dx%d\n"</span>, 
+    // Open and start camera
+    if (provider.open("", true)) {
+        auto frame = provider.grab(3000);
+        if (frame) {
+            printf("Captured: %dx%d\n", 
                    frame-&gt;width, frame-&gt;height);
         }
     }
-    <span class="keyword">return</span> <span class="number">0</span>;
-}</pre>
+    return 0;
+}</code></pre>
                 </div>
                 
                 <div id="code-c" class="code-content">
-<pre><span class="comment">// Pure C Example</span>
-<span class="keyword">#include</span> <span class="string">&lt;ccap_c.h&gt;</span>
-<span class="keyword">#include</span> <span class="string">&lt;ccap_utils_c.h&gt;</span>
+<pre><code class="language-c">// Pure C Example
+#include &lt;ccap_c.h&gt;
+#include &lt;ccap_utils_c.h&gt;
 
-<span class="type">int</span> <span class="function">main</span>() {
-    CcapProvider* provider = <span class="function">ccap_provider_create</span>();
-    <span class="keyword">if</span> (!provider) <span class="keyword">return</span> -<span class="number">1</span>;
+int main() {
+    CcapProvider* provider = ccap_provider_create();
+    if (!provider) return -1;
     
-    <span class="comment">// Find available devices</span>
+    // Find available devices
     CcapDeviceNamesList deviceList;
-    <span class="keyword">if</span> (<span class="function">ccap_provider_find_device_names_list</span>(provider, &amp;deviceList)) {
-        <span class="function">printf</span>(<span class="string">"Found %zu camera(s)\n"</span>, deviceList.deviceCount);
+    if (ccap_provider_find_device_names_list(provider, &amp;deviceList)) {
+        printf("Found %zu camera(s)\n", deviceList.deviceCount);
     }
     
-    <span class="comment">// Open and capture</span>
-    <span class="keyword">if</span> (<span class="function">ccap_provider_open</span>(provider, NULL, <span class="keyword">true</span>)) {
-        CcapVideoFrame* frame = <span class="function">ccap_provider_grab</span>(provider, <span class="number">3000</span>);
-        <span class="keyword">if</span> (frame) {
+    // Open and capture
+    if (ccap_provider_open(provider, NULL, true)) {
+        CcapVideoFrame* frame = ccap_provider_grab(provider, 3000);
+        if (frame) {
             CcapVideoFrameInfo info;
-            <span class="function">ccap_video_frame_get_info</span>(frame, &amp;info);
-            <span class="function">printf</span>(<span class="string">"Captured: %dx%d\n"</span>, info.width, info.height);
-            <span class="function">ccap_video_frame_release</span>(frame);
+            ccap_video_frame_get_info(frame, &amp;info);
+            printf("Captured: %dx%d\n", info.width, info.height);
+            ccap_video_frame_release(frame);
         }
     }
     
-    <span class="function">ccap_provider_destroy</span>(provider);
-    <span class="keyword">return</span> <span class="number">0</span>;
-}</pre>
+    ccap_provider_destroy(provider);
+    return 0;
+}</code></pre>
                 </div>
             </div>
         </div>
@@ -245,35 +252,33 @@
                 <div class="install-method">
                     <h3 class="lang-en">Build from Source</h3>
                     <h3 class="lang-zh">从源码构建</h3>
-                    <pre>git clone https://github.com/wysaid/CameraCapture.git
+                    <pre><code class="language-bash">git clone https://github.com/wysaid/CameraCapture.git
 cd CameraCapture
-./scripts/build_and_install.sh</pre>
+./scripts/build_and_install.sh</code></pre>
                 </div>
                 
                 <div class="install-method">
                     <h3>CMake FetchContent</h3>
-                    <pre>include(FetchContent)
-FetchContent_Declare(
-    ccap
-    GIT_REPOSITORY https://github.com/wysaid/CameraCapture.git
-    GIT_TAG main
-)
+                    <pre><code class="language-cmake">include(FetchContent)
+FetchContent_Declare(ccap
+  GIT_REPOSITORY https://github.com/wysaid/CameraCapture.git
+  GIT_TAG main)
 FetchContent_MakeAvailable(ccap)
 
-target_link_libraries(your_app PRIVATE ccap::ccap)</pre>
+target_link_libraries(your_app PRIVATE ccap::ccap)</code></pre>
                 </div>
                 
                 <div class="install-method">
                     <h3>Homebrew (macOS)</h3>
-                    <pre>brew tap wysaid/ccap
-brew install ccap</pre>
+                    <pre><code class="language-bash">brew tap wysaid/ccap
+brew install ccap</code></pre>
                 </div>
                 
                 <div class="install-method">
                     <h3 class="lang-en">CMake Integration</h3>
                     <h3 class="lang-zh">CMake 集成</h3>
-                    <pre>find_package(ccap REQUIRED)
-target_link_libraries(your_app ccap::ccap)</pre>
+                    <pre><code class="language-cmake">find_package(ccap REQUIRED)
+target_link_libraries(your_app ccap::ccap)</code></pre>
                 </div>
             </div>
         </div>

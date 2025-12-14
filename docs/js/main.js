@@ -291,6 +291,16 @@
         });
     }
 
+    // Initialize syntax highlighting
+    function initSyntaxHighlighting() {
+        if (typeof hljs !== 'undefined') {
+            // Highlight all code blocks on the page
+            document.querySelectorAll('pre code').forEach(function(block) {
+                hljs.highlightElement(block);
+            });
+        }
+    }
+
     // Initialize everything when DOM is ready
     function init() {
         initLanguage();
@@ -298,6 +308,7 @@
         initMobileMenu();
         initSmoothScroll();
         updateDownloadSection();
+        initSyntaxHighlighting();
     }
 
     // Expose functions globally

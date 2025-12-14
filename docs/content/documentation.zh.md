@@ -177,7 +177,7 @@ cv::Mat mat = ccap::convertRgbFrameToMat(*frame);
 
 使用 DirectShow 访问相机。需要 MSVC 2019 或更高版本。
 
-```cmd
+```shell
 cl your_code.c /I"path\to\ccap\include" ^
    /link "path\to\ccap\lib\ccap.lib" ole32.lib oleaut32.lib uuid.lib
 ```
