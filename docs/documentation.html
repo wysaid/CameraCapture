@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation - ccap</title>
+    <meta name="description" content="Complete documentation for the ccap cross-platform camera capture library.">
+    <link rel="canonical" href="https://ccap.work/documentation.html">
+    <link rel="stylesheet" href="css/style.css">
+    <!-- marked.js for markdown rendering - using specific version for stability -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js" crossorigin="anonymous"></script>
+    <!-- DOMPurify for HTML sanitization to prevent XSS -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js" crossorigin="anonymous"></script>
+    <!-- Highlight.js for syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs2015.min.css" crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/cpp.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/shell.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/cmake.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <a href="index.html" class="logo">ccap</a>
+            <button class="mobile-menu-toggle" aria-label="Toggle menu">☰</button>
+            <ul class="nav-links">
+                <li><a href="index.html#download"><span class="lang-en">Download</span><span class="lang-zh">下载</span></a></li>
+                <li><a href="index.html#features"><span class="lang-en">Features</span><span class="lang-zh">特性</span></a></li>
+                <li><a href="index.html#quickstart"><span class="lang-en">Quick Start</span><span class="lang-zh">快速开始</span></a></li>
+                <li><a href="documentation.html"><span class="lang-en">Documentation</span><span class="lang-zh">文档</span></a></li>
+                <li><a href="https://github.com/wysaid/CameraCapture">GitHub</a></li>
+                <li><button class="lang-switch" onclick="ccap.toggleLanguage()">🌐 中文</button></li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="doc-layout">
+        <aside class="doc-sidebar" id="doc-sidebar" role="navigation" aria-label="Documentation navigation">
+            <p class="lang-en">Loading navigation...</p>
+            <p class="lang-zh">正在加载导航...</p>
+        </aside>
+
+        <main class="doc-content" id="doc-content">
+            <div class="doc-loading">
+                <p class="lang-en">Loading documentation...</p>
+                <p class="lang-zh">正在加载文档...</p>
+            </div>
+        </main>
+    </div>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4 class="lang-en">Download</h4>
+                    <h4 class="lang-zh">下载</h4>
+                    <ul>
+                        <li><a href="https://github.com/wysaid/CameraCapture/releases"><span class="lang-en">Releases</span><span class="lang-zh">版本发布</span></a></li>
+                        <li><a href="https://github.com/wysaid/CameraCapture/releases/latest"><span class="lang-en">Latest Release</span><span class="lang-zh">最新版本</span></a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4 class="lang-en">Documentation</h4>
+                    <h4 class="lang-zh">文档</h4>
+                    <ul>
+                        <li><a href="documentation.html"><span class="lang-en">Main Documentation</span><span class="lang-zh">主文档</span></a></li>
+                        <li><a href="https://github.com/wysaid/CameraCapture/blob/main/docs/C_Interface.md">C Interface</a></li>
+                        <li><a href="https://github.com/wysaid/CameraCapture/blob/main/docs/CMAKE_OPTIONS.md"><span class="lang-en">CMake Options</span><span class="lang-zh">CMake 选项</span></a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4 class="lang-en">Community</h4>
+                    <h4 class="lang-zh">社区</h4>
+                    <ul>
+                        <li><a href="https://github.com/wysaid/CameraCapture">GitHub</a></li>
+                        <li><a href="https://github.com/wysaid/CameraCapture/issues">Issues</a></li>
+                        <li><a href="https://github.com/wysaid/CameraCapture/pulls">Pull Requests</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4 class="lang-en">License</h4>
+                    <h4 class="lang-zh">许可证</h4>
+                    <ul>
+                        <li><a href="https://github.com/wysaid/CameraCapture/blob/main/LICENSE">MIT License</a></li>
+                        <li>© 2025 Wang Yang</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>ccap - Cross-Platform Camera Capture Library</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script>
+        (function() {
+            // Configure marked.js with sanitization options
+            if (typeof marked !== 'undefined') {
+                marked.setOptions({
+                    breaks: true,
+                    gfm: true,
+                    highlight: function(code, lang) {
+                        // Don't highlight here, let hljs do it after sanitization
+                        return code;
+                    }
+                });
+            }
+
+            // Get the current language
+            function getCurrentLang() {
+                return document.documentElement.getAttribute('lang') || 'en';
+            }
+
+            // Debounce utility to prevent excessive calls
+            function debounce(func, wait) {
+                var timeout;
+                return function() {
+                    var context = this;
+                    var args = arguments;
+                    clearTimeout(timeout);
+                    timeout = setTimeout(function() {
+                        func.apply(context, args);
+                    }, wait);
+                };
+            }
+
+            // Sanitize HTML to prevent XSS attacks
+            function sanitizeHtml(html) {
+                if (typeof DOMPurify !== 'undefined') {
+                    return DOMPurify.sanitize(html, {
+                        ALLOWED_TAGS: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'br', 'hr', 
+                                       'ul', 'ol', 'li', 'pre', 'code', 'blockquote',
+                                       'table', 'thead', 'tbody', 'tr', 'th', 'td',
+                                       'a', 'strong', 'em', 'del', 'img', 'span', 'div'],
+                        ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'id'],
+                        KEEP_CONTENT: true,
+                        ALLOW_DATA_ATTR: false
+                    });
+                }
+                // Fallback: return as-is if DOMPurify not available
+                return html;
+            }
+
+            // Fetch and render markdown documentation
+            function loadDocumentation() {
+                var lang = getCurrentLang();
+                var primaryFile = lang === 'zh' ? 'content/documentation.zh.md' : 'content/documentation.md';
+                var fallbackFile = 'content/documentation.md';
+                
+                fetch(primaryFile)
+                    .then(function(response) {
+                        if (!response.ok && lang === 'zh') {
+                            // Fallback to English if Chinese version not found
+                            return fetch(fallbackFile);
+                        }
+                        if (!response.ok) {
+                            throw new Error('Failed to load documentation');
+                        }
+                        return response;
+                    })
+                    .then(function(response) {
+                        return response.text();
+                    })
+                    .then(function(markdown) {
+                        // Render markdown to HTML using marked.js and sanitize
+                        var rawHtml = marked.parse(markdown);
+                        var safeHtml = sanitizeHtml(rawHtml);
+                        document.getElementById('doc-content').innerHTML = safeHtml;
+                        
+                        // Apply syntax highlighting to code blocks
+                        // Use setTimeout to ensure DOM is fully updated
+                        setTimeout(function() {
+                            if (typeof hljs !== 'undefined') {
+                                var codeBlocks = document.querySelectorAll('#doc-content pre code');
+                                console.log('Found ' + codeBlocks.length + ' code blocks to highlight');
+                                codeBlocks.forEach(function(block) {
+                                    console.log('Highlighting block with class:', block.className);
+                                    hljs.highlightElement(block);
+                                });
+                            } else {
+                                console.error('hljs is not loaded!');
+                            }
+                        }, 0);
+                        
+                        // Generate sidebar navigation from headings
+                        generateSidebar();
+                        
+                        // Initialize scroll spy
+                        initScrollSpy();
+                    })
+                    .catch(function(error) {
+                        console.error('Error loading documentation:', error);
+                        var messageEn = 'Failed to load documentation. Please try again later.';
+                        var messageZh = '加载文档失败，请稍后重试。';
+                        
+                        if (error && error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                            messageEn = 'Network error - please check your internet connection.';
+                            messageZh = '网络错误 - 请检查您的网络连接。';
+                        }
+                        
+                        document.getElementById('doc-content').innerHTML = 
+                            '<p class="lang-en">' + messageEn + ' <a href="https://github.com/wysaid/CameraCapture/blob/main/README.md">View on GitHub</a></p>' +
+                            '<p class="lang-zh">' + messageZh + ' <a href="https://github.com/wysaid/CameraCapture/blob/main/README.zh-CN.md">在 GitHub 上查看</a></p>';
+                    });
+            }
+
+            // Generate slugified ID from heading text for stable anchor links
+            function slugify(text) {
+                if (!text) return '';
+                return text
+                    .toLowerCase()
+                    .trim()
+                    .replace(/[^\w\s-]/g, '')
+                    .replace(/\s+/g, '-')
+                    .replace(/-+/g, '-');
+            }
+
+            // Simple HTML escaping
+            function escapeHtml(text) {
+                var div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            // Generate sidebar navigation from h2 and h3 headings
+            function generateSidebar() {
+                var content = document.getElementById('doc-content');
+                var sidebar = document.getElementById('doc-sidebar');
+                var headings = content.querySelectorAll('h2, h3');
+                
+                if (headings.length === 0) {
+                    sidebar.innerHTML = '<p>No sections found</p>';
+                    return;
+                }
+
+                var html = '';
+                var currentH2 = null;
+                
+                headings.forEach(function(heading) {
+                    // Generate stable ID from heading text
+                    if (!heading.id) {
+                        heading.id = slugify(heading.textContent);
+                    }
+                    
+                    // Ensure ID is not empty
+                    if (!heading.id) {
+                        heading.id = 'heading-' + Math.random().toString(36).substr(2, 9);
+                    }
+                    
+                    var text = heading.textContent;
+                    var id = heading.id;
+                    
+                    if (heading.tagName === 'H2') {
+                        if (currentH2) {
+                            html += '</ul>';
+                        }
+                        // H2 as a clickable category title
+                        html += '<h3><a href="#' + escapeHtml(id) + '">' + escapeHtml(text) + '</a></h3>';
+                        html += '<ul>';
+                        currentH2 = heading;
+                    } else if (heading.tagName === 'H3') {
+                        // H3 as a list item link
+                        html += '<li><a href="#' + escapeHtml(id) + '">' + escapeHtml(text) + '</a></li>';
+                    }
+                });
+                
+                if (currentH2) {
+                    html += '</ul>';
+                }
+                
+                sidebar.innerHTML = html;
+            }
+
+            // Initialize scroll spy for sidebar
+            function initScrollSpy() {
+                var headings = document.querySelectorAll('#doc-content h2, #doc-content h3');
+                var sidebarLinks = document.querySelectorAll('#doc-sidebar a');
+                
+                function updateActiveLink() {
+                    var scrollY = window.scrollY;
+                    var currentHeading = null;
+                    
+                    headings.forEach(function(heading) {
+                        var rect = heading.getBoundingClientRect();
+                        if (rect.top <= 100) {
+                            currentHeading = heading;
+                        }
+                    });
+                    
+                    sidebarLinks.forEach(function(link) {
+                        link.classList.remove('active');
+                        if (currentHeading && link.getAttribute('href') === '#' + currentHeading.id) {
+                            link.classList.add('active');
+                        }
+                    });
+                }
+                
+                window.addEventListener('scroll', updateActiveLink);
+                updateActiveLink();
+            }
+
+            // Debounced version of loadDocumentation to prevent excessive calls
+            var debouncedLoadDocumentation = debounce(loadDocumentation, 100);
+
+            // Listen for language changes with debouncing
+            var observer = new MutationObserver(function(mutations) {
+                var langChanged = mutations.some(function(mutation) {
+                    return mutation.type === 'attributes' && mutation.attributeName === 'lang';
+                });
+                if (langChanged) {
+                    debouncedLoadDocumentation();
+                }
+            });
+            
+            observer.observe(document.documentElement, {
+                attributes: true,
+                attributeFilter: ['lang']
+            });
+
+            // Load documentation on page load
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', loadDocumentation);
+            } else {
+                loadDocumentation();
+            }
+        })();
+    </script>
+</body>
+</html>

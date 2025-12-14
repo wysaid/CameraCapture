@@ -7,502 +7,40 @@
     <meta name="description" content="A high-performance, lightweight cross-platform camera capture library with hardware-accelerated pixel format conversion.">
     <meta name="keywords" content="camera capture, C++, C, cross-platform, Windows, macOS, iOS, Linux, DirectShow, AVFoundation, V4L2">
     <link rel="canonical" href="https://ccap.work/">
-    <style>
-        :root {
-            --primary-color: #2563eb;
-            --primary-dark: #1d4ed8;
-            --secondary-color: #10b981;
-            --text-color: #1f2937;
-            --text-light: #6b7280;
-            --bg-color: #ffffff;
-            --bg-secondary: #f3f4f6;
-            --border-color: #e5e7eb;
-            --code-bg: #1e293b;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.6;
-            color: var(--text-color);
-            background-color: var(--bg-color);
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-
-        /* Header */
-        header {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
-            color: white;
-            padding: 20px 0;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            font-size: 1.8rem;
-            font-weight: bold;
-            text-decoration: none;
-            color: white;
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 30px;
-            list-style: none;
-        }
-
-        .nav-links a {
-            color: white;
-            text-decoration: none;
-            font-weight: 500;
-            transition: opacity 0.2s;
-        }
-
-        .nav-links a:hover {
-            opacity: 0.8;
-        }
-
-        .lang-switch {
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 0.9rem;
-        }
-
-        .lang-switch:hover {
-            background: rgba(255,255,255,0.3);
-        }
-
-        /* Hero Section */
-        .hero {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
-            color: white;
-            padding: 80px 0;
-            text-align: center;
-        }
-
-        .hero h1 {
-            font-size: 3rem;
-            margin-bottom: 20px;
-        }
-
-        .hero .subtitle {
-            font-size: 1.3rem;
-            opacity: 0.9;
-            max-width: 700px;
-            margin: 0 auto 30px;
-        }
-
-        .badges {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 40px;
-        }
-
-        .badges img {
-            height: 22px;
-        }
-
-        .cta-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            display: inline-block;
-            padding: 14px 32px;
-            border-radius: 8px;
-            font-weight: 600;
-            text-decoration: none;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-
-        .btn-primary {
-            background: white;
-            color: var(--primary-color);
-        }
-
-        .btn-secondary {
-            background: transparent;
-            color: white;
-            border: 2px solid white;
-        }
-
-        /* Features Section */
-        .features {
-            padding: 80px 0;
-            background: var(--bg-secondary);
-        }
-
-        .section-title {
-            text-align: center;
-            font-size: 2.2rem;
-            margin-bottom: 50px;
-        }
-
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-        }
-
-        .feature-card {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .feature-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
-        }
-
-        .feature-icon {
-            font-size: 2.5rem;
-            margin-bottom: 15px;
-        }
-
-        .feature-card h3 {
-            font-size: 1.3rem;
-            margin-bottom: 10px;
-            color: var(--primary-color);
-        }
-
-        .feature-card p {
-            color: var(--text-light);
-        }
-
-        /* Platform Section */
-        .platforms {
-            padding: 80px 0;
-        }
-
-        .platform-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 30px;
-            text-align: center;
-        }
-
-        @media (max-width: 768px) {
-            .platform-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        .platform-item {
-            padding: 30px;
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            transition: border-color 0.2s;
-        }
-
-        .platform-item:hover {
-            border-color: var(--primary-color);
-        }
-
-        .platform-item h4 {
-            margin-top: 15px;
-            font-size: 1.2rem;
-        }
-
-        .platform-item p {
-            color: var(--text-light);
-            font-size: 0.9rem;
-            margin-top: 5px;
-        }
-
-        /* Code Example Section */
-        .code-section {
-            padding: 80px 0;
-            background: var(--code-bg);
-            color: white;
-        }
-
-        .code-section .section-title {
-            color: white;
-        }
-
-        .code-tabs {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 30px;
-        }
-
-        .code-tab {
-            background: rgba(255,255,255,0.1);
-            border: none;
-            color: white;
-            padding: 10px 24px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: background 0.2s;
-        }
-
-        .code-tab:hover, .code-tab.active {
-            background: rgba(255,255,255,0.2);
-        }
-
-        .code-block {
-            background: #0f172a;
-            border-radius: 12px;
-            padding: 30px;
-            overflow-x: auto;
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        .code-block pre {
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            font-size: 0.9rem;
-            line-height: 1.6;
-        }
-
-        .code-block .keyword { color: #c792ea; }
-        .code-block .string { color: #c3e88d; }
-        .code-block .comment { color: #676e95; }
-        .code-block .function { color: #82aaff; }
-        .code-block .type { color: #ffcb6b; }
-
-        .code-content {
-            display: none;
-        }
-
-        .code-content.active {
-            display: block;
-        }
-
-        /* Install Section */
-        .install {
-            padding: 80px 0;
-        }
-
-        .install-methods {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 30px;
-        }
-
-        .install-method {
-            background: var(--bg-secondary);
-            padding: 30px;
-            border-radius: 12px;
-        }
-
-        .install-method h3 {
-            margin-bottom: 15px;
-            color: var(--primary-color);
-        }
-
-        .install-method pre {
-            background: var(--code-bg);
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
-            overflow-x: auto;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            font-size: 0.85rem;
-        }
-
-        /* Requirements Section */
-        .requirements {
-            padding: 80px 0;
-            background: var(--bg-secondary);
-        }
-
-        .requirements-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-
-        .requirements-table th,
-        .requirements-table td {
-            padding: 15px 20px;
-            text-align: left;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .requirements-table th {
-            background: var(--primary-color);
-            color: white;
-            font-weight: 600;
-        }
-
-        .requirements-table tr:last-child td {
-            border-bottom: none;
-        }
-
-        .requirements-table tr:hover {
-            background: var(--bg-secondary);
-        }
-
-        /* Footer */
-        footer {
-            background: var(--text-color);
-            color: white;
-            padding: 60px 0 30px;
-        }
-
-        .footer-content {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 40px;
-            margin-bottom: 40px;
-        }
-
-        .footer-section h4 {
-            margin-bottom: 20px;
-            font-size: 1.1rem;
-        }
-
-        .footer-section ul {
-            list-style: none;
-        }
-
-        .footer-section ul li {
-            margin-bottom: 10px;
-        }
-
-        .footer-section a {
-            color: rgba(255,255,255,0.7);
-            text-decoration: none;
-            transition: color 0.2s;
-        }
-
-        .footer-section a:hover {
-            color: white;
-        }
-
-        .footer-bottom {
-            text-align: center;
-            padding-top: 30px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            color: rgba(255,255,255,0.6);
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .nav-links {
-                display: none;
-            }
-
-            .hero h1 {
-                font-size: 2rem;
-            }
-
-            .hero .subtitle {
-                font-size: 1rem;
-            }
-
-            .section-title {
-                font-size: 1.8rem;
-            }
-
-            .cta-buttons {
-                flex-direction: column;
-                align-items: center;
-            }
-
-            .btn {
-                width: 100%;
-                max-width: 300px;
-                text-align: center;
-            }
-        }
-
-        /* Language support */
-        .lang-en, .lang-zh {
-            display: none;
-        }
-
-        html[lang="en"] .lang-en {
-            display: block;
-        }
-
-        html[lang="zh"] .lang-zh {
-            display: block;
-        }
-
-        html[lang="en"] .lang-en-inline,
-        html[lang="en"] span.lang-en {
-            display: inline;
-        }
-
-        html[lang="zh"] .lang-zh-inline,
-        html[lang="zh"] span.lang-zh {
-            display: inline;
-        }
-    </style>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Highlight.js for syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs2015.min.css" crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/cpp.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/c.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/cmake.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
     <header>
         <nav class="container">
-            <a href="#" class="logo">ccap</a>
+            <a href="index.html" class="logo">ccap</a>
+            <button class="mobile-menu-toggle" aria-label="Toggle menu">☰</button>
             <ul class="nav-links">
-                <li><a href="#features" class="lang-en-inline">Features</a><a href="#features" class="lang-zh-inline">特性</a></li>
-                <li><a href="#platforms" class="lang-en-inline">Platforms</a><a href="#platforms" class="lang-zh-inline">平台</a></li>
-                <li><a href="#quickstart" class="lang-en-inline">Quick Start</a><a href="#quickstart" class="lang-zh-inline">快速开始</a></li>
-                <li><a href="#install" class="lang-en-inline">Install</a><a href="#install" class="lang-zh-inline">安装</a></li>
+                <li><a href="#download"><span class="lang-en">Download</span><span class="lang-zh">下载</span></a></li>
+                <li><a href="#features"><span class="lang-en">Features</span><span class="lang-zh">特性</span></a></li>
+                <li><a href="#quickstart"><span class="lang-en">Quick Start</span><span class="lang-zh">快速开始</span></a></li>
+                <li><a href="documentation.html"><span class="lang-en">Documentation</span><span class="lang-zh">文档</span></a></li>
                 <li><a href="https://github.com/wysaid/CameraCapture">GitHub</a></li>
+                <li><button class="lang-switch" onclick="ccap.toggleLanguage()">🌐 中文</button></li>
             </ul>
-            <button class="lang-switch" onclick="toggleLanguage()">🌐 EN/中文</button>
         </nav>
     </header>
 
     <section class="hero">
         <div class="container">
             <h1>ccap</h1>
-            <p class="subtitle lang-en">A high-performance, lightweight cross-platform camera capture library with hardware-accelerated pixel format conversion.</p>
-            <p class="subtitle lang-zh">高性能、轻量级的跨平台相机捕获库，支持硬件加速的像素格式转换。</p>
+            <p class="subtitle lang-en">A lightweight, high-performance cross-platform camera capture library</p>
+            <p class="subtitle lang-zh">轻量级、高性能的跨平台相机捕获库</p>
+            <p class="tagline lang-en">Hardware-accelerated pixel format conversion with AVX2, Apple Accelerate, and NEON support</p>
+            <p class="tagline lang-zh">支持 AVX2、Apple Accelerate 和 NEON 硬件加速的像素格式转换</p>
             
             <div class="badges">
-                <a href="https://github.com/wysaid/CameraCapture/actions/workflows/windows-build.yml">
-                    <img src="https://github.com/wysaid/CameraCapture/actions/workflows/windows-build.yml/badge.svg" alt="Windows Build">
-                </a>
-                <a href="https://github.com/wysaid/CameraCapture/actions/workflows/macos-build.yml">
-                    <img src="https://github.com/wysaid/CameraCapture/actions/workflows/macos-build.yml/badge.svg" alt="macOS Build">
-                </a>
-                <a href="https://github.com/wysaid/CameraCapture/actions/workflows/linux-build.yml">
-                    <img src="https://github.com/wysaid/CameraCapture/actions/workflows/linux-build.yml/badge.svg" alt="Linux Build">
-                </a>
                 <a href="https://opensource.org/licenses/MIT">
                     <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License">
                 </a>
@@ -511,10 +49,32 @@
             </div>
             
             <div class="cta-buttons">
-                <a href="https://github.com/wysaid/CameraCapture" class="btn btn-primary lang-en">Get Started</a>
-                <a href="https://github.com/wysaid/CameraCapture" class="btn btn-primary lang-zh">开始使用</a>
-                <a href="https://github.com/wysaid/CameraCapture/blob/main/README.md" class="btn btn-secondary lang-en">Documentation</a>
-                <a href="https://github.com/wysaid/CameraCapture/blob/main/README.zh-CN.md" class="btn btn-secondary lang-zh">文档</a>
+                <a href="#download" class="btn btn-download">
+                    <span class="lang-en">Download</span><span class="lang-zh">下载</span>
+                    <span class="version latest-version">Latest</span>
+                </a>
+                <a href="https://github.com/wysaid/CameraCapture" class="btn btn-secondary">
+                    <span class="lang-en">View on GitHub</span><span class="lang-zh">在 GitHub 上查看</span>
+                </a>
+                <a href="documentation.html" class="btn btn-secondary lang-en">Documentation</a>
+                <a href="documentation.html" class="btn btn-secondary lang-zh">文档</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Download Section -->
+    <section id="download" class="download-section">
+        <div class="container">
+            <div class="download-header">
+                <h2 class="lang-en">Download ccap <span class="latest-version">Latest</span></h2>
+                <h2 class="lang-zh">下载 ccap <span class="latest-version">Latest</span></h2>
+                <p class="lang-en">Pre-built binaries for all supported platforms</p>
+                <p class="lang-zh">所有支持平台的预编译二进制文件</p>
+            </div>
+            
+            <div id="download-links" class="download-loading">
+                <p class="lang-en">Loading release information...</p>
+                <p class="lang-zh">正在加载版本信息...</p>
             </div>
         </div>
     </section>
@@ -619,65 +179,65 @@
             <h2 class="section-title lang-zh">快速开始</h2>
             
             <div class="code-tabs">
-                <button class="code-tab active" onclick="showCode('cpp')">C++</button>
-                <button class="code-tab" onclick="showCode('c')">C</button>
+                <button class="code-tab active" onclick="ccap.showCode('cpp', event)">C++</button>
+                <button class="code-tab" onclick="ccap.showCode('c', event)">C</button>
             </div>
             
             <div class="code-block">
                 <div id="code-cpp" class="code-content active">
-<pre><span class="comment">// C++ Example</span>
-<span class="keyword">#include</span> <span class="string">&lt;ccap.h&gt;</span>
+<pre><code class="language-cpp">// C++ Example
+#include &lt;ccap.h&gt;
 
-<span class="type">int</span> <span class="function">main</span>() {
+int main() {
     ccap::Provider provider;
     
-    <span class="comment">// List available cameras</span>
-    <span class="keyword">auto</span> devices = provider.<span class="function">findDeviceNames</span>();
-    <span class="keyword">for</span> (<span class="type">size_t</span> i = <span class="number">0</span>; i &lt; devices.<span class="function">size</span>(); ++i) {
-        <span class="function">printf</span>(<span class="string">"[%zu] %s\n"</span>, i, devices[i].<span class="function">c_str</span>());
+    // List available cameras
+    auto devices = provider.findDeviceNames();
+    for (size_t i = 0; i &lt; devices.size(); ++i) {
+        printf("[%zu] %s\n", i, devices[i].c_str());
     }
     
-    <span class="comment">// Open and start camera</span>
-    <span class="keyword">if</span> (provider.<span class="function">open</span>(<span class="string">""</span>, <span class="keyword">true</span>)) {
-        <span class="keyword">auto</span> frame = provider.<span class="function">grab</span>(<span class="number">3000</span>);
-        <span class="keyword">if</span> (frame) {
-            <span class="function">printf</span>(<span class="string">"Captured: %dx%d\n"</span>, 
+    // Open and start camera
+    if (provider.open("", true)) {
+        auto frame = provider.grab(3000);
+        if (frame) {
+            printf("Captured: %dx%d\n", 
                    frame-&gt;width, frame-&gt;height);
         }
     }
-    <span class="keyword">return</span> <span class="number">0</span>;
-}</pre>
+    return 0;
+}</code></pre>
                 </div>
                 
                 <div id="code-c" class="code-content">
-<pre><span class="comment">// Pure C Example</span>
-<span class="keyword">#include</span> <span class="string">&lt;ccap_c.h&gt;</span>
-<span class="keyword">#include</span> <span class="string">&lt;ccap_utils_c.h&gt;</span>
+<pre><code class="language-c">// Pure C Example
+#include &lt;ccap_c.h&gt;
+#include &lt;ccap_utils_c.h&gt;
 
-<span class="type">int</span> <span class="function">main</span>() {
-    CcapProvider* provider = <span class="function">ccap_provider_create</span>();
-    <span class="keyword">if</span> (!provider) <span class="keyword">return</span> -<span class="number">1</span>;
+int main() {
+    CcapProvider* provider = ccap_provider_create();
+    if (!provider) return -1;
     
-    <span class="comment">// Find available devices</span>
+    // Find available devices
     CcapDeviceNamesList deviceList;
-    <span class="keyword">if</span> (<span class="function">ccap_provider_find_device_names_list</span>(provider, &amp;deviceList)) {
-        <span class="function">printf</span>(<span class="string">"Found %zu camera(s)\n"</span>, deviceList.deviceCount);
+    if (ccap_provider_find_device_names_list(provider, &amp;deviceList)) {
+        printf("Found %zu camera(s)\n", deviceList.deviceCount);
     }
     
-    <span class="comment">// Open and capture</span>
-    <span class="keyword">if</span> (<span class="function">ccap_provider_open</span>(provider, NULL, <span class="keyword">true</span>)) {
-        CcapVideoFrame* frame = <span class="function">ccap_provider_grab</span>(provider, <span class="number">3000</span>);
-        <span class="keyword">if</span> (frame) {
+    // Open and capture
+    if (ccap_provider_open(provider, NULL, true)) {
+        CcapVideoFrame* frame = ccap_provider_grab(provider, 3000);
+        if (frame) {
             CcapVideoFrameInfo info;
-            <span class="function">ccap_video_frame_get_info</span>(frame, &amp;info);
-            <span class="function">printf</span>(<span class="string">"Captured: %dx%d\n"</span>, info.width, info.height);
-            <span class="function">ccap_video_frame_release</span>(frame);
+            ccap_video_frame_get_info(frame, &amp;info);
+            printf("Captured: %dx%d\n", info.width, info.height);
+            ccap_video_frame_release(frame);
         }
     }
     
-    <span class="function">ccap_provider_destroy</span>(provider);
-    <span class="keyword">return</span> <span class="number">0</span>;
-}</pre>
+    ccap_provider_destroy(provider);
+    return 0;
+}</code></pre>
                 </div>
             </div>
         </div>
@@ -692,35 +252,33 @@
                 <div class="install-method">
                     <h3 class="lang-en">Build from Source</h3>
                     <h3 class="lang-zh">从源码构建</h3>
-                    <pre>git clone https://github.com/wysaid/CameraCapture.git
+                    <pre><code class="language-bash">git clone https://github.com/wysaid/CameraCapture.git
 cd CameraCapture
-./scripts/build_and_install.sh</pre>
+./scripts/build_and_install.sh</code></pre>
                 </div>
                 
                 <div class="install-method">
                     <h3>CMake FetchContent</h3>
-                    <pre>include(FetchContent)
-FetchContent_Declare(
-    ccap
-    GIT_REPOSITORY https://github.com/wysaid/CameraCapture.git
-    GIT_TAG main
-)
+                    <pre><code class="language-cmake">include(FetchContent)
+FetchContent_Declare(ccap
+  GIT_REPOSITORY https://github.com/wysaid/CameraCapture.git
+  GIT_TAG main)
 FetchContent_MakeAvailable(ccap)
 
-target_link_libraries(your_app PRIVATE ccap::ccap)</pre>
+target_link_libraries(your_app PRIVATE ccap::ccap)</code></pre>
                 </div>
                 
                 <div class="install-method">
                     <h3>Homebrew (macOS)</h3>
-                    <pre>brew tap wysaid/ccap
-brew install ccap</pre>
+                    <pre><code class="language-bash">brew tap wysaid/ccap
+brew install ccap</code></pre>
                 </div>
                 
                 <div class="install-method">
                     <h3 class="lang-en">CMake Integration</h3>
                     <h3 class="lang-zh">CMake 集成</h3>
-                    <pre>find_package(ccap REQUIRED)
-target_link_libraries(your_app ccap::ccap)</pre>
+                    <pre><code class="language-cmake">find_package(ccap REQUIRED)
+target_link_libraries(your_app ccap::ccap)</code></pre>
                 </div>
             </div>
         </div>
@@ -774,22 +332,22 @@ target_link_libraries(your_app ccap::ccap)</pre>
         <div class="container">
             <div class="footer-content">
                 <div class="footer-section">
-                    <h4 class="lang-en">Documentation</h4>
-                    <h4 class="lang-zh">文档</h4>
+                    <h4 class="lang-en">Download</h4>
+                    <h4 class="lang-zh">下载</h4>
                     <ul>
-                        <li><a href="https://github.com/wysaid/CameraCapture/blob/main/README.md">README (English)</a></li>
-                        <li><a href="https://github.com/wysaid/CameraCapture/blob/main/README.zh-CN.md">README (中文)</a></li>
-                        <li><a href="https://github.com/wysaid/CameraCapture/blob/main/BUILD_AND_INSTALL.md">Build Guide</a></li>
-                        <li><a href="https://github.com/wysaid/CameraCapture/blob/main/docs/C_Interface.md">C Interface</a></li>
+                        <li><a href="https://github.com/wysaid/CameraCapture/releases"><span class="lang-en">Releases</span><span class="lang-zh">版本发布</span></a></li>
+                        <li><a href="https://github.com/wysaid/CameraCapture/releases/latest"><span class="lang-en">Latest Release</span><span class="lang-zh">最新版本</span></a></li>
                     </ul>
                 </div>
                 
                 <div class="footer-section">
-                    <h4 class="lang-en">Examples</h4>
-                    <h4 class="lang-zh">示例</h4>
+                    <h4 class="lang-en">Documentation</h4>
+                    <h4 class="lang-zh">文档</h4>
                     <ul>
-                        <li><a href="https://github.com/wysaid/CameraCapture/tree/main/examples/desktop">Desktop Examples</a></li>
-                        <li><a href="https://github.com/wysaid/CameraCapture/tree/main/examples/ios">iOS Examples</a></li>
+                        <li><a href="documentation.html"><span class="lang-en">Getting Started</span><span class="lang-zh">快速开始</span></a></li>
+                        <li><a href="documentation.html#c-interface">C Interface</a></li>
+                        <li><a href="documentation.html#cmake-options"><span class="lang-en">CMake Options</span><span class="lang-zh">CMake 选项</span></a></li>
+                        <li><a href="https://github.com/wysaid/CameraCapture/blob/main/BUILD_AND_INSTALL.md"><span class="lang-en">Build Guide</span><span class="lang-zh">构建指南</span></a></li>
                     </ul>
                 </div>
                 
@@ -819,31 +377,6 @@ target_link_libraries(your_app ccap::ccap)</pre>
         </div>
     </footer>
 
-    <script>
-        // Language toggle
-        function toggleLanguage() {
-            const html = document.documentElement;
-            const currentLang = html.getAttribute('lang');
-            const newLang = currentLang === 'en' ? 'zh' : 'en';
-            html.setAttribute('lang', newLang);
-            localStorage.setItem('ccap-lang', newLang);
-        }
-
-        // Initialize language from localStorage or browser preference
-        (function() {
-            const savedLang = localStorage.getItem('ccap-lang');
-            const browserLang = navigator.language.startsWith('zh') ? 'zh' : 'en';
-            const lang = savedLang || browserLang;
-            document.documentElement.setAttribute('lang', lang);
-        })();
-
-        // Code tabs
-        function showCode(lang) {
-            document.querySelectorAll('.code-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.code-tab').forEach(el => el.classList.remove('active'));
-            document.getElementById('code-' + lang).classList.add('active');
-            event.target.classList.add('active');
-        }
-    </script>
+    <script src="js/main.js"></script>
 </body>
 </html>
