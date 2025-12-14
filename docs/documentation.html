@@ -36,7 +36,7 @@
     </header>
 
     <div class="doc-layout">
-        <aside class="doc-sidebar" id="doc-sidebar">
+        <aside class="doc-sidebar" id="doc-sidebar" role="navigation" aria-label="Documentation navigation">
             <p class="lang-en">Loading navigation...</p>
             <p class="lang-zh">正在加载导航...</p>
         </aside>
@@ -65,9 +65,9 @@
                     <h4 class="lang-en">Documentation</h4>
                     <h4 class="lang-zh">文档</h4>
                     <ul>
-                        <li><a href="#"><span class="lang-en">Overview</span><span class="lang-zh">概述</span></a></li>
-                        <li><a href="C_Interface.md">C Interface</a></li>
-                        <li><a href="CMAKE_OPTIONS.md"><span class="lang-en">CMake Options</span><span class="lang-zh">CMake 选项</span></a></li>
+                        <li><a href="documentation.html"><span class="lang-en">Main Documentation</span><span class="lang-zh">主文档</span></a></li>
+                        <li><a href="https://github.com/wysaid/CameraCapture/blob/main/docs/C_Interface.md">C Interface</a></li>
+                        <li><a href="https://github.com/wysaid/CameraCapture/blob/main/docs/CMAKE_OPTIONS.md"><span class="lang-en">CMake Options</span><span class="lang-zh">CMake 选项</span></a></li>
                     </ul>
                 </div>
                 
@@ -196,10 +196,36 @@
                     })
                     .catch(function(error) {
                         console.error('Error loading documentation:', error);
+                        var messageEn = 'Failed to load documentation. Please try again later.';
+                        var messageZh = '加载文档失败，请稍后重试。';
+                        
+                        if (error && error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                            messageEn = 'Network error - please check your internet connection.';
+                            messageZh = '网络错误 - 请检查您的网络连接。';
+                        }
+                        
                         document.getElementById('doc-content').innerHTML = 
-                            '<p class="lang-en">Failed to load documentation. Please try again later.</p>' +
-                            '<p class="lang-zh">加载文档失败，请稍后重试。</p>';
+                            '<p class="lang-en">' + messageEn + ' <a href="https://github.com/wysaid/CameraCapture/blob/main/README.md">View on GitHub</a></p>' +
+                            '<p class="lang-zh">' + messageZh + ' <a href="https://github.com/wysaid/CameraCapture/blob/main/README.zh-CN.md">在 GitHub 上查看</a></p>';
                     });
+            }
+
+            // Generate slugified ID from heading text for stable anchor links
+            function slugify(text) {
+                if (!text) return '';
+                return text
+                    .toLowerCase()
+                    .trim()
+                    .replace(/[^\w\s-]/g, '')
+                    .replace(/\s+/g, '-')
+                    .replace(/-+/g, '-');
+            }
+
+            // Simple HTML escaping
+            function escapeHtml(text) {
+                var div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
             }
 
             // Generate sidebar navigation from h2 and h3 headings
@@ -216,10 +242,15 @@
                 var html = '';
                 var currentH2 = null;
                 
-                headings.forEach(function(heading, index) {
-                    // Add an id to each heading if it doesn't have one
+                headings.forEach(function(heading) {
+                    // Generate stable ID from heading text
                     if (!heading.id) {
-                        heading.id = 'section-' + index;
+                        heading.id = slugify(heading.textContent);
+                    }
+                    
+                    // Ensure ID is not empty
+                    if (!heading.id) {
+                        heading.id = 'heading-' + Math.random().toString(36).substr(2, 9);
                     }
                     
                     var text = heading.textContent;
@@ -229,11 +260,13 @@
                         if (currentH2) {
                             html += '</ul>';
                         }
-                        html += '<h3>' + escapeHtml(text) + '</h3>';
+                        // H2 as a clickable category title
+                        html += '<h3><a href="#' + escapeHtml(id) + '">' + escapeHtml(text) + '</a></h3>';
                         html += '<ul>';
                         currentH2 = heading;
                     } else if (heading.tagName === 'H3') {
-                        html += '<li><a href="#' + id + '">' + escapeHtml(text) + '</a></li>';
+                        // H3 as a list item link
+                        html += '<li><a href="#' + escapeHtml(id) + '">' + escapeHtml(text) + '</a></li>';
                     }
                 });
                 
@@ -242,13 +275,6 @@
                 }
                 
                 sidebar.innerHTML = html;
-            }
-
-            // Simple HTML escaping
-            function escapeHtml(text) {
-                var div = document.createElement('div');
-                div.textContent = text;
-                return div.innerHTML;
             }
 
             // Initialize scroll spy for sidebar

@@ -31,7 +31,7 @@ A high-performance, lightweight cross-platform camera capture library with hardw
 - **Lightweight**: Zero external dependencies - uses only system frameworks
 - **Cross Platform**: Windows (DirectShow), macOS/iOS (AVFoundation), Linux (V4L2)
 - **Multiple Formats**: RGB, BGR, YUV (NV12/I420) with automatic conversion
-<!-- - **Dual Language APIs**: ✨ **New Complete Pure C Interface** - Both modern C++ API and traditional C99 interface for various project integration and language bindings -->
+- **Dual Language APIs**: ✨ **Complete Pure C Interface** - Both modern C++ API and traditional C99 interface for various project integration and language bindings
 - **Production Ready**: Comprehensive test suite with 95%+ accuracy validation
 - **Virtual Camera Support**: Compatible with OBS Virtual Camera and similar tools
 

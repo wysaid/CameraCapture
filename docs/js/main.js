@@ -60,9 +60,12 @@
     // GitHub Release API
     var GITHUB_REPO = 'wysaid/CameraCapture';
     var cachedRelease = null;
+    var releaseCacheTime = null;
+    var CACHE_DURATION = 3600000; // 1 hour in milliseconds
 
     function fetchLatestRelease(callback) {
-        if (cachedRelease) {
+        var now = Date.now();
+        if (cachedRelease && releaseCacheTime && (now - releaseCacheTime) < CACHE_DURATION) {
             callback(cachedRelease);
             return;
         }
@@ -75,6 +78,7 @@
             if (xhr.status >= 200 && xhr.status < 300) {
                 try {
                     cachedRelease = JSON.parse(xhr.responseText);
+                    releaseCacheTime = Date.now();
                     callback(cachedRelease);
                 } catch (e) {
                     callback(null);
@@ -100,13 +104,16 @@
         xhr.send();
     }
 
-    // URL validation for GitHub assets
+    // URL validation for GitHub assets - only allow HTTPS GitHub URLs
     function isValidGitHubUrl(url) {
         if (!url || typeof url !== 'string') return false;
         try {
             var parsed = new URL(url);
-            return parsed.protocol === 'https:' && 
-                   (parsed.hostname === 'github.com' || parsed.hostname.endsWith('.github.com'));
+            if (parsed.protocol !== 'https:') return false;
+            return parsed.hostname === 'github.com' || 
+                   parsed.hostname.endsWith('.github.com') ||
+                   parsed.hostname === 'github.io' ||
+                   parsed.hostname.endsWith('.githubusercontent.com');
         } catch (e) {
             return false;
         }
@@ -154,15 +161,24 @@
 
                     assets.forEach(function(asset) {
                         var name = (asset.name || '').toLowerCase();
-                        if (name.indexOf('windows') !== -1 || name.indexOf('win') !== -1) {
+                        var matched = false;
+                        if (/\b(windows|win32|win64)\b/.test(name)) {
                             platforms.windows.push(asset);
-                        } else if (name.indexOf('macos') !== -1 || name.indexOf('darwin') !== -1 || name.indexOf('mac') !== -1) {
+                            matched = true;
+                        }
+                        if (!matched && /\b(macos|darwin|mac)\b/.test(name)) {
                             platforms.macos.push(asset);
-                        } else if (name.indexOf('linux') !== -1) {
-                            platforms.linux.push(asset);
-                        } else if (name.indexOf('ios') !== -1) {
+                            matched = true;
+                        }
+                        if (!matched && /\bios\b/.test(name)) {
                             platforms.ios.push(asset);
-                        } else {
+                            matched = true;
+                        }
+                        if (!matched && /\b(linux|ubuntu|debian|fedora|arch)\b/.test(name)) {
+                            platforms.linux.push(asset);
+                            matched = true;
+                        }
+                        if (!matched) {
                             platforms.other.push(asset);
                         }
                     });
