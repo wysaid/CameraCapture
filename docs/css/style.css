@@ -174,8 +174,11 @@ nav {
 .hero .tagline {
     font-size: 1.1rem;
     opacity: 0.8;
-    max-width: 600px;
+    max-width: 100%;
     margin: 0 auto 40px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Badges */
