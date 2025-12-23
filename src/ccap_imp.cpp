@@ -118,7 +118,9 @@ std::shared_ptr<VideoFrame> ProviderImp::grab(uint32_t timeoutInMs) {
         bool waitSuccess{};
 
         for (uint32_t waitedTime = 0; waitedTime < timeoutInMs; waitedTime += 1000) {
-            waitSuccess = m_frameCondition.wait_for(lock, std::chrono::milliseconds(1000),
+            uint32_t remainingTime = timeoutInMs - waitedTime;
+            uint32_t waitTime = (remainingTime < 1000) ? remainingTime : 1000;
+            waitSuccess = m_frameCondition.wait_for(lock, std::chrono::milliseconds(waitTime),
                                                     [this]() { return m_grabFrameWaiting && !m_availableFrames.empty(); });
             if (waitSuccess) break;
             CCAP_LOG_V("ccap: Waiting for new frame... %u ms\n", waitedTime);
