@@ -612,12 +612,17 @@ jobs:
         
     - name: Download all artifacts
       uses: actions/download-artifact@v4
+      with:
+        path: artifacts
       
     - name: List downloaded files
       shell: bash
       run: |
         echo "Downloaded artifacts:"
-        find . -name "ccap-*" -type f
+        find artifacts -type f
+        echo ""
+        echo "Directory structure:"
+        ls -la artifacts/
         
     - name: Determine release type
       id: release_type
@@ -778,10 +783,10 @@ jobs:
         name: ${{ steps.release_type.outputs.release_name }}
         body_path: release_notes.md
         files: |
-          */ccap-*.zip
-          */ccap-*.tar.gz
-          */ccap-cli-*.zip
-          */ccap-cli-*.tar.gz
+          artifacts/*/ccap-*.zip
+          artifacts/*/ccap-*.tar.gz
+          artifacts/*/ccap-cli-*.zip
+          artifacts/*/ccap-cli-*.tar.gz
         draft: false
         prerelease: ${{ steps.release_type.outputs.prerelease }}
         generate_release_notes: true
