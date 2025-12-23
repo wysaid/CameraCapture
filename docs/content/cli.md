@@ -204,17 +204,19 @@ ccap --verbose -d 0 -c 5 -o ./captures
 
 When capturing in RGB/BGR formats or converting YUV to images, files are saved as:
 ```
-<output_dir>/frame_<timestamp>_<frame_index>.bmp
+<output_dir>/capture_<timestamp>_<resolution>_<frame_index>.bmp
 ```
 
-Example: `captures/frame_1640000000000_0.bmp`
+Example: `captures/capture_20231224_153045_1920x1080_0.bmp`
 
 ### YUV Files
 
 When using `--save-yuv`, raw YUV data is saved as:
 ```
-<output_dir>/frame_<timestamp>_<frame_index>.yuv
+<output_dir>/capture_<timestamp>_<resolution>_<frame_index>.<format>.yuv
 ```
+
+Example: `yuv_captures/capture_20231224_153045_1920x1080_0.NV12.yuv`
 
 These files contain raw planar or packed YUV data without any container format.
 
@@ -341,11 +343,7 @@ ccap -d 0 --format xyz
 
 ## See Also
 
-- [Main ccap Documentation](../README.md) - Overview of the CameraCapture library
-- [CMake Build Options](../docs/CMAKE_OPTIONS.md) - Build configuration details
-- [C Interface Documentation](../docs/C_Interface.md) - C API reference
-- [Examples](../examples/) - Code examples using the library
-
-## License
-
-MIT License - See [LICENSE](../LICENSE) for details.
+- [Main ccap Documentation](documentation.html) - Overview of the CameraCapture library
+- [CMake Build Options](https://github.com/wysaid/CameraCapture/blob/main/docs/CMAKE_OPTIONS.md) - Build configuration details
+- [C Interface Documentation](https://github.com/wysaid/CameraCapture/blob/main/docs/C_Interface.md) - C API reference
+- [Examples](https://github.com/wysaid/CameraCapture/tree/main/examples) - Code examples using the library

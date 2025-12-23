@@ -32,7 +32,7 @@ A high-performance, lightweight cross-platform camera capture library with hardw
 - **Cross Platform**: Windows (DirectShow), macOS/iOS (AVFoundation), Linux (V4L2)
 - **Multiple Formats**: RGB, BGR, YUV (NV12/I420) with automatic conversion
 - **Dual Language APIs**: ✨ **Complete Pure C Interface** - Both modern C++ API and traditional C99 interface for various project integration and language bindings
-- **CLI Tool**: Command-line interface for camera operations ([Documentation](./cli/README.md))
+- **CLI Tool**: Ready-to-use command-line tool for quick camera operations - list devices, capture images, real-time preview ([Documentation](./docs/content/cli.md))
 - **Production Ready**: Comprehensive test suite with 95%+ accuracy validation
 - **Virtual Camera Support**: Compatible with OBS Virtual Camera and similar tools
 
@@ -205,6 +205,36 @@ int main() {
     return 0;
 }
 ```
+
+## CLI Tool
+
+ccap includes a powerful command-line tool for quick camera operations without writing code:
+
+```bash
+# Build with CLI tool enabled
+mkdir build && cd build
+cmake .. -DBUILD_CCAP_CLI=ON
+cmake --build .
+
+# List available cameras
+./ccap --list-devices
+
+# Capture 5 images from default camera
+./ccap -c 5 -o ./captures
+
+# Real-time preview (requires GLFW)
+./ccap --preview
+```
+
+**Key Features:**
+- 📷 List and select camera devices
+- 🎯 Capture single or multiple images
+- 👁️ Real-time preview window (with GLFW)
+- ⚙️ Configure resolution, format, and frame rate
+- 💾 Save images in various formats (JPEG, PNG, BMP, etc.)
+- ⏱️ Duration-based or count-based capture modes
+
+For complete CLI documentation, see [CLI Tool Guide](./docs/content/cli.md).
 
 ## System Requirements
 
