@@ -62,6 +62,9 @@ public:
 // using DEFINE_GUID to avoid strmiids.lib dependency
 
 namespace ccap {
+
+class FileReaderWindows;
+
 class ProviderDirectShow : public ProviderImp, public ISampleGrabberCB {
 public:
     ProviderDirectShow();
@@ -77,6 +80,13 @@ public:
 
     HRESULT STDMETHODCALLTYPE SampleCB(double SampleTime, IMediaSample* pSample) override;
     HRESULT STDMETHODCALLTYPE BufferCB(double SampleTime, BYTE* pBuffer, long BufferLen) override;
+
+    // File playback support
+    bool setFileProperty(PropertyName prop, double value) override;
+    double getFileProperty(PropertyName prop) const override;
+
+    using ProviderImp::getFreeFrame;
+    using ProviderImp::newFrameAvailable;
 
 private:
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject) override;
@@ -106,6 +116,9 @@ private:
         std::function<bool(AM_MEDIA_TYPE* mediaType, const char* name, PixelFormat pixelFormat, const DeviceInfo::Resolution& resolution)>
             callback);
 
+    bool openCamera(std::string_view deviceName);
+    bool openFile(std::string_view filePath);
+
 private:
     IGraphBuilder* m_graph = nullptr;
     ICaptureGraphBuilder2* m_captureBuilder = nullptr;
@@ -128,6 +141,9 @@ private:
     bool m_isRunning{ false };
 
     std::mutex m_callbackMutex;
+    
+    // File reader for video file playback
+    std::unique_ptr<FileReaderWindows> m_fileReader;
 };
 
 ProviderImp* createProviderDirectShow();

@@ -16,6 +16,7 @@
 #endif
 
 #include "ccap_imp_windows.h"
+#include "ccap_file_reader_windows.h"
 
 #include "ccap_convert.h"
 #include "ccap_convert_frame.h"
@@ -657,12 +658,40 @@ bool ProviderDirectShow::createStream() {
     return true;
 }
 
-bool ProviderDirectShow::open(std::string_view deviceName) {
+bool ProviderDirectShow::open(std::string_view deviceNameOrFilePath) {
+    // Check if this looks like a file path
+    if (looksLikeFilePath(deviceNameOrFilePath)) {
+        return openFile(deviceNameOrFilePath);
+    }
+    return openCamera(deviceNameOrFilePath);
+}
+
+bool ProviderDirectShow::openFile(std::string_view filePath) {
+    if (m_isOpened || m_fileReader) {
+        reportError(ErrorCode::DeviceOpenFailed, "Camera or file already opened, please close it first");
+        return false;
+    }
+
+    m_isFileMode = true;
+    m_fileReader = std::make_unique<FileReaderWindows>(this);
+    
+    if (!m_fileReader->open(filePath)) {
+        m_fileReader.reset();
+        m_isFileMode = false;
+        return false;
+    }
+    
+    m_isOpened = true;
+    return true;
+}
+
+bool ProviderDirectShow::openCamera(std::string_view deviceName) {
     if (m_isOpened && m_mediaControl) {
         reportError(ErrorCode::DeviceOpenFailed, "Camera already opened, please close it first");
         return false;
     }
 
+    m_isFileMode = false;
     bool found = false;
 
     enumerateDevices([&](IMoniker* moniker, std::string_view name) {
@@ -966,9 +995,26 @@ ULONG STDMETHODCALLTYPE ProviderDirectShow::Release() { // same as AddRef
     return S_OK;
 }
 
-bool ProviderDirectShow::isOpened() const { return m_isOpened; }
+bool ProviderDirectShow::isOpened() const {
+    if (m_isFileMode && m_fileReader) {
+        return m_fileReader->isOpened();
+    }
+    return m_isOpened;
+}
 
 std::optional<DeviceInfo> ProviderDirectShow::getDeviceInfo() const {
+    // For file mode, return basic info
+    if (m_isFileMode && m_fileReader) {
+        std::optional<DeviceInfo> info;
+        info.emplace();
+        info->deviceName = "Video File";
+        info->supportedPixelFormats.push_back(PixelFormat::BGR24);
+        info->supportedPixelFormats.push_back(PixelFormat::BGRA32);
+        info->supportedPixelFormats.push_back(PixelFormat::NV12);
+        info->supportedResolutions.push_back({(uint32_t)m_fileReader->getWidth(), (uint32_t)m_fileReader->getHeight()});
+        return info;
+    }
+    
     std::optional<DeviceInfo> info;
     bool hasMJPG = false;
 
@@ -1055,14 +1101,29 @@ void ProviderDirectShow::close() {
         m_graph->Release();
         m_graph = nullptr;
     }
+    
+    // Close file reader if present
+    if (m_fileReader) {
+        m_fileReader->close();
+        m_fileReader.reset();
+    }
+    
     m_isOpened = false;
     m_isRunning = false;
+    m_isFileMode = false;
 
     CCAP_LOG_V("ccap: Camera closed.\n");
 }
 
 bool ProviderDirectShow::start() {
     if (!m_isOpened) return false;
+    
+    // File mode
+    if (m_isFileMode && m_fileReader) {
+        return m_fileReader->start();
+    }
+    
+    // Camera mode
     if (!m_isRunning && m_mediaControl) {
         HRESULT hr = m_mediaControl->Run();
         m_isRunning = !FAILED(hr);
@@ -1077,6 +1138,12 @@ bool ProviderDirectShow::start() {
 
 void ProviderDirectShow::stop() {
     CCAP_LOG_V("ccap: ProviderDirectShow stop called\n");
+
+    // File mode
+    if (m_isFileMode && m_fileReader) {
+        m_fileReader->stop();
+        return;
+    }
 
     if (m_grabFrameWaiting) {
         CCAP_LOG_V("ccap: VideoFrame waiting stopped\n");
@@ -1093,7 +1160,50 @@ void ProviderDirectShow::stop() {
     }
 }
 
-bool ProviderDirectShow::isStarted() const { return m_isRunning && m_mediaControl; }
+bool ProviderDirectShow::isStarted() const {
+    if (m_isFileMode && m_fileReader) {
+        return m_fileReader->isStarted();
+    }
+    return m_isRunning && m_mediaControl;
+}
+
+bool ProviderDirectShow::setFileProperty(PropertyName prop, double value) {
+    if (!m_isFileMode || !m_fileReader) {
+        return false;
+    }
+    
+    switch (prop) {
+    case PropertyName::CurrentTime:
+        return m_fileReader->seekToTime(value);
+    case PropertyName::PlaybackSpeed:
+        return m_fileReader->setPlaybackSpeed(value);
+    case PropertyName::CurrentFrameIndex:
+        return m_fileReader->seekToFrame(static_cast<int64_t>(value));
+    default:
+        return false;
+    }
+}
+
+double ProviderDirectShow::getFileProperty(PropertyName prop) const {
+    if (!m_isFileMode || !m_fileReader) {
+        return NAN;
+    }
+    
+    switch (prop) {
+    case PropertyName::Duration:
+        return m_fileReader->getDuration();
+    case PropertyName::CurrentTime:
+        return m_fileReader->getCurrentTime();
+    case PropertyName::PlaybackSpeed:
+        return m_fileReader->getPlaybackSpeed();
+    case PropertyName::FrameCount:
+        return m_fileReader->getFrameCount();
+    case PropertyName::CurrentFrameIndex:
+        return m_fileReader->getCurrentFrameIndex();
+    default:
+        return NAN;
+    }
+}
 
 ProviderImp* createProviderDirectShow() { return new ProviderDirectShow(); }
 

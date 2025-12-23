@@ -15,6 +15,7 @@
 #include "ccap_utils.h"
 
 #include <atomic>
+#include <cmath>
 #include <condition_variable>
 #include <deque>
 #include <mutex>
@@ -77,6 +78,13 @@ public:
     virtual void stop() = 0;
     virtual bool isStarted() const = 0;
 
+    /// Check if the provider is in file playback mode
+    virtual bool isFileMode() const { return m_isFileMode; }
+
+    /// File property setters/getters - override in platform implementations
+    virtual bool setFileProperty(PropertyName prop, double value) { return false; }
+    virtual double getFileProperty(PropertyName prop) const { return NAN; }
+
     inline FrameProperty& getFrameProperty() { return m_frameProp; }
     inline const FrameProperty& getFrameProperty() const { return m_frameProp; }
 
@@ -110,6 +118,8 @@ protected:
 
     bool m_propertyChanged{ false };
     bool m_grabFrameWaiting{ false };
+    bool m_isFileMode{ false };
+
     FrameOrientation m_frameOrientation = FrameOrientation::Default;
 
     std::atomic_uint32_t m_frameIndex{};
@@ -131,6 +141,29 @@ private:
 inline bool operator&(PixelFormat lhs, PixelFormatConstants rhs) { return (static_cast<uint32_t>(lhs) & rhs) != 0; }
 
 void reportError(ErrorCode errorCode, std::string_view description);
+
+/// Helper function to determine if a string looks like a file path
+inline bool looksLikeFilePath(std::string_view path) {
+    if (path.empty()) {
+        return false;
+    }
+    // Contains path separator
+    if (path.find('/') != std::string_view::npos || path.find('\\') != std::string_view::npos) {
+        return true;
+    }
+    // Common video file extensions
+    static const std::string_view videoExtensions[] = {
+        ".mp4", ".MP4", ".mov", ".MOV", ".avi", ".AVI",
+        ".mkv", ".MKV", ".wmv", ".WMV", ".webm", ".WEBM",
+        ".m4v", ".M4V", ".flv", ".FLV", ".3gp", ".3GP"
+    };
+    for (const auto& ext : videoExtensions) {
+        if (path.size() >= ext.size() && path.substr(path.size() - ext.size()) == ext) {
+            return true;
+        }
+    }
+    return false;
+}
 
 // Common error messages
 namespace ErrorMessages {

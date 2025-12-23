@@ -21,6 +21,9 @@ typedef void* CameraCaptureObjc;
 #endif
 
 namespace ccap {
+
+class FileReaderApple;
+
 class ProviderApple : public ProviderImp {
 public:
     ProviderApple();
@@ -42,8 +45,16 @@ public:
 
     inline bool hasNewFrameCallback() const { return m_callback && *m_callback; }
 
+    // File playback support
+    bool setFileProperty(PropertyName prop, double value);
+    double getFileProperty(PropertyName prop) const;
+
 private:
+    bool openCamera(std::string_view deviceName);
+    bool openFile(std::string_view filePath);
+
     CameraCaptureObjc* m_imp{};
+    std::unique_ptr<FileReaderApple> m_fileReader;
 };
 
 ProviderImp* createProviderApple();

@@ -173,6 +173,13 @@ bool ccap_provider_is_opened(const CcapProvider* provider) {
     return cppProvider->isOpened();
 }
 
+bool ccap_provider_is_file_mode(const CcapProvider* provider) {
+    if (!provider) return false;
+
+    auto* cppProvider = reinterpret_cast<const ccap::Provider*>(provider);
+    return cppProvider->isFileMode();
+}
+
 bool ccap_provider_get_device_info(const CcapProvider* provider, CcapDeviceInfo* deviceInfo) {
     if (!provider || !deviceInfo) return false;
 
@@ -463,6 +470,17 @@ static_assert(static_cast<uint32_t>(CCAP_PROPERTY_PIXEL_FORMAT_OUTPUT) == static
               "C and C++ PropertyName::PixelFormatOutput values must match");
 static_assert(static_cast<uint32_t>(CCAP_PROPERTY_FRAME_ORIENTATION) == static_cast<uint32_t>(ccap::PropertyName::FrameOrientation),
               "C and C++ PropertyName::FrameOrientation values must match");
+// File playback property consistency checks
+static_assert(static_cast<uint32_t>(CCAP_PROPERTY_DURATION) == static_cast<uint32_t>(ccap::PropertyName::Duration),
+              "C and C++ PropertyName::Duration values must match");
+static_assert(static_cast<uint32_t>(CCAP_PROPERTY_CURRENT_TIME) == static_cast<uint32_t>(ccap::PropertyName::CurrentTime),
+              "C and C++ PropertyName::CurrentTime values must match");
+static_assert(static_cast<uint32_t>(CCAP_PROPERTY_PLAYBACK_SPEED) == static_cast<uint32_t>(ccap::PropertyName::PlaybackSpeed),
+              "C and C++ PropertyName::PlaybackSpeed values must match");
+static_assert(static_cast<uint32_t>(CCAP_PROPERTY_FRAME_COUNT) == static_cast<uint32_t>(ccap::PropertyName::FrameCount),
+              "C and C++ PropertyName::FrameCount values must match");
+static_assert(static_cast<uint32_t>(CCAP_PROPERTY_CURRENT_FRAME_INDEX) == static_cast<uint32_t>(ccap::PropertyName::CurrentFrameIndex),
+              "C and C++ PropertyName::CurrentFrameIndex values must match");
 
 // ErrorCode enum consistency checks
 static_assert(static_cast<uint32_t>(CCAP_ERROR_NONE) == static_cast<uint32_t>(ccap::ErrorCode::None),
@@ -493,6 +511,13 @@ static_assert(static_cast<uint32_t>(CCAP_ERROR_FRAME_CAPTURE_FAILED) == static_c
               "C and C++ ErrorCode::FrameCaptureFailed values must match");
 static_assert(static_cast<uint32_t>(CCAP_ERROR_MEMORY_ALLOCATION_FAILED) == static_cast<uint32_t>(ccap::ErrorCode::MemoryAllocationFailed),
               "C and C++ ErrorCode::MemoryAllocationFailed values must match");
+// File playback error code consistency checks
+static_assert(static_cast<uint32_t>(CCAP_ERROR_FILE_OPEN_FAILED) == static_cast<uint32_t>(ccap::ErrorCode::FileOpenFailed),
+              "C and C++ ErrorCode::FileOpenFailed values must match");
+static_assert(static_cast<uint32_t>(CCAP_ERROR_UNSUPPORTED_VIDEO_FORMAT) == static_cast<uint32_t>(ccap::ErrorCode::UnsupportedVideoFormat),
+              "C and C++ ErrorCode::UnsupportedVideoFormat values must match");
+static_assert(static_cast<uint32_t>(CCAP_ERROR_SEEK_FAILED) == static_cast<uint32_t>(ccap::ErrorCode::SeekFailed),
+              "C and C++ ErrorCode::SeekFailed values must match");
 static_assert(static_cast<uint32_t>(CCAP_ERROR_INTERNAL_ERROR) == static_cast<uint32_t>(ccap::ErrorCode::InternalError),
               "C and C++ ErrorCode::InternalError values must match");
 

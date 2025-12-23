@@ -9,6 +9,7 @@
 #if __APPLE__
 
 #include "ccap_imp_apple.h"
+#include "ccap_file_reader_apple.h"
 
 #include "ccap_convert.h"
 #include "ccap_convert_frame.h"
@@ -1025,11 +1026,21 @@ std::vector<std::string> ProviderApple::findDeviceNames() {
     }
 }
 
-bool ProviderApple::open(std::string_view deviceName) {
-    if (m_imp != nil) {
-        reportError(ErrorCode::DeviceOpenFailed, "Camera is already opened");
+bool ProviderApple::open(std::string_view deviceNameOrFilePath) {
+    // Check if this looks like a file path
+    if (looksLikeFilePath(deviceNameOrFilePath)) {
+        return openFile(deviceNameOrFilePath);
+    }
+    return openCamera(deviceNameOrFilePath);
+}
+
+bool ProviderApple::openCamera(std::string_view deviceName) {
+    if (m_imp != nil || m_fileReader) {
+        reportError(ErrorCode::DeviceOpenFailed, "Camera or file is already opened");
         return false;
     }
+
+    m_isFileMode = false;
 
     @autoreleasepool {
         m_imp = [[CameraCaptureObjc alloc] initWithProvider:this];
@@ -1041,10 +1052,44 @@ bool ProviderApple::open(std::string_view deviceName) {
     }
 }
 
-bool ProviderApple::isOpened() const { return m_imp && m_imp.session && m_imp.opened; }
+bool ProviderApple::openFile(std::string_view filePath) {
+    if (m_imp != nil || m_fileReader) {
+        reportError(ErrorCode::DeviceOpenFailed, "Camera or file is already opened");
+        return false;
+    }
+
+    m_isFileMode = true;
+    m_fileReader = std::make_unique<FileReaderApple>(this);
+    
+    if (!m_fileReader->open(filePath)) {
+        m_fileReader.reset();
+        m_isFileMode = false;
+        return false;
+    }
+    
+    return true;
+}
+
+bool ProviderApple::isOpened() const {
+    if (m_isFileMode) {
+        return m_fileReader && m_fileReader->isOpened();
+    }
+    return m_imp && m_imp.session && m_imp.opened;
+}
 
 std::optional<DeviceInfo> ProviderApple::getDeviceInfo() const {
     std::optional<DeviceInfo> deviceInfo;
+    
+    if (m_isFileMode && m_fileReader) {
+        // For file mode, return basic info
+        deviceInfo.emplace();
+        deviceInfo->deviceName = "Video File";
+        deviceInfo->supportedPixelFormats.push_back(PixelFormat::BGRA32);
+        deviceInfo->supportedPixelFormats.push_back(PixelFormat::NV12f);
+        deviceInfo->supportedResolutions.push_back({(uint32_t)m_fileReader->getWidth(), (uint32_t)m_fileReader->getHeight()});
+        return deviceInfo;
+    }
+    
     if (m_imp && m_imp.videoOutput) {
         @autoreleasepool {
             NSString* deviceName = [m_imp.device localizedName];
@@ -1078,18 +1123,27 @@ std::optional<DeviceInfo> ProviderApple::getDeviceInfo() const {
 }
 
 void ProviderApple::close() {
+    if (m_fileReader) {
+        m_fileReader->close();
+        m_fileReader.reset();
+        m_isFileMode = false;
+    }
     if (m_imp) {
         [m_imp destroy];
         m_imp = nil;
-        ccap::resetSharedAllocator();
     }
+    ccap::resetSharedAllocator();
 }
 
 bool ProviderApple::start() {
     if (!isOpened()) {
-        CCAP_NSLOG_W(@"ccap: camera start called with no device opened");
-        reportError(ErrorCode::DeviceStartFailed, "Camera start called with no device opened");
+        CCAP_NSLOG_W(@"ccap: start called with no device/file opened");
+        reportError(ErrorCode::DeviceStartFailed, "Start called with no device/file opened");
         return false;
+    }
+
+    if (m_isFileMode && m_fileReader) {
+        return m_fileReader->start();
     }
 
     @autoreleasepool {
@@ -1098,6 +1152,10 @@ bool ProviderApple::start() {
 }
 
 void ProviderApple::stop() {
+    if (m_isFileMode && m_fileReader) {
+        m_fileReader->stop();
+        return;
+    }
     if (m_imp) {
         @autoreleasepool {
             [m_imp stop];
@@ -1105,7 +1163,50 @@ void ProviderApple::stop() {
     }
 }
 
-bool ProviderApple::isStarted() const { return m_imp && [m_imp isRunning]; }
+bool ProviderApple::isStarted() const {
+    if (m_isFileMode && m_fileReader) {
+        return m_fileReader->isStarted();
+    }
+    return m_imp && [m_imp isRunning];
+}
+
+bool ProviderApple::setFileProperty(PropertyName prop, double value) {
+    if (!m_isFileMode || !m_fileReader) {
+        return false;
+    }
+    
+    switch (prop) {
+    case PropertyName::CurrentTime:
+        return m_fileReader->seekToTime(value);
+    case PropertyName::PlaybackSpeed:
+        return m_fileReader->setPlaybackSpeed(value);
+    case PropertyName::CurrentFrameIndex:
+        return m_fileReader->seekToFrame(static_cast<int64_t>(value));
+    default:
+        return false;
+    }
+}
+
+double ProviderApple::getFileProperty(PropertyName prop) const {
+    if (!m_isFileMode || !m_fileReader) {
+        return NAN;
+    }
+    
+    switch (prop) {
+    case PropertyName::Duration:
+        return m_fileReader->getDuration();
+    case PropertyName::CurrentTime:
+        return m_fileReader->getCurrentTime();
+    case PropertyName::PlaybackSpeed:
+        return m_fileReader->getPlaybackSpeed();
+    case PropertyName::FrameCount:
+        return m_fileReader->getFrameCount();
+    case PropertyName::CurrentFrameIndex:
+        return m_fileReader->getCurrentFrameIndex();
+    default:
+        return NAN;
+    }
+}
 
 ProviderImp* createProviderApple() { return new ProviderApple(); }
 
