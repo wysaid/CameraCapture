@@ -4,7 +4,7 @@
  * @author wysaid (this@wysaid.org)
  * @date 2025-12
  *
- * A command-line interface for camera capture operations, inspired by ffmpeg and imagemagick.
+ * A command-line interface for camera capture operations.
  * Supports camera enumeration, capture, format conversion, and optional window preview.
  */
 
@@ -47,11 +47,7 @@ constexpr int DEFAULT_TIMEOUT_MS = 5000;
 void printVersion() {
     std::cout << "ccap CLI version " << CLI_VERSION << std::endl;
     std::cout << "Built with ccap library version " << CCAP_VERSION_STRING << std::endl;
-#ifdef CCAP_CLI_WITH_WUFFS
-    std::cout << "Image formats: BMP (wuffs available for future formats)" << std::endl;
-#else
-    std::cout << "Image formats: BMP only" << std::endl;
-#endif
+    std::cout << "Image format: BMP" << std::endl;
 #ifdef CCAP_CLI_WITH_GLFW
     std::cout << "Window preview: enabled (GLFW)" << std::endl;
 #else
@@ -81,6 +77,7 @@ void printUsage(const char* programName) {
     std::cout << "  -t, --timeout MS           Capture timeout in milliseconds (default: " << DEFAULT_TIMEOUT_MS << ")\n";
     std::cout << "  -o, --output DIR           Output directory for captured images\n";
     std::cout << "  --format FORMAT            Output pixel format: rgb24, bgr24, rgba32, bgra32, nv12, i420, yuyv, uyvy\n";
+    std::cout << "  --internal-format FORMAT   Internal pixel format (camera native format)\n";
     std::cout << "  --save-yuv                 Save YUV frames directly without conversion\n\n";
 
 #ifdef CCAP_CLI_WITH_GLFW
@@ -212,6 +209,11 @@ CLIOptions parseArgs(int argc, char* argv[]) {
                 auto info = parsePixelFormat(argv[++i]);
                 opts.outputFormat = info.format;
             }
+        } else if (arg == "--internal-format") {
+            if (i + 1 < argc) {
+                auto info = parsePixelFormat(argv[++i]);
+                opts.internalFormat = info.format;
+            }
         } else if (arg == "--save-yuv") {
             opts.saveYuv = true;
         }
@@ -261,11 +263,50 @@ int listDevices() {
         return 0;
     }
 
-    std::cout << "Found " << deviceNames.size() << " camera device(s):" << std::endl;
+    std::cout << "Found " << deviceNames.size() << " camera device(s):\n" << std::endl;
+    
     for (size_t i = 0; i < deviceNames.size(); ++i) {
-        std::cout << "  [" << i << "] " << deviceNames[i] << std::endl;
+        std::cout << "[" << i << "] " << deviceNames[i] << std::endl;
+        
+        // Try to get device info
+        ccap::Provider devProvider(deviceNames[i]);
+        if (devProvider.isOpened()) {
+            auto info = devProvider.getDeviceInfo();
+            if (info) {
+                // Print supported resolutions
+                if (!info->supportedResolutions.empty()) {
+                if (info->supportedResolutions.size() <= 5) {
+                    // Horizontal display for few resolutions
+                    std::cout << "    Resolutions: ";
+                    for (size_t j = 0; j < info->supportedResolutions.size(); ++j) {
+                        if (j > 0) std::cout << ", ";
+                        std::cout << info->supportedResolutions[j].width << "x" << info->supportedResolutions[j].height;
+                    }
+                    std::cout << std::endl;
+                } else {
+                    // Vertical display for many resolutions
+                    std::cout << "    Resolutions:" << std::endl;
+                    for (const auto& res : info->supportedResolutions) {
+                        std::cout << "      " << res.width << "x" << res.height << std::endl;
+                    }
+                }
+            }
+                
+            // Print supported pixel formats
+            if (!info->supportedPixelFormats.empty()) {
+                    std::cout << "    Formats: ";
+                    for (size_t j = 0; j < info->supportedPixelFormats.size(); ++j) {
+                        if (j > 0) std::cout << ", ";
+                        std::cout << ccap::pixelFormatToString(info->supportedPixelFormats[j]);
+                    }
+                    std::cout << std::endl;
+                }
+            }
+        }
+        std::cout << std::endl;
     }
 
+    std::cout << "Use --device-info <index> for detailed information about a specific device." << std::endl;
     return 0;
 }
 
@@ -355,15 +396,11 @@ bool saveFrameToFile(ccap::VideoFrame* frame, const std::string& outputPath, boo
         return true;
     }
 
-    // Save as image
+    // Save as BMP image
     return saveFrameAsImage(frame, outputPath);
 }
 
 bool saveFrameAsImage(ccap::VideoFrame* frame, const std::string& outputPath) {
-#ifdef CCAP_CLI_WITH_WUFFS
-    // Use wuffs for more image formats
-    return saveFrameWithWuffs(frame, outputPath);
-#else
     // Use built-in BMP saving
     std::string filePath = outputPath + ".bmp";
     bool isBGR = ccap::pixelFormatInclude(frame->pixelFormat, ccap::kPixelFormatBGRBit);
@@ -377,7 +414,6 @@ bool saveFrameAsImage(ccap::VideoFrame* frame, const std::string& outputPath) {
     }
     std::cerr << "Failed to save BMP: " << filePath << std::endl;
     return false;
-#endif
 }
 
 int captureFrames(const CLIOptions& opts) {
@@ -387,6 +423,10 @@ int captureFrames(const CLIOptions& opts) {
     provider.set(ccap::PropertyName::Width, opts.width);
     provider.set(ccap::PropertyName::Height, opts.height);
     provider.set(ccap::PropertyName::FrameRate, opts.fps);
+
+    if (opts.internalFormat != ccap::PixelFormat::Unknown) {
+        provider.set(ccap::PropertyName::PixelFormatInternal, opts.internalFormat);
+    }
 
     if (opts.outputFormat != ccap::PixelFormat::Unknown) {
         provider.set(ccap::PropertyName::PixelFormatOutput, opts.outputFormat);
@@ -528,16 +568,48 @@ int runPreview(const CLIOptions& opts) {
     }
 
     glfwMakeContextCurrent(window);
-    gladLoadGL(glfwGetProcAddress);
+    if (!gladLoadGL(glfwGetProcAddress)) {
+        std::cerr << "Failed to load OpenGL functions." << std::endl;
+        glfwDestroyWindow(window);
+        glfwTerminate();
+        return 1;
+    }
 
     // Create shader program
     GLuint vs = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vs, 1, &previewVertexShader, nullptr);
     glCompileShader(vs);
 
+    // Check vertex shader compilation
+    GLint vsSuccess = 0;
+    glGetShaderiv(vs, GL_COMPILE_STATUS, &vsSuccess);
+    if (!vsSuccess) {
+        char infoLog[512];
+        glGetShaderInfoLog(vs, 512, nullptr, infoLog);
+        std::cerr << "Vertex shader compilation failed: " << infoLog << std::endl;
+        glDeleteShader(vs);
+        glfwDestroyWindow(window);
+        glfwTerminate();
+        return 1;
+    }
+
     GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fs, 1, &previewFragmentShader, nullptr);
     glCompileShader(fs);
+
+    // Check fragment shader compilation
+    GLint fsSuccess = 0;
+    glGetShaderiv(fs, GL_COMPILE_STATUS, &fsSuccess);
+    if (!fsSuccess) {
+        char infoLog[512];
+        glGetShaderInfoLog(fs, 512, nullptr, infoLog);
+        std::cerr << "Fragment shader compilation failed: " << infoLog << std::endl;
+        glDeleteShader(vs);
+        glDeleteShader(fs);
+        glfwDestroyWindow(window);
+        glfwTerminate();
+        return 1;
+    }
 
     GLuint prog = glCreateProgram();
     glBindAttribLocation(prog, 0, "pos");
@@ -546,6 +618,19 @@ int runPreview(const CLIOptions& opts) {
     glLinkProgram(prog);
     glDeleteShader(vs);
     glDeleteShader(fs);
+
+    // Check program linking
+    GLint progSuccess = 0;
+    glGetProgramiv(prog, GL_LINK_STATUS, &progSuccess);
+    if (!progSuccess) {
+        char infoLog[512];
+        glGetProgramInfoLog(prog, 512, nullptr, infoLog);
+        std::cerr << "Shader program linking failed: " << infoLog << std::endl;
+        glDeleteProgram(prog);
+        glfwDestroyWindow(window);
+        glfwTerminate();
+        return 1;
+    }
 
     // Create VAO and VBO
     GLuint vao, vbo;
@@ -582,7 +667,7 @@ int runPreview(const CLIOptions& opts) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture);
 
-        if (auto frame = provider.grab(30)) {
+        if (auto frame = provider.grab(500)) {
             // Update texture data efficiently using glTexSubImage2D
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, frameWidth, frameHeight, GL_RGBA, GL_UNSIGNED_BYTE, frame->data[0]);
         }
@@ -646,6 +731,33 @@ int convertYuvToImage(const CLIOptions& opts) {
     // Calculate expected size and pointers
     int width = opts.yuvWidth;
     int height = opts.yuvHeight;
+    
+    // Validate file size matches expected YUV format
+    size_t expectedSize = 0;
+    switch (opts.yuvFormat) {
+    case ccap::PixelFormat::NV12:
+    case ccap::PixelFormat::NV12f:
+    case ccap::PixelFormat::I420:
+    case ccap::PixelFormat::I420f:
+        expectedSize = width * height * 3 / 2;  // Y plane + UV planes (half resolution)
+        break;
+    case ccap::PixelFormat::YUYV:
+    case ccap::PixelFormat::YUYVf:
+    case ccap::PixelFormat::UYVY:
+    case ccap::PixelFormat::UYVYf:
+        expectedSize = width * height * 2;  // Packed format with 2 bytes per pixel
+        break;
+    default:
+        break;
+    }
+    
+    if (expectedSize > 0 && static_cast<size_t>(fileSize) < expectedSize) {
+        std::cerr << "File size (" << fileSize << " bytes) is smaller than expected (" 
+                  << expectedSize << " bytes) for " << opts.yuvWidth << "x" << opts.yuvHeight 
+                  << " " << ccap::pixelFormatToString(opts.yuvFormat) << std::endl;
+        return 1;
+    }
+    
     uint8_t* yPtr = yuvData.data();
     uint8_t* uPtr = nullptr;
     uint8_t* vPtr = nullptr;
@@ -706,7 +818,16 @@ int convertYuvToImage(const CLIOptions& opts) {
 
     // Save as BMP
     std::string outputPath = opts.convertOutput.empty() ? (opts.convertInput + "_converted") : opts.convertOutput;
-    if (outputPath.size() < 4 || outputPath.substr(outputPath.size() - 4) != ".bmp") {
+    
+    // Check if file already has .bmp extension (case-insensitive)
+    bool hasBmpExt = false;
+    if (outputPath.size() >= 4) {
+        std::string ext = outputPath.substr(outputPath.size() - 4);
+        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+        hasBmpExt = (ext == ".bmp");
+    }
+    
+    if (!hasBmpExt) {
         outputPath += ".bmp";
     }
 

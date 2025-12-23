@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    char captureDir[1024];
+    char captureDir[2048];
     snprintf(captureDir, sizeof(captureDir), "%s/image_capture", cwd);
     createDirectory(captureDir);
 

@@ -22,7 +22,7 @@
 
 // Context structure for callback data
 typedef struct {
-    char captureDir[1024];
+    char captureDir[2048];
     int framesSaved;
 } CallbackContext;
 

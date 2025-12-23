@@ -56,6 +56,17 @@ This document describes all available CMake options for building the ccap (Camer
 - **Example**: `-DCCAP_BUILD_TESTS=ON`
 - **Notes**: Requires GoogleTest framework; enables `enable_testing()` and CTest integration
 
+### BUILD_CCAP_CLI
+- **Description**: Build ccap command-line tool
+- **Type**: Boolean (ON/OFF)
+- **Default**: OFF (auto-enabled when CCAP_BUILD_TESTS=ON)
+- **Example**: `-DBUILD_CCAP_CLI=ON`
+- **Notes**: 
+  - Builds the `ccap` CLI tool for camera operations
+  - Additional CLI-specific option: `CCAP_CLI_WITH_GLFW`
+  - Automatically enabled when building tests
+  - See CLI tool documentation for usage details
+
 ## Architecture Options
 
 ### CCAP_FORCE_ARM64
@@ -87,6 +98,12 @@ cmake --build build
 ### Build with examples and tests
 ```bash
 cmake -B build -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=ON
+cmake --build build
+```
+
+### Build with CLI tool
+```bash
+cmake -B build -DBUILD_CCAP_CLI=ON
 cmake --build build
 ```
 
