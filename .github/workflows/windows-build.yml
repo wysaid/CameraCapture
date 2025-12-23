@@ -235,50 +235,48 @@ jobs:
       run: |
         Write-Host "Checking for Visual Studio 2026 on this runner..."
         
-        # Check if VS 2026 is available (stable or preview)
-        $vs2026Path = "C:\Program Files\Microsoft Visual Studio\2026"
-        $vs2026PreviewPath = "C:\Program Files\Microsoft Visual Studio\2026\Preview"
-        $vs2026EnterprisePath = "C:\Program Files\Microsoft Visual Studio\2026\Enterprise"
-        $vs2026ProfessionalPath = "C:\Program Files\Microsoft Visual Studio\2026\Professional"
-        $vs2026CommunityPath = "C:\Program Files\Microsoft Visual Studio\2026\Community"
+        # Use vswhere to check for VS2026 installation
+        $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
         
-        $found = $false
-        if (Test-Path $vs2026PreviewPath) {
-          Write-Host "✓ Visual Studio 2026 Preview found at: $vs2026PreviewPath"
-          $found = $true
-        } elseif (Test-Path $vs2026EnterprisePath) {
-          Write-Host "✓ Visual Studio 2026 Enterprise found at: $vs2026EnterprisePath"
-          $found = $true
-        } elseif (Test-Path $vs2026ProfessionalPath) {
-          Write-Host "✓ Visual Studio 2026 Professional found at: $vs2026ProfessionalPath"
-          $found = $true
-        } elseif (Test-Path $vs2026CommunityPath) {
-          Write-Host "✓ Visual Studio 2026 Community found at: $vs2026CommunityPath"
-          $found = $true
-        } elseif (Test-Path $vs2026Path) {
-          Write-Host "✓ Visual Studio 2026 found at: $vs2026Path"
-          $found = $true
+        # Check for VS2026 installation (version 18.x)
+        $vs2026 = & $vswhere -version "[18.0,19.0)" -property installationPath 2>$null
+        
+        # Also check if v144 toolset exists in any VS installation
+        $vsInstalls = & $vswhere -all -property installationPath 2>$null
+        $v144Found = $false
+        foreach ($install in $vsInstalls) {
+          $v144Path = Join-Path $install "MSBuild\Microsoft\VC\v144"
+          if (Test-Path $v144Path) {
+            $v144Found = $true
+            Write-Host "✓ v144 toolset (VS2026) found at: $v144Path"
+            break
+          }
         }
         
-        if ($found) {
-          echo "VS_2026_AVAILABLE=true" >> $env:GITHUB_ENV
+        if ($vs2026) {
+          echo "VS_2026_AVAILABLE=true" >> $env:GITHUB_OUTPUT
+          Write-Host "✓ Visual Studio 2026 is installed at: $vs2026"
+        } elseif ($v144Found) {
+          echo "VS_2026_AVAILABLE=true" >> $env:GITHUB_OUTPUT
+          Write-Host "✓ Visual Studio 2026 v144 toolset is available"
         } else {
-          Write-Host "ℹ Visual Studio 2026 is not available on this GitHub runner yet."
-          Write-Host "Available Visual Studio installations:"
-          Get-ChildItem "C:\Program Files\Microsoft Visual Studio" -Directory -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "  - $($_.FullName)" }
+          echo "VS_2026_AVAILABLE=false" >> $env:GITHUB_OUTPUT
+          Write-Host "ℹ Visual Studio 2026 (v144 toolset) is not available on this GitHub runner yet."
+          Write-Host ""
+          Write-Host "=== Available Visual Studio Installations (via vswhere) ==="
+          & $vswhere -all -format text
           Write-Host ""
           Write-Host "⏭ Skipping VS2026 build - this job will complete successfully without running the build."
           Write-Host "Once GitHub adds VS2026 to their runners, this job will automatically start building."
-          echo "VS_2026_AVAILABLE=false" >> $env:GITHUB_ENV
         }
         
     - name: Setup latest CMake
-      if: env.VS_2026_AVAILABLE == 'true'
+      if: steps.check-vs2026.outputs.VS_2026_AVAILABLE == 'true'
       # Use @latest to ensure CMake 3.31+ is available, which is required for VS 2026 support
       uses: lukka/get-cmake@latest
       
     - name: Configure CMake with VS2026
-      if: env.VS_2026_AVAILABLE == 'true'
+      if: steps.check-vs2026.outputs.VS_2026_AVAILABLE == 'true'
       run: |
         $SHARED_FLAG = ""
         if ("${{ matrix.library_type }}" -eq "shared") {
@@ -294,23 +292,22 @@ jobs:
         mkdir -p "build/${{ matrix.config }}-${{ matrix.library_type }}"
         cd "build/${{ matrix.config }}-${{ matrix.library_type }}"
         
-        # Try Visual Studio 18 2026 generator
-        try {
-          Write-Host "Attempting to use Visual Studio 18 2026 generator..."
-          cmake ../.. -G "Visual Studio 18 2026" -A x64 -DCCAP_BUILD_TESTS=ON $SHARED_FLAG
-        } catch {
-          Write-Host "Visual Studio 18 2026 generator not available, trying alternative detection..."
-          cmake ../.. -A x64 -DCCAP_BUILD_TESTS=ON $SHARED_FLAG
+        # Use Visual Studio 18 2026 generator with v144 toolset
+        Write-Host "Attempting to use Visual Studio 18 2026 generator..."
+        cmake ../.. -G "Visual Studio 18 2026" -A x64 -T v144 -DCCAP_BUILD_TESTS=ON $SHARED_FLAG
+        if ($LASTEXITCODE -ne 0) {
+          Write-Host "Visual Studio 18 2026 generator not available, trying alternative with v144 toolset..."
+          cmake ../.. -A x64 -T v144 -DCCAP_BUILD_TESTS=ON $SHARED_FLAG
         }
         
     - name: Build
-      if: env.VS_2026_AVAILABLE == 'true'
+      if: steps.check-vs2026.outputs.VS_2026_AVAILABLE == 'true'
       run: |
         cd "build/${{ matrix.config }}-${{ matrix.library_type }}"
         cmake --build . --config ${{ matrix.config }} --parallel
         
     - name: Verify library type
-      if: env.VS_2026_AVAILABLE == 'true'
+      if: steps.check-vs2026.outputs.VS_2026_AVAILABLE == 'true'
       shell: bash
       working-directory: build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}
       run: |
@@ -348,7 +345,7 @@ jobs:
         fi
         
     - name: Test shared library linking (Windows VS2026)
-      if: env.VS_2026_AVAILABLE == 'true' && matrix.library_type == 'shared'
+      if: steps.check-vs2026.outputs.VS_2026_AVAILABLE == 'true' && matrix.library_type == 'shared'
       shell: bash
       working-directory: build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}
       run: |
@@ -419,7 +416,7 @@ jobs:
         fi
       
     - name: Run Unit Tests  
-      if: env.VS_2026_AVAILABLE == 'true'
+      if: steps.check-vs2026.outputs.VS_2026_AVAILABLE == 'true'
       shell: bash
       run: |
         # Create symbolic links to make test script work with new build directory structure
@@ -436,7 +433,7 @@ jobs:
         fi
         
         cd scripts
-        if [ "${{ matrix.config }}" == "Debug" ]; then
+        if [ "${{ matrix.config }}" = "Debug" ]; then
           # Set library path for shared library tests
           if [ "${{ matrix.library_type }}" = "shared" ]; then
             export PATH="$PWD/../build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}:$PATH"
@@ -451,7 +448,7 @@ jobs:
         fi
         
     - name: Upload artifacts
-      if: env.VS_2026_AVAILABLE == 'true'
+      if: steps.check-vs2026.outputs.VS_2026_AVAILABLE == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: ccap-windows-vs2026-${{ matrix.config }}-${{ matrix.library_type }}
@@ -506,7 +503,8 @@ jobs:
         
         mkdir -p "build/${{ matrix.config }}-${{ matrix.library_type }}"
         cd "build/${{ matrix.config }}-${{ matrix.library_type }}"
-        cmake ../.. -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.config }} -DCCAP_BUILD_TESTS=ON $SHARED_FLAG
+        # Disable pthread for GoogleTest on MinGW to avoid AutoHandle compilation errors
+        cmake ../.. -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.config }} -DCCAP_BUILD_TESTS=ON -DGTEST_HAS_PTHREAD=0 $SHARED_FLAG
         
     - name: Build
       shell: msys2 {0}
@@ -569,13 +567,19 @@ jobs:
         echo "✓ Windows shared library linking test with MinGW passed"
       
     - name: Run Unit Tests
-      if: matrix.config == 'Release'
       shell: msys2 {0}
       run: |
         # Create symbolic links to make test script work with new build directory structure
-        mkdir -p build
+        mkdir -p build/tests
+        
+        # Create symbolic link for the config directory
         if [ ! -L "build/${{ matrix.config }}" ]; then
           ln -sf "${{ matrix.config }}-${{ matrix.library_type }}" "build/${{ matrix.config }}"
+        fi
+        
+        # Create symbolic link for the tests directory to match expected path structure
+        if [ ! -L "build/tests/${{ matrix.config }}" ]; then
+          ln -sf "../${{ matrix.config }}-${{ matrix.library_type }}/tests" "build/tests/${{ matrix.config }}"
         fi
         
         cd scripts
@@ -583,7 +587,13 @@ jobs:
         if [ "${{ matrix.library_type }}" = "shared" ]; then
           export PATH="$PWD/../build/${{ matrix.config }}-${{ matrix.library_type }}:$PATH"
         fi
-        ./run_tests.sh --functional --skip-build
+        
+        # Run appropriate tests based on config
+        if [ "${{ matrix.config }}" = "Debug" ]; then
+          ./run_tests.sh --functional --skip-build
+        else
+          ./run_tests.sh --performance --skip-build
+        fi
         
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
