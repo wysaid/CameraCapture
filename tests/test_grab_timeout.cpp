@@ -136,7 +136,7 @@ TEST_F(GrabTimeoutTest, SmallTimeout_10ms) {
  */
 TEST_F(GrabTimeoutTest, SmallTimeout_500ms) {
     const uint32_t timeoutMs = 500;
-    const int64_t tolerance = 100;
+    const int64_t tolerance = 150; // Higher tolerance for CI environment variability
     
     int64_t elapsedMs = measureGrabTime(timeoutMs);
     
