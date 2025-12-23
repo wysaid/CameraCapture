@@ -205,6 +205,42 @@ enum class PropertyName {
      *      It is recommended that users do not set this option, but instead adapt to the orientation information obtained from the Frame.
      */
     FrameOrientation = 0x40000,
+
+    // ============== File Playback Properties (only valid in file mode) ==============
+
+    /**
+     * @brief Video total duration in seconds. Read-only.
+     * @note Only valid when Provider is in file mode (opened with a video file path).
+     *       Returns NaN for camera mode.
+     */
+    Duration = 0x50001,
+
+    /**
+     * @brief Current playback position in seconds. Read/Write.
+     * @note Set this property to seek to a specific time position.
+     *       Only valid in file mode. Returns NaN for camera mode.
+     */
+    CurrentTime = 0x50002,
+
+    /**
+     * @brief Playback speed multiplier. Read/Write. Default is 1.0 (normal speed).
+     * @note Values > 1.0 speed up playback, values < 1.0 slow down.
+     *       Only valid in file mode. Returns NaN for camera mode.
+     */
+    PlaybackSpeed = 0x50003,
+
+    /**
+     * @brief Total number of frames in the video. Read-only.
+     * @note Only valid in file mode. Returns NaN for camera mode.
+     */
+    FrameCount = 0x50004,
+
+    /**
+     * @brief Current frame index (0-based). Read/Write.
+     * @note Set this property to seek to a specific frame.
+     *       Only valid in file mode. Returns NaN for camera mode.
+     */
+    CurrentFrameIndex = 0x50005,
 };
 
 /**
@@ -252,6 +288,17 @@ enum class ErrorCode {
 
     /// Memory allocation failed
     MemoryAllocationFailed = 0x4001,
+
+    // ============== File Playback Errors ==============
+
+    /// Failed to open video file
+    FileOpenFailed = 0x5001,
+
+    /// Video format is not supported
+    UnsupportedVideoFormat = 0x5002,
+
+    /// Seek operation failed
+    SeekFailed = 0x5003,
 
     /// Unknown or internal error
     InternalError = 0x9999,

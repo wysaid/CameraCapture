@@ -64,7 +64,13 @@ typedef enum {
     CCAP_PROPERTY_FRAME_RATE = 0x20000,
     CCAP_PROPERTY_PIXEL_FORMAT_INTERNAL = 0x30001,
     CCAP_PROPERTY_PIXEL_FORMAT_OUTPUT = 0x30002,
-    CCAP_PROPERTY_FRAME_ORIENTATION = 0x40000
+    CCAP_PROPERTY_FRAME_ORIENTATION = 0x40000,
+    /* File playback properties (only valid in file mode) */
+    CCAP_PROPERTY_DURATION = 0x50001,           /**< Video total duration in seconds (read-only) */
+    CCAP_PROPERTY_CURRENT_TIME = 0x50002,       /**< Current playback position in seconds (read/write for seek) */
+    CCAP_PROPERTY_PLAYBACK_SPEED = 0x50003,     /**< Playback speed multiplier (read/write, default 1.0) */
+    CCAP_PROPERTY_FRAME_COUNT = 0x50004,        /**< Total number of frames (read-only) */
+    CCAP_PROPERTY_CURRENT_FRAME_INDEX = 0x50005 /**< Current frame index (read/write for seek) */
 } CcapPropertyName;
 
 /** @brief Error codes for camera capture operations */
@@ -83,6 +89,10 @@ typedef enum {
     CCAP_ERROR_FRAME_CAPTURE_TIMEOUT = 0x3001, /**< Frame capture timeout */
     CCAP_ERROR_FRAME_CAPTURE_FAILED = 0x3002,  /**< Frame capture failed */
     CCAP_ERROR_MEMORY_ALLOCATION_FAILED = 0x4001, /**< Memory allocation failed */
+    /* File playback error codes */
+    CCAP_ERROR_FILE_OPEN_FAILED = 0x5001,      /**< Failed to open video file */
+    CCAP_ERROR_UNSUPPORTED_VIDEO_FORMAT = 0x5002, /**< Video format is not supported */
+    CCAP_ERROR_SEEK_FAILED = 0x5003,           /**< Seek operation failed */
     CCAP_ERROR_INTERNAL_ERROR = 0x9999,        /**< Unknown or internal error */
 } CcapErrorCode;
 
@@ -197,6 +207,13 @@ CCAP_EXPORT bool ccap_provider_open_by_index(CcapProvider* provider, int deviceI
  * @return true if opened, false otherwise
  */
 CCAP_EXPORT bool ccap_provider_is_opened(const CcapProvider* provider);
+
+/**
+ * @brief Check if provider is in file playback mode
+ * @param provider Pointer to CcapProvider instance
+ * @return true if opened with a video file, false if opened with a camera device
+ */
+CCAP_EXPORT bool ccap_provider_is_file_mode(const CcapProvider* provider);
 
 /**
  * @brief Get device information

@@ -110,6 +110,12 @@ public:
     bool isOpened() const;
 
     /**
+     * @brief Check if the provider is in file playback mode.
+     * @return true if opened with a video file path, false if opened with a camera device.
+     */
+    bool isFileMode() const;
+
+    /**
      * @brief Get device info, including current device name, supported resolutions, supported pixel formats, etc.
      * @return DeviceInfo. Should be called after `open` succeeds. If the device is not opened, returns std::nullopt.
      */

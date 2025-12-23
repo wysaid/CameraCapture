@@ -27,6 +27,18 @@ ProviderImp::~ProviderImp() {
 }
 
 bool ProviderImp::set(PropertyName prop, double value) {
+    // Check for file properties first
+    if (m_isFileMode) {
+        switch (prop) {
+        case PropertyName::CurrentTime:
+        case PropertyName::PlaybackSpeed:
+        case PropertyName::CurrentFrameIndex:
+            return setFileProperty(prop, value);
+        default:
+            break;
+        }
+    }
+    
     auto lastProp = m_frameProp;
     switch (prop) {
     case PropertyName::Width:
@@ -74,6 +86,20 @@ bool ProviderImp::set(PropertyName prop, double value) {
 }
 
 double ProviderImp::get(PropertyName prop) {
+    // Check for file properties first
+    if (m_isFileMode) {
+        switch (prop) {
+        case PropertyName::Duration:
+        case PropertyName::CurrentTime:
+        case PropertyName::PlaybackSpeed:
+        case PropertyName::FrameCount:
+        case PropertyName::CurrentFrameIndex:
+            return getFileProperty(prop);
+        default:
+            break;
+        }
+    }
+    
     switch (prop) {
     case PropertyName::Width:
         return static_cast<double>(m_frameProp.width);

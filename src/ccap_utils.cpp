@@ -277,6 +277,12 @@ std::string_view errorCodeToString(ErrorCode errorCode) {
         return "Frame capture failed";
     case ErrorCode::MemoryAllocationFailed:
         return "Memory allocation failed";
+    case ErrorCode::FileOpenFailed:
+        return "Failed to open video file";
+    case ErrorCode::UnsupportedVideoFormat:
+        return "Video format is not supported";
+    case ErrorCode::SeekFailed:
+        return "Seek operation failed";
     case ErrorCode::InternalError:
         return "Unknown or internal error";
     default:
