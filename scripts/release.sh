@@ -2,7 +2,7 @@
 
 # Release script for CameraCapture
 # This script validates version consistency, checks git history, and creates release tags
-# Usage: ./release.sh [-n|--dry-run]
+# Usage: ./release.sh [-n|--dry-run] [--beta|--alpha|--rc [number]]
 
 set -e
 
@@ -15,15 +15,43 @@ NC='\033[0m' # No Color
 
 # Parse command line arguments
 DRY_RUN=false
+PRERELEASE_TYPE=""
+PRERELEASE_NUMBER=""
+
 while [[ $# -gt 0 ]]; do
     case $1 in
     -n | --dry-run)
         DRY_RUN=true
         shift
         ;;
+    --beta | --alpha | --rc)
+        PRERELEASE_TYPE="${1#--}"
+        shift
+        # Check if next argument is a number
+        if [[ $# -gt 0 && "$1" =~ ^[0-9]+$ ]]; then
+            PRERELEASE_NUMBER="$1"
+            shift
+        else
+            PRERELEASE_NUMBER="1"
+        fi
+        ;;
     *)
         echo "Unknown option: $1"
-        echo "Usage: $0 [-n|--dry-run]"
+        echo "Usage: $0 [-n|--dry-run] [--beta|--alpha|--rc [number]]"
+        echo ""
+        echo "Options:"
+        echo "  -n, --dry-run         Run without making actual changes"
+        echo "  --beta [number]       Create beta release (e.g., v1.0.0-beta.1)"
+        echo "  --alpha [number]      Create alpha release (e.g., v1.0.0-alpha.1)"
+        echo "  --rc [number]         Create release candidate (e.g., v1.0.0-rc.1)"
+        echo ""
+        echo "Examples:"
+        echo "  $0                    # Create official release"
+        echo "  $0 --dry-run          # Preview release without changes"
+        echo "  $0 --beta             # Create beta.1 release"
+        echo "  $0 --beta 2           # Create beta.2 release"
+        echo "  $0 --alpha 3          # Create alpha.3 release"
+        echo "  $0 --rc 1             # Create rc.1 release"
         exit 1
         ;;
     esac
@@ -48,14 +76,15 @@ for branch in "${MAIN_BRANCHES[@]}"; do
     fi
 done
 
-# Auto-enable dry-run if not on main branch
+# Check if on main branch - REQUIRED for release (no dry-run bypass)
 if [ "$IS_MAIN_BRANCH" = false ]; then
-    if [ "$DRY_RUN" = false ]; then
-        echo -e "${YELLOW}⚠️  Not on main branch (current: $CURRENT_BRANCH)${NC}"
-        echo -e "${YELLOW}   Automatically enabling DRY-RUN mode for safety${NC}"
-        echo ""
-        DRY_RUN=true
-    fi
+    echo -e "${RED}❌ Error: Release can only be executed from the main branch!${NC}"
+    echo -e "  Current branch: ${RED}$CURRENT_BRANCH${NC}"
+    echo -e "  Required branch: ${GREEN}main${NC} or ${GREEN}master${NC}"
+    echo ""
+    echo -e "${YELLOW}Please switch to the main branch:${NC}"
+    echo -e "  ${GREEN}git checkout main${NC}"
+    exit 1
 fi
 
 # Helper function to get the appropriate GitHub remote
@@ -93,6 +122,11 @@ echo -e "${BLUE}═════════════════════�
 echo ""
 echo -e "  Current branch: ${GREEN}$CURRENT_BRANCH${NC}"
 echo -e "  Using remote: ${GREEN}$GITHUB_REMOTE${NC} ($(git remote get-url "$GITHUB_REMOTE"))"
+if [ -n "$PRERELEASE_TYPE" ]; then
+    echo -e "  Release type: ${YELLOW}Pre-release ($PRERELEASE_TYPE.$PRERELEASE_NUMBER)${NC}"
+else
+    echo -e "  Release type: ${GREEN}Official Release${NC}"
+fi
 echo ""
 
 if [ "$DRY_RUN" = true ]; then
@@ -206,6 +240,13 @@ echo ""
 
 CURRENT_VERSION="$HEADER_VERSION"
 
+# Apply pre-release suffix if specified
+if [ -n "$PRERELEASE_TYPE" ]; then
+    CURRENT_VERSION="${CURRENT_VERSION}-${PRERELEASE_TYPE}.${PRERELEASE_NUMBER}"
+    echo -e "${BLUE}Pre-release version: ${YELLOW}$CURRENT_VERSION${NC}"
+    echo ""
+fi
+
 # ============================================================================
 # Step 3: Check git repository status
 # ============================================================================
@@ -226,7 +267,15 @@ if ! git diff-index --quiet HEAD --; then
     exit 1
 fi
 
-echo -e "${GREEN}✅ Git repository is clean${NC}"
+# Check for untracked files (optional warning)
+UNTRACKED_FILES=$(git ls-files --others --exclude-standard)
+if [ -n "$UNTRACKED_FILES" ]; then
+    echo -e "${YELLOW}⚠️  Warning: Untracked files detected:${NC}"
+    echo "$UNTRACKED_FILES" | sed 's/^/    /'
+    echo ""
+fi
+
+echo -e "${GREEN}✅ Git repository is clean (all changes committed)${NC}"
 echo ""
 
 # ============================================================================
@@ -252,21 +301,41 @@ fi
 echo ""
 
 # ============================================================================
-# Step 5: Check if current version already exists
+# Step 5: Check if version already exists (both locally and remotely)
 # ============================================================================
-echo -e "${BLUE}Step 5: Checking if version already exists in git history...${NC}"
+echo -e "${BLUE}Step 5: Checking if version already exists...${NC}"
 echo ""
 
 RELEASE_TAG="v$CURRENT_VERSION"
 
+# Check local tags
 if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
-    echo -e "${RED}❌ Error: Release tag already exists!${NC}"
+    echo -e "${RED}❌ Error: Release tag already exists locally!${NC}"
     echo -e "  Tag: $RELEASE_TAG"
-    echo -e "  Please update the version number in include/ccap_config.h"
+    echo -e "  Please update the version number or use a different pre-release suffix"
     exit 1
 fi
 
-echo -e "${GREEN}✅ Version $CURRENT_VERSION does not exist in git history${NC}"
+echo -e "${GREEN}✅ Tag does not exist locally${NC}"
+
+# Fetch remote tags to ensure we have the latest
+echo -e "  Fetching remote tags..."
+if ! git fetch "$GITHUB_REMOTE" --tags --quiet 2>/dev/null; then
+    echo -e "${YELLOW}⚠️  Warning: Could not fetch remote tags (continuing anyway)${NC}"
+else
+    echo -e "${GREEN}✅ Remote tags fetched${NC}"
+fi
+
+# Check remote tags
+if git ls-remote --tags "$GITHUB_REMOTE" | grep -q "refs/tags/$RELEASE_TAG$"; then
+    echo -e "${RED}❌ Error: Release tag already exists on remote!${NC}"
+    echo -e "  Remote: $GITHUB_REMOTE"
+    echo -e "  Tag: $RELEASE_TAG"
+    echo -e "  Please update the version number or use a different pre-release suffix"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ Tag does not exist on remote${NC}"
 echo ""
 
 # ============================================================================
@@ -279,6 +348,10 @@ echo ""
 compare_versions() {
     local v1=$1
     local v2=$2
+
+    # Strip any pre-release suffix for comparison (e.g., 1.2.3-beta.1 -> 1.2.3)
+    v1=$(echo "$v1" | sed 's/-.*$//')
+    v2=$(echo "$v2" | sed 's/-.*$//')
 
     # Convert versions to comparable format (e.g., 1.2.3 -> 001002003)
     local v1_parts=(${v1//./ })
@@ -299,19 +372,24 @@ compare_versions() {
 if [ "$LATEST_TAG" != "0.0.0" ]; then
     COMPARE=$(compare_versions "$CURRENT_VERSION" "$LATEST_TAG")
 
-    if [ "$COMPARE" = "equal" ]; then
-        echo -e "${RED}❌ Error: Version is not higher than the latest release!${NC}"
+    if [ "$COMPARE" = "less" ]; then
+        echo -e "${RED}❌ Error: Version must be higher than or equal to existing releases!${NC}"
         echo -e "  Current: $CURRENT_VERSION, Latest: $LATEST_TAG"
         exit 1
-    elif [ "$COMPARE" = "less" ]; then
-        echo -e "${RED}❌ Error: Version must be higher than existing releases!${NC}"
-        echo -e "  Current: $CURRENT_VERSION, Latest: $LATEST_TAG"
-        exit 1
+    elif [ "$COMPARE" = "equal" ]; then
+        # For equal base versions, check if it's a pre-release
+        if [ -z "$PRERELEASE_TYPE" ]; then
+            echo -e "${RED}❌ Error: Version is not higher than the latest release!${NC}"
+            echo -e "  Current: $CURRENT_VERSION, Latest: $LATEST_TAG"
+            exit 1
+        else
+            echo -e "${GREEN}✅ Creating pre-release for version $HEADER_VERSION${NC}"
+        fi
+    else
+        echo -e "  Latest version: $LATEST_TAG"
+        echo -e "  Current version: $CURRENT_VERSION"
+        echo -e "${GREEN}✅ Version is higher than the latest release${NC}"
     fi
-
-    echo -e "  Latest version: $LATEST_TAG"
-    echo -e "  Current version: $CURRENT_VERSION"
-    echo -e "${GREEN}✅ Version is higher than the latest release${NC}"
 else
     echo -e "${GREEN}✅ This is the first release (no previous versions found)${NC}"
 fi
@@ -340,7 +418,12 @@ if [ "$DRY_RUN" = true ]; then
 fi
 
 # Create annotated tag
-if ! git tag -a "$RELEASE_TAG" -m "Release $CURRENT_VERSION"; then
+TAG_MESSAGE="Release $CURRENT_VERSION"
+if [ -n "$PRERELEASE_TYPE" ]; then
+    TAG_MESSAGE="Pre-release $CURRENT_VERSION"
+fi
+
+if ! git tag -a "$RELEASE_TAG" -m "$TAG_MESSAGE"; then
     echo -e "${RED}❌ Error: Failed to create tag $RELEASE_TAG${NC}"
     exit 1
 fi
@@ -355,7 +438,7 @@ if ! git push "$GITHUB_REMOTE" "$RELEASE_TAG"; then
     exit 1
 fi
 
-echo -e "${GREEN}✅ Tag pushed to remote${NC}"
+echo -e "${GREEN}✅ Tag pushed to remote: $GITHUB_REMOTE${NC}"
 echo ""
 
 # ============================================================================
@@ -371,23 +454,20 @@ echo ""
 echo -e "${BLUE}Next steps:${NC}"
 if [ "$DRY_RUN" = true ]; then
     echo -e "  ${YELLOW}This was a DRY-RUN. No actual changes were made.${NC}"
-    if [ "$IS_MAIN_BRANCH" = false ]; then
-        echo ""
-        echo -e "${YELLOW}⚠️  IMPORTANT: Release can only be executed from the main branch!${NC}"
-        echo -e "  Current branch: ${RED}$CURRENT_BRANCH${NC}"
-        echo -e "  Required branch: ${GREEN}main${NC} or ${GREEN}master${NC}"
-        echo ""
-        echo -e "${BLUE}To perform an actual release:${NC}"
-        echo -e "  1. Switch to the main branch: ${GREEN}git checkout main${NC}"
-        echo -e "  2. Ensure you have the latest changes: ${GREEN}git pull${NC}"
-        echo -e "  3. Run the release script again: ${GREEN}./scripts/release.sh${NC}"
-        echo ""
+    echo ""
+    echo -e "${BLUE}To perform an actual release:${NC}"
+    if [ -n "$PRERELEASE_TYPE" ]; then
+        echo -e "  ${GREEN}./scripts/release.sh --$PRERELEASE_TYPE $PRERELEASE_NUMBER${NC} (without --dry-run)"
     else
-        echo -e "  To perform an actual release: ${GREEN}./scripts/release.sh${NC} (without --dry-run)"
+        echo -e "  ${GREEN}./scripts/release.sh${NC} (without --dry-run)"
     fi
 else
     echo -e "  1. GitHub Actions will automatically build and create a release"
     echo -e "  2. Monitor the workflow at: https://github.com/wysaid/CameraCapture/actions"
     echo -e "  3. Verify the release at: https://github.com/wysaid/CameraCapture/releases/tag/$RELEASE_TAG"
+    if [ -n "$PRERELEASE_TYPE" ]; then
+        echo ""
+        echo -e "${YELLOW}Note: This is a pre-release and will be marked as such on GitHub${NC}"
+    fi
 fi
 echo ""
