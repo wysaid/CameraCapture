@@ -50,6 +50,7 @@ jobs:
               -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
               -DCCAP_BUILD_EXAMPLES=ON \
               -DCCAP_BUILD_TESTS=ON \
+              -DBUILD_CCAP_CLI=ON \
               $SHARED_FLAG
     
     - name: Build
@@ -196,6 +197,7 @@ jobs:
               -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
               -DCCAP_BUILD_EXAMPLES=ON \
               -DCCAP_BUILD_TESTS=ON \
+              -DBUILD_CCAP_CLI=ON \
               $SHARED_FLAG
     
     - name: Build
@@ -296,6 +298,7 @@ jobs:
               -DCMAKE_CROSSCOMPILING=ON \
               -DCCAP_BUILD_EXAMPLES=ON \
               -DCCAP_BUILD_TESTS=ON \
+              -DBUILD_CCAP_CLI=ON \
               $SHARED_FLAG
   
     - name: Build ARM64
@@ -412,6 +415,7 @@ jobs:
               -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
               -DCCAP_BUILD_EXAMPLES=ON \
               -DCCAP_BUILD_TESTS=ON \
+              -DBUILD_CCAP_CLI=ON \
               $SHARED_FLAG
     
     - name: Build

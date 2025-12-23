@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "ccap"
-  s.version      = "1.3.4"
+  s.version      = "1.4.0"
   s.summary      = "CameraCapture And Player"
   s.description  = <<-DESC
 Pod of https://github.com/wysaid/CameraCapture

@@ -82,6 +82,82 @@
             }
         },
         {
+            "label": "Config: Enable CLI Tool",
+            "type": "process",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "if [ ! -f dev.cmake ]; then cp cmake/dev.cmake.example dev.cmake; fi && perl -i -pe 's/^(# )?set\\(BUILD_CCAP_CLI \\w+\\)/set(BUILD_CCAP_CLI ON)/ if $.==9' dev.cmake && echo BUILD_CCAP_CLI=ON"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Config: Disable CLI Tool",
+            "type": "process",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "if [ ! -f dev.cmake ]; then cp cmake/dev.cmake.example dev.cmake; fi && perl -i -pe 's/^(# )?set\\(BUILD_CCAP_CLI \\w+\\)/set(BUILD_CCAP_CLI OFF)/ if $.==9' dev.cmake && echo BUILD_CCAP_CLI=OFF"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Config: Enable CLI Tool and Reload",
+            "type": "shell",
+            "command": "echo",
+            "args": [
+                "CLI Tool Enabled and Project Reloaded"
+            ],
+            "group": "build",
+            "dependsOn": [
+                "Config: Enable CLI Tool",
+                "Load Project"
+            ],
+            "dependsOrder": "sequence"
+        },
+        {
+            "label": "Config: Disable CLI Tool and Reload",
+            "type": "shell",
+            "command": "echo",
+            "args": [
+                "CLI Tool Disabled and Project Reloaded"
+            ],
+            "group": "build",
+            "dependsOn": [
+                "Config: Disable CLI Tool",
+                "Load Project"
+            ],
+            "dependsOrder": "sequence"
+        },
+        {
+            "label": "Config: Remove dev.cmake",
+            "type": "shell",
+            "command": "rm",
+            "args": [
+                "-f",
+                "dev.cmake"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": [],
+            "windows": {
+                "command": "cmd",
+                "args": ["/c", "if exist dev.cmake del dev.cmake"]
+            }
+        },
+        {
             "label": "Reload Project",
             "type": "shell",
             "command": "echo",
@@ -896,6 +972,206 @@
             ],
             "windows": {
                 "command": ".\\4-example_with_glfw_c.exe",
+                "problemMatcher": "$msCompile"
+            }
+        },
+        {
+            "label": "Run ccap CLI --help (Debug)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./ccap.exe --help; else ./ccap --help; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Debug"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Config: Enable CLI Tool",
+                "Build Project (Debug)"
+            ],
+            "dependsOrder": "sequence",
+            "windows": {
+                "command": ".\\ccap.exe",
+                "args": ["--help"],
+                "problemMatcher": "$msCompile"
+            }
+        },
+        {
+            "label": "Run ccap CLI --list-devices (Debug)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./ccap.exe --list-devices; else ./ccap --list-devices; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Debug"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Config: Enable CLI Tool",
+                "Build Project (Debug)"
+            ],
+            "dependsOrder": "sequence",
+            "windows": {
+                "command": ".\\ccap.exe",
+                "args": ["--list-devices"],
+                "problemMatcher": "$msCompile"
+            }
+        },
+        {
+            "label": "Run ccap CLI --preview (Debug)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./ccap.exe -d 0 --preview; else ./ccap -d 0 --preview; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Debug"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Config: Enable CLI Tool",
+                "Build Project (Debug)"
+            ],
+            "dependsOrder": "sequence",
+            "windows": {
+                "command": ".\\ccap.exe",
+                "args": ["-d", "0", "--preview"],
+                "problemMatcher": "$msCompile"
+            }
+        },
+        {
+            "label": "Run ccap CLI capture (Debug)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./ccap.exe -d 0 -c 5 -o ./captures; else ./ccap -d 0 -c 5 -o ./captures; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Debug"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Config: Enable CLI Tool",
+                "Build Project (Debug)"
+            ],
+            "dependsOrder": "sequence",
+            "windows": {
+                "command": ".\\ccap.exe",
+                "args": ["-d", "0", "-c", "5", "-o", ".\\captures"],
+                "problemMatcher": "$msCompile"
+            }
+        },
+        {
+            "label": "Run ccap CLI --help (Release)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./ccap.exe --help; else ./ccap --help; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Release"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Config: Enable CLI Tool",
+                "Build Project (Release)"
+            ],
+            "dependsOrder": "sequence",
+            "windows": {
+                "command": ".\\ccap.exe",
+                "args": ["--help"],
+                "problemMatcher": "$msCompile"
+            }
+        },
+        {
+            "label": "Run ccap CLI --list-devices (Release)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./ccap.exe --list-devices; else ./ccap --list-devices; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Release"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Config: Enable CLI Tool",
+                "Build Project (Release)"
+            ],
+            "dependsOrder": "sequence",
+            "windows": {
+                "command": ".\\ccap.exe",
+                "args": ["--list-devices"],
+                "problemMatcher": "$msCompile"
+            }
+        },
+        {
+            "label": "Run ccap CLI --preview (Release)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./ccap.exe -d 0 --preview; else ./ccap -d 0 --preview; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Release"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Config: Enable CLI Tool",
+                "Build Project (Release)"
+            ],
+            "dependsOrder": "sequence",
+            "windows": {
+                "command": ".\\ccap.exe",
+                "args": ["-d", "0", "--preview"],
+                "problemMatcher": "$msCompile"
+            }
+        },
+        {
+            "label": "Run ccap CLI capture (Release)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./ccap.exe -d 0 -c 5 -o ./captures; else ./ccap -d 0 -c 5 -o ./captures; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Release"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Config: Enable CLI Tool",
+                "Build Project (Release)"
+            ],
+            "dependsOrder": "sequence",
+            "windows": {
+                "command": ".\\ccap.exe",
+                "args": ["-d", "0", "-c", "5", "-o", ".\\captures"],
                 "problemMatcher": "$msCompile"
             }
         }

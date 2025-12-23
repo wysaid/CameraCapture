@@ -7,6 +7,7 @@
 
 #include "ccap_c.h"
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -17,7 +18,7 @@ bool frame_callback(const CcapVideoFrame* frame, void* userData) {
 
     CcapVideoFrameInfo frameInfo;
     if (ccap_video_frame_get_info(frame, &frameInfo)) {
-        printf("Frame %d: %dx%d, format=%d, timestamp=%llu\n",
+        printf("Frame %d: %dx%d, format=%d, timestamp=%" PRIu64 "\n",
                frameCount, frameInfo.width, frameInfo.height,
                frameInfo.pixelFormat, frameInfo.timestamp);
     }

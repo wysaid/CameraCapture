@@ -99,5 +99,89 @@
                 "MIMode": "lldb"
             }
         },
+        {
+            "name": "(Windows) Debug ccap CLI --help",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/ccap.exe",
+            "args": ["--help"],
+            "cwd": "${workspaceFolder}/build/Debug",
+            "preLaunchTask": "Build Project (Debug)"
+        },
+        {
+            "name": "(Windows) Debug ccap CLI --list-devices",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/ccap.exe",
+            "args": ["--list-devices"],
+            "cwd": "${workspaceFolder}/build/Debug",
+            "preLaunchTask": "Build Project (Debug)"
+        },
+        {
+            "name": "(Windows) Debug ccap CLI --preview",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/ccap.exe",
+            "args": ["-d", "0", "--preview"],
+            "cwd": "${workspaceFolder}/build/Debug",
+            "preLaunchTask": "Build Project (Debug)"
+        },
+        {
+            "name": "(Windows) Debug ccap CLI capture",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/ccap.exe",
+            "args": ["-d", "0", "-c", "5", "-o", ".\\captures"],
+            "cwd": "${workspaceFolder}/build/Debug",
+            "preLaunchTask": "Build Project (Debug)"
+        },
+        {
+            "name": "(gdb) Debug ccap CLI --help",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/ccap",
+            "args": ["--help"],
+            "cwd": "${workspaceFolder}/build/Debug",
+            "preLaunchTask": "Build Project (Debug)",
+            "osx": {
+                "MIMode": "lldb"
+            }
+        },
+        {
+            "name": "(gdb) Debug ccap CLI --list-devices",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/ccap",
+            "args": ["--list-devices"],
+            "cwd": "${workspaceFolder}/build/Debug",
+            "preLaunchTask": "Build Project (Debug)",
+            "osx": {
+                "MIMode": "lldb"
+            }
+        },
+        {
+            "name": "(gdb) Debug ccap CLI --preview",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/ccap",
+            "args": ["-d", "0", "--preview"],
+            "cwd": "${workspaceFolder}/build/Debug",
+            "preLaunchTask": "Build Project (Debug)",
+            "osx": {
+                "MIMode": "lldb"
+            }
+        },
+        {
+            "name": "(gdb) Debug ccap CLI capture",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/ccap",
+            "args": ["-d", "0", "-c", "5", "-o", "./captures"],
+            "cwd": "${workspaceFolder}/build/Debug",
+            "preLaunchTask": "Build Project (Debug)",
+            "osx": {
+                "MIMode": "lldb"
+            }
+        }
     ]
 }

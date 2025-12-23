@@ -57,7 +57,9 @@ elseif(NOT MSVC)
     message(STATUS "CMAKE_BUILD_TYPE is set to ${CMAKE_BUILD_TYPE}")
 endif()
 
-if(CCAP_IS_ROOT_PROJECT AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/dev.cmake)
+# Load local development settings if available (ignored by git)
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/dev.cmake)
+    message(STATUS "ccap: Loading dev.cmake for local development settings")
     include(${CMAKE_CURRENT_SOURCE_DIR}/dev.cmake)
 endif()
 
@@ -230,11 +232,20 @@ if(CCAP_BUILD_EXAMPLES)
 endif()
 
 # ############### CLI Tool ################
-option(CCAP_BUILD_CLI "Build ccap CLI tool" ${CCAP_IS_ROOT_PROJECT})
-message(STATUS "ccap: CCAP_BUILD_CLI=${CCAP_BUILD_CLI}")
+# Default: OFF (can be enabled via -DBUILD_CCAP_CLI=ON)
+# Auto-enabled when CCAP_BUILD_TESTS=ON
+option(BUILD_CCAP_CLI "Build ccap CLI tool" OFF)
 
-if(CCAP_BUILD_CLI)
-    add_subdirectory(cli)
+# Auto-enable CLI when building tests
+if(CCAP_BUILD_TESTS AND NOT BUILD_CCAP_CLI)
+    message(STATUS "ccap: Enabling BUILD_CCAP_CLI for tests")
+    set(BUILD_CCAP_CLI ON CACHE BOOL "Build ccap CLI tool (auto-enabled for tests)" FORCE)
+endif()
+
+message(STATUS "ccap: BUILD_CCAP_CLI=${BUILD_CCAP_CLI}")
+
+if(BUILD_CCAP_CLI)
+    include(cli/ccap-cli.cmake)
 endif()
 
 # ############### Tests ################

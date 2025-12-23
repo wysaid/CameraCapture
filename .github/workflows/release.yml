@@ -375,8 +375,232 @@ jobs:
         path: ${{ matrix.artifact_name }}.*
         retention-days: 5
 
+  build-cli:
+    name: Build CLI Tool
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Static-only Release builds for CLI tool
+          - os: macos-latest
+            name: macOS CLI
+            artifact_name: ccap-cli-macos-universal
+            build_type: Release
+            
+          - os: windows-latest
+            name: Windows CLI
+            artifact_name: ccap-cli-msvc-x86_64
+            build_type: Release
+            
+          - os: ubuntu-latest
+            name: Linux CLI
+            artifact_name: ccap-cli-linux-x86_64
+            build_type: Release
+            
+          - os: ubuntu-latest
+            name: Linux ARM64 CLI
+            artifact_name: ccap-cli-linux-arm64
+            build_type: Release
+            arch: arm64
+            
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+        
+    - name: Setup cross-compilation for ARM64
+      if: matrix.arch == 'arm64'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+        
+    - name: Setup Visual Studio (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: microsoft/setup-msbuild@v1.1
+      
+    - name: Install Linux dependencies
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential gcc
+        
+    - name: Configure CMake
+      shell: bash
+      run: |
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          # Windows: Use multi-config generator (Visual Studio)
+          cmake -B build -G "Visual Studio 17 2022" -A x64 \
+                -DCCAP_BUILD_EXAMPLES=OFF \
+                -DCCAP_BUILD_TESTS=OFF \
+                -DCCAP_BUILD_SHARED=OFF \
+                -DBUILD_CCAP_CLI=ON
+        elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          # Linux: Use single-config generator
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            # ARM64 cross-compilation
+            cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+              -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+              -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+              -DCMAKE_SYSTEM_NAME=Linux \
+              -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+              -DCCAP_BUILD_EXAMPLES=OFF \
+              -DCCAP_BUILD_TESTS=OFF \
+              -DCCAP_BUILD_SHARED=OFF \
+              -DBUILD_CCAP_CLI=ON
+          else
+            # Regular Linux x86_64
+            cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+                  -DCCAP_BUILD_EXAMPLES=OFF \
+                  -DCCAP_BUILD_TESTS=OFF \
+                  -DCCAP_BUILD_SHARED=OFF \
+                  -DBUILD_CCAP_CLI=ON
+          fi
+        else
+          # macOS: Use single-config generator with universal binary
+          cmake -B build -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64' \
+                -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+                -DCCAP_BUILD_EXAMPLES=OFF \
+                -DCCAP_BUILD_TESTS=OFF \
+                -DCCAP_BUILD_SHARED=OFF \
+                -DBUILD_CCAP_CLI=ON
+        fi
+        
+    - name: Build CLI
+      shell: bash
+      run: |
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          # Windows: Build Release version only
+          cmake --build build --config Release --target ccap-cli --parallel
+        else
+          # Other platforms: Build specified version
+          cmake --build build --config ${{ matrix.build_type }} --target ccap-cli --parallel
+        fi
+        
+    - name: Prepare CLI package directory
+      shell: bash
+      run: |
+        mkdir -p cli-package
+        
+    - name: Copy CLI executable (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: bash
+      run: |
+        # Copy CLI executable (renamed from ccap.exe to ccap-cli.exe for clarity)
+        cp build/Release/ccap.exe cli-package/ccap-cli.exe || echo "CLI executable not found"
+        
+        # Copy required DLLs if any
+        # Note: Static build should not need additional DLLs
+        
+    - name: Copy CLI executable (macOS)
+      if: matrix.os == 'macos-latest'
+      shell: bash
+      run: |
+        # Copy CLI executable (renamed from ccap to ccap-cli for clarity)
+        cp build/ccap cli-package/ccap-cli || echo "CLI executable not found"
+        
+        # Verify universal binary
+        if [ -f "cli-package/ccap-cli" ]; then
+          file cli-package/ccap-cli
+          lipo -info cli-package/ccap-cli
+        fi
+        
+    - name: Copy CLI executable (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      shell: bash
+      run: |
+        # Copy CLI executable (renamed from ccap to ccap-cli for clarity)
+        cp build/ccap cli-package/ccap-cli || echo "CLI executable not found"
+        
+        # Verify architecture
+        if [ -f "cli-package/ccap-cli" ]; then
+          file cli-package/ccap-cli
+        fi
+        
+    - name: Copy documentation
+      shell: bash
+      run: |
+        # Copy README files
+        cp README.md cli-package/ || echo "README not found"
+        cp README.zh-CN.md cli-package/ || echo "Chinese README not found"
+        cp LICENSE cli-package/ || echo "LICENSE not found"
+        
+        # Create a simple usage guide for CLI
+        cat > cli-package/USAGE.md << 'EOF'
+        # ccap CLI Tool Usage
+        
+        ## Quick Start
+        
+        ```bash
+        # List all available cameras
+        ./ccap-cli --list-devices
+        
+        # Capture a single frame (saves as output.bmp by default)
+        ./ccap-cli
+        
+        # Capture with specific device
+        ./ccap-cli --device 0
+        
+        # Capture with specific resolution
+        ./ccap-cli --width 1920 --height 1080
+        
+        # Capture with specific pixel format
+        ./ccap-cli --format YUYV
+        
+        # Capture with internal format (camera native format)
+        ./ccap-cli --internal-format MJPEG
+        
+        # Capture multiple frames
+        ./ccap-cli --count 10
+        
+        # Save to specific file
+        ./ccap-cli --output my-capture.bmp
+        
+        # Preview window (if compiled with GLFW support)
+        ./ccap-cli --preview
+        ```
+        
+        ## Available Options
+        
+        Run `./ccap-cli --help` for complete list of options.
+        
+        ## System Requirements
+        
+        - **macOS**: 10.13 or higher
+        - **Windows**: Windows 10 or higher
+        - **Linux**: Modern Linux distribution with V4L2 support (kernel 2.6+)
+        
+        ## Notes
+        
+        - This CLI tool is statically linked and has no external dependencies
+        - BMP format is the only supported output format
+        - For more advanced usage, please refer to the ccap library documentation
+        EOF
+        
+    - name: Create CLI archive
+      shell: bash
+      run: |
+        cd cli-package
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          # Windows: Create ZIP file
+          7z a ../${{ matrix.artifact_name }}.zip ./*
+        else
+          # macOS and Linux: Create tar.gz file
+          tar -czf ../${{ matrix.artifact_name }}.tar.gz .
+        fi
+        cd ..
+        
+    - name: Upload CLI artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: ${{ matrix.artifact_name }}.*
+        retention-days: 5
+
   release:
-    needs: [test, build]
+    needs: [test, build, build-cli]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -446,6 +670,8 @@ jobs:
         
         ### 📦 Downloads
         
+        **Library Packages:**
+        
         **Static Library Packages (for static linking):**
         - **macOS** (Universal Binary - supports Intel & Apple Silicon): `ccap-macos-universal-static.tar.gz`
         - **Windows** (MSVC x64 - includes Debug and Release versions): `ccap-msvc-x86_64-static.zip`
@@ -457,6 +683,14 @@ jobs:
         - **Windows** (MSVC x64 - includes Debug and Release versions): `ccap-msvc-x86_64-shared.zip`
         - **Linux x86_64** (compatible with most distributions): `ccap-linux-x86_64-shared.tar.gz`
         - **Linux ARM64** (compatible with Raspberry Pi, ARM servers, and other ARM64 boards): `ccap-linux-arm64-shared.tar.gz`
+        
+        **CLI Tool Packages (standalone command-line tool):**
+        - **macOS** (Universal Binary): `ccap-cli-macos-universal.tar.gz`
+        - **Windows** (x64): `ccap-cli-msvc-x86_64.zip`
+        - **Linux x86_64**: `ccap-cli-linux-x86_64.tar.gz`
+        - **Linux ARM64**: `ccap-cli-linux-arm64.tar.gz`
+        
+        > **CLI Tool**: The CLI packages contain only the standalone `ccap-cli` executable (statically linked). Perfect for quick testing and simple capture tasks without requiring library integration.
         
         ### 📁 Package Contents
         
@@ -511,6 +745,19 @@ jobs:
            - **Linux ARM64**: Link `lib/libccap.so`, ensure so is in LD_LIBRARY_PATH or install location
         5. Refer to example code in the `examples` directory
         
+        **For CLI Tool:**
+        1. Download the appropriate CLI package for your platform
+        2. Extract the archive
+        3. Run the `ccap-cli` executable directly (no installation required):
+           ```bash
+           # List available cameras
+           ./ccap-cli --list-devices
+           
+           # Capture a frame
+           ./ccap-cli --output my-capture.bmp
+           ```
+        4. See `USAGE.md` in the package for complete usage guide
+        
         ### 📋 System Requirements
         
         - **macOS**: 10.13 or higher
@@ -533,6 +780,8 @@ jobs:
         files: |
           */ccap-*.zip
           */ccap-*.tar.gz
+          */ccap-cli-*.zip
+          */ccap-cli-*.tar.gz
         draft: false
         prerelease: ${{ steps.release_type.outputs.prerelease }}
         generate_release_notes: true
@@ -569,5 +818,11 @@ jobs:
         echo "- ccap-msvc-x86_64-shared.zip (includes Debug and Release versions)" >> $GITHUB_STEP_SUMMARY
         echo "- ccap-linux-x86_64-shared.tar.gz" >> $GITHUB_STEP_SUMMARY
         echo "- ccap-linux-arm64-shared.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**CLI Tool Packages:**" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-cli-macos-universal.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-cli-msvc-x86_64.zip" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-cli-linux-x86_64.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-cli-linux-arm64.tar.gz" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "Release page: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.release_type.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY

@@ -139,6 +139,53 @@ target_link_libraries(
 # Add LibYUV include directory for performance test
 target_include_directories(ccap_performance_test PRIVATE ${libyuv_SOURCE_DIR}/include)
 
+# CLI test executable - integration tests that invoke ccap-cli command
+if(BUILD_CCAP_CLI)
+    add_executable(
+        ccap_cli_test
+        test_ccap_cli.cpp
+    )
+
+    target_link_libraries(
+        ccap_cli_test
+        PRIVATE
+        ccap_test_utils
+        gtest
+        gmock
+    )
+    
+    # Test depends on ccap-cli being built
+    add_dependencies(ccap_cli_test ccap-cli)
+
+    set_target_properties(ccap_cli_test PROPERTIES
+        CXX_STANDARD 17
+        CXX_STANDARD_REQUIRED ON
+    )
+
+    target_compile_definitions(ccap_cli_test PRIVATE
+        $<$<CONFIG:Debug>:DEBUG>
+        $<$<CONFIG:Release>:NDEBUG>
+        $<$<NOT:$<BOOL:${MSVC}>>:GTEST_HAS_PTHREAD=1>
+    )
+
+    if(MSVC)
+        target_compile_options(ccap_cli_test PRIVATE
+            /MP
+            /std:c++17
+            /Zc:__cplusplus
+            /Zc:preprocessor
+            /source-charset:utf-8
+            /bigobj
+            /wd4996
+            /D_CRT_SECURE_NO_WARNINGS
+        )
+    else()
+        target_compile_options(ccap_cli_test PRIVATE
+            -std=c++17
+        )
+    endif()
+endif()
+
 # Enable testing before any test registration
 enable_testing()
 
@@ -153,6 +200,9 @@ if(NOT CMAKE_CROSSCOMPILING)
     gtest_discover_tests(ccap_performance_test DISCOVERY_MODE PRE_TEST)
     if(WIN32)
         gtest_discover_tests(ccap_guid_test DISCOVERY_MODE PRE_TEST)
+    endif()
+    if(BUILD_CCAP_CLI)
+        gtest_discover_tests(ccap_cli_test DISCOVERY_MODE PRE_TEST)
     endif()
 else()
     message(STATUS "CMAKE_CROSSCOMPILING is ON: skipping GoogleTest discovery at configure time.")

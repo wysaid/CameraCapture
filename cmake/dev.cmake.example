@@ -1,0 +1,33 @@
+# dev.cmake.example
+# Copy this file to dev.cmake and customize your local development settings.
+# The dev.cmake file is ignored by git and won't affect other developers.
+
+# Build configuration options
+# Uncomment and set to ON/OFF as needed:
+
+# Build ccap CLI tool (default: OFF)
+# set(BUILD_CCAP_CLI ON)
+
+# Build examples (default: ON when root project)
+# set(CCAP_BUILD_EXAMPLES ON)
+
+# Build tests (default: OFF)
+# set(CCAP_BUILD_TESTS ON)
+
+# Build as shared library (default: OFF)
+# set(CCAP_BUILD_SHARED ON)
+
+# Disable logging (default: OFF)
+# set(CCAP_NO_LOG ON)
+
+# Skip device verification on Windows for buggy camera drivers (default: OFF)
+# set(CCAP_WIN_NO_DEVICE_VERIFY ON)
+
+# CLI-specific options (only effective when BUILD_CCAP_CLI is ON)
+
+# Enable GLFW window preview for CLI tool (default: ON)
+# set(CCAP_CLI_WITH_GLFW ON)
+
+# Force ARM64 architecture compilation (default: OFF)
+# set(CCAP_FORCE_ARM64 ON)
+

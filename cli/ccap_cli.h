@@ -38,6 +38,7 @@ struct CLIOptions {
     int timeoutMs = 5000;
     std::string outputDir;
     ccap::PixelFormat outputFormat = ccap::PixelFormat::Unknown;
+    ccap::PixelFormat internalFormat = ccap::PixelFormat::Unknown;
     bool saveYuv = false;
 
     // Preview options (only when GLFW is enabled)
@@ -109,7 +110,7 @@ int showDeviceInfo(int deviceIndex);
 bool saveFrameToFile(ccap::VideoFrame* frame, const std::string& outputPath, bool saveAsYuv);
 
 /**
- * @brief Save a video frame as an image file
+ * @brief Save a video frame as BMP image file
  * @param frame Video frame to save
  * @param outputPath Output file path (without extension)
  * @return true on success, false on error
@@ -138,16 +139,6 @@ int runPreview(const CLIOptions& opts);
  * @return 0 on success, non-zero on error
  */
 int convertYuvToImage(const CLIOptions& opts);
-
-#ifdef CCAP_CLI_WITH_WUFFS
-/**
- * @brief Save frame using wuffs library (supports more formats)
- * @param frame Video frame to save
- * @param outputPath Output file path (without extension)
- * @return true on success, false on error
- */
-bool saveFrameWithWuffs(ccap::VideoFrame* frame, const std::string& outputPath);
-#endif
 
 } // namespace ccap_cli
 

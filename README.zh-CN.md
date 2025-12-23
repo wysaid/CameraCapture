@@ -32,6 +32,7 @@
 - **跨平台**：Windows（DirectShow）、macOS/iOS（AVFoundation）、Linux（V4L2）
 - **多种格式**：RGB、BGR、YUV（NV12/I420）及自动转换
 - **双语言接口**：✨ **新增完整纯 C 接口**，同时提供现代化 C++ API 和传统 C99 接口，支持各种项目集成和语言绑定
+- **命令行工具**：功能强大的命令行工具，支持相机操作（[文档](./cli/README.zh-CN.md)）
 - **生产就绪**：完整测试套件，95%+ 精度验证
 - **虚拟相机支持**：兼容 OBS Virtual Camera 等工具
 

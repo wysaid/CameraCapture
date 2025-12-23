@@ -1,47 +1,39 @@
-# cli/CMakeLists.txt
+# ccap-cli.cmake
 # CMake configuration for ccap CLI tool
-cmake_minimum_required(VERSION 3.14)
 
 # CLI-specific options (only available when building CLI)
 option(CCAP_CLI_WITH_GLFW "Enable GLFW window preview for CLI tool" ON)
-option(CCAP_CLI_WITH_WUFFS "Enable wuffs library for additional image format support" OFF)
 
 message(STATUS "ccap CLI: CCAP_CLI_WITH_GLFW=${CCAP_CLI_WITH_GLFW}")
-message(STATUS "ccap CLI: CCAP_CLI_WITH_WUFFS=${CCAP_CLI_WITH_WUFFS}")
 
-set(CLI_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(CLI_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cli)
 
 # CLI source files
 set(CLI_SOURCES
     ${CLI_SOURCE_DIR}/ccap_cli.cpp
 )
 
-# Add wuffs source if enabled
-if(CCAP_CLI_WITH_WUFFS)
-    list(APPEND CLI_SOURCES ${CLI_SOURCE_DIR}/ccap_cli_wuffs.cpp)
-endif()
-
 # Create CLI executable
-add_executable(ccap_tool ${CLI_SOURCES})
+add_executable(ccap-cli ${CLI_SOURCES})
 
 # Set output name to 'ccap' for the CLI tool
-set_target_properties(ccap_tool PROPERTIES
+set_target_properties(ccap-cli PROPERTIES
     OUTPUT_NAME "ccap"
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED ON
 )
 
 # Link against ccap library
-target_link_libraries(ccap_tool PRIVATE ccap)
+target_link_libraries(ccap-cli PRIVATE ccap)
 
 # Include directories
-target_include_directories(ccap_tool PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
+target_include_directories(ccap-cli PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CLI_SOURCE_DIR}
 )
 
 # Compile definitions
-target_compile_definitions(ccap_tool PRIVATE
+target_compile_definitions(ccap-cli PRIVATE
     _CRT_SECURE_NO_WARNINGS=1
 )
 
@@ -74,7 +66,7 @@ if(CCAP_CLI_WITH_GLFW)
             set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
 
             # Use bundled GLFW from examples
-            set(GLFW_DIR ${CMAKE_SOURCE_DIR}/examples/desktop/glfw)
+            set(GLFW_DIR ${CMAKE_CURRENT_SOURCE_DIR}/examples/desktop/glfw)
             if(EXISTS ${GLFW_DIR}/CMakeLists.txt)
                 add_subdirectory(${GLFW_DIR} ${CMAKE_BINARY_DIR}/glfw_cli EXCLUDE_FROM_ALL)
                 set(GLFW_CLI_AVAILABLE ON)
@@ -87,21 +79,21 @@ if(CCAP_CLI_WITH_GLFW)
     endif()
 
     if(GLFW_CLI_AVAILABLE)
-        target_compile_definitions(ccap_tool PRIVATE CCAP_CLI_WITH_GLFW=1)
-        target_link_libraries(ccap_tool PRIVATE ${GLFW_CLI_TARGET})
+        target_compile_definitions(ccap-cli PRIVATE CCAP_CLI_WITH_GLFW=1)
+        target_link_libraries(ccap-cli PRIVATE ${GLFW_CLI_TARGET})
 
         # Include GLAD and GLFW headers
-        target_include_directories(ccap_tool PRIVATE
-            ${CMAKE_SOURCE_DIR}/examples/desktop/glad
-            ${CMAKE_SOURCE_DIR}/examples/desktop/glfw/include
-            ${CMAKE_SOURCE_DIR}/examples/desktop
+        target_include_directories(ccap-cli PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/examples/desktop/glad
+            ${CMAKE_CURRENT_SOURCE_DIR}/examples/desktop/glfw/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/examples/desktop
         )
 
         # Platform-specific OpenGL linking
         if(APPLE)
-            target_link_libraries(ccap_tool PRIVATE "-framework OpenGL")
+            target_link_libraries(ccap-cli PRIVATE "-framework OpenGL")
         elseif(WIN32)
-            target_link_libraries(ccap_tool PRIVATE opengl32)
+            target_link_libraries(ccap-cli PRIVATE opengl32)
         endif()
 
         message(STATUS "ccap CLI: GLFW preview enabled")
@@ -110,46 +102,20 @@ if(CCAP_CLI_WITH_GLFW)
     endif()
 endif()
 
-# Wuffs setup for additional image format support
-if(CCAP_CLI_WITH_WUFFS)
-    include(FetchContent)
-
-    message(STATUS "ccap CLI: Fetching wuffs library...")
-
-    FetchContent_Declare(
-        wuffs
-        GIT_REPOSITORY https://github.com/google/wuffs.git
-        GIT_TAG v0.4.0-alpha.8
-        EXCLUDE_FROM_ALL
-    )
-
-    FetchContent_MakeAvailable(wuffs)
-
-    target_compile_definitions(ccap_tool PRIVATE CCAP_CLI_WITH_WUFFS=1)
-    target_include_directories(ccap_tool PRIVATE ${wuffs_SOURCE_DIR}/release/c)
-
-    message(STATUS "ccap CLI: wuffs library enabled for additional image formats")
-endif()
-
 # MSVC-specific settings
 if(MSVC)
-    target_compile_options(ccap_tool PRIVATE
+    target_compile_options(ccap-cli PRIVATE
         /MP
-        /std:c++17
         /Zc:__cplusplus
         /Zc:preprocessor
         /source-charset:utf-8
         /wd4996
     )
-else()
-    target_compile_options(ccap_tool PRIVATE
-        -std=c++17
-    )
 endif()
 
 # Installation
 if(CCAP_INSTALL)
-    install(TARGETS ccap_tool
+    install(TARGETS ccap-cli
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
 endif()
