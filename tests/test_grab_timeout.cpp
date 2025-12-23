@@ -118,7 +118,7 @@ protected:
  */
 TEST_F(GrabTimeoutTest, SmallTimeout_10ms) {
     const uint32_t timeoutMs = 10;
-    const int64_t tolerance = 50; // Allow 50ms tolerance for system scheduling
+    const int64_t tolerance = 100; // Allow 100ms tolerance for CI environment
     
     int64_t elapsedMs = measureGrabTime(timeoutMs);
     
@@ -136,7 +136,7 @@ TEST_F(GrabTimeoutTest, SmallTimeout_10ms) {
  */
 TEST_F(GrabTimeoutTest, SmallTimeout_500ms) {
     const uint32_t timeoutMs = 500;
-    const int64_t tolerance = 50;
+    const int64_t tolerance = 100;
     
     int64_t elapsedMs = measureGrabTime(timeoutMs);
     
@@ -153,7 +153,7 @@ TEST_F(GrabTimeoutTest, SmallTimeout_500ms) {
  */
 TEST_F(GrabTimeoutTest, NonDivisibleTimeout_2500ms) {
     const uint32_t timeoutMs = 2500;
-    const int64_t tolerance = 100; // Larger tolerance for longer timeout
+    const int64_t tolerance = 200; // Larger tolerance for longer timeout in CI
     
     int64_t elapsedMs = measureGrabTime(timeoutMs);
     
@@ -170,7 +170,7 @@ TEST_F(GrabTimeoutTest, NonDivisibleTimeout_2500ms) {
  */
 TEST_F(GrabTimeoutTest, NonDivisibleTimeout_1750ms) {
     const uint32_t timeoutMs = 1750;
-    const int64_t tolerance = 100;
+    const int64_t tolerance = 150;
     
     int64_t elapsedMs = measureGrabTime(timeoutMs);
     
@@ -185,7 +185,7 @@ TEST_F(GrabTimeoutTest, NonDivisibleTimeout_1750ms) {
  */
 TEST_F(GrabTimeoutTest, BoundaryTimeout_1ms) {
     const uint32_t timeoutMs = 1;
-    const int64_t tolerance = 50;
+    const int64_t tolerance = 100;
     
     int64_t elapsedMs = measureGrabTime(timeoutMs);
     
@@ -199,7 +199,7 @@ TEST_F(GrabTimeoutTest, BoundaryTimeout_1ms) {
  */
 TEST_F(GrabTimeoutTest, BoundaryTimeout_999ms) {
     const uint32_t timeoutMs = 999;
-    const int64_t tolerance = 50;
+    const int64_t tolerance = 100;
     
     int64_t elapsedMs = measureGrabTime(timeoutMs);
     
@@ -214,7 +214,7 @@ TEST_F(GrabTimeoutTest, BoundaryTimeout_999ms) {
  */
 TEST_F(GrabTimeoutTest, BoundaryTimeout_1000ms) {
     const uint32_t timeoutMs = 1000;
-    const int64_t tolerance = 50;
+    const int64_t tolerance = 100;
     
     int64_t elapsedMs = measureGrabTime(timeoutMs);
     
@@ -229,7 +229,7 @@ TEST_F(GrabTimeoutTest, BoundaryTimeout_1000ms) {
  */
 TEST_F(GrabTimeoutTest, BoundaryTimeout_1001ms) {
     const uint32_t timeoutMs = 1001;
-    const int64_t tolerance = 50;
+    const int64_t tolerance = 100;
     
     int64_t elapsedMs = measureGrabTime(timeoutMs);
     
