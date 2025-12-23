@@ -229,6 +229,14 @@ if(CCAP_BUILD_EXAMPLES)
     include(examples/desktop.cmake)
 endif()
 
+# ############### CLI Tool ################
+option(CCAP_BUILD_CLI "Build ccap CLI tool" ${CCAP_IS_ROOT_PROJECT})
+message(STATUS "ccap: CCAP_BUILD_CLI=${CCAP_BUILD_CLI}")
+
+if(CCAP_BUILD_CLI)
+    add_subdirectory(cli)
+endif()
+
 # ############### Tests ################
 message(STATUS "ccap: CCAP_BUILD_TESTS=${CCAP_BUILD_TESTS}")
 
