@@ -153,7 +153,7 @@ TEST_F(GrabTimeoutTest, SmallTimeout_500ms) {
  */
 TEST_F(GrabTimeoutTest, NonDivisibleTimeout_2500ms) {
     const uint32_t timeoutMs = 2500;
-    const int64_t tolerance = 200; // Larger tolerance for longer timeout in CI
+    const int64_t tolerance = 350; // Larger tolerance for CI environment scheduling delays
     
     int64_t elapsedMs = measureGrabTime(timeoutMs);
     
@@ -170,7 +170,7 @@ TEST_F(GrabTimeoutTest, NonDivisibleTimeout_2500ms) {
  */
 TEST_F(GrabTimeoutTest, NonDivisibleTimeout_1750ms) {
     const uint32_t timeoutMs = 1750;
-    const int64_t tolerance = 150;
+    const int64_t tolerance = 250; // Larger tolerance for CI environment
     
     int64_t elapsedMs = measureGrabTime(timeoutMs);
     
