@@ -74,6 +74,7 @@ add_executable(
     test_platform_features.cpp
     test_frame_conversions.cpp
     test_boundary_conditions.cpp
+    test_grab_timeout.cpp
 )
 
 target_link_libraries(
