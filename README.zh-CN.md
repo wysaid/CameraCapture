@@ -32,7 +32,7 @@
 - **跨平台**：Windows（DirectShow）、macOS/iOS（AVFoundation）、Linux（V4L2）
 - **多种格式**：RGB、BGR、YUV（NV12/I420）及自动转换
 - **双语言接口**：✨ **新增完整纯 C 接口**，同时提供现代化 C++ API 和传统 C99 接口，支持各种项目集成和语言绑定
-- **命令行工具**：功能强大的命令行工具，支持相机操作（[文档](./cli/README.zh-CN.md)）
+- **命令行工具**：开箱即用的命令行工具，快速实现相机操作 - 列出设备、捕获图像、实时预览（[文档](./docs/content/cli.zh.md)）
 - **生产就绪**：完整测试套件，95%+ 精度验证
 - **虚拟相机支持**：兼容 OBS Virtual Camera 等工具
 
@@ -168,6 +168,36 @@ int main() {
     return 0;
 }
 ```
+
+## 命令行工具
+
+ccap 包含一个功能强大的命令行工具，无需编写代码即可快速进行相机操作：
+
+```bash
+# 启用 CLI 工具构建
+mkdir build && cd build
+cmake .. -DBUILD_CCAP_CLI=ON
+cmake --build .
+
+# 列出可用相机
+./ccap --list-devices
+
+# 从默认相机捕获 5 张图像
+./ccap -c 5 -o ./captures
+
+# 实时预览（需要 GLFW）
+./ccap --preview
+```
+
+**主要功能：**
+- 📷 列出和选择相机设备
+- 🎯 捕获单张或多张图像
+- 👁️ 实时预览窗口（需要 GLFW）
+- ⚙️ 配置分辨率、格式和帧率
+- 💾 保存为多种图像格式（JPEG、PNG、BMP 等）
+- ⏱️ 基于时长或数量的捕获模式
+
+完整的 CLI 文档请参阅 [CLI 工具指南](./docs/content/cli.zh.md)。
 
 ## 系统要求
 
