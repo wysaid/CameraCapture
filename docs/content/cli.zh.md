@@ -34,6 +34,30 @@ cmake --build build
 
 可执行文件将位于 `build/` 目录(或 `build/Debug`、`build/Release`,取决于您的构建配置)。
 
+### 分发与静态链接
+
+CLI 工具配置为最小化运行时依赖：
+
+- **Windows (MSVC)**: 使用 `/MT` 标志进行静态运行时链接，无需安装 VCRUNTIME DLL
+- **Linux**: 尝试静态链接 libstdc++ 和 libgcc（如果可用）。如果未安装静态库，则回退到动态链接。要在 Fedora/RHEL 上启用静态链接，请安装 `libstdc++-static`；在 Debian/Ubuntu 上，静态库通常包含在默认开发包中。
+- **macOS**: 使用默认的静态 C++ 标准库链接，仅依赖系统框架
+
+当静态链接成功时，CLI 工具可以作为独立可执行文件分发，仅需最少的依赖项（在 Linux 上仅依赖 libc 和 libm 等系统库）。
+
+验证已构建 CLI 工具的依赖项：
+
+```bash
+# Linux
+ldd ccap
+
+# macOS
+otool -L ccap
+
+# Windows (PowerShell)
+dumpbin /dependents ccap.exe
+```
+
+
 ## 命令行参考
 
 ### 通用选项

@@ -9,6 +9,7 @@ endif()
 option(CCAP_NO_LOG "Disable logging" OFF)
 option(CCAP_BUILD_SHARED "Build ccap as shared library" OFF)
 option(CCAP_WIN_NO_DEVICE_VERIFY "Skip device verification on Windows (for buggy camera drivers)" OFF)
+option(BUILD_CCAP_CLI "Build ccap CLI tool" OFF)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set(CCAP_IS_ROOT_PROJECT ON)
@@ -18,6 +19,12 @@ endif()
 
 option(CCAP_BUILD_EXAMPLES "Build ccap examples" ${CCAP_IS_ROOT_PROJECT})
 option(CCAP_BUILD_TESTS "Build ccap unit tests" OFF)
+
+# Auto-enable CLI when building tests
+if(CCAP_BUILD_TESTS AND NOT BUILD_CCAP_CLI)
+    message(STATUS "ccap: Enabling BUILD_CCAP_CLI for tests")
+    set(BUILD_CCAP_CLI ON CACHE BOOL "Build ccap CLI tool (auto-enabled for tests)" FORCE)
+endif()
 
 if(CCAP_IS_ROOT_PROJECT)
     set(CMAKE_FETCHCONTENT_BASE_DIR "${CMAKE_SOURCE_DIR}/build" CACHE PATH "FetchContent base dir" FORCE)
@@ -155,6 +162,14 @@ if(MSVC)
         OUTPUT_NAME "ccap"
         DEBUG_POSTFIX "d"
     )
+    
+    # Configure static MSVC runtime for CLI tool to avoid runtime dependencies
+    # This only applies when building the CLI tool with static library
+    # For shared library builds or library-only builds, default runtime linking is used
+    if(BUILD_CCAP_CLI AND NOT CCAP_BUILD_SHARED)
+        include(cmake/StaticRuntime.cmake)
+        ccap_configure_static_msvc_runtime(ccap)
+    endif()
 endif()
 
 target_include_directories(ccap PUBLIC
@@ -232,16 +247,6 @@ if(CCAP_BUILD_EXAMPLES)
 endif()
 
 # ############### CLI Tool ################
-# Default: OFF (can be enabled via -DBUILD_CCAP_CLI=ON)
-# Auto-enabled when CCAP_BUILD_TESTS=ON
-option(BUILD_CCAP_CLI "Build ccap CLI tool" OFF)
-
-# Auto-enable CLI when building tests
-if(CCAP_BUILD_TESTS AND NOT BUILD_CCAP_CLI)
-    message(STATUS "ccap: Enabling BUILD_CCAP_CLI for tests")
-    set(BUILD_CCAP_CLI ON CACHE BOOL "Build ccap CLI tool (auto-enabled for tests)" FORCE)
-endif()
-
 message(STATUS "ccap: BUILD_CCAP_CLI=${BUILD_CCAP_CLI}")
 
 if(BUILD_CCAP_CLI)

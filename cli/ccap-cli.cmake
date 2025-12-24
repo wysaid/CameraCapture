@@ -23,6 +23,41 @@ set_target_properties(ccap-cli PROPERTIES
     CXX_STANDARD_REQUIRED ON
 )
 
+# Configure static runtime linking for MSVC (use /MT instead of /MD)
+# This ensures the CLI tool doesn't require MSVC runtime DLLs to be installed
+if(MSVC)
+    include(cmake/StaticRuntime.cmake)
+    ccap_configure_static_msvc_runtime(ccap-cli)
+endif()
+
+# Configure static linking for Linux to minimize runtime dependencies
+# Link libstdc++ and libgcc statically to avoid version conflicts
+# Note: This requires static libraries to be installed (e.g., libstdc++-static on Fedora)
+if(UNIX AND NOT APPLE)
+    # Check if static libstdc++ is available by testing if we can link with static flags
+    include(CheckCXXSourceCompiles)
+    set(CMAKE_REQUIRED_FLAGS "-static-libstdc++ -static-libgcc")
+    check_cxx_source_compiles(
+        "int main() { return 0; }"
+        CCAP_HAS_STATIC_LIBSTDCXX
+    )
+    unset(CMAKE_REQUIRED_FLAGS)
+    
+    if(CCAP_HAS_STATIC_LIBSTDCXX)
+        target_link_options(ccap-cli PRIVATE 
+            -static-libgcc 
+            -static-libstdc++
+        )
+        message(STATUS "ccap CLI: Using static libstdc++ and libgcc on Linux")
+    else()
+        message(STATUS "ccap CLI: Static libstdc++ not available, using dynamic linking")
+        message(STATUS "ccap CLI: To enable static linking, install libstdc++-static (Fedora/RHEL) or libstdc++-dev (Debian/Ubuntu)")
+    endif()
+endif()
+
+# Note: macOS uses static linking for C++ standard library by default
+# The CLI only depends on system frameworks which are always available
+
 # Link against ccap library
 target_link_libraries(ccap-cli PRIVATE ccap)
 

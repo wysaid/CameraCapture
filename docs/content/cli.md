@@ -34,6 +34,30 @@ cmake --build build
 
 The executable will be located in the `build/` directory (or `build/Debug`, `build/Release` depending on your build configuration).
 
+### Distribution and Static Linking
+
+The CLI tool is configured for minimal runtime dependencies:
+
+- **Windows (MSVC)**: Uses `/MT` flag for static runtime linking, eliminating the need for VCRUNTIME DLL installation
+- **Linux**: Attempts to statically link libstdc++ and libgcc when available. If static libraries are not installed, falls back to dynamic linking. To enable static linking on Fedora/RHEL, install `libstdc++-static`; on Debian/Ubuntu, the static libraries are typically included in the default development packages.
+- **macOS**: Uses default static C++ standard library linking, only depends on system frameworks
+
+When static linking is successful, the CLI tool can be distributed as a standalone executable with minimal dependencies (only system libraries like libc and libm on Linux).
+
+To verify the dependencies of a built CLI tool:
+
+```bash
+# Linux
+ldd ccap
+
+# macOS
+otool -L ccap
+
+# Windows (PowerShell)
+dumpbin /dependents ccap.exe
+```
+
+
 ## Command-Line Reference
 
 ### General Options
