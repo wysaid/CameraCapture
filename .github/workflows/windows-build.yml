@@ -505,11 +505,12 @@ jobs:
         cd "build/${{ matrix.config }}-${{ matrix.library_type }}"
         # Disable pthread for GoogleTest on MinGW to avoid AutoHandle compilation errors
         # MinGW on Windows doesn't use pthread - GoogleTest should use native Windows threading
-        # Set multiple flags to completely disable pthread and prevent Threads::Threads linkage:
+        # Set multiple flags to disable pthread in GoogleTest while allowing Threads for other components:
         # - GTEST_HAS_PTHREAD=0: Disables pthread code in GoogleTest
         # - gtest_disable_pthreads=ON: GoogleTest CMake option to disable pthread
-        # - CMAKE_DISABLE_FIND_PACKAGE_Threads=TRUE: Prevents CMake from finding Threads package
-        cmake ../.. -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.config }} -DCCAP_BUILD_TESTS=ON -DGTEST_HAS_PTHREAD=0 -Dgtest_disable_pthreads=ON -DCMAKE_DISABLE_FIND_PACKAGE_Threads=TRUE $SHARED_FLAG
+        # - CMAKE_THREAD_LIBS_INIT="": Empty thread libs to prevent GoogleTest linkage errors
+        # - THREADS_PREFER_PTHREAD_FLAG=OFF: Disable pthread preference
+        cmake ../.. -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.config }} -DCCAP_BUILD_TESTS=ON -DGTEST_HAS_PTHREAD=0 -Dgtest_disable_pthreads=ON -DCMAKE_THREAD_LIBS_INIT="" -DTHREADS_PREFER_PTHREAD_FLAG=OFF $SHARED_FLAG
         
     - name: Build
       shell: msys2 {0}
