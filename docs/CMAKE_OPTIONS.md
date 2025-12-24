@@ -56,16 +56,28 @@ This document describes all available CMake options for building the ccap (Camer
 - **Example**: `-DCCAP_BUILD_TESTS=ON`
 - **Notes**: Requires GoogleTest framework; enables `enable_testing()` and CTest integration
 
-### BUILD_CCAP_CLI
+### CCAP_BUILD_CLI
 - **Description**: Build ccap command-line tool
 - **Type**: Boolean (ON/OFF)
-- **Default**: OFF (auto-enabled when CCAP_BUILD_TESTS=ON)
-- **Example**: `-DBUILD_CCAP_CLI=ON`
+- **Default**: OFF (auto-enabled when CCAP_BUILD_TESTS=ON or CCAP_BUILD_CLI_STANDALONE=ON)
+- **Example**: `-DCCAP_BUILD_CLI=ON`
 - **Notes**: 
   - Builds the `ccap` CLI tool for camera operations
-  - Additional CLI-specific option: `CCAP_CLI_WITH_GLFW`
-  - Automatically enabled when building tests
+  - Additional CLI-specific options: `CCAP_CLI_WITH_GLFW`, `CCAP_BUILD_CLI_STANDALONE`
+  - Automatically enabled when building tests or standalone CLI
   - See CLI tool documentation for usage details
+
+### CCAP_BUILD_CLI_STANDALONE
+- **Description**: Build standalone CLI with static runtime linking
+- **Type**: Boolean (ON/OFF)
+- **Default**: OFF
+- **Example**: `-DCCAP_BUILD_CLI_STANDALONE=ON`
+- **Notes**:
+  - Automatically enables `CCAP_BUILD_CLI=ON`
+  - **Windows**: Uses `/MT` flag for static MSVC runtime (no VCRUNTIME DLL needed)
+  - **Linux**: Statically links libstdc++ and libgcc when available
+  - Requires `CCAP_BUILD_SHARED=OFF` for truly standalone binaries
+  - See "Static Runtime Linking" section in CLI docs
 
 ## Architecture Options
 
@@ -103,7 +115,7 @@ cmake --build build
 
 ### Build with CLI tool
 ```bash
-cmake -B build -DBUILD_CCAP_CLI=ON
+cmake -B build -DCCAP_BUILD_CLI=ON
 cmake --build build
 ```
 

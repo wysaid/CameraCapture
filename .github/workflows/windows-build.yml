@@ -35,7 +35,7 @@ jobs:
         }
         mkdir -p "build/${{ matrix.config }}-${{ matrix.library_type }}"
         cd "build/${{ matrix.config }}-${{ matrix.library_type }}"
-        cmake ../.. -G "Visual Studio 17 2022" -A x64 -DCCAP_BUILD_TESTS=ON -DBUILD_CCAP_CLI=ON $SHARED_FLAG
+        cmake ../.. -G "Visual Studio 17 2022" -A x64 -DCCAP_BUILD_TESTS=ON -DCCAP_BUILD_CLI=ON $SHARED_FLAG
       
     - name: Build
       run: |

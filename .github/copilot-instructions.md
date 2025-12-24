@@ -7,3 +7,4 @@
 - All `.md` files in `docs/` must be in English
 - Only commit necessary new `.md` files after review.
 - To update the version, run `./scripts/update_version.sh <new_version>` to update related files.
+- `dev.cmake` in project root (git-ignored) overrides default CMake options. Remove it for standard builds/tests; keep only when verifying custom settings.

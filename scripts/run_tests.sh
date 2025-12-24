@@ -263,7 +263,7 @@ if [ "$RUN_FUNCTIONAL" = true ]; then
             # Windows MSVC: use single build directory, specify config during build
             cd build
             echo -e "${BLUE}Configuring CMake (Windows MSVC)...${NC}"
-            eval cmake .. -DCCAP_BUILD_TESTS=ON -DBUILD_CCAP_CLI=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $ASAN_FLAGS
+            eval cmake .. -DCCAP_BUILD_TESTS=ON -DCCAP_BUILD_CLI=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $ASAN_FLAGS
 
             echo -e "${BLUE}Building Debug project...${NC}"
             cmake --build . --config Debug --parallel $(detectCores)
@@ -276,7 +276,7 @@ if [ "$RUN_FUNCTIONAL" = true ]; then
             # Linux/Mac: use separate Debug directory
             cd build/Debug
             echo -e "${BLUE}Configuring CMake (Debug)...${NC}"
-            eval cmake ../.. -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_TESTS=ON -DBUILD_CCAP_CLI=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $ASAN_FLAGS
+            eval cmake ../.. -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_TESTS=ON -DCCAP_BUILD_CLI=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $ASAN_FLAGS
 
             echo -e "${BLUE}Building Debug project...${NC}"
             cmake --build . --config Debug --parallel $(detectCores)
@@ -316,7 +316,7 @@ if [ "$RUN_PERFORMANCE" = true ]; then
             # Only configure if not already configured
             if [ ! -f "CMakeCache.txt" ]; then
                 echo -e "${BLUE}Configuring CMake (Windows MSVC)...${NC}"
-                eval cmake .. -DCCAP_BUILD_TESTS=ON -DBUILD_CCAP_CLI=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $ASAN_FLAGS
+                eval cmake .. -DCCAP_BUILD_TESTS=ON -DCCAP_BUILD_CLI=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $ASAN_FLAGS
             fi
 
             echo -e "${BLUE}Building Release project...${NC}"
@@ -329,7 +329,7 @@ if [ "$RUN_PERFORMANCE" = true ]; then
             # Linux/Mac: use separate Release directory
             cd build/Release
             echo -e "${BLUE}Configuring CMake (Release)...${NC}"
-            eval cmake ../.. -DCMAKE_BUILD_TYPE=Release -DCCAP_BUILD_TESTS=ON -DBUILD_CCAP_CLI=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $ASAN_FLAGS
+            eval cmake ../.. -DCMAKE_BUILD_TYPE=Release -DCCAP_BUILD_TESTS=ON -DCCAP_BUILD_CLI=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $ASAN_FLAGS
 
             echo -e "${BLUE}Building Release project...${NC}"
             cmake --build . --config Release --parallel $(detectCores)

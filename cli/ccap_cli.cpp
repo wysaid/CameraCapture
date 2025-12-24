@@ -10,10 +10,10 @@
 
 #include "ccap_cli.h"
 
-#include <ccap.h>
-#include <ccap_convert.h>
-
 #include <algorithm>
+#include <ccap.h>
+#include <ccap_config.h>
+#include <ccap_convert.h>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -25,6 +25,11 @@
 #include <thread>
 #include <vector>
 
+#ifdef CCAP_CLI_WITH_STB_IMAGE
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+#endif
+
 #ifdef CCAP_CLI_WITH_GLFW
 #define GLAD_GL_IMPLEMENTATION
 #include <glad/gl.h>
@@ -34,9 +39,6 @@
 
 namespace ccap_cli {
 
-// Version info
-constexpr const char* CLI_VERSION = "1.0.0";
-
 // Default values
 constexpr int DEFAULT_WIDTH = 1280;
 constexpr int DEFAULT_HEIGHT = 720;
@@ -45,62 +47,129 @@ constexpr int DEFAULT_CAPTURE_COUNT = 1;
 constexpr int DEFAULT_TIMEOUT_MS = 5000;
 
 void printVersion() {
-    std::cout << "ccap CLI version " << CLI_VERSION << std::endl;
-    std::cout << "Built with ccap library version " << CCAP_VERSION_STRING << std::endl;
-    std::cout << "Image format: BMP" << std::endl;
-#ifdef CCAP_CLI_WITH_GLFW
-    std::cout << "Window preview: enabled (GLFW)" << std::endl;
-#else
-    std::cout << "Window preview: disabled" << std::endl;
+    std::cout << "ccap version " << CCAP_VERSION_STRING << " Copyright (c) 2025 wysaid\n";
+
+#if defined(CCAP_CLI_BUILD_COMPILER) || defined(CCAP_CLI_BUILD_PLATFORM) || defined(CCAP_CLI_BUILD_ARCH)
+    std::cout << "  built with";
+#ifdef CCAP_CLI_BUILD_COMPILER
+    std::cout << " " << CCAP_CLI_BUILD_COMPILER;
 #endif
+#ifdef CCAP_CLI_BUILD_PLATFORM
+    std::cout << " on " << CCAP_CLI_BUILD_PLATFORM;
+#endif
+#ifdef CCAP_CLI_BUILD_ARCH
+    std::cout << " (" << CCAP_CLI_BUILD_ARCH << ")";
+#endif
+#ifdef CCAP_CLI_LIBC_TYPE
+    std::cout << " / " << CCAP_CLI_LIBC_TYPE;
+#endif
+    std::cout << "\n";
+#endif
+
+#ifdef CCAP_CLI_BUILD_TYPE
+    std::cout << "  cmake options: -DCMAKE_BUILD_TYPE=" << CCAP_CLI_BUILD_TYPE;
+#ifdef CCAP_CLI_STATIC_RUNTIME
+#if CCAP_CLI_STATIC_RUNTIME
+    std::cout << " -DCCAP_BUILD_CLI_STANDALONE=ON";
+#else
+    std::cout << " -DCCAP_BUILD_CLI_STANDALONE=OFF";
+#endif
+#else
+    std::cout << " -DCCAP_BUILD_CLI_STANDALONE=OFF";
+#endif
+
+#ifdef CCAP_CLI_WITH_GLFW
+    std::cout << " -DCCAP_CLI_WITH_GLFW=ON";
+#else
+    std::cout << " -DCCAP_CLI_WITH_GLFW=OFF";
+#endif
+
+#ifdef CCAP_CLI_WITH_STB_IMAGE
+    std::cout << " -DCCAP_CLI_WITH_STB_IMAGE=ON";
+#else
+    std::cout << " -DCCAP_CLI_WITH_STB_IMAGE=OFF";
+#endif
+    std::cout << "\n";
+#endif
+
+    std::cout << "  libccap        " << CCAP_VERSION_STRING << "\n";
+    
+#ifdef CCAP_CLI_STATIC_RUNTIME
+#if CCAP_CLI_STATIC_RUNTIME
+    std::cout << "  runtime        static\n";
+#else
+    std::cout << "  runtime        dynamic\n";
+#endif
+#else
+    std::cout << "  runtime        dynamic\n";
+#endif
+    
+    std::cout << "Simple and efficient camera capture tool\n";
 }
 
 void printUsage(const char* programName) {
-    std::cout << "Usage: " << programName << " [options]\n\n";
-    std::cout << "CameraCapture CLI Tool - A command-line interface for camera operations.\n\n";
-
-    std::cout << "General Options:\n";
-    std::cout << "  -h, --help                 Show this help message\n";
-    std::cout << "  -v, --version              Show version information\n";
-    std::cout << "  --verbose                  Enable verbose logging\n\n";
-
-    std::cout << "Device Enumeration:\n";
-    std::cout << "  -l, --list-devices         List all available camera devices\n";
-    std::cout << "  -i, --device-info [INDEX]  Show detailed info for device at INDEX (default: all devices)\n\n";
-
-    std::cout << "Capture Options:\n";
-    std::cout << "  -d, --device INDEX|NAME    Select camera device by index or name (default: 0)\n";
-    std::cout << "  -w, --width WIDTH          Set capture width (default: " << DEFAULT_WIDTH << ")\n";
-    std::cout << "  -H, --height HEIGHT        Set capture height (default: " << DEFAULT_HEIGHT << ")\n";
-    std::cout << "  -f, --fps FPS              Set frame rate (default: " << DEFAULT_FPS << ")\n";
-    std::cout << "  -c, --count COUNT          Number of frames to capture (default: " << DEFAULT_CAPTURE_COUNT << ")\n";
-    std::cout << "  -t, --timeout MS           Capture timeout in milliseconds (default: " << DEFAULT_TIMEOUT_MS << ")\n";
-    std::cout << "  -o, --output DIR           Output directory for captured images\n";
-    std::cout << "  --format FORMAT            Output pixel format: rgb24, bgr24, rgba32, bgra32, nv12, i420, yuyv, uyvy\n";
-    std::cout << "  --internal-format FORMAT   Internal pixel format (camera native format)\n";
-    std::cout << "  --save-yuv                 Save YUV frames directly without conversion\n\n";
+    std::cout << "usage: " << programName << " [options]\n"
+              << "\n"
+              << "Print help / information / capabilities:\n"
+              << "  -h, --help                 show this help message\n"
+              << "  -v, --version              show version information\n"
+              << "  -l, --list-devices         list all available camera devices\n"
+              << "  -i, --device-info index    show detailed info for device at index\n"
+              << "\n"
+              << "Global options:\n"
+              << "  --verbose                  enable verbose logging\n"
+              << "\n"
+              << "Capture options:\n"
+              << "  -d, --device index|name    select camera device by index or name (default: 0)\n"
+              << "  -w, --width width          set capture width (default: " << DEFAULT_WIDTH << ")\n"
+              << "  -H, --height height        set capture height (default: " << DEFAULT_HEIGHT << ")\n"
+              << "  -f, --fps fps              set frame rate (default: " << DEFAULT_FPS << ")\n"
+              << "  -c, --count count          number of frames to capture (default: " << DEFAULT_CAPTURE_COUNT << ")\n"
+              << "  -t, --timeout ms           capture timeout in milliseconds (default: " << DEFAULT_TIMEOUT_MS << ")\n"
+              << "  -o, --output dir           output directory for captured images\n"
+              << "  --format format            output pixel format: rgb24, bgr24, rgba32, bgra32, nv12, i420, yuyv, uyvy\n"
+              << "  --internal-format format   internal pixel format (camera native format)\n"
+              << "  --save-yuv                 save YUV frames directly without conversion\n"
+#ifdef CCAP_CLI_WITH_STB_IMAGE
+              << "  --image-format format      image format: jpg, png, bmp (default: jpg)\n"
+              << "  --jpeg-quality quality     JPEG quality 1-100 (default: 90, only for jpg)\n"
+#else
+              << "  --image-format format      image format: bmp (jpg/png require CCAP_CLI_WITH_STB_IMAGE=ON)\n"
+#endif
+              << "\n";
 
 #ifdef CCAP_CLI_WITH_GLFW
-    std::cout << "Preview Options:\n";
-    std::cout << "  -p, --preview              Enable window preview\n";
-    std::cout << "  --preview-only             Preview without saving frames\n\n";
+    std::cout << "Preview options:\n"
+              << "  -p, --preview              enable window preview\n"
+              << "  --preview-only             preview without saving frames\n"
+              << "\n";
 #endif
 
-    std::cout << "Format Conversion:\n";
-    std::cout << "  --convert INPUT            Convert YUV file to image\n";
-    std::cout << "  --yuv-format FORMAT        YUV format: nv12, nv12f, i420, i420f, yuyv, yuyvf, uyvy, uyvyf\n";
-    std::cout << "  --yuv-width WIDTH          Width of YUV input\n";
-    std::cout << "  --yuv-height HEIGHT        Height of YUV input\n";
-    std::cout << "  --convert-output FILE      Output file for conversion\n\n";
+    std::cout << "Format conversion options:\n"
+              << "  --convert input            convert YUV file to image\n"
+              << "  --yuv-format format        YUV format: nv12, nv12f, i420, i420f, yuyv, yuyvf, uyvy, uyvyf\n"
+              << "  --yuv-width width          width of YUV input\n"
+              << "  --yuv-height height        height of YUV input\n"
+              << "  --convert-output file      output file for conversion\n"
+              << "\n";
 
-    std::cout << "Examples:\n";
-    std::cout << "  " << programName << " --list-devices\n";
-    std::cout << "  " << programName << " --device-info 0\n";
-    std::cout << "  " << programName << " -d 0 -w 1920 -H 1080 -c 10 -o ./captures\n";
+    std::cout << "Examples:\n"
+              << "  " << programName << " --list-devices\n"
+              << "  " << programName << " --device-info 0\n"
+#ifdef CCAP_CLI_WITH_STB_IMAGE
+              << "  " << programName << " -d 0 -w 1920 -H 1080 -c 10 -o ./captures --image-format jpg\n"
+#else
+              << "  " << programName << " -d 0 -w 1920 -H 1080 -c 10 -o ./captures\n"
+#endif
+              << "  " << programName << " -d 0 -w 1920 -H 1080 -c 10 -o ./captures --image-format png\n";
 #ifdef CCAP_CLI_WITH_GLFW
     std::cout << "  " << programName << " -d 0 --preview\n";
 #endif
+#ifdef CCAP_CLI_WITH_STB_IMAGE
+    std::cout << "  " << programName << " --convert input.yuv --yuv-format nv12 --yuv-width 1920 --yuv-height 1080 --convert-output output.jpg --image-format jpg\n";
+#else
     std::cout << "  " << programName << " --convert input.yuv --yuv-format nv12 --yuv-width 1920 --yuv-height 1080 --convert-output output.bmp\n";
+#endif
 }
 
 PixelFormatInfo parsePixelFormat(const std::string& formatStr) {
@@ -149,6 +218,22 @@ PixelFormatInfo parsePixelFormat(const std::string& formatStr) {
         info.isYuv = false;
     }
     return info;
+}
+
+ImageFormat parseImageFormat(const std::string& formatStr) {
+    std::string lower = formatStr;
+    std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+
+    if (lower == "jpg" || lower == "jpeg") {
+        return ImageFormat::JPG;
+    } else if (lower == "png") {
+        return ImageFormat::PNG;
+    } else if (lower == "bmp") {
+        return ImageFormat::BMP;
+    }
+    
+    // Default to JPG if format is not recognized
+    return ImageFormat::JPG;
 }
 
 CLIOptions parseArgs(int argc, char* argv[]) {
@@ -216,6 +301,15 @@ CLIOptions parseArgs(int argc, char* argv[]) {
             }
         } else if (arg == "--save-yuv") {
             opts.saveYuv = true;
+        } else if (arg == "--image-format") {
+            if (i + 1 < argc) {
+                opts.imageFormat = parseImageFormat(argv[++i]);
+            }
+        } else if (arg == "--jpeg-quality") {
+            if (i + 1 < argc) {
+                int quality = std::atoi(argv[++i]);
+                opts.jpegQuality = std::max(1, std::min(100, quality)); // Clamp to 1-100
+            }
         }
 #ifdef CCAP_CLI_WITH_GLFW
         else if (arg == "-p" || arg == "--preview") {
@@ -247,7 +341,9 @@ CLIOptions parseArgs(int argc, char* argv[]) {
                 opts.convertOutput = argv[++i];
             }
         } else {
-            std::cerr << "Unknown option: " << arg << std::endl;
+            std::cerr << "Error: Unknown option: " << arg << "\n\n";
+            printUsage(argv[0]);
+            std::exit(1);
         }
     }
 
@@ -263,11 +359,12 @@ int listDevices() {
         return 0;
     }
 
-    std::cout << "Found " << deviceNames.size() << " camera device(s):\n" << std::endl;
-    
+    std::cout << "Found " << deviceNames.size() << " camera device(s):\n"
+              << std::endl;
+
     for (size_t i = 0; i < deviceNames.size(); ++i) {
         std::cout << "[" << i << "] " << deviceNames[i] << std::endl;
-        
+
         // Try to get device info
         ccap::Provider devProvider(deviceNames[i]);
         if (devProvider.isOpened()) {
@@ -275,25 +372,25 @@ int listDevices() {
             if (info) {
                 // Print supported resolutions
                 if (!info->supportedResolutions.empty()) {
-                if (info->supportedResolutions.size() <= 5) {
-                    // Horizontal display for few resolutions
-                    std::cout << "    Resolutions: ";
-                    for (size_t j = 0; j < info->supportedResolutions.size(); ++j) {
-                        if (j > 0) std::cout << ", ";
-                        std::cout << info->supportedResolutions[j].width << "x" << info->supportedResolutions[j].height;
-                    }
-                    std::cout << std::endl;
-                } else {
-                    // Vertical display for many resolutions
-                    std::cout << "    Resolutions:" << std::endl;
-                    for (const auto& res : info->supportedResolutions) {
-                        std::cout << "      " << res.width << "x" << res.height << std::endl;
+                    if (info->supportedResolutions.size() <= 5) {
+                        // Horizontal display for few resolutions
+                        std::cout << "    Resolutions: ";
+                        for (size_t j = 0; j < info->supportedResolutions.size(); ++j) {
+                            if (j > 0) std::cout << ", ";
+                            std::cout << info->supportedResolutions[j].width << "x" << info->supportedResolutions[j].height;
+                        }
+                        std::cout << std::endl;
+                    } else {
+                        // Vertical display for many resolutions
+                        std::cout << "    Resolutions:" << std::endl;
+                        for (const auto& res : info->supportedResolutions) {
+                            std::cout << "      " << res.width << "x" << res.height << std::endl;
+                        }
                     }
                 }
-            }
-                
-            // Print supported pixel formats
-            if (!info->supportedPixelFormats.empty()) {
+
+                // Print supported pixel formats
+                if (!info->supportedPixelFormats.empty()) {
                     std::cout << "    Formats: ";
                     for (size_t j = 0; j < info->supportedPixelFormats.size(); ++j) {
                         if (j > 0) std::cout << ", ";
@@ -369,7 +466,8 @@ int showDeviceInfo(int deviceIndex) {
     return 0;
 }
 
-bool saveFrameToFile(ccap::VideoFrame* frame, const std::string& outputPath, bool saveAsYuv) {
+bool saveFrameToFile(ccap::VideoFrame* frame, const std::string& outputPath, bool saveAsYuv,
+                     ImageFormat imageFormat, int jpegQuality) {
     if (saveAsYuv || ccap::pixelFormatInclude(frame->pixelFormat, ccap::kPixelFormatYUVColorBit)) {
         // Save as YUV file
         std::string filePath = outputPath + "." + std::string(ccap::pixelFormatToString(frame->pixelFormat)) + ".yuv";
@@ -396,17 +494,119 @@ bool saveFrameToFile(ccap::VideoFrame* frame, const std::string& outputPath, boo
         return true;
     }
 
-    // Save as BMP image
-    return saveFrameAsImage(frame, outputPath);
+    // Save as image
+    return saveFrameAsImage(frame, outputPath, imageFormat, jpegQuality);
 }
 
-bool saveFrameAsImage(ccap::VideoFrame* frame, const std::string& outputPath) {
-    // Use built-in BMP saving
-    std::string filePath = outputPath + ".bmp";
+bool saveFrameAsImage(ccap::VideoFrame* frame, const std::string& outputPath,
+                      ImageFormat imageFormat, int jpegQuality) {
     bool isBGR = ccap::pixelFormatInclude(frame->pixelFormat, ccap::kPixelFormatBGRBit);
     bool hasAlpha = ccap::pixelFormatInclude(frame->pixelFormat, ccap::kPixelFormatAlphaColorBit);
     bool isTopToBottom = (frame->orientation == ccap::FrameOrientation::TopToBottom);
 
+#ifdef CCAP_CLI_WITH_STB_IMAGE
+    // Use stb_image_write for JPG/PNG formats
+    if (imageFormat == ImageFormat::JPG || imageFormat == ImageFormat::PNG) {
+        std::string ext = (imageFormat == ImageFormat::JPG) ? ".jpg" : ".png";
+        std::string filePath = outputPath + ext;
+        
+        // stb_image_write expects RGB data without padding
+        int comp = hasAlpha ? 4 : 3;
+        int width = frame->width;
+        int height = frame->height;
+        int stride = frame->stride[0];
+        
+        // Check if we need to copy/convert data
+        std::vector<uint8_t> tempBuffer;
+        const uint8_t* imageData = frame->data[0];
+        
+        // If stride != width * comp, we need to remove padding
+        if (stride != width * comp) {
+            tempBuffer.resize(width * height * comp);
+            for (int y = 0; y < height; ++y) {
+                std::memcpy(&tempBuffer[y * width * comp], 
+                           &frame->data[0][y * stride], 
+                           width * comp);
+            }
+            imageData = tempBuffer.data();
+        }
+        
+        // stb_image_write expects top-to-bottom orientation by default
+        // If frame is bottom-to-top, we need to flip
+        if (!isTopToBottom) {
+            if (tempBuffer.empty()) {
+                tempBuffer.resize(width * height * comp);
+                std::memcpy(tempBuffer.data(), frame->data[0], width * height * comp);
+                imageData = tempBuffer.data();
+            }
+            // Flip vertically
+            std::vector<uint8_t> rowBuffer(width * comp);
+            for (int y = 0; y < height / 2; ++y) {
+                uint8_t* top = const_cast<uint8_t*>(&imageData[y * width * comp]);
+                uint8_t* bottom = const_cast<uint8_t*>(&imageData[(height - 1 - y) * width * comp]);
+                std::memcpy(rowBuffer.data(), top, width * comp);
+                std::memcpy(top, bottom, width * comp);
+                std::memcpy(bottom, rowBuffer.data(), width * comp);
+            }
+        }
+        
+        int result = 0;
+        if (imageFormat == ImageFormat::JPG) {
+            // Note: stb_image_write expects RGB, but if isBGR is true, colors will be swapped
+            // We should convert BGR to RGB if needed
+            if (isBGR && comp >= 3) {
+                std::vector<uint8_t> rgbBuffer(width * height * comp);
+                if (tempBuffer.empty()) {
+                    for (int i = 0; i < width * height; ++i) {
+                        rgbBuffer[i * comp + 0] = imageData[i * comp + 2]; // R from B
+                        rgbBuffer[i * comp + 1] = imageData[i * comp + 1]; // G
+                        rgbBuffer[i * comp + 2] = imageData[i * comp + 0]; // B from R
+                        if (comp == 4) {
+                            rgbBuffer[i * comp + 3] = imageData[i * comp + 3]; // A
+                        }
+                    }
+                } else {
+                    for (int i = 0; i < width * height; ++i) {
+                        rgbBuffer[i * comp + 0] = imageData[i * comp + 2];
+                        rgbBuffer[i * comp + 1] = imageData[i * comp + 1];
+                        rgbBuffer[i * comp + 2] = imageData[i * comp + 0];
+                        if (comp == 4) {
+                            rgbBuffer[i * comp + 3] = imageData[i * comp + 3];
+                        }
+                    }
+                }
+                result = stbi_write_jpg(filePath.c_str(), width, height, comp, rgbBuffer.data(), jpegQuality);
+            } else {
+                result = stbi_write_jpg(filePath.c_str(), width, height, comp, imageData, jpegQuality);
+            }
+        } else { // PNG
+            if (isBGR && comp >= 3) {
+                std::vector<uint8_t> rgbBuffer(width * height * comp);
+                for (int i = 0; i < width * height; ++i) {
+                    rgbBuffer[i * comp + 0] = imageData[i * comp + 2];
+                    rgbBuffer[i * comp + 1] = imageData[i * comp + 1];
+                    rgbBuffer[i * comp + 2] = imageData[i * comp + 0];
+                    if (comp == 4) {
+                        rgbBuffer[i * comp + 3] = imageData[i * comp + 3];
+                    }
+                }
+                result = stbi_write_png(filePath.c_str(), width, height, comp, rgbBuffer.data(), width * comp);
+            } else {
+                result = stbi_write_png(filePath.c_str(), width, height, comp, imageData, width * comp);
+            }
+        }
+        
+        if (result) {
+            std::cout << "Saved " << ext.substr(1) << " to: " << filePath << std::endl;
+            return true;
+        }
+        std::cerr << "Failed to save " << ext.substr(1) << ": " << filePath << std::endl;
+        return false;
+    }
+#endif
+
+    // Fall back to BMP format
+    std::string filePath = outputPath + ".bmp";
     if (ccap::saveRgbDataAsBMP(filePath.c_str(), frame->data[0], frame->width, frame->stride[0],
                                frame->height, isBGR, hasAlpha, isTopToBottom)) {
         std::cout << "Saved BMP to: " << filePath << std::endl;
@@ -478,10 +678,10 @@ int captureFrames(const CLIOptions& opts) {
         std::strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", &nowTm);
 
         std::string baseName = outputDir + "/capture_" + std::string(timestamp) + "_" +
-                               std::to_string(frame->width) + "x" + std::to_string(frame->height) + "_" +
-                               std::to_string(frame->frameIndex);
+            std::to_string(frame->width) + "x" + std::to_string(frame->height) + "_" +
+            std::to_string(frame->frameIndex);
 
-        if (!saveFrameToFile(frame.get(), baseName, opts.saveYuv)) {
+        if (!saveFrameToFile(frame.get(), baseName, opts.saveYuv, opts.imageFormat, opts.jpegQuality)) {
             std::cerr << "Failed to save frame." << std::endl;
         }
 
@@ -639,7 +839,7 @@ int runPreview(const CLIOptions& opts) {
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
 
-    const float vertData[8] = {-1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f};
+    const float vertData[8] = { -1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f };
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertData), vertData, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
     glEnableVertexAttribArray(0);
@@ -731,7 +931,7 @@ int convertYuvToImage(const CLIOptions& opts) {
     // Calculate expected size and pointers
     int width = opts.yuvWidth;
     int height = opts.yuvHeight;
-    
+
     // Validate file size matches expected YUV format
     size_t expectedSize = 0;
     switch (opts.yuvFormat) {
@@ -739,25 +939,25 @@ int convertYuvToImage(const CLIOptions& opts) {
     case ccap::PixelFormat::NV12f:
     case ccap::PixelFormat::I420:
     case ccap::PixelFormat::I420f:
-        expectedSize = width * height * 3 / 2;  // Y plane + UV planes (half resolution)
+        expectedSize = width * height * 3 / 2; // Y plane + UV planes (half resolution)
         break;
     case ccap::PixelFormat::YUYV:
     case ccap::PixelFormat::YUYVf:
     case ccap::PixelFormat::UYVY:
     case ccap::PixelFormat::UYVYf:
-        expectedSize = width * height * 2;  // Packed format with 2 bytes per pixel
+        expectedSize = width * height * 2; // Packed format with 2 bytes per pixel
         break;
     default:
         break;
     }
-    
+
     if (expectedSize > 0 && static_cast<size_t>(fileSize) < expectedSize) {
-        std::cerr << "File size (" << fileSize << " bytes) is smaller than expected (" 
-                  << expectedSize << " bytes) for " << opts.yuvWidth << "x" << opts.yuvHeight 
+        std::cerr << "File size (" << fileSize << " bytes) is smaller than expected ("
+                  << expectedSize << " bytes) for " << opts.yuvWidth << "x" << opts.yuvHeight
                   << " " << ccap::pixelFormatToString(opts.yuvFormat) << std::endl;
         return 1;
     }
-    
+
     uint8_t* yPtr = yuvData.data();
     uint8_t* uPtr = nullptr;
     uint8_t* vPtr = nullptr;
@@ -799,8 +999,7 @@ int convertYuvToImage(const CLIOptions& opts) {
 
     // Determine conversion flags
     bool isFullRange = ccap::pixelFormatInclude(opts.yuvFormat, ccap::kPixelFormatFullRangeBit);
-    ccap::ConvertFlag flag = isFullRange ? (ccap::ConvertFlag::BT601 | ccap::ConvertFlag::FullRange)
-                                         : ccap::ConvertFlag::Default;
+    ccap::ConvertFlag flag = isFullRange ? (ccap::ConvertFlag::BT601 | ccap::ConvertFlag::FullRange) : ccap::ConvertFlag::Default;
 
     // Perform conversion
     if (isSemiPlanar) {
@@ -816,21 +1015,72 @@ int convertYuvToImage(const CLIOptions& opts) {
         }
     }
 
-    // Save as BMP
+    // Save as image (BMP/JPG/PNG)
     std::string outputPath = opts.convertOutput.empty() ? (opts.convertInput + "_converted") : opts.convertOutput;
+
+    // Determine output format based on extension or use opts.imageFormat
+    ImageFormat format = opts.imageFormat;
     
-    // Check if file already has .bmp extension (case-insensitive)
-    bool hasBmpExt = false;
-    if (outputPath.size() >= 4) {
-        std::string ext = outputPath.substr(outputPath.size() - 4);
-        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-        hasBmpExt = (ext == ".bmp");
+    // Check if file already has an image extension
+    // Check longer extensions first (.jpeg) before shorter ones (.jpg, .png, .bmp)
+    std::string ext;
+    // Check for 5-char extension first (.jpeg)
+    if (outputPath.size() >= 5) {
+        std::string lastFive = outputPath.substr(outputPath.size() - 5);
+        std::transform(lastFive.begin(), lastFive.end(), lastFive.begin(), ::tolower);
+        if (lastFive == ".jpeg") {
+            ext = lastFive;
+            format = ImageFormat::JPG;
+        }
     }
-    
-    if (!hasBmpExt) {
-        outputPath += ".bmp";
+    // Then check for 4-char extensions (.bmp, .jpg, .png) if no 5-char match
+    if (ext.empty() && outputPath.size() >= 4) {
+        std::string lastFour = outputPath.substr(outputPath.size() - 4);
+        std::transform(lastFour.begin(), lastFour.end(), lastFour.begin(), ::tolower);
+        if (lastFour == ".bmp" || lastFour == ".jpg" || lastFour == ".png") {
+            ext = lastFour;
+            // Parse format from extension
+            if (lastFour == ".bmp") format = ImageFormat::BMP;
+            else if (lastFour == ".jpg") format = ImageFormat::JPG;
+            else if (lastFour == ".png") format = ImageFormat::PNG;
+        }
     }
 
+    // Add extension if not present
+    if (ext.empty()) {
+        switch (format) {
+            case ImageFormat::JPG:
+                outputPath += ".jpg";
+                break;
+            case ImageFormat::PNG:
+                outputPath += ".png";
+                break;
+            case ImageFormat::BMP:
+                outputPath += ".bmp";
+                break;
+        }
+    }
+
+#ifdef CCAP_CLI_WITH_STB_IMAGE
+    // Use stb_image_write for JPG/PNG
+    if (format == ImageFormat::JPG || format == ImageFormat::PNG) {
+        int result = 0;
+        if (format == ImageFormat::JPG) {
+            result = stbi_write_jpg(outputPath.c_str(), width, height, 3, rgbData.data(), opts.jpegQuality);
+        } else { // PNG
+            result = stbi_write_png(outputPath.c_str(), width, height, 3, rgbData.data(), rgbStride);
+        }
+        
+        if (result) {
+            std::cout << "Converted to: " << outputPath << std::endl;
+            return 0;
+        }
+        std::cerr << "Failed to save converted image: " << outputPath << std::endl;
+        return 1;
+    }
+#endif
+
+    // Fall back to BMP format
     if (ccap::saveRgbDataAsBMP(outputPath.c_str(), rgbData.data(), width, rgbStride, height, true, false, true)) {
         std::cout << "Converted to: " << outputPath << std::endl;
         return 0;

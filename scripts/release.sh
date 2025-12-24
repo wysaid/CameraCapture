@@ -21,6 +21,185 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# ============================================================================
+# Helper Functions
+# ============================================================================
+
+# Print a step header with consistent formatting
+print_step() {
+    local step_number="$1"
+    local step_title="$2"
+    echo -e "${BLUE}Step ${step_number}: ${step_title}...${NC}"
+    echo ""
+}
+
+# Print a section header with consistent formatting
+print_section() {
+    local title="$1"
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}          ${title}${NC}"
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+    echo ""
+}
+
+# Extract version from ccap_config.h
+extract_header_version() {
+    if [ ! -f "include/ccap_config.h" ]; then
+        echo -e "${RED}❌ Error: include/ccap_config.h not found${NC}"
+        exit 1
+    fi
+
+    local major=$(grep "#define CCAP_VERSION_MAJOR" include/ccap_config.h | awk '{print $3}')
+    local minor=$(grep "#define CCAP_VERSION_MINOR" include/ccap_config.h | awk '{print $3}')
+    local patch=$(grep "#define CCAP_VERSION_PATCH" include/ccap_config.h | awk '{print $3}')
+    local version_string=$(grep "#define CCAP_VERSION_STRING" include/ccap_config.h | sed 's/.*"\([^"]*\)".*/\1/')
+
+    if [ -z "$major" ] || [ -z "$minor" ] || [ -z "$patch" ]; then
+        echo -e "${RED}❌ Error: Could not parse version macros from include/ccap_config.h${NC}"
+        exit 1
+    fi
+
+    local calculated_version="${major}.${minor}.${patch}"
+
+    # Validate version consistency
+    if [ "$calculated_version" != "$version_string" ]; then
+        echo -e "${RED}❌ Error: Version mismatch in header file!${NC}"
+        echo -e "  Calculated: $calculated_version, String: $version_string"
+        exit 1
+    fi
+
+    echo "$calculated_version"
+}
+
+# Extract version from a file with simple pattern matching
+extract_version_from_file() {
+    local file="$1"
+    local pattern="$2"
+    local name="$3"
+
+    if [ ! -f "$file" ]; then
+        if [ "$4" = "optional" ]; then
+            return 1
+        fi
+        echo -e "${RED}❌ Error: $file not found${NC}"
+        exit 1
+    fi
+
+    local version
+    if [ "$pattern" = "version =" ]; then
+        version=$(grep "$pattern" "$file" | head -1 | sed 's/.*"\([^"]*\)".*/\1/')
+    elif [ "$pattern" = "Current version:" ]; then
+        version=$(grep "$pattern" "$file" | head -1 | sed 's/.*: \([^ ]*\).*/\1/')
+    else
+        version=$(grep "^  s.version" "$file" | sed 's/.*"\([^"]*\)".*/\1/')
+    fi
+
+    if [ -z "$version" ]; then
+        echo -e "${RED}❌ Error: Could not extract version from $file${NC}"
+        exit 1
+    fi
+
+    echo "$version"
+}
+
+# Check if a git tag exists locally
+check_tag_exists_locally() {
+    local tag="$1"
+    git rev-parse "$tag" >/dev/null 2>&1
+}
+
+# Check if a git tag exists on remote
+check_tag_exists_remotely() {
+    local tag="$1"
+    local remote="$2"
+    git ls-remote --tags "$remote" | grep -q "refs/tags/${tag}$"
+}
+
+# Validate that repository has no uncommitted changes
+validate_clean_working_directory() {
+    if ! git diff-index --quiet HEAD --; then
+        echo -e "${RED}❌ Error: Uncommitted changes detected!${NC}"
+        echo -e "  Official releases require all changes to be committed.${NC}"
+        echo -e "  The -f/--force flag does NOT override this requirement.${NC}"
+        echo ""
+        echo -e "${YELLOW}Uncommitted changes:${NC}"
+        git status --short | sed 's/^/    /'
+        exit 1
+    fi
+    echo -e "${GREEN}✅ All changes committed${NC}"
+}
+
+# Validate that local branch is up-to-date with remote
+validate_branch_synced_with_remote() {
+    local remote="$1"
+    local branch="$2"
+
+    echo ""
+    echo -e "  Checking if local branch is up-to-date with remote..."
+    git fetch "$remote" --quiet 2>/dev/null || true
+
+    local local_head=$(git rev-parse HEAD)
+    local remote_head=$(git rev-parse "$remote/$branch" 2>/dev/null || echo "")
+
+    if [ -z "$remote_head" ]; then
+        echo -e "${RED}❌ Error: Remote tracking branch not found!${NC}"
+        echo -e "  Remote: ${RED}$remote/$branch${NC}"
+        echo -e "  Official releases require changes to be pushed to remote.${NC}"
+        echo -e "  The -f/--force flag does NOT override this requirement.${NC}"
+        echo ""
+        echo -e "${YELLOW}Push your changes to remote:${NC}"
+        echo -e "    ${GREEN}git push $remote $branch${NC}"
+        exit 1
+    fi
+
+    if [ "$local_head" != "$remote_head" ]; then
+        echo -e "${RED}❌ Error: Local branch is not up-to-date with remote!${NC}"
+        echo -e "  Official releases require all commits to be pushed to remote.${NC}"
+        echo -e "  The -f/--force flag does NOT override this requirement.${NC}"
+        echo ""
+        echo -e "${YELLOW}Push your changes to remote:${NC}"
+        echo -e "    ${GREEN}git push $remote $branch${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✅ Branch is up-to-date with remote${NC}"
+}
+
+# Perform strict validation for official releases
+# This enforces main branch requirement, clean working directory, and remote sync
+# These checks apply EVEN with the -f/--force flag
+validate_official_release_requirements() {
+    local is_main_branch="$1"
+    local current_branch="$2"
+    local github_remote="$3"
+
+    echo ""
+    echo -e "${BLUE}Performing strict validation for official release...${NC}"
+    echo ""
+
+    # Check if on main branch
+    if [ "$is_main_branch" = false ]; then
+        echo -e "${RED}❌ Error: Official releases can ONLY be made from the main branch!${NC}"
+        echo -e "  Current branch: ${RED}$current_branch${NC}"
+        echo -e "  Required branch: ${GREEN}main${NC} or ${GREEN}master${NC}"
+        echo ""
+        echo -e "${YELLOW}The -f/--force flag does NOT override this requirement.${NC}"
+        echo -e "${YELLOW}Official releases must be made from the main branch for stability.${NC}"
+        echo ""
+        echo -e "  Switch to main branch:"
+        echo -e "    ${GREEN}git checkout main${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✅ On main branch${NC}"
+
+    # Check for uncommitted changes
+    validate_clean_working_directory
+
+    # Check if local branch is up-to-date with remote
+    validate_branch_synced_with_remote "$github_remote" "$current_branch"
+
+    echo ""
+}
+
 # Parse command line arguments
 DRY_RUN=false
 FORCE_BRANCH=false
@@ -170,21 +349,10 @@ check_github_release_exists() {
 # DELETE MODE: Delete existing tags
 # ============================================================================
 if [ "$DELETE_MODE" = true ]; then
-    echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
-    echo -e "${BLUE}          Tag Deletion Mode${NC}"
-    echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
-    echo ""
+    print_section "Tag Deletion Mode"
 
     # Extract current version from header file
-    if [ ! -f "include/ccap_config.h" ]; then
-        echo -e "${RED}❌ Error: include/ccap_config.h not found${NC}"
-        exit 1
-    fi
-
-    HEADER_MAJOR=$(grep "#define CCAP_VERSION_MAJOR" include/ccap_config.h | awk '{print $3}')
-    HEADER_MINOR=$(grep "#define CCAP_VERSION_MINOR" include/ccap_config.h | awk '{print $3}')
-    HEADER_PATCH=$(grep "#define CCAP_VERSION_PATCH" include/ccap_config.h | awk '{print $3}')
-    BASE_VERSION="${HEADER_MAJOR}.${HEADER_MINOR}.${HEADER_PATCH}"
+    BASE_VERSION=$(extract_header_version)
 
     echo -e "  Current base version: ${GREEN}$BASE_VERSION${NC}"
     echo ""
@@ -379,10 +547,8 @@ if [ "$IS_MAIN_BRANCH" = false ] && [ "$FORCE_BRANCH" = true ]; then
     echo ""
 fi
 
-echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
-echo -e "${BLUE}          CameraCapture Release Script${NC}"
-echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
-echo ""
+print_section "CameraCapture Release Script"
+
 echo -e "  Current branch: ${GREEN}$CURRENT_BRANCH${NC}"
 echo -e "  Using remote: ${GREEN}$GITHUB_REMOTE${NC} ($(git remote get-url "$GITHUB_REMOTE"))"
 if [ -n "$PRERELEASE_TYPE" ]; then
@@ -400,55 +566,18 @@ fi
 # ============================================================================
 # Step 1: Extract and validate version from all sources
 # ============================================================================
-echo -e "${BLUE}Step 1: Extracting version from all sources...${NC}"
-echo ""
+print_step "1" "Extracting version from all sources"
 
 # Extract from ccap_config.h
-if [ ! -f "include/ccap_config.h" ]; then
-    echo -e "${RED}❌ Error: include/ccap_config.h not found${NC}"
-    exit 1
-fi
-
-HEADER_MAJOR=$(grep "#define CCAP_VERSION_MAJOR" include/ccap_config.h | awk '{print $3}')
-HEADER_MINOR=$(grep "#define CCAP_VERSION_MINOR" include/ccap_config.h | awk '{print $3}')
-HEADER_PATCH=$(grep "#define CCAP_VERSION_PATCH" include/ccap_config.h | awk '{print $3}')
-HEADER_VERSION_STRING=$(grep "#define CCAP_VERSION_STRING" include/ccap_config.h | sed 's/.*"\([^"]*\)".*/\1/')
-
-if [ -z "$HEADER_MAJOR" ] || [ -z "$HEADER_MINOR" ] || [ -z "$HEADER_PATCH" ]; then
-    echo -e "${RED}❌ Error: Could not parse version macros from include/ccap_config.h${NC}"
-    exit 1
-fi
-
-HEADER_VERSION="${HEADER_MAJOR}.${HEADER_MINOR}.${HEADER_PATCH}"
+HEADER_VERSION=$(extract_header_version)
 echo -e "  Header (ccap_config.h): ${GREEN}$HEADER_VERSION${NC}"
 
-# Validate header version consistency
-if [ "$HEADER_VERSION" != "$HEADER_VERSION_STRING" ]; then
-    echo -e "${RED}❌ Error: Version mismatch in header file!${NC}"
-    echo -e "  Calculated: $HEADER_VERSION, String: $HEADER_VERSION_STRING"
-    exit 1
-fi
-
 # Extract from ccap.podspec
-if [ ! -f "ccap.podspec" ]; then
-    echo -e "${RED}❌ Error: ccap.podspec not found${NC}"
-    exit 1
-fi
-
-PODSPEC_VERSION=$(grep '^  s.version' ccap.podspec | sed 's/.*"\([^"]*\)".*/\1/')
-if [ -z "$PODSPEC_VERSION" ]; then
-    echo -e "${RED}❌ Error: Could not extract version from ccap.podspec${NC}"
-    exit 1
-fi
+PODSPEC_VERSION=$(extract_version_from_file "ccap.podspec" "s.version" "podspec")
 echo -e "  Podspec (ccap.podspec): ${GREEN}$PODSPEC_VERSION${NC}"
 
 # Extract from conanfile.py (optional file)
-if [ -f "conanfile.py" ]; then
-    CONAN_VERSION=$(grep 'version = ' conanfile.py | head -1 | sed 's/.*"\([^"]*\)".*/\1/')
-    if [ -z "$CONAN_VERSION" ]; then
-        echo -e "${RED}❌ Error: Could not extract version from conanfile.py${NC}"
-        exit 1
-    fi
+if CONAN_VERSION=$(extract_version_from_file "conanfile.py" "version =" "conan" "optional"); then
     echo -e "  Conan (conanfile.py): ${GREEN}$CONAN_VERSION${NC}"
 else
     echo -e "  Conan (conanfile.py): ${YELLOW}(not found, skipping)${NC}"
@@ -456,16 +585,7 @@ else
 fi
 
 # Extract from BUILD_AND_INSTALL.md
-if [ ! -f "BUILD_AND_INSTALL.md" ]; then
-    echo -e "${RED}❌ Error: BUILD_AND_INSTALL.md not found${NC}"
-    exit 1
-fi
-
-DOC_VERSION=$(grep 'Current version:' BUILD_AND_INSTALL.md | head -1 | sed 's/.*: \([^ ]*\).*/\1/')
-if [ -z "$DOC_VERSION" ]; then
-    echo -e "${RED}❌ Error: Could not extract version from BUILD_AND_INSTALL.md${NC}"
-    exit 1
-fi
+DOC_VERSION=$(extract_version_from_file "BUILD_AND_INSTALL.md" "Current version:" "documentation")
 echo -e "  Documentation (BUILD_AND_INSTALL.md): ${GREEN}$DOC_VERSION${NC}"
 
 echo ""
@@ -473,8 +593,7 @@ echo ""
 # ============================================================================
 # Step 2: Validate version consistency across all files
 # ============================================================================
-echo -e "${BLUE}Step 2: Validating version consistency...${NC}"
-echo ""
+print_step "2" "Validating version consistency"
 
 VERSIONS=("$HEADER_VERSION" "$PODSPEC_VERSION" "$DOC_VERSION")
 # Only add conanfile version if it exists
@@ -513,8 +632,7 @@ fi
 # ============================================================================
 # Step 3: Check git repository status
 # ============================================================================
-echo -e "${BLUE}Step 3: Checking git repository status...${NC}"
-echo ""
+print_step "3" "Checking git repository status"
 
 # Check if we are in a git repository
 if ! git rev-parse --git-dir >/dev/null 2>&1; then
@@ -544,8 +662,7 @@ echo ""
 # ============================================================================
 # Step 4: Get all existing version tags from git history
 # ============================================================================
-echo -e "${BLUE}Step 4: Checking existing version tags...${NC}"
-echo ""
+print_step "4" "Checking existing version tags"
 
 # Get all tags matching version pattern (v*.*.*, v*.*.*-alpha*, v*.*.*-beta*, v*.*.*-rc*)
 VERSION_TAGS=$(git tag -l | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+' | sort -V)
@@ -566,13 +683,12 @@ echo ""
 # ============================================================================
 # Step 5: Check if version already exists (both locally and remotely)
 # ============================================================================
-echo -e "${BLUE}Step 5: Checking if version already exists...${NC}"
-echo ""
+print_step "5" "Checking if version already exists"
 
 RELEASE_TAG="v$CURRENT_VERSION"
 
 # Check local tags
-if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+if check_tag_exists_locally "$RELEASE_TAG"; then
     echo -e "${RED}❌ Error: Release tag already exists locally!${NC}"
     echo -e "  Tag: $RELEASE_TAG"
     echo -e "  Please update the version number or use a different pre-release suffix"
@@ -590,7 +706,7 @@ else
 fi
 
 # Check remote tags
-if git ls-remote --tags "$GITHUB_REMOTE" | grep -q "refs/tags/$RELEASE_TAG$"; then
+if check_tag_exists_remotely "$RELEASE_TAG" "$GITHUB_REMOTE"; then
     echo -e "${RED}❌ Error: Release tag already exists on remote!${NC}"
     echo -e "  Remote: $GITHUB_REMOTE"
     echo -e "  Tag: $RELEASE_TAG"
@@ -604,8 +720,7 @@ echo ""
 # ============================================================================
 # Step 6: Compare current version with latest existing version
 # ============================================================================
-echo -e "${BLUE}Step 6: Comparing version with latest existing version...${NC}"
-echo ""
+print_step "6" "Comparing version with latest existing version"
 
 # Compare versions using semantic versioning rules
 compare_versions() {
@@ -691,6 +806,9 @@ if [ -z "$PRERELEASE_TYPE" ] && [ "$AUTO_YES" = false ]; then
     1)
         echo -e "  ${GREEN}✓ Selected: Official Release${NC}"
         # PRERELEASE_TYPE remains empty
+
+        # For official releases, enforce strict requirements even with -f flag
+        validate_official_release_requirements "$IS_MAIN_BRANCH" "$CURRENT_BRANCH" "$GITHUB_REMOTE"
         ;;
     2 | 3 | 4)
         if [ "$release_choice" = "2" ]; then
@@ -720,7 +838,7 @@ if [ -z "$PRERELEASE_TYPE" ] && [ "$AUTO_YES" = false ]; then
         echo -e "  ${GREEN}✓ Selected: $PRERELEASE_TYPE Release (v${CURRENT_VERSION})${NC}"
 
         # Re-check if this tag already exists
-        if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+        if check_tag_exists_locally "$RELEASE_TAG"; then
             echo ""
             echo -e "${RED}❌ Error: This tag already exists locally!${NC}"
             echo -e "  Tag: $RELEASE_TAG"
@@ -728,7 +846,7 @@ if [ -z "$PRERELEASE_TYPE" ] && [ "$AUTO_YES" = false ]; then
             exit 1
         fi
 
-        if git ls-remote --tags "$GITHUB_REMOTE" | grep -q "refs/tags/$RELEASE_TAG$"; then
+        if check_tag_exists_remotely "$RELEASE_TAG" "$GITHUB_REMOTE"; then
             echo ""
             echo -e "${RED}❌ Error: This tag already exists on remote!${NC}"
             echo -e "  Tag: $RELEASE_TAG"
@@ -745,14 +863,15 @@ if [ -z "$PRERELEASE_TYPE" ] && [ "$AUTO_YES" = false ]; then
     echo ""
 elif [ "$AUTO_YES" = true ] && [ -z "$PRERELEASE_TYPE" ]; then
     echo -e "${BLUE}Auto-confirm mode: Creating official release${NC}"
-    echo ""
+
+    # For official releases in auto mode, enforce strict requirements even with -f flag
+    validate_official_release_requirements "$IS_MAIN_BRANCH" "$CURRENT_BRANCH" "$GITHUB_REMOTE"
 fi
 
 # ============================================================================
 # Step 7: Create and push release tag
 # ============================================================================
-echo -e "${BLUE}Step 7: Creating and pushing release tag...${NC}"
-echo ""
+print_step "7" "Creating and pushing release tag"
 
 echo -e "  Release tag: ${GREEN}$RELEASE_TAG${NC}"
 echo -e "  Release version: ${GREEN}$CURRENT_VERSION${NC}"

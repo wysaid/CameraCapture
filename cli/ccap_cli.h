@@ -15,6 +15,15 @@
 namespace ccap_cli {
 
 /**
+ * @brief Image format for saving captured frames
+ */
+enum class ImageFormat {
+    BMP,  // BMP format (always available)
+    JPG,  // JPEG format (requires CCAP_CLI_WITH_STB_IMAGE)
+    PNG   // PNG format (requires CCAP_CLI_WITH_STB_IMAGE)
+};
+
+/**
  * @brief CLI options parsed from command line arguments
  */
 struct CLIOptions {
@@ -40,6 +49,8 @@ struct CLIOptions {
     ccap::PixelFormat outputFormat = ccap::PixelFormat::Unknown;
     ccap::PixelFormat internalFormat = ccap::PixelFormat::Unknown;
     bool saveYuv = false;
+    ImageFormat imageFormat = ImageFormat::JPG; // Default to JPG format
+    int jpegQuality = 90; // JPEG quality (1-100), default 90
 
     // Preview options (only when GLFW is enabled)
     bool enablePreview = false;
@@ -80,6 +91,13 @@ void printUsage(const char* programName);
 PixelFormatInfo parsePixelFormat(const std::string& formatStr);
 
 /**
+ * @brief Parse image format string to ImageFormat enum
+ * @param formatStr Format string (e.g., "jpg", "png", "bmp")
+ * @return ImageFormat enum value
+ */
+ImageFormat parseImageFormat(const std::string& formatStr);
+
+/**
  * @brief Parse command line arguments
  * @param argc Argument count
  * @param argv Argument values
@@ -105,17 +123,23 @@ int showDeviceInfo(int deviceIndex);
  * @param frame Video frame to save
  * @param outputPath Output file path (without extension)
  * @param saveAsYuv Force saving as YUV format
+ * @param imageFormat Image format to use (JPG/PNG/BMP)
+ * @param jpegQuality JPEG quality (1-100, only used for JPG format)
  * @return true on success, false on error
  */
-bool saveFrameToFile(ccap::VideoFrame* frame, const std::string& outputPath, bool saveAsYuv);
+bool saveFrameToFile(ccap::VideoFrame* frame, const std::string& outputPath, bool saveAsYuv, 
+                     ImageFormat imageFormat = ImageFormat::JPG, int jpegQuality = 90);
 
 /**
- * @brief Save a video frame as BMP image file
+ * @brief Save a video frame as image file (BMP/JPG/PNG)
  * @param frame Video frame to save
  * @param outputPath Output file path (without extension)
+ * @param imageFormat Image format to use (JPG/PNG/BMP)
+ * @param jpegQuality JPEG quality (1-100, only used for JPG format)
  * @return true on success, false on error
  */
-bool saveFrameAsImage(ccap::VideoFrame* frame, const std::string& outputPath);
+bool saveFrameAsImage(ccap::VideoFrame* frame, const std::string& outputPath,
+                      ImageFormat imageFormat = ImageFormat::JPG, int jpegQuality = 90);
 
 /**
  * @brief Capture frames from camera

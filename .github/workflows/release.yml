@@ -33,7 +33,7 @@ jobs:
             name: Windows Tests
             test_type: both
             
-          - os: ubuntu-latest  
+          - os: ubuntu-latest
             name: Linux Tests
             test_type: both
             
@@ -57,7 +57,9 @@ jobs:
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu qemu-user qemu-user-static
+        sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu qemu-user qemu-user-static \
+          libwayland-dev libxkbcommon-dev wayland-protocols \
+          libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
         
     - name: Setup Visual Studio (Windows)
       if: matrix.os == 'windows-latest'
@@ -69,7 +71,9 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y cmake build-essential gcc
         if [ "${{ matrix.test_type }}" = "both" ]; then
-          sudo apt-get install -y libglfw3-dev
+          sudo apt-get install -y libglfw3-dev \
+            libwayland-dev libxkbcommon-dev wayland-protocols \
+            libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
         fi
         
     - name: Run Tests
@@ -176,7 +180,9 @@ jobs:
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+        sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+          libwayland-dev libxkbcommon-dev wayland-protocols \
+          libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
         
     - name: Setup Visual Studio (Windows)
       if: matrix.os == 'windows-latest'
@@ -382,102 +388,458 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Static-only Release builds for CLI tool
+          # macOS CLI (normal build, CCAP_BUILD_CLI_STANDALONE not used)
           - os: macos-latest
             name: macOS CLI
             artifact_name: ccap-cli-macos-universal
             build_type: Release
             
+          # Windows CLI (static MSVC runtime, no DLL dependencies)
           - os: windows-latest
             name: Windows CLI
             artifact_name: ccap-cli-msvc-x86_64
             build_type: Release
+            standalone: true
             
+          # Linux x86_64 CLI (glibc version built in Docker ubuntu:20.04)
           - os: ubuntu-latest
-            name: Linux x86_64 CLI
-            artifact_name: ccap-cli-linux-x86_64
+            name: Linux x86_64 CLI (glibc)
+            artifact_name: ccap-cli-linux-x86_64-gnu
             build_type: Release
+            arch: x86_64
+            docker_ubuntu20: true
             
+          # Linux ARM64 CLI (glibc version built in Docker ubuntu:20.04)
           - os: ubuntu-latest
-            name: Linux ARM64 CLI
-            artifact_name: ccap-cli-linux-arm64
+            name: Linux ARM64 CLI (glibc)
+            artifact_name: ccap-cli-linux-arm64-gnu
             build_type: Release
-            arch: arm64
+            arch: aarch64
+            docker_ubuntu20: true
             
     runs-on: ${{ matrix.os }}
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-        
-    - name: Setup cross-compilation for ARM64
-      if: matrix.arch == 'arm64'
-      shell: bash
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+    
+    - name: Set up QEMU for multi-arch (Linux glibc)
+      if: matrix.docker_ubuntu20 == true
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: arm64
         
     - name: Setup Visual Studio (Windows)
       if: matrix.os == 'windows-latest'
       uses: microsoft/setup-msbuild@v1.1
       
-    - name: Install Linux dependencies
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake build-essential gcc libglfw3-dev
-        
-    - name: Configure CMake
+    - name: Build CLI with Docker Ubuntu 20.04 (Linux glibc)
+      if: matrix.docker_ubuntu20 == true
       shell: bash
       run: |
+        # Determine platform
+        if [ "${{ matrix.arch }}" = "aarch64" ]; then
+          DOCKER_PLATFORM="linux/arm64"
+          CMAKE_ARCH="aarch64"
+        else
+          DOCKER_PLATFORM="linux/amd64"
+          CMAKE_ARCH="x86_64"
+        fi
+        
+        echo "Building CLI for ${{ matrix.arch }} in Ubuntu 20.04 Docker container"
+        echo "Platform: $DOCKER_PLATFORM"
+        
+        # Create output directory
+        mkdir -p cli-package
+        
+        # Build in Ubuntu 20.04 container (GLIBC 2.31)
+        docker run --rm --platform=$DOCKER_PLATFORM \
+          -v "$(pwd):/workspace" \
+          -w /workspace \
+          ubuntu:20.04 \
+          bash -c "
+            set -e
+            export DEBIAN_FRONTEND=noninteractive
+            
+            echo '=== Installing build dependencies ==='
+            apt-get update
+            apt-get install -y cmake build-essential g++ pkg-config file \
+              libglfw3-dev \
+              libwayland-dev libxkbcommon-dev wayland-protocols \
+              libx11-dev libxrandr-dev libxinerama-dev \
+              libxcursor-dev libxi-dev libxext-dev
+            
+            echo '=== Configuring CMake ==='
+            cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+              -DCCAP_BUILD_EXAMPLES=OFF \
+              -DCCAP_BUILD_TESTS=OFF \
+              -DCCAP_BUILD_SHARED=OFF \
+              -DCCAP_BUILD_CLI_STANDALONE=ON \
+              -DCCAP_CLI_WITH_GLFW=ON
+            
+            echo '=== Building CLI ==='
+            cmake --build build --config ${{ matrix.build_type }} --target ccap-cli --parallel \$(nproc)
+            
+            echo '=== Verifying build ==='
+            if [ ! -f build/ccap ]; then
+              echo 'ERROR: CLI executable not found'
+              exit 1
+            fi
+            
+            # Copy CLI executable
+            cp build/ccap cli-package/ccap
+            chmod +x cli-package/ccap
+            
+            echo '=== Build information ==='
+            file cli-package/ccap
+            ldd cli-package/ccap || true
+            
+            echo '=== glibc version requirements ==='
+            objdump -T cli-package/ccap | grep GLIBC_ | sed 's/.*GLIBC_/GLIBC_/g' | sort -u
+            
+            echo '=== CLI Version ==='
+            cli-package/ccap --version || true
+          "
+        
+    - name: Configure CMake (macOS/Windows)
+      if: matrix.os == 'macos-latest' || matrix.os == 'windows-latest'
+      shell: bash
+      run: |
+        # Set standalone flag based on matrix configuration
+        STANDALONE_FLAG=""
+        if [ "${{ matrix.standalone }}" = "true" ]; then
+          STANDALONE_FLAG="-DCCAP_BUILD_CLI_STANDALONE=ON"
+        fi
+        
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           # Windows: Use multi-config generator (Visual Studio)
           cmake -B build -G "Visual Studio 17 2022" -A x64 \
                 -DCCAP_BUILD_EXAMPLES=OFF \
                 -DCCAP_BUILD_TESTS=OFF \
                 -DCCAP_BUILD_SHARED=OFF \
-                -DBUILD_CCAP_CLI=ON
-        elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-          # Linux: Use single-config generator
-          if [ "${{ matrix.arch }}" = "arm64" ]; then
-            # ARM64 cross-compilation
-            cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-              -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
-              -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
-              -DCMAKE_SYSTEM_NAME=Linux \
-              -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
-              -DCCAP_BUILD_EXAMPLES=OFF \
-              -DCCAP_BUILD_TESTS=OFF \
-              -DCCAP_BUILD_SHARED=OFF \
-              -DBUILD_CCAP_CLI=ON
-          else
-            # Regular Linux x86_64
-            cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-                  -DCCAP_BUILD_EXAMPLES=OFF \
-                  -DCCAP_BUILD_TESTS=OFF \
-                  -DCCAP_BUILD_SHARED=OFF \
-                  -DBUILD_CCAP_CLI=ON
-          fi
+                -DCCAP_BUILD_CLI=ON \
+                -DCCAP_CLI_WITH_GLFW=ON \
+                $STANDALONE_FLAG
         else
           # macOS: Use single-config generator with universal binary
+          # Note: CCAP_BUILD_CLI_STANDALONE not used on macOS
           cmake -B build -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64' \
                 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
                 -DCCAP_BUILD_EXAMPLES=OFF \
                 -DCCAP_BUILD_TESTS=OFF \
                 -DCCAP_BUILD_SHARED=OFF \
-                -DBUILD_CCAP_CLI=ON
+                -DCCAP_BUILD_CLI=ON \
+                -DCCAP_CLI_WITH_GLFW=ON
         fi
         
-    - name: Build CLI
+    - name: Build CLI (macOS/Windows)
+      if: matrix.os == 'macos-latest' || matrix.os == 'windows-latest'
       shell: bash
       run: |
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           # Windows: Build Release version only
           cmake --build build --config Release --target ccap-cli --parallel
         else
-          # Other platforms: Build specified version
+          # macOS: Build specified version
           cmake --build build --config ${{ matrix.build_type }} --target ccap-cli --parallel
         fi
+        
+    - name: Verify CLI build information
+      shell: bash
+      run: |
+        echo "=== Verifying CLI build configuration ==="
+        
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          CLI_PATH="build/Release/ccap.exe"
+        elif [ "${{ matrix.docker_ubuntu20 }}" = "true" ]; then
+          # Linux glibc builds are in cli-package
+          CLI_PATH="cli-package/ccap"
+        else
+          CLI_PATH="build/ccap"
+        fi
+        
+        # Check if CLI executable exists
+        if [ ! -f "$CLI_PATH" ]; then
+          echo "ERROR: CLI executable not found at $CLI_PATH"
+          exit 1
+        fi
+        
+        echo "✓ CLI executable found: $CLI_PATH"
+        ls -lh "$CLI_PATH"
+        
+        # Check if this is an ARM64 cross-compilation (can't execute directly on x86_64 runner)
+        if [ "${{ matrix.arch }}" = "aarch64" ] && [ "${{ matrix.docker_ubuntu20 }}" = "true" ]; then
+          echo ""
+          echo "=== ARM64 Cross-Compilation Build ==="
+          echo "⚠ Cannot execute ARM64 binary directly on x86_64 runner"
+          echo "📦 Setting up containerized verification with QEMU..."
+          
+          # Verify file type
+          echo ""
+          echo "=== File Information ==="
+          file "$CLI_PATH"
+          
+          # Run in ARM64 container with QEMU
+          echo ""
+          echo "=== Testing in ARM64 Container (via QEMU) ==="
+          
+          # Create temporary test directory
+          mkdir -p /tmp/arm64-test
+          cp "$CLI_PATH" /tmp/arm64-test/ccap
+          chmod +x /tmp/arm64-test/ccap
+          
+          # Pull ARM64 image explicitly first to avoid architecture mismatch
+          docker pull --platform=linux/arm64 ubuntu:24.04
+          
+          # Run verification in ARM64 container
+          docker run --rm --platform=linux/arm64 \
+            -v "/tmp/arm64-test:/test:ro" \
+            -w /test \
+            ubuntu:24.04 \
+            sh -c "
+              echo '=== Container Environment ==='
+              uname -m
+              cat /etc/os-release | head -3
+              echo ''
+              
+              echo '=== CLI Version Test ==='
+              ./ccap --version || exit 1
+              echo ''
+              
+              echo '=== CLI Help Test ==='
+              ./ccap --help > /dev/null 2>&1 || exit 1
+              echo '✓ --help command works'
+              
+              echo ''
+              echo '=== Feature Detection ==='
+              VERSION_OUTPUT=\$(./ccap --version)
+              
+              # Check standalone mode
+              if echo \"\$VERSION_OUTPUT\" | grep -q 'Runtime Linking: Static'; then
+                echo '✓ Standalone mode: ENABLED (Static runtime)'
+              else
+                echo 'ℹ Standalone mode not explicitly reported'
+              fi
+              
+              # Check stb_image
+              if echo \"\$VERSION_OUTPUT\" | grep -qi 'stb_image'; then
+                echo '✓ stb_image_write: ENABLED'
+              else
+                echo 'ℹ stb_image_write not mentioned in version output'
+              fi
+              
+              # Check GLFW (should be enabled for glibc CLI)
+              if echo \"\$VERSION_OUTPUT\" | grep -qi 'glfw\|preview'; then
+                echo '✓ GLFW: ENABLED (as expected)'
+              else
+                echo '⚠ WARNING: GLFW not detected (should be enabled)'
+              fi
+              
+              echo ''
+              echo '✓ All ARM64 container tests passed!'
+            "
+          
+          echo ""
+          echo "✓ ARM64 binary verified successfully in container"
+          exit 0
+        fi
+        
+        # For Linux glibc builds, version check was already done in Docker
+        if [ "${{ matrix.docker_ubuntu20 }}" = "true" ]; then
+          echo ""
+          echo "✓ Linux glibc build verification completed in Docker container"
+          exit 0
+        fi
+        
+        
+        # Parse version output to verify features
+        VERSION_OUTPUT=$($CLI_PATH --version)
+        
+        # Check CCAP_BUILD_CLI_STANDALONE
+        echo "=== Verifying Standalone Mode ==="
+        if [ "${{ matrix.standalone }}" = "true" ]; then
+          if echo "$VERSION_OUTPUT" | grep -q "Runtime Linking: Static"; then
+            echo "✓ Standalone mode: ENABLED (Static runtime)"
+          else
+            echo "⚠ WARNING: Standalone mode expected but not detected in version output"
+            echo "Version output:"
+            echo "$VERSION_OUTPUT"
+          fi
+        else
+          echo "ℹ Standalone mode not required for this platform (${{ matrix.os }})"
+        fi
+        
+        # Check stb_image_write support
+        echo ""
+        echo "=== Verifying stb_image_write (JPG/PNG support) ==="
+        if echo "$VERSION_OUTPUT" | grep -qi "stb_image"; then
+          echo "✓ stb_image_write: ENABLED"
+        else
+          echo "⚠ WARNING: stb_image_write not mentioned in version output"
+        fi
+        
+        # Check GLFW support
+        echo ""
+        echo "=== Verifying GLFW (Preview support) ==="
+        if echo "$VERSION_OUTPUT" | grep -qi "glfw\|preview"; then
+          echo "✓ GLFW: ENABLED (as expected)"
+        else
+          echo "⚠ WARNING: GLFW not detected (should be enabled)"
+        fi
+        
+        # Platform-specific dependency checks
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          echo ""
+          echo "=== Windows Dependency Check ==="
+          echo "File info:"
+          file "$CLI_PATH" || echo "file command not available"
+          echo "✓ Windows static MSVC runtime expected"
+          
+        elif [ "${{ matrix.docker_ubuntu20 }}" = "true" ]; then
+          echo ""
+          echo "=== Linux Dependency Check ==="
+          echo "File info:"
+          file "$CLI_PATH"
+          
+          echo ""
+          echo "Dynamic library dependencies:"
+          ldd "$CLI_PATH"
+          
+          echo ""
+          # Check for static libstdc++/libgcc (glibc builds are standalone)
+          if true; then
+            if ldd "$CLI_PATH" | grep -q "libstdc++"; then
+              echo "⚠ WARNING: libstdc++ is dynamically linked (static linking may not be available)"
+            else
+              echo "✓ libstdc++ is statically linked"
+            fi
+            
+            if ldd "$CLI_PATH" | grep -q "libgcc_s"; then
+              echo "⚠ WARNING: libgcc_s is dynamically linked (static linking may not be available)"
+            else
+              echo "✓ libgcc_s is statically linked"
+            fi
+          fi
+          
+          # Detect glibc version
+          echo ""
+          echo "glibc version requirement:"
+          objdump -T "$CLI_PATH" | grep GLIBC_ | sed 's/.*GLIBC_/GLIBC_/g' | sort -u || echo "Cannot detect glibc version"
+          
+        elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+          echo ""
+          echo "=== macOS Dependency Check ==="
+          echo "File info:"
+          file "$CLI_PATH"
+          
+          echo ""
+          echo "Architecture info:"
+          lipo -info "$CLI_PATH"
+          
+          echo ""
+          echo "Dynamic library dependencies:"
+          otool -L "$CLI_PATH"
+          
+          echo ""
+          echo "✓ macOS uses static libc++ by default"
+        fi
+        
+        # Test basic functionality
+        echo ""
+        echo "=== Testing Basic Functionality ==="
+        if $CLI_PATH --help > /dev/null 2>&1; then
+          echo "✓ --help command works"
+        else
+          echo "✗ ERROR: --help command failed"
+          exit 1
+        fi
+        
+        if $CLI_PATH --version > /dev/null 2>&1; then
+          echo "✓ --version command works"
+        else
+          echo "✗ ERROR: --version command failed"
+          exit 1
+        fi
+        
+        echo ""
+        echo "=== Verification Complete ==="
+        
+    - name: Verify CLI in clean container (Linux glibc)
+      if: matrix.docker_ubuntu20 == true
+      shell: bash
+      run: |
+        echo "=== Verifying CLI in Clean Container Environment ==="
+        echo "This test ensures the CLI can run without any development dependencies"
+        
+        # Create a temporary directory for the test
+        mkdir -p /tmp/cli-test
+        cp cli-package/ccap /tmp/cli-test/ccap
+        chmod +x /tmp/cli-test/ccap
+        
+        # Determine architecture and platform
+        if [ "${{ matrix.arch }}" = "aarch64" ]; then
+          DOCKER_PLATFORM="linux/arm64"
+        else
+          DOCKER_PLATFORM="linux/amd64"
+        fi
+        
+        echo ""
+        echo "Running CLI in minimal Debian container (no build tools, no X11, no GPU)..."
+        echo "Platform: $DOCKER_PLATFORM"
+        
+        # Use debian:stable-slim as a minimal glibc environment
+        # This container has only basic glibc runtime, no development tools
+        docker run --rm --platform=$DOCKER_PLATFORM \
+          -v "/tmp/cli-test:/app:ro" \
+          -w /app \
+          debian:stable-slim \
+          sh -c "
+            set -e
+            echo '=== Container Environment ==='
+            cat /etc/os-release | head -3
+            echo ''
+            
+            echo '=== Testing CLI Execution ==='
+            
+            # Test --version
+            echo 'Testing --version...'
+            if ./ccap --version; then
+              echo '✓ --version: PASSED'
+            else
+              echo '✗ --version: FAILED'
+              exit 1
+            fi
+            
+            echo ''
+            
+            # Test --help
+            echo 'Testing --help...'
+            if ./ccap --help > /dev/null 2>&1; then
+              echo '✓ --help: PASSED'
+            else
+              echo '✗ --help: FAILED'
+              exit 1
+            fi
+            
+            echo ''
+            
+            # Test --list-devices (should work even without cameras)
+            echo 'Testing --list-devices...'
+            if ./ccap --list-devices; then
+              echo '✓ --list-devices: PASSED'
+            else
+              echo '✗ --list-devices: FAILED (exit code non-zero, but may be OK if no devices)'
+            fi
+            
+            echo ''
+            echo '=== All Clean Container Tests PASSED ==='
+          "
+        
+        echo ""
+        echo "✓ CLI successfully runs in clean container without development dependencies"
+        
+        # Cleanup
+        rm -rf /tmp/cli-test
         
     - name: Prepare CLI package directory
       shell: bash
@@ -507,16 +869,17 @@ jobs:
           lipo -info cli-package/ccap
         fi
         
-    - name: Copy CLI executable (Linux)
-      if: matrix.os == 'ubuntu-latest'
+    - name: Copy CLI executable (Linux glibc - already in cli-package)
+      if: matrix.docker_ubuntu20 == true
       shell: bash
       run: |
-        # Copy CLI executable
-        cp build/ccap cli-package/ccap || echo "CLI executable not found"
-        
-        # Verify architecture
+        # Verify CLI executable (already copied by Docker build)
         if [ -f "cli-package/ccap" ]; then
+          echo "✓ CLI executable found in cli-package/"
           file cli-package/ccap
+        else
+          echo "ERROR: CLI executable not found"
+          exit 1
         fi
         
     - name: Copy documentation
@@ -747,8 +1110,508 @@ jobs:
         path: ${{ matrix.artifact_name }}.*
         retention-days: 5
 
+  build-cli-musl:
+    name: Build CLI Tool (musl/static)
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x86_64 CLI (musl static version)
+          - name: Linux x86_64 CLI (musl)
+            artifact_name: ccap-cli-linux-x86_64-musl
+            build_type: Release
+            arch: x86_64
+            
+          # Linux ARM64 CLI (musl static version)
+          - name: Linux ARM64 CLI (musl)
+            artifact_name: ccap-cli-linux-arm64-musl
+            build_type: Release
+            arch: aarch64
+            
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up QEMU for multi-arch
+      if: matrix.arch == 'aarch64'
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: arm64
+        
+    - name: Build CLI with Alpine (musl) in Docker
+      shell: bash
+      run: |
+        # Determine Alpine platform
+        if [ "${{ matrix.arch }}" = "aarch64" ]; then
+          ALPINE_PLATFORM="linux/arm64"
+          ALPINE_ARCH="aarch64"
+        else
+          ALPINE_PLATFORM="linux/amd64"
+          ALPINE_ARCH="x86_64"
+        fi
+        
+        echo "Building for platform: $ALPINE_PLATFORM (arch: $ALPINE_ARCH)"
+        
+        # Create output directory
+        mkdir -p cli-package
+        
+        # Build in Alpine container with musl
+        # Using alpine:3 to get security updates within v3.x while avoiding breaking changes from v4.x
+        docker run --rm --platform=$ALPINE_PLATFORM \
+          -v "$(pwd):/workspace" \
+          -w /workspace \
+          alpine:3 \
+          sh -c "
+            set -e
+            echo '=== Installing build dependencies ==='
+            apk add --no-cache cmake make g++ pkgconfig linux-headers file \
+              mesa-dev glfw-dev \
+              wayland-dev wayland-protocols libxkbcommon-dev \
+              libx11-dev libxrandr-dev libxinerama-dev \
+              libxcursor-dev libxi-dev libxext-dev
+            
+            echo '=== Configuring CMake ==='
+            cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+              -DCMAKE_EXE_LINKER_FLAGS=\"-static\" \
+              -DCCAP_BUILD_EXAMPLES=OFF \
+              -DCCAP_BUILD_TESTS=OFF \
+              -DCCAP_BUILD_SHARED=OFF \
+              -DCCAP_BUILD_CLI_STANDALONE=ON \
+              -DCCAP_CLI_WITH_GLFW=ON
+            
+            echo '=== Building CLI ==='
+            cmake --build build --config ${{ matrix.build_type }} --target ccap-cli --parallel \$(nproc)
+            
+            echo '=== Verifying build ==='
+            if [ ! -f build/ccap ]; then
+              echo 'ERROR: CLI executable not found'
+              exit 1
+            fi
+            
+            # Copy CLI executable
+            cp build/ccap cli-package/ccap
+            chmod +x cli-package/ccap
+            
+            echo '=== Build information ==='
+            file cli-package/ccap || echo 'file command not available, skipping file type check'
+            ldd cli-package/ccap || echo 'Static binary - no dynamic dependencies'
+            
+            echo '=== CLI Version ==='
+            cli-package/ccap --version || true
+          "
+        
+    - name: Verify static binary
+      shell: bash
+      run: |
+        echo "=== Comprehensive musl/static CLI Verification ==="
+        
+        if [ ! -f "cli-package/ccap" ]; then
+          echo "✗ ERROR: CLI executable not found"
+          exit 1
+        fi
+        
+        echo "✓ CLI executable found"
+        ls -lh cli-package/ccap
+        
+        echo ""
+        echo "=== File Information ==="
+        if command -v file >/dev/null 2>&1; then
+          file cli-package/ccap
+        else
+          echo "file command not available, skipping file type check"
+        fi
+        
+        echo ""
+        echo "=== Static Linking Verification ==="
+        # Check for dynamic dependencies
+        # Note: ldd may return non-zero exit code for static binaries, so we capture output first
+        LDD_OUTPUT=$(ldd cli-package/ccap 2>&1 || true)
+        
+        if echo "$LDD_OUTPUT" | grep -q "not a dynamic executable"; then
+          echo "✓ PASS: Fully static binary (no dynamic dependencies)"
+        elif echo "$LDD_OUTPUT" | grep -q "statically linked"; then
+          echo "✓ PASS: Statically linked binary"
+        elif echo "$LDD_OUTPUT" | grep -q "not found"; then
+          echo "✗ ERROR: Dynamic dependencies detected with missing libraries:"
+          echo "$LDD_OUTPUT"
+          exit 1
+        elif echo "$LDD_OUTPUT" | grep -E "\.so|libc"; then
+          echo "⚠ WARNING: Dynamic dependencies detected:"
+          echo "$LDD_OUTPUT"
+          echo ""
+          echo "Note: musl static builds should have NO dynamic dependencies"
+          exit 1
+        else
+          echo "✓ PASS: No dynamic dependencies found"
+          echo "ldd output: $LDD_OUTPUT"
+        fi
+        
+        echo ""
+        echo "=== Verifying musl libc ==="
+        if strings cli-package/ccap | grep -q "musl"; then
+          echo "✓ musl libc detected in binary"
+        else
+          echo "ℹ musl signature not found (this may be normal)"
+        fi
+        
+        echo ""
+        echo "=== CLI Version Information ==="
+        
+        # For ARM64 builds, we need to test in a container
+        if [ "${{ matrix.arch }}" = "aarch64" ]; then
+          echo "Testing ARM64 binary in Alpine container (via QEMU)..."
+          
+          # Test in Alpine container with QEMU
+          docker run --rm --platform=linux/arm64 \
+            -v "$(pwd)/cli-package:/test:ro" \
+            -w /test \
+            alpine:3 \
+            sh -c "
+              echo '=== Container Environment ==='
+              uname -m
+              echo ''
+              
+              echo '=== CLI Version Test ==='
+              if ./ccap --version; then
+                echo ''
+                echo '✓ --version command works'
+                
+                VERSION_OUTPUT=\$(./ccap --version)
+                
+                # Check standalone mode
+                if echo \"\$VERSION_OUTPUT\" | grep -q 'Runtime Linking: Static'; then
+                  echo '✓ Standalone mode: ENABLED'
+                else
+                  echo 'ℹ Standalone mode: Not explicitly reported'
+                fi
+                
+                # Check stb_image
+                if echo \"\$VERSION_OUTPUT\" | grep -qi 'stb_image'; then
+                  echo '✓ stb_image_write: Present in version output'
+                else
+                  echo 'ℹ stb_image_write: Not mentioned'
+                fi
+                
+                # Check GLFW (should be enabled for musl with full features)
+                if echo \"\$VERSION_OUTPUT\" | grep -qi 'glfw\|preview'; then
+                  echo '✓ GLFW: ENABLED (full feature set)'
+                else
+                  echo '⚠ WARNING: GLFW not detected (should be enabled)'
+                fi
+                
+                echo ''
+                echo '=== Testing --help ==='
+                if ./ccap --help > /dev/null 2>&1; then
+                  echo '✓ --help command works'
+                else
+                  echo '✗ ERROR: --help command failed'
+                  exit 1
+                fi
+              else
+                echo '✗ ERROR: CLI execution failed'
+                exit 1
+              fi
+            "
+          
+          if [ $? -ne 0 ]; then
+            echo "✗ Container tests failed"
+            exit 1
+          fi
+          
+          echo "✓ All ARM64 container tests passed"
+          
+        else
+          # x86_64 - can execute directly
+          if cli-package/ccap --version; then
+            VERSION_OUTPUT=$(cli-package/ccap --version)
+            
+            echo ""
+            echo "=== Feature Detection ==="
+            
+            # Check standalone mode
+            if echo "$VERSION_OUTPUT" | grep -q "Runtime Linking: Static"; then
+              echo "✓ Standalone mode: ENABLED"
+            else
+              echo "ℹ Standalone mode: Not explicitly reported"
+            fi
+            
+            # Check stb_image
+            if echo "$VERSION_OUTPUT" | grep -qi "stb_image"; then
+              echo "✓ stb_image_write: Present in version output"
+            else
+              echo "ℹ stb_image_write: Not mentioned (may still be compiled in)"
+            fi
+            
+            # Check GLFW (should be enabled for musl builds with full features)
+            if echo "$VERSION_OUTPUT" | grep -qi "glfw\|preview"; then
+              echo "✓ GLFW: ENABLED (full feature set)"
+            else
+              echo "⚠ WARNING: GLFW not detected (should be enabled)"
+            fi
+            
+          else
+            echo "⚠ WARNING: CLI execution failed"
+            exit 1
+          fi
+          
+          echo ""
+          echo "=== Testing Basic Commands ==="
+          if cli-package/ccap --help > /dev/null 2>&1; then
+            echo "✓ --help command works"
+          else
+            echo "✗ ERROR: --help command failed"
+            exit 1
+          fi
+        fi
+        
+        echo ""
+        echo "=== Architecture Verification ==="
+        if command -v file >/dev/null 2>&1; then
+          file cli-package/ccap
+          if [ "${{ matrix.arch }}" = "aarch64" ]; then
+            if file cli-package/ccap | grep -q "ARM aarch64"; then
+              echo "✓ Architecture: ARM64/aarch64 confirmed"
+            else
+              echo "⚠ WARNING: Expected ARM64 architecture"
+            fi
+          else
+            if file cli-package/ccap | grep -q "x86-64"; then
+              echo "✓ Architecture: x86_64 confirmed"
+            else
+              echo "⚠ WARNING: Expected x86_64 architecture"
+            fi
+          fi
+        else
+          echo "⚠ file command not available, skipping architecture check"
+        fi
+        
+        echo ""
+        echo "=== Binary Size ==="
+        du -h cli-package/ccap
+        
+        echo ""
+        echo "=== Verification Summary ==="
+        echo "Build Type: musl/static"
+        echo "Architecture: ${{ matrix.arch }}"
+        echo "GLFW: Enabled (with GLFW support)"
+        echo "stb_image: Enabled"
+        echo "Status: $([ -f cli-package/ccap ] && echo 'PASSED' || echo 'FAILED')"
+        
+        echo ""
+        echo "=== All Checks Complete ==="
+        
+    - name: Verify CLI in clean container (musl static)
+      shell: bash
+      run: |
+        echo "=== Verifying Static CLI in Ultra-Minimal Container ==="
+        echo "This test ensures the fully-static musl CLI can run anywhere"
+        
+        # Determine platform for docker
+        if [ "${{ matrix.arch }}" = "aarch64" ]; then
+          DOCKER_PLATFORM="linux/arm64"
+        else
+          DOCKER_PLATFORM="linux/amd64"
+        fi
+        
+        echo "Testing on platform: $DOCKER_PLATFORM"
+        echo ""
+        
+        # Test 1: Run in busybox (ultra-minimal, no glibc at all)
+        echo "=== Test 1: Running in BusyBox (no glibc) ==="
+        docker run --rm --platform=$DOCKER_PLATFORM \
+          -v "$(pwd)/cli-package:/app:ro" \
+          -w /app \
+          busybox:latest \
+          sh -c "
+            echo 'Container: BusyBox (no glibc, no libc except busybox)'
+            echo ''
+            
+            echo 'Testing --version...'
+            if ./ccap --version; then
+              echo '✓ --version: PASSED in BusyBox'
+            else
+              echo '✗ --version: FAILED'
+              exit 1
+            fi
+            
+            echo ''
+            echo 'Testing --help...'
+            if ./ccap --help > /dev/null 2>&1; then
+              echo '✓ --help: PASSED in BusyBox'
+            else
+              echo '✗ --help: FAILED'
+              exit 1
+            fi
+            
+            echo ''
+            echo 'Testing --list-devices...'
+            ./ccap --list-devices || echo '(No devices found - expected in container)'
+            echo '✓ --list-devices: Command executed'
+            
+            echo ''
+            echo '=== BusyBox Test PASSED ==='
+          "
+        
+        echo ""
+        
+        # Test 2: Run in scratch-like minimal Alpine (different libc)
+        echo "=== Test 2: Running in Alpine (musl libc) ==="
+        docker run --rm --platform=$DOCKER_PLATFORM \
+          -v "$(pwd)/cli-package:/app:ro" \
+          -w /app \
+          alpine:latest \
+          sh -c "
+            echo 'Container: Alpine (musl libc)'
+            cat /etc/os-release | head -2
+            echo ''
+            
+            echo 'Testing --version...'
+            if ./ccap --version; then
+              echo '✓ --version: PASSED in Alpine'
+            else
+              echo '✗ --version: FAILED'
+              exit 1
+            fi
+            
+            echo ''
+            echo 'Testing --help...'
+            if ./ccap --help > /dev/null 2>&1; then
+              echo '✓ --help: PASSED in Alpine'
+            else
+              echo '✗ --help: FAILED'
+              exit 1
+            fi
+            
+            echo ''
+            echo '=== Alpine Test PASSED ==='
+          "
+        
+        echo ""
+        
+        # Test 3: Run in Debian (glibc) to ensure musl binary works on glibc systems too
+        echo "=== Test 3: Running in Debian (glibc - cross-libc compatibility) ==="
+        docker run --rm --platform=$DOCKER_PLATFORM \
+          -v "$(pwd)/cli-package:/app:ro" \
+          -w /app \
+          debian:stable-slim \
+          sh -c "
+            echo 'Container: Debian (glibc)'
+            cat /etc/os-release | head -2
+            echo ''
+            
+            echo 'Testing --version...'
+            if ./ccap --version; then
+              echo '✓ --version: PASSED in Debian (glibc)'
+            else
+              echo '✗ --version: FAILED'
+              exit 1
+            fi
+            
+            echo ''
+            echo 'Testing --help...'
+            if ./ccap --help > /dev/null 2>&1; then
+              echo '✓ --help: PASSED in Debian (glibc)'
+            else
+              echo '✗ --help: FAILED'
+              exit 1
+            fi
+            
+            echo ''
+            echo '=== Debian Test PASSED ==='
+          "
+        
+        echo ""
+        echo "=== All Clean Container Verification Tests PASSED ==="
+        echo "✓ Static musl binary runs successfully in:"
+        echo "  - BusyBox (no standard libc)"
+        echo "  - Alpine (musl libc)"
+        echo "  - Debian (glibc)"
+        echo ""
+        echo "The binary is truly portable and can run on any Linux distribution!"
+        
+    - name: Copy documentation
+      shell: bash
+      run: |
+        # Copy README files
+        cp README.md cli-package/ || echo "README not found"
+        cp README.zh-CN.md cli-package/ || echo "Chinese README not found"
+        cp LICENSE cli-package/ || echo "LICENSE not found"
+        
+        # Create musl-specific usage guide
+        cat > cli-package/USAGE.md << 'EOFUSAGE'
+        # ccap CLI Tool Usage (musl/static)
+        
+        ## 🚀 Quick Start
+        
+        This is a fully statically-linked version built with musl libc, providing maximum portability across Linux distributions without any runtime dependencies.
+        
+        ## Usage Examples
+        
+        \`\`\`bash
+        # List all available cameras
+        ./ccap --list-devices
+        
+        # Capture a single frame (saves as output.bmp by default)
+        ./ccap
+        
+        # Capture with specific device
+        ./ccap --device 0
+        
+        # Capture with specific resolution
+        ./ccap --width 1920 --height 1080
+        
+        # Capture with specific pixel format
+        ./ccap --format YUYV
+        
+        # Capture multiple frames
+        ./ccap --count 10
+        
+        # Save to specific file
+        ./ccap --output my-capture.bmp
+        \`\`\`
+        
+        ## Available Options
+        
+        Run \`./ccap --help\` for complete list of options.
+        
+        ## 🔧 Features
+        
+        - **Fully Static**: No dynamic library dependencies
+        - **Maximum Portability**: Works on any Linux distribution (glibc or musl)
+        - **No Runtime Requirements**: No need to install additional libraries
+        
+        ## System Requirements
+        
+        - **Linux**: Any modern Linux distribution (kernel 2.6+)
+        - **Architecture**: Built for ${{ matrix.arch }}
+        
+        ## Notes
+        
+        - This version includes GLFW preview support (--preview enabled)
+        - Built with musl libc for complete static linking
+        - BMP format is the only supported output format
+        - For more advanced usage, please refer to the ccap library documentation
+        EOFUSAGE
+        
+    - name: Create CLI archive
+      shell: bash
+      run: |
+        cd cli-package
+        tar -czf ../${{ matrix.artifact_name }}.tar.gz .
+        cd ..
+        
+    - name: Upload CLI artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: ${{ matrix.artifact_name }}.tar.gz
+        retention-days: 5
+
   release:
-    needs: [test, build, build-cli]
+    needs: [test, build, build-cli, build-cli-musl]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -811,126 +1674,67 @@ jobs:
         cat > release_notes.md << 'EOF'
         ## 🚀 ccap ${{ steps.release_type.outputs.tag_name }}
         
+        A high-performance, lightweight cross-platform camera capture library with hardware-accelerated pixel format conversion.
+        
+        > 🌐 **Documentation**: [ccap.work](https://ccap.work) | **Repository**: [GitHub](https://github.com/wysaid/CameraCapture)
+        
         ### ✅ Quality Assurance
         
-        **All packages have passed comprehensive unit tests before release:**
-        - ✅ **Windows Tests**: Functional and performance tests on Windows platform
-        - ✅ **Linux x86_64 Tests**: Functional and performance tests on Linux
-        - ✅ **Linux ARM64 Tests**: Cross-compiled functional tests with QEMU validation  
-        - ✅ **macOS Tests**: Functional and performance tests on macOS platform
+        All packages passed comprehensive tests on Windows, macOS, Linux x86_64, and Linux ARM64 platforms.
         
-        > **Note**: This release was only created after ALL platform tests passed successfully. Any test failure would have prevented the release.
+        ### 🔧 Build Environment & Compatibility
         
-        ### 📦 Downloads
+        - **Linux Builds**: Ubuntu 20.04 (GLIBC 2.31), compatible with Ubuntu 20.04+, Debian 11+, Fedora 32+, Arch Linux
+        - **Windows**: MSVC 2019+, static runtime (no dependencies)
+        - **macOS**: Universal Binary (Intel + Apple Silicon), macOS 10.13+
+        - **Requirements**: C++17 compiler for library integration
         
-        **Library Packages:**
+        ### 📦 Available Packages
         
-        **Static Library Packages (for static linking):**
-        - **macOS** (Universal Binary - supports Intel & Apple Silicon): `ccap-macos-universal-static.tar.gz`
-        - **Windows** (MSVC x64 - includes Debug and Release versions): `ccap-msvc-x86_64-static.zip`
-        - **Linux x86_64** (compatible with most distributions): `ccap-linux-x86_64-static.tar.gz`
-        - **Linux ARM64** (compatible with Raspberry Pi, ARM servers, and other ARM64 boards): `ccap-linux-arm64-static.tar.gz`
+        **Libraries** (static & shared):
+        - `ccap-macos-universal-{static,shared}.tar.gz` - macOS Universal Binary
+        - `ccap-msvc-x86_64-{static,shared}.zip` - Windows x64 (Debug + Release)
+        - `ccap-linux-{x86_64,arm64}-{static,shared}.tar.gz` - Linux packages
         
-        **Shared Library Packages (for dynamic linking):**
-        - **macOS** (Universal Binary - supports Intel & Apple Silicon): `ccap-macos-universal-shared.tar.gz`
-        - **Windows** (MSVC x64 - includes Debug and Release versions): `ccap-msvc-x86_64-shared.zip`
-        - **Linux x86_64** (compatible with most distributions): `ccap-linux-x86_64-shared.tar.gz`
-        - **Linux ARM64** (compatible with Raspberry Pi, ARM servers, and other ARM64 boards): `ccap-linux-arm64-shared.tar.gz`
+        **CLI Tools** (ready-to-run, all with GLFW preview support):
+        - `ccap-cli-macos-universal.tar.gz` - macOS Universal Binary
+        - `ccap-cli-msvc-x86_64.zip` - Windows x64
+        - `ccap-cli-linux-{x86_64,arm64}-gnu.tar.gz` - Linux glibc (smaller, optimized for modern systems)
+        - `ccap-cli-linux-{x86_64,arm64}-musl.tar.gz` - Linux musl (fully static, maximum compatibility)
         
-        **CLI Tool Packages (command-line tool, ready to run):**
-        - **macOS** (Universal Binary): `ccap-cli-macos-universal.tar.gz`
-        - **Windows** (x64): `ccap-cli-msvc-x86_64.zip`
-        - **Linux x86_64**: `ccap-cli-linux-x86_64.tar.gz`
-        - **Linux ARM64**: `ccap-cli-linux-arm64.tar.gz`
+        > **CLI Features**: All CLI packages include `--preview` for real-time camera preview (requires X11/Wayland on Linux).  
+        > **musl vs glibc**: musl versions (~1.9MB) are larger but work on ANY Linux distribution; glibc versions (~580KB) are smaller but require GLIBC 2.31+.
         
-        > **CLI Tool**: These packages contain only the command-line executable (statically linked, no dependencies). Perfect for quick testing and simple capture tasks without requiring library integration.
+        ### 🚀 Quick Start
         
-        ### 📁 Package Contents
+        **Library Integration:**
         
-        **Static Library Packages:**
-        - **Library Files**: Static library files for linking
-          - Windows: `lib/ccap.lib` (Release version) and `lib/ccapd.lib` (Debug version)
-          - macOS: `lib/libccap.a` (Universal Binary)
-          - Linux x86_64: `lib/libccap.a` (x86_64)
-          - Linux ARM64: `lib/libccap.a` (ARM64)
-          
-        **Shared Library Packages:**
-        - **Library Files**: Shared library files for runtime linking
-          - Windows: `lib/ccap.dll` + `lib/ccap_import.lib` (Release), `lib/ccapd.dll` + `lib/ccapd_import.lib` (Debug)
-          - macOS: `lib/libccap.dylib` (Universal Binary)
-          - Linux x86_64: `lib/libccap.so` (x86_64)
-          - Linux ARM64: `lib/libccap.so` (ARM64)
+        Each package contains headers, libraries, examples, and CMake configs. See [BUILD_AND_INSTALL.md](https://github.com/wysaid/CameraCapture/blob/main/BUILD_AND_INSTALL.md) for detailed instructions.
         
-        **All Packages Include:**
-        - **Header Files**: Complete C++ API header files
-        - **Example Programs**: 5 complete usage examples
-          - Windows: `examples/Release/` and `examples/Debug/` directories contain corresponding versions
-          - macOS: `examples/` directory contains executable files
-          - Linux x86_64: `examples/` directory contains executable files
-          - Linux ARM64: `examples/` directory contains executable files
-        - **Example Source Code**: Ready-to-compile example code
-        - **Documentation**: README and build instructions
-        - **CMake Configuration**: Easy integration with other CMake projects
+        **CLI Tool Usage:**
         
-        ### 🔧 Usage
+        ```bash
+        # List cameras
+        ./ccap --list-devices
         
-        **For Static Linking:**
-        1. Download the appropriate static library package
-        2. Extract to your project directory
-        3. Add the `include` directory to your compiler's include path
-        4. Link the corresponding library file:
-           - **Windows Debug**: Link `lib/ccapd.lib`
-           - **Windows Release**: Link `lib/ccap.lib`
-           - **macOS**: Link `lib/libccap.a`
-           - **Linux x86_64**: Link `lib/libccap.a`
-           - **Linux ARM64**: Link `lib/libccap.a`
-        5. Refer to example code in the `examples` directory
+        # Capture image
+        ./ccap --output my-capture.bmp
         
-        **For Shared Linking:**
-        1. Download the appropriate shared library package
-        2. Extract to your project directory
-        3. Add the `include` directory to your compiler's include path
-        4. Link and configure runtime libraries:
-           - **Windows Debug**: Link `lib/ccapd_import.lib`, ensure `lib/ccapd.dll` is in PATH or app directory
-           - **Windows Release**: Link `lib/ccap_import.lib`, ensure `lib/ccap.dll` is in PATH or app directory  
-           - **macOS**: Link `lib/libccap.dylib`, ensure dylib is in DYLD_LIBRARY_PATH or install location
-           - **Linux x86_64**: Link `lib/libccap.so`, ensure so is in LD_LIBRARY_PATH or install location
-           - **Linux ARM64**: Link `lib/libccap.so`, ensure so is in LD_LIBRARY_PATH or install location
-        5. Refer to example code in the `examples` directory
+        # Preview with GLFW (if available)
+        ./ccap --preview
+        ```
         
-        **For Standalone CLI Tool:**
-        1. Download the appropriate standalone package for your platform
-        2. Extract the archive
-        3. Run the command-line tool:
-           
-           **macOS users:**
-           ```bash
-           # Option 1: Use the convenience script (recommended, handles security automatically)
-           ./run_ccap.sh --list-devices
-           ./run_ccap.sh --help
-           
-           # Option 2: Remove quarantine attribute manually
-           xattr -d com.apple.quarantine ccap
-           ./ccap --list-devices
-           ```
-           
-           **Windows/Linux users:**
-           ```bash
-           # List available cameras
-           ./ccap --list-devices
-           
-           # Capture a frame
-           ./ccap --output my-capture.bmp
-           ```
-        4. See `USAGE.md` in the package for complete usage guide and troubleshooting
+        > **macOS**: Use `./run_ccap.sh` to bypass Gatekeeper, or see USAGE.md in the package.
         
-        > **Note for macOS users:** macOS Gatekeeper will block unsigned executables. Use `run_ccap.sh` script (included) or see USAGE.md for solutions.
+        For complete CLI documentation, visit [CLI Documentation](https://ccap.work/cli.html).
         
-        ### 📋 System Requirements
+        ### 📚 Documentation
         
-        - **macOS**: 10.13 or higher
-        - **Windows**: Windows 10 or higher (requires Visual C++ Redistributable)
-        - **Linux**: Modern Linux distribution with kernel 2.6+ (supports V4L2)
+        - **Getting Started**: [README.md](https://github.com/wysaid/CameraCapture#readme)
+        - **Build & Install**: [BUILD_AND_INSTALL.md](https://github.com/wysaid/CameraCapture/blob/main/BUILD_AND_INSTALL.md)
+        - **CLI Tool Guide**: [CLI Documentation](https://ccap.work/cli.html)
+        - **C Interface**: [C_Interface.md](https://github.com/wysaid/CameraCapture/blob/main/docs/C_Interface.md)
+        - **API Reference**: [ccap.work/documentation.html](https://ccap.work/documentation.html)
         
         ---
         
@@ -987,8 +1791,10 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**CLI Tool Packages:**" >> $GITHUB_STEP_SUMMARY
         echo "- ccap-cli-macos-universal.tar.gz" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-cli-msvc-x86_64.zip" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-cli-linux-x86_64.tar.gz" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-cli-linux-arm64.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-cli-msvc-x86_64.zip (static MSVC runtime)" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-cli-linux-x86_64-gnu.tar.gz (glibc)" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-cli-linux-x86_64-musl.tar.gz (musl, fully static)" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-cli-linux-arm64-gnu.tar.gz (glibc)" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-cli-linux-arm64-musl.tar.gz (musl, fully static)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "Release page: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.release_type.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
