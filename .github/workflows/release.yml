@@ -385,22 +385,22 @@ jobs:
           # Static-only Release builds for CLI tool
           - os: macos-latest
             name: macOS CLI
-            artifact_name: ccap-cli-macos-universal
+            artifact_name: ccap-standalone-macos-universal
             build_type: Release
             
           - os: windows-latest
             name: Windows CLI
-            artifact_name: ccap-cli-msvc-x86_64
+            artifact_name: ccap-standalone-msvc-x86_64
             build_type: Release
             
           - os: ubuntu-latest
-            name: Linux CLI
-            artifact_name: ccap-cli-linux-x86_64
+            name: Linux x86_64 CLI
+            artifact_name: ccap-standalone-linux-x86_64
             build_type: Release
             
           - os: ubuntu-latest
             name: Linux ARM64 CLI
-            artifact_name: ccap-cli-linux-arm64
+            artifact_name: ccap-standalone-linux-arm64
             build_type: Release
             arch: arm64
             
@@ -689,13 +689,13 @@ jobs:
         - **Linux x86_64** (compatible with most distributions): `ccap-linux-x86_64-shared.tar.gz`
         - **Linux ARM64** (compatible with Raspberry Pi, ARM servers, and other ARM64 boards): `ccap-linux-arm64-shared.tar.gz`
         
-        **CLI Tool Packages (standalone command-line tool):**
-        - **macOS** (Universal Binary): `ccap-cli-macos-universal.tar.gz`
-        - **Windows** (x64): `ccap-cli-msvc-x86_64.zip`
-        - **Linux x86_64**: `ccap-cli-linux-x86_64.tar.gz`
-        - **Linux ARM64**: `ccap-cli-linux-arm64.tar.gz`
+        **Standalone CLI Tool Packages (command-line tool, ready to run):**
+        - **macOS** (Universal Binary): `ccap-standalone-macos-universal.tar.gz`
+        - **Windows** (x64): `ccap-standalone-msvc-x86_64.zip`
+        - **Linux x86_64**: `ccap-standalone-linux-x86_64.tar.gz`
+        - **Linux ARM64**: `ccap-standalone-linux-arm64.tar.gz`
         
-        > **CLI Tool**: The CLI packages contain only the standalone `ccap-cli` executable (statically linked). Perfect for quick testing and simple capture tasks without requiring library integration.
+        > **Standalone CLI Tool**: These packages contain only the standalone command-line executable (statically linked, no dependencies). Perfect for quick testing and simple capture tasks without requiring library integration.
         
         ### 📁 Package Contents
         
@@ -750,10 +750,10 @@ jobs:
            - **Linux ARM64**: Link `lib/libccap.so`, ensure so is in LD_LIBRARY_PATH or install location
         5. Refer to example code in the `examples` directory
         
-        **For CLI Tool:**
-        1. Download the appropriate CLI package for your platform
+        **For Standalone CLI Tool:**
+        1. Download the appropriate standalone package for your platform
         2. Extract the archive
-        3. Run the `ccap-cli` executable directly (no installation required):
+        3. Run the command-line tool directly (no installation required):
            ```bash
            # List available cameras
            ./ccap-cli --list-devices
@@ -822,10 +822,10 @@ jobs:
         echo "- ccap-linux-x86_64-shared.tar.gz" >> $GITHUB_STEP_SUMMARY
         echo "- ccap-linux-arm64-shared.tar.gz" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**CLI Tool Packages:**" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-cli-macos-universal.tar.gz" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-cli-msvc-x86_64.zip" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-cli-linux-x86_64.tar.gz" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-cli-linux-arm64.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "**Standalone CLI Tool Packages:**" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-standalone-macos-universal.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-standalone-msvc-x86_64.zip" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-standalone-linux-x86_64.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-standalone-linux-arm64.tar.gz" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "Release page: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.release_type.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
