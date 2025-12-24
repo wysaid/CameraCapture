@@ -385,22 +385,22 @@ jobs:
           # Static-only Release builds for CLI tool
           - os: macos-latest
             name: macOS CLI
-            artifact_name: ccap-standalone-macos-universal
+            artifact_name: ccap-cli-macos-universal
             build_type: Release
             
           - os: windows-latest
             name: Windows CLI
-            artifact_name: ccap-standalone-msvc-x86_64
+            artifact_name: ccap-cli-msvc-x86_64
             build_type: Release
             
           - os: ubuntu-latest
             name: Linux x86_64 CLI
-            artifact_name: ccap-standalone-linux-x86_64
+            artifact_name: ccap-cli-linux-x86_64
             build_type: Release
             
           - os: ubuntu-latest
             name: Linux ARM64 CLI
-            artifact_name: ccap-standalone-linux-arm64
+            artifact_name: ccap-cli-linux-arm64
             build_type: Release
             arch: arm64
             
@@ -425,7 +425,7 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake build-essential gcc
+        sudo apt-get install -y cmake build-essential gcc libglfw3-dev
         
     - name: Configure CMake
       shell: bash
@@ -436,8 +436,7 @@ jobs:
                 -DCCAP_BUILD_EXAMPLES=OFF \
                 -DCCAP_BUILD_TESTS=OFF \
                 -DCCAP_BUILD_SHARED=OFF \
-                -DBUILD_CCAP_CLI=ON \
-                -DCCAP_CLI_WITH_GLFW=OFF
+                -DBUILD_CCAP_CLI=ON
         elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
           # Linux: Use single-config generator
           if [ "${{ matrix.arch }}" = "arm64" ]; then
@@ -450,16 +449,14 @@ jobs:
               -DCCAP_BUILD_EXAMPLES=OFF \
               -DCCAP_BUILD_TESTS=OFF \
               -DCCAP_BUILD_SHARED=OFF \
-              -DBUILD_CCAP_CLI=ON \
-              -DCCAP_CLI_WITH_GLFW=OFF
+              -DBUILD_CCAP_CLI=ON
           else
             # Regular Linux x86_64
             cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
                   -DCCAP_BUILD_EXAMPLES=OFF \
                   -DCCAP_BUILD_TESTS=OFF \
                   -DCCAP_BUILD_SHARED=OFF \
-                  -DBUILD_CCAP_CLI=ON \
-                  -DCCAP_CLI_WITH_GLFW=OFF
+                  -DBUILD_CCAP_CLI=ON
           fi
         else
           # macOS: Use single-config generator with universal binary
@@ -468,8 +465,7 @@ jobs:
                 -DCCAP_BUILD_EXAMPLES=OFF \
                 -DCCAP_BUILD_TESTS=OFF \
                 -DCCAP_BUILD_SHARED=OFF \
-                -DBUILD_CCAP_CLI=ON \
-                -DCCAP_CLI_WITH_GLFW=OFF
+                -DBUILD_CCAP_CLI=ON
         fi
         
     - name: Build CLI
@@ -492,8 +488,8 @@ jobs:
       if: matrix.os == 'windows-latest'
       shell: bash
       run: |
-        # Copy CLI executable (renamed from ccap.exe to ccap-cli.exe for clarity)
-        cp build/Release/ccap.exe cli-package/ccap-cli.exe || echo "CLI executable not found"
+        # Copy CLI executable
+        cp build/Release/ccap.exe cli-package/ccap.exe || echo "CLI executable not found"
         
         # Copy required DLLs if any
         # Note: Static build should not need additional DLLs
@@ -502,25 +498,25 @@ jobs:
       if: matrix.os == 'macos-latest'
       shell: bash
       run: |
-        # Copy CLI executable (renamed from ccap to ccap-cli for clarity)
-        cp build/ccap cli-package/ccap-cli || echo "CLI executable not found"
+        # Copy CLI executable
+        cp build/ccap cli-package/ccap || echo "CLI executable not found"
         
         # Verify universal binary
-        if [ -f "cli-package/ccap-cli" ]; then
-          file cli-package/ccap-cli
-          lipo -info cli-package/ccap-cli
+        if [ -f "cli-package/ccap" ]; then
+          file cli-package/ccap
+          lipo -info cli-package/ccap
         fi
         
     - name: Copy CLI executable (Linux)
       if: matrix.os == 'ubuntu-latest'
       shell: bash
       run: |
-        # Copy CLI executable (renamed from ccap to ccap-cli for clarity)
-        cp build/ccap cli-package/ccap-cli || echo "CLI executable not found"
+        # Copy CLI executable
+        cp build/ccap cli-package/ccap || echo "CLI executable not found"
         
         # Verify architecture
-        if [ -f "cli-package/ccap-cli" ]; then
-          file cli-package/ccap-cli
+        if [ -f "cli-package/ccap" ]; then
+          file cli-package/ccap
         fi
         
     - name: Copy documentation
@@ -539,36 +535,36 @@ jobs:
         
         ```bash
         # List all available cameras
-        ./ccap-cli --list-devices
+        ./ccap --list-devices
         
         # Capture a single frame (saves as output.bmp by default)
-        ./ccap-cli
+        ./ccap
         
         # Capture with specific device
-        ./ccap-cli --device 0
+        ./ccap --device 0
         
         # Capture with specific resolution
-        ./ccap-cli --width 1920 --height 1080
+        ./ccap --width 1920 --height 1080
         
         # Capture with specific pixel format
-        ./ccap-cli --format YUYV
+        ./ccap --format YUYV
         
         # Capture with internal format (camera native format)
-        ./ccap-cli --internal-format MJPEG
+        ./ccap --internal-format MJPEG
         
         # Capture multiple frames
-        ./ccap-cli --count 10
+        ./ccap --count 10
         
         # Save to specific file
-        ./ccap-cli --output my-capture.bmp
+        ./ccap --output my-capture.bmp
         
         # Preview window (if compiled with GLFW support)
-        ./ccap-cli --preview
+        ./ccap --preview
         ```
         
         ## Available Options
         
-        Run `./ccap-cli --help` for complete list of options.
+        Run `./ccap --help` for complete list of options.
         
         ## System Requirements
         
@@ -693,13 +689,13 @@ jobs:
         - **Linux x86_64** (compatible with most distributions): `ccap-linux-x86_64-shared.tar.gz`
         - **Linux ARM64** (compatible with Raspberry Pi, ARM servers, and other ARM64 boards): `ccap-linux-arm64-shared.tar.gz`
         
-        **Standalone CLI Tool Packages (command-line tool, ready to run):**
-        - **macOS** (Universal Binary): `ccap-standalone-macos-universal.tar.gz`
-        - **Windows** (x64): `ccap-standalone-msvc-x86_64.zip`
-        - **Linux x86_64**: `ccap-standalone-linux-x86_64.tar.gz`
-        - **Linux ARM64**: `ccap-standalone-linux-arm64.tar.gz`
+        **CLI Tool Packages (command-line tool, ready to run):**
+        - **macOS** (Universal Binary): `ccap-cli-macos-universal.tar.gz`
+        - **Windows** (x64): `ccap-cli-msvc-x86_64.zip`
+        - **Linux x86_64**: `ccap-cli-linux-x86_64.tar.gz`
+        - **Linux ARM64**: `ccap-cli-linux-arm64.tar.gz`
         
-        > **Standalone CLI Tool**: These packages contain only the standalone command-line executable (statically linked, no dependencies). Perfect for quick testing and simple capture tasks without requiring library integration.
+        > **CLI Tool**: These packages contain only the command-line executable (statically linked, no dependencies). Perfect for quick testing and simple capture tasks without requiring library integration.
         
         ### 📁 Package Contents
         
@@ -826,10 +822,10 @@ jobs:
         echo "- ccap-linux-x86_64-shared.tar.gz" >> $GITHUB_STEP_SUMMARY
         echo "- ccap-linux-arm64-shared.tar.gz" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Standalone CLI Tool Packages:**" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-standalone-macos-universal.tar.gz" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-standalone-msvc-x86_64.zip" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-standalone-linux-x86_64.tar.gz" >> $GITHUB_STEP_SUMMARY
-        echo "- ccap-standalone-linux-arm64.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "**CLI Tool Packages:**" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-cli-macos-universal.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-cli-msvc-x86_64.zip" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-cli-linux-x86_64.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "- ccap-cli-linux-arm64.tar.gz" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "Release page: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.release_type.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY

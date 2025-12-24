@@ -118,7 +118,7 @@ fi
 check_github_release_exists() {
     local tag_name=$1
     local remote_url=$(git remote get-url "$GITHUB_REMOTE")
-    
+
     # Extract owner and repo from GitHub URL
     # Support formats: git@github.com:owner/repo.git, https://github.com/owner/repo.git
     local owner_repo=""
@@ -130,18 +130,18 @@ check_github_release_exists() {
         echo -e "${YELLOW}⚠️  Warning: Could not parse GitHub owner/repo from remote URL${NC}"
         return 2
     fi
-    
+
     # Check if release exists using GitHub API
     local api_url="https://api.github.com/repos/${owner_repo}/releases/tags/${tag_name}"
     local status_code=$(curl -s -o /dev/null -w "%{http_code}" "$api_url")
-    
+
     if [ "$status_code" = "200" ]; then
-        return 0  # Release exists
+        return 0 # Release exists
     elif [ "$status_code" = "404" ]; then
-        return 1  # Release does not exist
+        return 1 # Release does not exist
     else
         echo -e "${YELLOW}⚠️  Warning: Could not check release status (HTTP $status_code)${NC}"
-        return 2  # Unknown status
+        return 2 # Unknown status
     fi
 }
 
@@ -153,36 +153,36 @@ if [ "$DELETE_MODE" = true ]; then
     echo -e "${BLUE}          Tag Deletion Mode${NC}"
     echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
     echo ""
-    
+
     # Extract current version from header file
     if [ ! -f "include/ccap_config.h" ]; then
         echo -e "${RED}❌ Error: include/ccap_config.h not found${NC}"
         exit 1
     fi
-    
+
     HEADER_MAJOR=$(grep "#define CCAP_VERSION_MAJOR" include/ccap_config.h | awk '{print $3}')
     HEADER_MINOR=$(grep "#define CCAP_VERSION_MINOR" include/ccap_config.h | awk '{print $3}')
     HEADER_PATCH=$(grep "#define CCAP_VERSION_PATCH" include/ccap_config.h | awk '{print $3}')
     BASE_VERSION="${HEADER_MAJOR}.${HEADER_MINOR}.${HEADER_PATCH}"
-    
+
     echo -e "  Current base version: ${GREEN}$BASE_VERSION${NC}"
     echo ""
-    
+
     # Fetch latest tags from remote
     echo -e "  Fetching tags from remote..."
     git fetch "$GITHUB_REMOTE" --tags --quiet 2>/dev/null || true
-    
+
     # Find all tags matching current version (including pre-releases)
     MATCHING_TAGS=$(git tag -l "v${BASE_VERSION}*" | sort -V)
-    
+
     if [ -z "$MATCHING_TAGS" ]; then
         echo -e "${YELLOW}⚠️  No tags found matching version $BASE_VERSION${NC}"
         exit 0
     fi
-    
+
     echo -e "  Found matching tags:"
     echo ""
-    
+
     # Display tags with numbering
     idx=1
     declare -A tag_map
@@ -190,28 +190,28 @@ if [ "$DELETE_MODE" = true ]; then
         echo -e "    ${GREEN}[$idx]${NC} $tag"
         tag_map[$idx]=$tag
         ((idx++))
-    done <<< "$MATCHING_TAGS"
-    
+    done <<<"$MATCHING_TAGS"
+
     echo ""
     echo -e "  ${YELLOW}Enter the number of the tag to delete (or 'q' to quit):${NC}"
     read -r selection
-    
+
     if [ "$selection" = "q" ] || [ "$selection" = "Q" ]; then
         echo -e "${BLUE}Operation cancelled.${NC}"
         exit 0
     fi
-    
+
     if ! [[ "$selection" =~ ^[0-9]+$ ]] || [ -z "${tag_map[$selection]}" ]; then
         echo -e "${RED}❌ Error: Invalid selection${NC}"
         exit 1
     fi
-    
+
     TAG_TO_DELETE="${tag_map[$selection]}"
-    
+
     echo ""
     echo -e "  Selected tag: ${RED}$TAG_TO_DELETE${NC}"
     echo ""
-    
+
     # Check if tag exists as a release on GitHub
     echo -e "  Checking if tag has a GitHub Release..."
     if check_github_release_exists "$TAG_TO_DELETE"; then
@@ -225,19 +225,19 @@ if [ "$DELETE_MODE" = true ]; then
         echo ""
         exit 1
     fi
-    
+
     echo -e "${GREEN}✅ Tag does not have a GitHub Release (safe to delete)${NC}"
     echo ""
-    
+
     # Confirm deletion
     echo -e "${YELLOW}Are you sure you want to delete tag ${RED}$TAG_TO_DELETE${NC}${YELLOW}? (yes/no):${NC}"
     read -r confirm
-    
+
     if [ "$confirm" != "yes" ]; then
         echo -e "${BLUE}Operation cancelled.${NC}"
         exit 0
     fi
-    
+
     echo ""
     echo -e "  Deleting tag locally..."
     if git tag -d "$TAG_TO_DELETE" 2>/dev/null; then
@@ -245,26 +245,26 @@ if [ "$DELETE_MODE" = true ]; then
     else
         echo -e "${YELLOW}⚠️  Tag not found locally (may only exist on remote)${NC}"
     fi
-    
+
     echo -e "  Deleting tag from remote..."
     if git push "$GITHUB_REMOTE" --delete "$TAG_TO_DELETE" 2>/dev/null; then
         echo -e "${GREEN}✅ Remote tag deleted${NC}"
     else
         echo -e "${YELLOW}⚠️  Could not delete remote tag (may not exist)${NC}"
     fi
-    
+
     echo ""
     echo -e "${BLUE}Checking for local tags not present on remote...${NC}"
-    
+
     # Fetch latest remote tags to ensure we have up-to-date information
     git fetch "$GITHUB_REMOTE" --tags --prune --quiet 2>/dev/null || true
-    
+
     # Get all local tags
     LOCAL_TAGS=$(git tag)
-    
+
     # Get all remote tags
     REMOTE_TAGS=$(git ls-remote --tags "$GITHUB_REMOTE" | awk '{print $2}' | sed 's|refs/tags/||' | sed 's|\^{}||' | sort -u)
-    
+
     # Find tags that exist locally but not on remote
     ORPHAN_TAGS=""
     while IFS= read -r local_tag; do
@@ -273,11 +273,11 @@ if [ "$DELETE_MODE" = true ]; then
                 ORPHAN_TAGS="${ORPHAN_TAGS}${local_tag}"$'\n'
             fi
         fi
-    done <<< "$LOCAL_TAGS"
-    
+    done <<<"$LOCAL_TAGS"
+
     # Remove trailing newline
     ORPHAN_TAGS=$(echo "$ORPHAN_TAGS" | sed '/^$/d')
-    
+
     if [ -n "$ORPHAN_TAGS" ]; then
         echo -e "  ${YELLOW}Found local tags not present on remote:${NC}"
         echo ""
@@ -288,13 +288,13 @@ if [ "$DELETE_MODE" = true ]; then
         echo -e "  ${YELLOW}These tags could be accidentally pushed with 'git push --tags'.${NC}"
         echo -e "  ${YELLOW}Do you want to delete all these local-only tags? (yes/no):${NC}"
         read -r cleanup_confirm
-        
+
         if [ "$cleanup_confirm" = "yes" ]; then
             echo ""
             echo -e "  Deleting local-only tags..."
             deleted_count=0
             failed_count=0
-            
+
             while IFS= read -r tag; do
                 if [ -n "$tag" ]; then
                     if git tag -d "$tag" 2>/dev/null; then
@@ -305,8 +305,8 @@ if [ "$DELETE_MODE" = true ]; then
                         ((failed_count++))
                     fi
                 fi
-            done <<< "$ORPHAN_TAGS"
-            
+            done <<<"$ORPHAN_TAGS"
+
             echo ""
             echo -e "${GREEN}✅ Cleanup completed: $deleted_count deleted, $failed_count failed${NC}"
         else
@@ -315,7 +315,7 @@ if [ "$DELETE_MODE" = true ]; then
     else
         echo -e "  ${GREEN}✅ No local-only tags found${NC}"
     fi
-    
+
     echo ""
     echo -e "${GREEN}✅ Tag deletion completed!${NC}"
     echo ""
@@ -653,67 +653,67 @@ if [ -z "$PRERELEASE_TYPE" ] && [ "$AUTO_YES" = false ]; then
     echo ""
     echo -e "  ${BLUE}Enter your choice [1-4] (default: 1):${NC} "
     read -r release_choice
-    
+
     # Default to 1 if empty
     if [ -z "$release_choice" ]; then
         release_choice=1
     fi
-    
+
     case $release_choice in
-        1)
-            echo -e "  ${GREEN}✓ Selected: Official Release${NC}"
-            # PRERELEASE_TYPE remains empty
-            ;;
-        2|3|4)
-            if [ "$release_choice" = "2" ]; then
-                PRERELEASE_TYPE="beta"
-            elif [ "$release_choice" = "3" ]; then
-                PRERELEASE_TYPE="alpha"
-            else
-                PRERELEASE_TYPE="rc"
-            fi
-            
-            echo ""
-            echo -e "  ${YELLOW}Enter the $PRERELEASE_TYPE number (default: 1):${NC} "
-            read -r prerelease_num
-            
-            if [ -z "$prerelease_num" ]; then
-                PRERELEASE_NUMBER=1
-            elif [[ "$prerelease_num" =~ ^[0-9]+$ ]]; then
-                PRERELEASE_NUMBER=$prerelease_num
-            else
-                echo -e "${RED}❌ Error: Invalid number${NC}"
-                exit 1
-            fi
-            
-            CURRENT_VERSION="${HEADER_VERSION}-${PRERELEASE_TYPE}.${PRERELEASE_NUMBER}"
-            RELEASE_TAG="v$CURRENT_VERSION"
-            
-            echo -e "  ${GREEN}✓ Selected: $PRERELEASE_TYPE Release (v${CURRENT_VERSION})${NC}"
-            
-            # Re-check if this tag already exists
-            if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
-                echo ""
-                echo -e "${RED}❌ Error: This tag already exists locally!${NC}"
-                echo -e "  Tag: $RELEASE_TAG"
-                echo -e "  Please choose a different number or update the version"
-                exit 1
-            fi
-            
-            if git ls-remote --tags "$GITHUB_REMOTE" | grep -q "refs/tags/$RELEASE_TAG$"; then
-                echo ""
-                echo -e "${RED}❌ Error: This tag already exists on remote!${NC}"
-                echo -e "  Tag: $RELEASE_TAG"
-                echo -e "  Please choose a different number or update the version"
-                exit 1
-            fi
-            ;;
-        *)
-            echo -e "${RED}❌ Error: Invalid choice${NC}"
+    1)
+        echo -e "  ${GREEN}✓ Selected: Official Release${NC}"
+        # PRERELEASE_TYPE remains empty
+        ;;
+    2 | 3 | 4)
+        if [ "$release_choice" = "2" ]; then
+            PRERELEASE_TYPE="beta"
+        elif [ "$release_choice" = "3" ]; then
+            PRERELEASE_TYPE="alpha"
+        else
+            PRERELEASE_TYPE="rc"
+        fi
+
+        echo ""
+        echo -e "  ${YELLOW}Enter the $PRERELEASE_TYPE number (default: 1):${NC} "
+        read -r prerelease_num
+
+        if [ -z "$prerelease_num" ]; then
+            PRERELEASE_NUMBER=1
+        elif [[ "$prerelease_num" =~ ^[0-9]+$ ]]; then
+            PRERELEASE_NUMBER=$prerelease_num
+        else
+            echo -e "${RED}❌ Error: Invalid number${NC}"
             exit 1
-            ;;
+        fi
+
+        CURRENT_VERSION="${HEADER_VERSION}-${PRERELEASE_TYPE}.${PRERELEASE_NUMBER}"
+        RELEASE_TAG="v$CURRENT_VERSION"
+
+        echo -e "  ${GREEN}✓ Selected: $PRERELEASE_TYPE Release (v${CURRENT_VERSION})${NC}"
+
+        # Re-check if this tag already exists
+        if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo ""
+            echo -e "${RED}❌ Error: This tag already exists locally!${NC}"
+            echo -e "  Tag: $RELEASE_TAG"
+            echo -e "  Please choose a different number or update the version"
+            exit 1
+        fi
+
+        if git ls-remote --tags "$GITHUB_REMOTE" | grep -q "refs/tags/$RELEASE_TAG$"; then
+            echo ""
+            echo -e "${RED}❌ Error: This tag already exists on remote!${NC}"
+            echo -e "  Tag: $RELEASE_TAG"
+            echo -e "  Please choose a different number or update the version"
+            exit 1
+        fi
+        ;;
+    *)
+        echo -e "${RED}❌ Error: Invalid choice${NC}"
+        exit 1
+        ;;
     esac
-    
+
     echo ""
 elif [ "$AUTO_YES" = true ] && [ -z "$PRERELEASE_TYPE" ]; then
     echo -e "${BLUE}Auto-confirm mode: Creating official release${NC}"
