@@ -2,9 +2,17 @@
 
 # Release script for CameraCapture
 # This script validates version consistency, checks git history, and creates release tags
-# Usage: ./release.sh [-n|--dry-run] [--beta|--alpha|--rc [number]]
+# Usage: ./release.sh [-n|--dry-run] [-f|--force] [-d|--delete] [--beta|--alpha|--rc [number]]
 
 set -e
+
+# Check bash version (associative arrays require bash 4+)
+if ((BASH_VERSINFO[0] < 4)); then
+    echo "❌ Error: This script requires bash 4.0 or later"
+    echo "  Current version: ${BASH_VERSION}"
+    echo "  On macOS, install newer bash: brew install bash"
+    exit 1
+fi
 
 # Color definitions for output
 RED='\033[0;31m'
@@ -15,6 +23,9 @@ NC='\033[0m' # No Color
 
 # Parse command line arguments
 DRY_RUN=false
+FORCE_BRANCH=false
+DELETE_MODE=false
+AUTO_YES=false
 PRERELEASE_TYPE=""
 PRERELEASE_NUMBER=""
 
@@ -22,6 +33,18 @@ while [[ $# -gt 0 ]]; do
     case $1 in
     -n | --dry-run)
         DRY_RUN=true
+        shift
+        ;;
+    -f | --force)
+        FORCE_BRANCH=true
+        shift
+        ;;
+    -d | --delete)
+        DELETE_MODE=true
+        shift
+        ;;
+    -y | --yes)
+        AUTO_YES=true
         shift
         ;;
     --beta | --alpha | --rc)
@@ -37,17 +60,23 @@ while [[ $# -gt 0 ]]; do
         ;;
     *)
         echo "Unknown option: $1"
-        echo "Usage: $0 [-n|--dry-run] [--beta|--alpha|--rc [number]]"
+        echo "Usage: $0 [-n|--dry-run] [-f|--force] [-d|--delete] [-y|--yes] [--beta|--alpha|--rc [number]]"
         echo ""
         echo "Options:"
         echo "  -n, --dry-run         Run without making actual changes"
+        echo "  -f, --force           Force tag creation on any branch (requires all changes committed)"
+        echo "  -d, --delete          Delete existing tag(s) matching current version"
+        echo "  -y, --yes             Auto-confirm with default options (official release)"
         echo "  --beta [number]       Create beta release (e.g., v1.0.0-beta.1)"
         echo "  --alpha [number]      Create alpha release (e.g., v1.0.0-alpha.1)"
         echo "  --rc [number]         Create release candidate (e.g., v1.0.0-rc.1)"
         echo ""
         echo "Examples:"
-        echo "  $0                    # Create official release"
+        echo "  $0                    # Create official release (interactive)"
+        echo "  $0 -y                 # Create official release (auto-confirm)"
         echo "  $0 --dry-run          # Preview release without changes"
+        echo "  $0 -f                 # Force release on current branch"
+        echo "  $0 -d                 # Delete tag(s) matching current version"
         echo "  $0 --beta             # Create beta.1 release"
         echo "  $0 --beta 2           # Create beta.2 release"
         echo "  $0 --alpha 3          # Create alpha.3 release"
@@ -63,29 +92,6 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Change to project root
 cd "$PROJECT_ROOT"
-
-# Check current branch and auto-enable dry-run if not on main branch
-CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || git rev-parse --abbrev-ref HEAD)
-MAIN_BRANCHES=("main" "master")
-IS_MAIN_BRANCH=false
-
-for branch in "${MAIN_BRANCHES[@]}"; do
-    if [ "$CURRENT_BRANCH" = "$branch" ]; then
-        IS_MAIN_BRANCH=true
-        break
-    fi
-done
-
-# Check if on main branch - REQUIRED for release (no dry-run bypass)
-if [ "$IS_MAIN_BRANCH" = false ]; then
-    echo -e "${RED}❌ Error: Release can only be executed from the main branch!${NC}"
-    echo -e "  Current branch: ${RED}$CURRENT_BRANCH${NC}"
-    echo -e "  Required branch: ${GREEN}main${NC} or ${GREEN}master${NC}"
-    echo ""
-    echo -e "${YELLOW}Please switch to the main branch:${NC}"
-    echo -e "  ${GREEN}git checkout main${NC}"
-    exit 1
-fi
 
 # Helper function to get the appropriate GitHub remote
 # Priority: URL containing github.com > first available remote
@@ -114,6 +120,263 @@ GITHUB_REMOTE=$(get_github_remote)
 if [ -z "$GITHUB_REMOTE" ]; then
     echo -e "${RED}❌ Error: No git remote found!${NC}"
     exit 1
+fi
+
+# Helper function to check if a tag exists as a release on GitHub
+check_github_release_exists() {
+    local tag_name=$1
+    local remote_url
+    remote_url=$(git remote get-url "$GITHUB_REMOTE")
+
+    # Extract owner and repo from GitHub URL
+    # Support formats: git@github.com:owner/repo.git, https://github.com/owner/repo.git
+    local owner_repo=""
+    if [[ "$remote_url" =~ github\.com[:/]([^/]+)/([^/.]+) ]]; then
+        local owner="${BASH_REMATCH[1]}"
+        local repo="${BASH_REMATCH[2]}"
+        owner_repo="${owner}/${repo}"
+    else
+        echo -e "${YELLOW}⚠️  Warning: Could not parse GitHub owner/repo from remote URL${NC}"
+        return 2
+    fi
+
+    # Check if release exists using GitHub API
+    local api_url="https://api.github.com/repos/${owner_repo}/releases/tags/${tag_name}"
+
+    # Build curl command with optional authentication
+    local curl_args=(-s --connect-timeout 5 --max-time 10 -o /dev/null -w "%{http_code}")
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+        curl_args+=(-H "Authorization: Bearer $GITHUB_TOKEN")
+    fi
+
+    local status_code
+    status_code=$(curl "${curl_args[@]}" "$api_url")
+
+    if [ "$status_code" = "200" ]; then
+        return 0 # Release exists
+    elif [ "$status_code" = "404" ]; then
+        return 1 # Release does not exist
+    elif [ "$status_code" = "403" ]; then
+        echo -e "${YELLOW}⚠️  Warning: GitHub API rate limit exceeded (HTTP 403)${NC}"
+        echo -e "${YELLOW}    Tip: Set GITHUB_TOKEN environment variable to increase rate limit${NC}"
+        return 2 # Rate limit exceeded
+    else
+        echo -e "${YELLOW}⚠️  Warning: Could not check release status (HTTP $status_code)${NC}"
+        return 2 # Unknown status
+    fi
+}
+
+# ============================================================================
+# DELETE MODE: Delete existing tags
+# ============================================================================
+if [ "$DELETE_MODE" = true ]; then
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}          Tag Deletion Mode${NC}"
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+    echo ""
+
+    # Extract current version from header file
+    if [ ! -f "include/ccap_config.h" ]; then
+        echo -e "${RED}❌ Error: include/ccap_config.h not found${NC}"
+        exit 1
+    fi
+
+    HEADER_MAJOR=$(grep "#define CCAP_VERSION_MAJOR" include/ccap_config.h | awk '{print $3}')
+    HEADER_MINOR=$(grep "#define CCAP_VERSION_MINOR" include/ccap_config.h | awk '{print $3}')
+    HEADER_PATCH=$(grep "#define CCAP_VERSION_PATCH" include/ccap_config.h | awk '{print $3}')
+    BASE_VERSION="${HEADER_MAJOR}.${HEADER_MINOR}.${HEADER_PATCH}"
+
+    echo -e "  Current base version: ${GREEN}$BASE_VERSION${NC}"
+    echo ""
+
+    # Fetch latest tags from remote
+    echo -e "  Fetching tags from remote..."
+    git fetch "$GITHUB_REMOTE" --tags --quiet 2>/dev/null || true
+
+    # Find all tags matching current version (including pre-releases)
+    MATCHING_TAGS=$(git tag -l "v${BASE_VERSION}*" | sort -V)
+
+    if [ -z "$MATCHING_TAGS" ]; then
+        echo -e "${YELLOW}⚠️  No tags found matching version $BASE_VERSION${NC}"
+        exit 0
+    fi
+
+    echo -e "  Found matching tags:"
+    echo ""
+
+    # Display tags with numbering
+    idx=1
+    declare -A tag_map
+    while IFS= read -r tag; do
+        echo -e "    ${GREEN}[$idx]${NC} $tag"
+        tag_map[$idx]=$tag
+        idx=$((idx + 1))
+    done <<<"$MATCHING_TAGS"
+
+    echo ""
+    echo -e "  ${YELLOW}Enter the number of the tag to delete (or 'q' to quit):${NC}"
+    read -r selection
+
+    if [ "$selection" = "q" ] || [ "$selection" = "Q" ]; then
+        echo -e "${BLUE}Operation cancelled.${NC}"
+        exit 0
+    fi
+
+    if ! [[ "$selection" =~ ^[0-9]+$ ]] || [ -z "${tag_map[$selection]}" ]; then
+        echo -e "${RED}❌ Error: Invalid selection${NC}"
+        exit 1
+    fi
+
+    TAG_TO_DELETE="${tag_map[$selection]}"
+
+    echo ""
+    echo -e "  Selected tag: ${RED}$TAG_TO_DELETE${NC}"
+    echo ""
+
+    # Check if tag exists as a release on GitHub
+    echo -e "  Checking if tag has a GitHub Release..."
+    if check_github_release_exists "$TAG_TO_DELETE"; then
+        echo -e "${RED}❌ Error: This tag has an associated GitHub Release!${NC}"
+        echo ""
+        echo -e "${YELLOW}Please manually delete the release first:${NC}"
+        echo -e "  1. Go to: https://github.com/wysaid/CameraCapture/releases"
+        echo -e "  2. Find the release for ${RED}$TAG_TO_DELETE${NC}"
+        echo -e "  3. Delete the release"
+        echo -e "  4. Then run this script again to delete the tag"
+        echo ""
+        exit 1
+    fi
+
+    echo -e "${GREEN}✅ Tag does not have a GitHub Release (safe to delete)${NC}"
+    echo ""
+
+    # Confirm deletion
+    echo -e "${YELLOW}Are you sure you want to delete tag ${RED}$TAG_TO_DELETE${NC}${YELLOW}? (yes/no):${NC}"
+    read -r confirm
+
+    if [ "$confirm" != "yes" ]; then
+        echo -e "${BLUE}Operation cancelled.${NC}"
+        exit 0
+    fi
+
+    echo ""
+    echo -e "  Deleting tag locally..."
+    if git tag -d "$TAG_TO_DELETE" 2>/dev/null; then
+        echo -e "${GREEN}✅ Local tag deleted${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Tag not found locally (may only exist on remote)${NC}"
+    fi
+
+    echo -e "  Deleting tag from remote..."
+    if git push "$GITHUB_REMOTE" --delete "$TAG_TO_DELETE" 2>/dev/null; then
+        echo -e "${GREEN}✅ Remote tag deleted${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Could not delete remote tag (may not exist)${NC}"
+    fi
+
+    echo ""
+    echo -e "${BLUE}Checking for local tags not present on remote...${NC}"
+
+    # Fetch latest remote tags to ensure we have up-to-date information
+    git fetch "$GITHUB_REMOTE" --tags --prune --quiet 2>/dev/null || true
+
+    # Get all local tags
+    LOCAL_TAGS=$(git tag)
+
+    # Get all remote tags
+    REMOTE_TAGS=$(git ls-remote --tags "$GITHUB_REMOTE" | awk '{print $2}' | sed 's|refs/tags/||' | sed 's|\^{}||' | sort -u)
+
+    # Find tags that exist locally but not on remote
+    ORPHAN_TAGS=""
+    while IFS= read -r local_tag; do
+        if [ -n "$local_tag" ]; then
+            if ! echo "$REMOTE_TAGS" | grep -Fxq "$local_tag"; then
+                ORPHAN_TAGS="${ORPHAN_TAGS}${local_tag}"$'\n'
+            fi
+        fi
+    done <<<"$LOCAL_TAGS"
+
+    # Remove trailing newline
+    ORPHAN_TAGS=$(echo "$ORPHAN_TAGS" | sed '/^$/d')
+
+    if [ -n "$ORPHAN_TAGS" ]; then
+        echo -e "  ${YELLOW}Found local tags not present on remote:${NC}"
+        echo ""
+        echo "$ORPHAN_TAGS" | while IFS= read -r tag; do
+            echo -e "    - ${YELLOW}$tag${NC}"
+        done
+        echo ""
+        echo -e "  ${YELLOW}These tags could be accidentally pushed with 'git push --tags'.${NC}"
+        echo -e "  ${YELLOW}Do you want to delete all these local-only tags? (yes/no):${NC}"
+        read -r cleanup_confirm
+
+        if [ "$cleanup_confirm" = "yes" ]; then
+            echo ""
+            echo -e "  Deleting local-only tags..."
+            deleted_count=0
+            failed_count=0
+
+            while IFS= read -r tag; do
+                if [ -n "$tag" ]; then
+                    if git tag -d "$tag" 2>/dev/null; then
+                        echo -e "    ${GREEN}✓${NC} Deleted: $tag"
+                        deleted_count=$((deleted_count + 1))
+                    else
+                        echo -e "    ${RED}✗${NC} Failed to delete: $tag"
+                        failed_count=$((failed_count + 1))
+                    fi
+                fi
+            done <<<"$ORPHAN_TAGS"
+
+            echo ""
+            echo -e "${GREEN}✅ Cleanup completed: $deleted_count deleted, $failed_count failed${NC}"
+        else
+            echo -e "  ${BLUE}Skipped local-only tag cleanup${NC}"
+        fi
+    else
+        echo -e "  ${GREEN}✅ No local-only tags found${NC}"
+    fi
+
+    echo ""
+    echo -e "${GREEN}✅ Tag deletion completed!${NC}"
+    echo ""
+    exit 0
+fi
+
+# ============================================================================
+# RELEASE MODE: Continue with normal release process
+# ============================================================================
+
+# Check current branch and auto-enable dry-run if not on main branch
+CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || git rev-parse --abbrev-ref HEAD)
+MAIN_BRANCHES=("main" "master")
+IS_MAIN_BRANCH=false
+
+for branch in "${MAIN_BRANCHES[@]}"; do
+    if [ "$CURRENT_BRANCH" = "$branch" ]; then
+        IS_MAIN_BRANCH=true
+        break
+    fi
+done
+
+# Check if on main branch - REQUIRED for release unless -f is used
+if [ "$IS_MAIN_BRANCH" = false ] && [ "$FORCE_BRANCH" = false ]; then
+    echo -e "${RED}❌ Error: Release can only be executed from the main branch!${NC}"
+    echo -e "  Current branch: ${RED}$CURRENT_BRANCH${NC}"
+    echo -e "  Required branch: ${GREEN}main${NC} or ${GREEN}master${NC}"
+    echo ""
+    echo -e "${YELLOW}To force release on current branch, use:${NC}"
+    echo -e "  ${GREEN}$0 -f${NC}"
+    echo ""
+    echo -e "${YELLOW}Or switch to the main branch:${NC}"
+    echo -e "  ${GREEN}git checkout main${NC}"
+    exit 1
+fi
+
+if [ "$IS_MAIN_BRANCH" = false ] && [ "$FORCE_BRANCH" = true ]; then
+    echo -e "${YELLOW}⚠️  Warning: Force mode enabled - releasing from non-main branch!${NC}"
+    echo -e "  Current branch: ${YELLOW}$CURRENT_BRANCH${NC}"
+    echo ""
 fi
 
 echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
@@ -377,11 +640,18 @@ if [ "$LATEST_TAG" != "0.0.0" ]; then
         echo -e "  Current: $CURRENT_VERSION, Latest: $LATEST_TAG"
         exit 1
     elif [ "$COMPARE" = "equal" ]; then
-        # For equal base versions, check if it's a pre-release
+        # For equal base versions, check if it's a pre-release or if user will select one
         if [ -z "$PRERELEASE_TYPE" ]; then
-            echo -e "${RED}❌ Error: Version is not higher than the latest release!${NC}"
-            echo -e "  Current: $CURRENT_VERSION, Latest: $LATEST_TAG"
-            exit 1
+            # If no prerelease type specified and not in auto mode, user can choose in Step 6.5
+            if [ "$AUTO_YES" = true ]; then
+                echo -e "${RED}❌ Error: Version is not higher than the latest release!${NC}"
+                echo -e "  Current: $CURRENT_VERSION, Latest: $LATEST_TAG"
+                echo -e "  Tip: Use -b/--beta, -a/--alpha, or -r/--rc to create a pre-release"
+                exit 1
+            else
+                echo -e "${YELLOW}⚠️  Version equals latest release ($LATEST_TAG)${NC}"
+                echo -e "  You can choose to create a pre-release in the next step"
+            fi
         else
             echo -e "${GREEN}✅ Creating pre-release for version $HEADER_VERSION${NC}"
         fi
@@ -395,6 +665,88 @@ else
 fi
 
 echo ""
+
+# ============================================================================
+# Step 6.5: Interactive release type selection (if not specified)
+# ============================================================================
+if [ -z "$PRERELEASE_TYPE" ] && [ "$AUTO_YES" = false ]; then
+    echo -e "${BLUE}Step 6.5: Select release type...${NC}"
+    echo ""
+    echo -e "  ${YELLOW}What type of release do you want to create?${NC}"
+    echo ""
+    echo -e "    ${GREEN}[1]${NC} Official Release (v${HEADER_VERSION})"
+    echo -e "    ${YELLOW}[2]${NC} Beta Release (v${HEADER_VERSION}-beta.N)"
+    echo -e "    ${YELLOW}[3]${NC} Alpha Release (v${HEADER_VERSION}-alpha.N)"
+    echo -e "    ${YELLOW}[4]${NC} Release Candidate (v${HEADER_VERSION}-rc.N)"
+    echo ""
+    echo -e "  ${BLUE}Enter your choice [1-4] (default: 1):${NC} "
+    read -r release_choice
+
+    # Default to 1 if empty
+    if [ -z "$release_choice" ]; then
+        release_choice=1
+    fi
+
+    case $release_choice in
+    1)
+        echo -e "  ${GREEN}✓ Selected: Official Release${NC}"
+        # PRERELEASE_TYPE remains empty
+        ;;
+    2 | 3 | 4)
+        if [ "$release_choice" = "2" ]; then
+            PRERELEASE_TYPE="beta"
+        elif [ "$release_choice" = "3" ]; then
+            PRERELEASE_TYPE="alpha"
+        else
+            PRERELEASE_TYPE="rc"
+        fi
+
+        echo ""
+        echo -e "  ${YELLOW}Enter the $PRERELEASE_TYPE number (default: 1):${NC} "
+        read -r prerelease_num
+
+        if [ -z "$prerelease_num" ]; then
+            PRERELEASE_NUMBER=1
+        elif [[ "$prerelease_num" =~ ^[0-9]+$ ]]; then
+            PRERELEASE_NUMBER=$prerelease_num
+        else
+            echo -e "${RED}❌ Error: Invalid number${NC}"
+            exit 1
+        fi
+
+        CURRENT_VERSION="${HEADER_VERSION}-${PRERELEASE_TYPE}.${PRERELEASE_NUMBER}"
+        RELEASE_TAG="v$CURRENT_VERSION"
+
+        echo -e "  ${GREEN}✓ Selected: $PRERELEASE_TYPE Release (v${CURRENT_VERSION})${NC}"
+
+        # Re-check if this tag already exists
+        if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo ""
+            echo -e "${RED}❌ Error: This tag already exists locally!${NC}"
+            echo -e "  Tag: $RELEASE_TAG"
+            echo -e "  Please choose a different number or update the version"
+            exit 1
+        fi
+
+        if git ls-remote --tags "$GITHUB_REMOTE" | grep -q "refs/tags/$RELEASE_TAG$"; then
+            echo ""
+            echo -e "${RED}❌ Error: This tag already exists on remote!${NC}"
+            echo -e "  Tag: $RELEASE_TAG"
+            echo -e "  Please choose a different number or update the version"
+            exit 1
+        fi
+        ;;
+    *)
+        echo -e "${RED}❌ Error: Invalid choice${NC}"
+        exit 1
+        ;;
+    esac
+
+    echo ""
+elif [ "$AUTO_YES" = true ] && [ -z "$PRERELEASE_TYPE" ]; then
+    echo -e "${BLUE}Auto-confirm mode: Creating official release${NC}"
+    echo ""
+fi
 
 # ============================================================================
 # Step 7: Create and push release tag
