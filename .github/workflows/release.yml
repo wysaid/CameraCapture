@@ -436,7 +436,8 @@ jobs:
                 -DCCAP_BUILD_EXAMPLES=OFF \
                 -DCCAP_BUILD_TESTS=OFF \
                 -DCCAP_BUILD_SHARED=OFF \
-                -DBUILD_CCAP_CLI=ON
+                -DBUILD_CCAP_CLI=ON \
+                -DCCAP_CLI_WITH_GLFW=OFF
         elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
           # Linux: Use single-config generator
           if [ "${{ matrix.arch }}" = "arm64" ]; then
@@ -449,14 +450,16 @@ jobs:
               -DCCAP_BUILD_EXAMPLES=OFF \
               -DCCAP_BUILD_TESTS=OFF \
               -DCCAP_BUILD_SHARED=OFF \
-              -DBUILD_CCAP_CLI=ON
+              -DBUILD_CCAP_CLI=ON \
+              -DCCAP_CLI_WITH_GLFW=OFF
           else
             # Regular Linux x86_64
             cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
                   -DCCAP_BUILD_EXAMPLES=OFF \
                   -DCCAP_BUILD_TESTS=OFF \
                   -DCCAP_BUILD_SHARED=OFF \
-                  -DBUILD_CCAP_CLI=ON
+                  -DBUILD_CCAP_CLI=ON \
+                  -DCCAP_CLI_WITH_GLFW=OFF
           fi
         else
           # macOS: Use single-config generator with universal binary
@@ -465,7 +468,8 @@ jobs:
                 -DCCAP_BUILD_EXAMPLES=OFF \
                 -DCCAP_BUILD_TESTS=OFF \
                 -DCCAP_BUILD_SHARED=OFF \
-                -DBUILD_CCAP_CLI=ON
+                -DBUILD_CCAP_CLI=ON \
+                -DCCAP_CLI_WITH_GLFW=OFF
         fi
         
     - name: Build CLI
