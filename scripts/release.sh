@@ -6,6 +6,14 @@
 
 set -e
 
+# Check bash version (associative arrays require bash 4+)
+if ((BASH_VERSINFO[0] < 4)); then
+    echo "❌ Error: This script requires bash 4.0 or later"
+    echo "  Current version: ${BASH_VERSION}"
+    echo "  On macOS, install newer bash: brew install bash"
+    exit 1
+fi
+
 # Color definitions for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -202,7 +210,7 @@ if [ "$DELETE_MODE" = true ]; then
     while IFS= read -r tag; do
         echo -e "    ${GREEN}[$idx]${NC} $tag"
         tag_map[$idx]=$tag
-        ((idx++))
+        idx=$((idx + 1))
     done <<<"$MATCHING_TAGS"
 
     echo ""
@@ -312,10 +320,10 @@ if [ "$DELETE_MODE" = true ]; then
                 if [ -n "$tag" ]; then
                     if git tag -d "$tag" 2>/dev/null; then
                         echo -e "    ${GREEN}✓${NC} Deleted: $tag"
-                        ((deleted_count++))
+                        deleted_count=$((deleted_count + 1))
                     else
                         echo -e "    ${RED}✗${NC} Failed to delete: $tag"
-                        ((failed_count++))
+                        failed_count=$((failed_count + 1))
                     fi
                 fi
             done <<<"$ORPHAN_TAGS"
