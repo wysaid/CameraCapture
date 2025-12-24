@@ -176,7 +176,7 @@ ccap 包含一个功能强大的命令行工具，无需编写代码即可快速
 ```bash
 # 启用 CLI 工具构建
 mkdir build && cd build
-cmake .. -DBUILD_CCAP_CLI=ON
+cmake .. -DCCAP_BUILD_CLI=ON
 cmake --build .
 
 # 列出可用相机

@@ -21,41 +21,57 @@ The `ccap` CLI tool provides a comprehensive command-line interface for working 
 ### Basic Build
 
 ```bash
-cmake -B build -DBUILD_CCAP_CLI=ON
+cmake -B build -DCCAP_BUILD_CLI=ON
 cmake --build build
 ```
 
 ### Build with Preview Support (GLFW)
 
 ```bash
-cmake -B build -DBUILD_CCAP_CLI=ON -DCCAP_CLI_WITH_GLFW=ON
+cmake -B build -DCCAP_BUILD_CLI=ON -DCCAP_CLI_WITH_GLFW=ON
 cmake --build build
 ```
 
-The executable will be located in the `build/` directory (or `build/Debug`, `build/Release` depending on your build configuration).
-
-### Distribution and Static Linking
-
-The CLI tool is configured for minimal runtime dependencies:
-
-- **Windows (MSVC)**: Uses `/MT` flag for static runtime linking, eliminating the need for VCRUNTIME DLL installation
-- **Linux**: Attempts to statically link libstdc++ and libgcc when available. If static libraries are not installed, falls back to dynamic linking. To enable static linking on Fedora/RHEL, install `libstdc++-static`; on Debian/Ubuntu, the static libraries are typically included in the default development packages.
-- **macOS**: Uses default static C++ standard library linking, only depends on system frameworks
-
-When static linking is successful, the CLI tool can be distributed as a standalone executable with minimal dependencies (only system libraries like libc and libm on Linux).
-
-To verify the dependencies of a built CLI tool:
+### Build with Image Format Support (JPG/PNG)
 
 ```bash
-# Linux
-ldd ccap
-
-# macOS
-otool -L ccap
-
-# Windows (PowerShell)
-dumpbin /dependents ccap.exe
+cmake -B build -DCCAP_BUILD_CLI=ON -DCCAP_CLI_WITH_STB_IMAGE=ON
+cmake --build build
 ```
+
+By default, `CCAP_CLI_WITH_STB_IMAGE` is enabled, providing support for JPG and PNG formats in addition to BMP. To disable this feature and use BMP only:
+
+```bash
+cmake -B build -DCCAP_BUILD_CLI=ON -DCCAP_CLI_WITH_STB_IMAGE=OFF
+cmake --build build
+```
+
+### Optimized Release Build
+
+For production use, build in Release mode for optimal performance and minimal size:
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DCCAP_BUILD_CLI=ON
+cmake --build build
+```
+
+**Optimizations automatically enabled in Release builds:**
+- Link Time Optimization (LTO/IPO) for better performance (+20%) and smaller size
+- Symbol stripping for minimal binary size (~25% reduction)
+- Compiler optimizations (-O3)
+
+**Expected binary sizes:**
+- Debug: ~6MB (with debug symbols)
+- Release: ~1.8MB (optimized, stripped)
+- MinSizeRel: ~1.5MB (size-optimized, slight performance trade-off)
+
+The executable will be located in the `build/` directory (or `build/Debug`, `build/Release` depending on your build configuration).
+
+### Static Runtime Linking
+
+**Windows (MSVC)**: The CLI tool uses static runtime linking (`/MT` flag) to eliminate the dependency on VCRUNTIME DLL, allowing single-file distribution without requiring Visual C++ Redistributables.
+
+**Linux**: Attempts to statically link libstdc++ and libgcc when available. Falls back to dynamic linking if not available (e.g., Fedora without `libstdc++-static` package). The binary still depends on glibc and may not work on systems with older glibc versions.
 
 
 ## Command-Line Reference
@@ -88,7 +104,9 @@ dumpbin /dependents ccap.exe
 | `-o, --output DIR` | - | Output directory for captured images |
 | `--format FORMAT` | - | Output pixel format (see [Supported Formats](#supported-formats)) |
 | `--internal-format FORMAT` | - | Camera's internal pixel format |
-| `--save-yuv` | - | Save frames as raw YUV data instead of converting to BMP |
+| `--save-yuv` | - | Save frames as raw YUV data instead of converting to image |
+| `--image-format FORMAT` | `jpg` | Image output format: `jpg`, `png`, `bmp` (requires `CCAP_CLI_WITH_STB_IMAGE=ON` for jpg/png) |
+| `--jpeg-quality QUALITY` | `90` | JPEG quality (1-100, only for JPG format) |
 
 ### Preview Options
 
@@ -150,7 +168,7 @@ ccap --device-info
 
 ### Basic Frame Capture
 
-Capture a single frame from the default camera:
+Capture a single frame from the default camera (saved as JPG by default):
 ```bash
 ccap -d 0 -o ./captures
 ```
@@ -163,6 +181,28 @@ ccap -d 0 -w 1920 -H 1080 -c 10 -o ./captures
 Capture using a specific camera by name:
 ```bash
 ccap -d "HD Pro Webcam C920" -c 5 -o ./captures
+```
+
+### Image Format Options
+
+Capture frames as JPEG (default, requires CCAP_CLI_WITH_STB_IMAGE=ON):
+```bash
+ccap -d 0 -c 5 -o ./captures --image-format jpg
+```
+
+Capture frames as PNG:
+```bash
+ccap -d 0 -c 5 -o ./captures --image-format png
+```
+
+Capture frames as BMP (always available):
+```bash
+ccap -d 0 -c 5 -o ./captures --image-format bmp
+```
+
+Capture with custom JPEG quality:
+```bash
+ccap -d 0 -c 5 -o ./captures --image-format jpg --jpeg-quality 95
 ```
 
 ### Format-Specific Capture
@@ -191,6 +231,27 @@ ccap --convert input.yuv \
      --yuv-width 1920 \
      --yuv-height 1080 \
      --convert-output output.bmp
+```
+
+Convert a YUV file to JPEG (requires CCAP_CLI_WITH_STB_IMAGE=ON):
+```bash
+ccap --convert input.yuv \
+     --yuv-format nv12 \
+     --yuv-width 1920 \
+     --yuv-height 1080 \
+     --convert-output output.jpg \
+     --image-format jpg \
+     --jpeg-quality 90
+```
+
+Convert a YUV file to PNG:
+```bash
+ccap --convert input.yuv \
+     --yuv-format nv12 \
+     --yuv-width 1920 \
+     --yuv-height 1080 \
+     --convert-output output.png \
+     --image-format png
 ```
 
 ### Preview Mode

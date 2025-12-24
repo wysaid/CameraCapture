@@ -21,41 +21,57 @@
 ### 基本构建
 
 ```bash
-cmake -B build -DBUILD_CCAP_CLI=ON
+cmake -B build -DCCAP_BUILD_CLI=ON
 cmake --build build
 ```
 
 ### 启用预览支持构建 (GLFW)
 
 ```bash
-cmake -B build -DBUILD_CCAP_CLI=ON -DCCAP_CLI_WITH_GLFW=ON
+cmake -B build -DCCAP_BUILD_CLI=ON -DCCAP_CLI_WITH_GLFW=ON
 cmake --build build
 ```
 
-可执行文件将位于 `build/` 目录(或 `build/Debug`、`build/Release`,取决于您的构建配置)。
-
-### 分发与静态链接
-
-CLI 工具配置为最小化运行时依赖：
-
-- **Windows (MSVC)**: 使用 `/MT` 标志进行静态运行时链接，无需安装 VCRUNTIME DLL
-- **Linux**: 尝试静态链接 libstdc++ 和 libgcc（如果可用）。如果未安装静态库，则回退到动态链接。要在 Fedora/RHEL 上启用静态链接，请安装 `libstdc++-static`；在 Debian/Ubuntu 上，静态库通常包含在默认开发包中。
-- **macOS**: 使用默认的静态 C++ 标准库链接，仅依赖系统框架
-
-当静态链接成功时，CLI 工具可以作为独立可执行文件分发，仅需最少的依赖项（在 Linux 上仅依赖 libc 和 libm 等系统库）。
-
-验证已构建 CLI 工具的依赖项：
+### 启用图片格式支持构建 (JPG/PNG)
 
 ```bash
-# Linux
-ldd ccap
-
-# macOS
-otool -L ccap
-
-# Windows (PowerShell)
-dumpbin /dependents ccap.exe
+cmake -B build -DCCAP_BUILD_CLI=ON -DCCAP_CLI_WITH_STB_IMAGE=ON
+cmake --build build
 ```
+
+默认情况下，`CCAP_CLI_WITH_STB_IMAGE` 是启用的，除了 BMP 外还提供 JPG 和 PNG 格式支持。如果要禁用此功能而仅使用 BMP：
+
+```bash
+cmake -B build -DCCAP_BUILD_CLI=ON -DCCAP_CLI_WITH_STB_IMAGE=OFF
+cmake --build build
+```
+
+### 优化的 Release 构建
+
+对于生产环境使用，建议使用 Release 模式构建以获得最佳性能和最小体积：
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DCCAP_BUILD_CLI=ON
+cmake --build build
+```
+
+**Release 构建自动启用的优化：**
+- 链接时优化 (LTO/IPO) 以获得更好的性能 (+20%) 和更小的体积
+- 符号表剥离以实现最小二进制体积 (减少约 25%)
+- 编译器优化 (-O3)
+
+**预期二进制文件大小：**
+- Debug: ~6MB (包含调试符号)
+- Release: ~1.8MB (优化并剥离符号)
+- MinSizeRel: ~1.5MB (体积优化，性能略有权衡)
+
+可执行文件将位于 `build/` 目录(或 `build/Debug`、`build/Release`,取决于您的构建配置)。
+
+### 静态运行时链接
+
+**Windows (MSVC)**：CLI 工具使用静态运行时链接（`/MT` 标志）来消除对 VCRUNTIME DLL 的依赖，允许单文件分发而无需用户安装 Visual C++ 运行库。
+
+**Linux**：当可用时尝试静态链接 libstdc++ 和 libgcc。如果不可用（例如 Fedora 未安装 `libstdc++-static` 包），则回退到动态链接。二进制文件仍然依赖 glibc，可能无法在旧 glibc 版本的系统上运行。
 
 
 ## 命令行参考
@@ -88,7 +104,9 @@ dumpbin /dependents ccap.exe
 | `-o, --output DIR` | - | 捕获图像的输出目录 |
 | `--format FORMAT` | - | 输出像素格式(参见[支持的格式](#支持的格式)) |
 | `--internal-format FORMAT` | - | 相机的内部像素格式 |
-| `--save-yuv` | - | 将帧保存为原始 YUV 数据而不转换为 BMP |
+| `--save-yuv` | - | 将帧保存为原始 YUV 数据而不转换为图像 |
+| `--image-format FORMAT` | `jpg` | 图像输出格式：`jpg`、`png`、`bmp`（jpg/png 需要 `CCAP_CLI_WITH_STB_IMAGE=ON`） |
+| `--jpeg-quality QUALITY` | `90` | JPEG 质量 (1-100，仅用于 JPG 格式) |
 
 ### 预览选项
 
@@ -150,7 +168,7 @@ ccap --device-info
 
 ### 基本帧捕获
 
-从默认相机捕获单帧:
+从默认相机捕获单帧（默认保存为 JPG）:
 ```bash
 ccap -d 0 -o ./captures
 ```
@@ -163,6 +181,28 @@ ccap -d 0 -w 1920 -H 1080 -c 10 -o ./captures
 使用特定相机名称捕获:
 ```bash
 ccap -d "HD Pro Webcam C920" -c 5 -o ./captures
+```
+
+### 图片格式选项
+
+捕获帧为 JPEG 格式（默认，需要 CCAP_CLI_WITH_STB_IMAGE=ON）:
+```bash
+ccap -d 0 -c 5 -o ./captures --image-format jpg
+```
+
+捕获帧为 PNG 格式:
+```bash
+ccap -d 0 -c 5 -o ./captures --image-format png
+```
+
+捕获帧为 BMP 格式（始终可用）:
+```bash
+ccap -d 0 -c 5 -o ./captures --image-format bmp
+```
+
+使用自定义 JPEG 质量捕获:
+```bash
+ccap -d 0 -c 5 -o ./captures --image-format jpg --jpeg-quality 95
 ```
 
 ### 特定格式捕获
@@ -191,6 +231,27 @@ ccap --convert input.yuv \
      --yuv-width 1920 \
      --yuv-height 1080 \
      --convert-output output.bmp
+```
+
+将 YUV 文件转换为 JPEG（需要 CCAP_CLI_WITH_STB_IMAGE=ON）:
+```bash
+ccap --convert input.yuv \
+     --yuv-format nv12 \
+     --yuv-width 1920 \
+     --yuv-height 1080 \
+     --convert-output output.jpg \
+     --image-format jpg \
+     --jpeg-quality 90
+```
+
+将 YUV 文件转换为 PNG:
+```bash
+ccap --convert input.yuv \
+     --yuv-format nv12 \
+     --yuv-width 1920 \
+     --yuv-height 1080 \
+     --convert-output output.png \
+     --image-format png
 ```
 
 ### 预览模式

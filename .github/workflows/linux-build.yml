@@ -24,7 +24,9 @@ jobs:
     - name: Install base dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake build-essential gcc libasan6
+        sudo apt-get install -y cmake build-essential gcc libasan6 \
+          libwayland-dev libxkbcommon-dev wayland-protocols \
+          libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
         
     - name: Install GLFW (for Release builds only)
       if: matrix.build_type == 'Release'
@@ -50,7 +52,7 @@ jobs:
               -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
               -DCCAP_BUILD_EXAMPLES=ON \
               -DCCAP_BUILD_TESTS=ON \
-              -DBUILD_CCAP_CLI=ON \
+              -DCCAP_BUILD_CLI=ON \
               $SHARED_FLAG
     
     - name: Build
@@ -177,7 +179,9 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake build-essential clang libglfw3-dev libasan6
+        sudo apt-get install -y cmake build-essential clang libglfw3-dev libasan6 \
+          libwayland-dev libxkbcommon-dev wayland-protocols \
+          libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
         
     - name: Setup compiler
       run: |
@@ -197,7 +201,7 @@ jobs:
               -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
               -DCCAP_BUILD_EXAMPLES=ON \
               -DCCAP_BUILD_TESTS=ON \
-              -DBUILD_CCAP_CLI=ON \
+              -DCCAP_BUILD_CLI=ON \
               $SHARED_FLAG
     
     - name: Build
@@ -277,7 +281,9 @@ jobs:
     - name: Install cross-compilation toolchain
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake build-essential gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+        sudo apt-get install -y cmake build-essential gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+          libwayland-dev libxkbcommon-dev wayland-protocols \
+          libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
         echo "Cross-compilation toolchain installed"
         
     - name: Configure CMake for ARM64
@@ -298,7 +304,7 @@ jobs:
               -DCMAKE_CROSSCOMPILING=ON \
               -DCCAP_BUILD_EXAMPLES=ON \
               -DCCAP_BUILD_TESTS=ON \
-              -DBUILD_CCAP_CLI=ON \
+              -DCCAP_BUILD_CLI=ON \
               $SHARED_FLAG
   
     - name: Build ARM64
@@ -400,7 +406,9 @@ jobs:
     
     - name: Install dependencies
       run: |
-        dnf install -y cmake gcc-c++ make libasan
+        dnf install -y cmake gcc-c++ make libasan \
+          wayland-devel libxkbcommon-devel wayland-protocols-devel \
+          libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel
         
     - name: Configure CMake
       run: |
@@ -415,7 +423,7 @@ jobs:
               -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
               -DCCAP_BUILD_EXAMPLES=ON \
               -DCCAP_BUILD_TESTS=ON \
-              -DBUILD_CCAP_CLI=ON \
+              -DCCAP_BUILD_CLI=ON \
               $SHARED_FLAG
     
     - name: Build

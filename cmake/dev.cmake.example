@@ -1,33 +1,19 @@
 # dev.cmake.example
-# Copy this file to dev.cmake and customize your local development settings.
-# The dev.cmake file is ignored by git and won't affect other developers.
+# Copy this file to dev.cmake for local development overrides (git-ignored)
 
-# Build configuration options
-# Uncomment and set to ON/OFF as needed:
+# Build options (uncomment to override defaults)
+# set(CCAP_BUILD_CLI ON)                   # Build CLI tool
+# set(CCAP_BUILD_CLI_STANDALONE ON)        # Build standalone CLI with static runtime
+# set(CCAP_BUILD_EXAMPLES ON)              # Build examples
+# set(CCAP_BUILD_TESTS ON)                 # Build tests
+# set(CCAP_BUILD_SHARED ON)                # Build as shared library
 
-# Build ccap CLI tool (default: OFF)
-# set(BUILD_CCAP_CLI ON)
+# CLI options (when CCAP_BUILD_CLI=ON)
+# set(CCAP_CLI_WITH_GLFW ON)               # Enable preview window
+# set(CCAP_CLI_WITH_STB_IMAGE ON)          # Enable JPG/PNG support
 
-# Build examples (default: ON when root project)
-# set(CCAP_BUILD_EXAMPLES ON)
-
-# Build tests (default: OFF)
-# set(CCAP_BUILD_TESTS ON)
-
-# Build as shared library (default: OFF)
-# set(CCAP_BUILD_SHARED ON)
-
-# Disable logging (default: OFF)
-# set(CCAP_NO_LOG ON)
-
-# Skip device verification on Windows for buggy camera drivers (default: OFF)
-# set(CCAP_WIN_NO_DEVICE_VERIFY ON)
-
-# CLI-specific options (only effective when BUILD_CCAP_CLI is ON)
-
-# Enable GLFW window preview for CLI tool (default: ON)
-# set(CCAP_CLI_WITH_GLFW ON)
-
-# Force ARM64 architecture compilation (default: OFF)
-# set(CCAP_FORCE_ARM64 ON)
+# Platform/debug options
+# set(CCAP_NO_LOG ON)                      # Disable logging
+# set(CCAP_WIN_NO_DEVICE_VERIFY ON)        # Skip Windows device verification
+# set(CCAP_FORCE_ARM64 ON)                 # Force ARM64 build
 

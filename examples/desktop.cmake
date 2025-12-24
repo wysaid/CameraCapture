@@ -8,18 +8,34 @@ set(DESKTOP_EXAMPLES_DIR ${CMAKE_CURRENT_LIST_DIR}/desktop)
 set(GLFW_AVAILABLE OFF)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    if(NOT GLFW_AVAILABLE)
-        find_package(glfw3 QUIET)
+    # Check if we're building standalone CLI - if so, use bundled GLFW
+    if(CCAP_BUILD_CLI_STANDALONE)
+        # For standalone builds, use bundled static GLFW to avoid system dependencies
+        set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "Build GLFW example programs" FORCE)
+        set(GLFW_BUILD_TESTS OFF CACHE BOOL "Build GLFW test programs" FORCE)
+        set(GLFW_BUILD_DOCS OFF CACHE BOOL "Build GLFW documentation" FORCE)
+        set(GLFW_INSTALL OFF CACHE BOOL "Generate installation target" FORCE)
+        set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)  # Force static GLFW
 
-        if(glfw3_FOUND)
-            set(GLFW_AVAILABLE ON)
-            set(GLFW_TARGET glfw)
+        add_subdirectory(${DESKTOP_EXAMPLES_DIR}/glfw)
+        set(GLFW_AVAILABLE ON)
+        set(GLFW_TARGET glfw)
+        message(STATUS "ccap: Using bundled GLFW for standalone build")
+    else()
+        # For non-standalone builds, prefer system GLFW
+        if(NOT GLFW_AVAILABLE)
+            find_package(glfw3 QUIET)
+
+            if(glfw3_FOUND)
+                set(GLFW_AVAILABLE ON)
+                set(GLFW_TARGET glfw)
+            endif()
         endif()
-    endif()
 
-    if(NOT GLFW_AVAILABLE)
-        message(STATUS "ccap: GLFW not found on system. GLFW-dependent examples will be disabled.")
-        message(STATUS "ccap: Install GLFW with: sudo apt-get install libglfw3-dev (Ubuntu/Debian) or equivalent")
+        if(NOT GLFW_AVAILABLE)
+            message(STATUS "ccap: GLFW not found on system. GLFW-dependent examples will be disabled.")
+            message(STATUS "ccap: Install GLFW with: sudo apt-get install libglfw3-dev (Ubuntu/Debian) or equivalent")
+        endif()
     endif()
 else()
     # On non-Linux platforms, use bundled GLFW

@@ -213,7 +213,7 @@ ccap includes a powerful command-line tool for quick camera operations without w
 ```bash
 # Build with CLI tool enabled
 mkdir build && cd build
-cmake .. -DBUILD_CCAP_CLI=ON
+cmake .. -DCCAP_BUILD_CLI=ON
 cmake --build .
 
 # List available cameras
