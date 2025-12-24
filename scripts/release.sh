@@ -144,17 +144,13 @@ check_github_release_exists() {
     local api_url="https://api.github.com/repos/${owner_repo}/releases/tags/${tag_name}"
 
     # Build curl command with optional authentication
-    local curl_cmd="curl -s --connect-timeout 5 --max-time 10 -o /dev/null -w %{http_code}"
+    local curl_args=(-s --connect-timeout 5 --max-time 10 -o /dev/null -w "%{http_code}")
     if [ -n "${GITHUB_TOKEN:-}" ]; then
-        curl_cmd="$curl_cmd -H 'Authorization: Bearer $GITHUB_TOKEN'"
+        curl_args+=(-H "Authorization: Bearer $GITHUB_TOKEN")
     fi
-
+    
     local status_code
-    status_code=$(eval "$curl_cmd" "$api_url")
-
-    if [ "$status_code" = "200" ]; then
-        return 0 # Release exists
-    elif [ "$status_code" = "404" ]; then
+    status_code=$(curl "${curl_args[@]}" "$api_url")
         return 1 # Release does not exist
     elif [ "$status_code" = "403" ]; then
         echo -e "${YELLOW}⚠️  Warning: GitHub API rate limit exceeded (HTTP 403)${NC}"
@@ -290,7 +286,7 @@ if [ "$DELETE_MODE" = true ]; then
     ORPHAN_TAGS=""
     while IFS= read -r local_tag; do
         if [ -n "$local_tag" ]; then
-            if ! echo "$REMOTE_TAGS" | grep -q "^${local_tag}$"; then
+            if ! echo "$REMOTE_TAGS" | grep -Fxq "$local_tag"; then
                 ORPHAN_TAGS="${ORPHAN_TAGS}${local_tag}"$'\n'
             fi
         fi
