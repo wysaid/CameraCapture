@@ -756,10 +756,10 @@ jobs:
         3. Run the command-line tool directly (no installation required):
            ```bash
            # List available cameras
-           ./ccap-cli --list-devices
+           ./ccap --list-devices
            
            # Capture a frame
-           ./ccap-cli --output my-capture.bmp
+           ./ccap --output my-capture.bmp
            ```
         4. See `USAGE.md` in the package for complete usage guide
         

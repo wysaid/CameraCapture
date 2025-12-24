@@ -117,7 +117,8 @@ fi
 # Helper function to check if a tag exists as a release on GitHub
 check_github_release_exists() {
     local tag_name=$1
-    local remote_url=$(git remote get-url "$GITHUB_REMOTE")
+    local remote_url
+    remote_url=$(git remote get-url "$GITHUB_REMOTE")
 
     # Extract owner and repo from GitHub URL
     # Support formats: git@github.com:owner/repo.git, https://github.com/owner/repo.git
@@ -133,12 +134,24 @@ check_github_release_exists() {
 
     # Check if release exists using GitHub API
     local api_url="https://api.github.com/repos/${owner_repo}/releases/tags/${tag_name}"
-    local status_code=$(curl -s -o /dev/null -w "%{http_code}" "$api_url")
+    
+    # Build curl command with optional authentication
+    local curl_cmd="curl -s --connect-timeout 5 --max-time 10 -o /dev/null -w %{http_code}"
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+        curl_cmd="$curl_cmd -H 'Authorization: Bearer $GITHUB_TOKEN'"
+    fi
+    
+    local status_code
+    status_code=$(eval "$curl_cmd" "$api_url")
 
     if [ "$status_code" = "200" ]; then
         return 0 # Release exists
     elif [ "$status_code" = "404" ]; then
         return 1 # Release does not exist
+    elif [ "$status_code" = "403" ]; then
+        echo -e "${YELLOW}⚠️  Warning: GitHub API rate limit exceeded (HTTP 403)${NC}"
+        echo -e "${YELLOW}    Tip: Set GITHUB_TOKEN environment variable to increase rate limit${NC}"
+        return 2 # Rate limit exceeded
     else
         echo -e "${YELLOW}⚠️  Warning: Could not check release status (HTTP $status_code)${NC}"
         return 2 # Unknown status
@@ -619,11 +632,18 @@ if [ "$LATEST_TAG" != "0.0.0" ]; then
         echo -e "  Current: $CURRENT_VERSION, Latest: $LATEST_TAG"
         exit 1
     elif [ "$COMPARE" = "equal" ]; then
-        # For equal base versions, check if it's a pre-release
+        # For equal base versions, check if it's a pre-release or if user will select one
         if [ -z "$PRERELEASE_TYPE" ]; then
-            echo -e "${RED}❌ Error: Version is not higher than the latest release!${NC}"
-            echo -e "  Current: $CURRENT_VERSION, Latest: $LATEST_TAG"
-            exit 1
+            # If no prerelease type specified and not in auto mode, user can choose in Step 6.5
+            if [ "$AUTO_YES" = true ]; then
+                echo -e "${RED}❌ Error: Version is not higher than the latest release!${NC}"
+                echo -e "  Current: $CURRENT_VERSION, Latest: $LATEST_TAG"
+                echo -e "  Tip: Use -b/--beta, -a/--alpha, or -r/--rc to create a pre-release"
+                exit 1
+            else
+                echo -e "${YELLOW}⚠️  Version equals latest release ($LATEST_TAG)${NC}"
+                echo -e "  You can choose to create a pre-release in the next step"
+            fi
         else
             echo -e "${GREEN}✅ Creating pre-release for version $HEADER_VERSION${NC}"
         fi
