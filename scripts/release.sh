@@ -17,6 +17,7 @@ NC='\033[0m' # No Color
 DRY_RUN=false
 FORCE_BRANCH=false
 DELETE_MODE=false
+AUTO_YES=false
 PRERELEASE_TYPE=""
 PRERELEASE_NUMBER=""
 
@@ -34,6 +35,10 @@ while [[ $# -gt 0 ]]; do
         DELETE_MODE=true
         shift
         ;;
+    -y | --yes)
+        AUTO_YES=true
+        shift
+        ;;
     --beta | --alpha | --rc)
         PRERELEASE_TYPE="${1#--}"
         shift
@@ -47,18 +52,20 @@ while [[ $# -gt 0 ]]; do
         ;;
     *)
         echo "Unknown option: $1"
-        echo "Usage: $0 [-n|--dry-run] [-f|--force] [-d|--delete] [--beta|--alpha|--rc [number]]"
+        echo "Usage: $0 [-n|--dry-run] [-f|--force] [-d|--delete] [-y|--yes] [--beta|--alpha|--rc [number]]"
         echo ""
         echo "Options:"
         echo "  -n, --dry-run         Run without making actual changes"
         echo "  -f, --force           Force tag creation on any branch (requires all changes committed)"
         echo "  -d, --delete          Delete existing tag(s) matching current version"
+        echo "  -y, --yes             Auto-confirm with default options (official release)"
         echo "  --beta [number]       Create beta release (e.g., v1.0.0-beta.1)"
         echo "  --alpha [number]      Create alpha release (e.g., v1.0.0-alpha.1)"
         echo "  --rc [number]         Create release candidate (e.g., v1.0.0-rc.1)"
         echo ""
         echo "Examples:"
-        echo "  $0                    # Create official release"
+        echo "  $0                    # Create official release (interactive)"
+        echo "  $0 -y                 # Create official release (auto-confirm)"
         echo "  $0 --dry-run          # Preview release without changes"
         echo "  $0 -f                 # Force release on current branch"
         echo "  $0 -d                 # Delete tag(s) matching current version"
@@ -630,6 +637,88 @@ else
 fi
 
 echo ""
+
+# ============================================================================
+# Step 6.5: Interactive release type selection (if not specified)
+# ============================================================================
+if [ -z "$PRERELEASE_TYPE" ] && [ "$AUTO_YES" = false ]; then
+    echo -e "${BLUE}Step 6.5: Select release type...${NC}"
+    echo ""
+    echo -e "  ${YELLOW}What type of release do you want to create?${NC}"
+    echo ""
+    echo -e "    ${GREEN}[1]${NC} Official Release (v${HEADER_VERSION})"
+    echo -e "    ${YELLOW}[2]${NC} Beta Release (v${HEADER_VERSION}-beta.N)"
+    echo -e "    ${YELLOW}[3]${NC} Alpha Release (v${HEADER_VERSION}-alpha.N)"
+    echo -e "    ${YELLOW}[4]${NC} Release Candidate (v${HEADER_VERSION}-rc.N)"
+    echo ""
+    echo -e "  ${BLUE}Enter your choice [1-4] (default: 1):${NC} "
+    read -r release_choice
+    
+    # Default to 1 if empty
+    if [ -z "$release_choice" ]; then
+        release_choice=1
+    fi
+    
+    case $release_choice in
+        1)
+            echo -e "  ${GREEN}✓ Selected: Official Release${NC}"
+            # PRERELEASE_TYPE remains empty
+            ;;
+        2|3|4)
+            if [ "$release_choice" = "2" ]; then
+                PRERELEASE_TYPE="beta"
+            elif [ "$release_choice" = "3" ]; then
+                PRERELEASE_TYPE="alpha"
+            else
+                PRERELEASE_TYPE="rc"
+            fi
+            
+            echo ""
+            echo -e "  ${YELLOW}Enter the $PRERELEASE_TYPE number (default: 1):${NC} "
+            read -r prerelease_num
+            
+            if [ -z "$prerelease_num" ]; then
+                PRERELEASE_NUMBER=1
+            elif [[ "$prerelease_num" =~ ^[0-9]+$ ]]; then
+                PRERELEASE_NUMBER=$prerelease_num
+            else
+                echo -e "${RED}❌ Error: Invalid number${NC}"
+                exit 1
+            fi
+            
+            CURRENT_VERSION="${HEADER_VERSION}-${PRERELEASE_TYPE}.${PRERELEASE_NUMBER}"
+            RELEASE_TAG="v$CURRENT_VERSION"
+            
+            echo -e "  ${GREEN}✓ Selected: $PRERELEASE_TYPE Release (v${CURRENT_VERSION})${NC}"
+            
+            # Re-check if this tag already exists
+            if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+                echo ""
+                echo -e "${RED}❌ Error: This tag already exists locally!${NC}"
+                echo -e "  Tag: $RELEASE_TAG"
+                echo -e "  Please choose a different number or update the version"
+                exit 1
+            fi
+            
+            if git ls-remote --tags "$GITHUB_REMOTE" | grep -q "refs/tags/$RELEASE_TAG$"; then
+                echo ""
+                echo -e "${RED}❌ Error: This tag already exists on remote!${NC}"
+                echo -e "  Tag: $RELEASE_TAG"
+                echo -e "  Please choose a different number or update the version"
+                exit 1
+            fi
+            ;;
+        *)
+            echo -e "${RED}❌ Error: Invalid choice${NC}"
+            exit 1
+            ;;
+    esac
+    
+    echo ""
+elif [ "$AUTO_YES" = true ] && [ -z "$PRERELEASE_TYPE" ]; then
+    echo -e "${BLUE}Auto-confirm mode: Creating official release${NC}"
+    echo ""
+fi
 
 # ============================================================================
 # Step 7: Create and push release tag
