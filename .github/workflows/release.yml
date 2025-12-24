@@ -785,8 +785,6 @@ jobs:
         files: |
           artifacts/*/ccap-*.zip
           artifacts/*/ccap-*.tar.gz
-          artifacts/*/ccap-cli-*.zip
-          artifacts/*/ccap-cli-*.tar.gz
         draft: false
         prerelease: ${{ steps.release_type.outputs.prerelease }}
         generate_release_notes: true
