@@ -142,13 +142,13 @@ check_github_release_exists() {
 
     # Check if release exists using GitHub API
     local api_url="https://api.github.com/repos/${owner_repo}/releases/tags/${tag_name}"
-    
+
     # Build curl command with optional authentication
     local curl_cmd="curl -s --connect-timeout 5 --max-time 10 -o /dev/null -w %{http_code}"
     if [ -n "${GITHUB_TOKEN:-}" ]; then
         curl_cmd="$curl_cmd -H 'Authorization: Bearer $GITHUB_TOKEN'"
     fi
-    
+
     local status_code
     status_code=$(eval "$curl_cmd" "$api_url")
 

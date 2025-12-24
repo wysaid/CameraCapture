@@ -527,8 +527,112 @@ jobs:
         cp README.zh-CN.md cli-package/ || echo "Chinese README not found"
         cp LICENSE cli-package/ || echo "LICENSE not found"
         
-        # Create a simple usage guide for CLI
-        cat > cli-package/USAGE.md << 'EOF'
+        # Create platform-specific usage guide for CLI
+        if [ "${{ matrix.os }}" = "macos-latest" ]; then
+          # macOS-specific USAGE.md with Gatekeeper instructions
+          cat > cli-package/USAGE.md << 'EOF'
+        # ccap CLI Tool Usage (macOS)
+        
+        ## 🚀 Quick Start
+        
+        ### First-time Setup (macOS Security)
+        
+        macOS Gatekeeper will block this executable because it's not signed by Apple.
+        You have **two options**:
+        
+        **Option 1: Use the convenience script (recommended)**
+        ```bash
+        # Run ccap through the wrapper script (handles security automatically)
+        ./run_ccap.sh --list-devices
+        ./run_ccap.sh --help
+        ```
+        
+        **Option 2: Remove quarantine attribute manually**
+        ```bash
+        # One-time setup - remove the quarantine attribute
+        xattr -d com.apple.quarantine ccap
+        chmod +x ccap
+        
+        # Now you can run ccap directly
+        ./ccap --list-devices
+        ```
+        
+        **Option 3: Use System Preferences**
+        1. Try to run `./ccap`
+        2. macOS will show a security warning
+        3. Go to **System Preferences** → **Security & Privacy** → **General**
+        4. Click **"Open Anyway"** next to the blocked message
+        5. Try running `./ccap` again and click **"Open"**
+        
+        ---
+        
+        ## Usage Examples
+        
+        ```bash
+        # List all available cameras
+        ./ccap --list-devices
+        
+        # Capture a single frame (saves as output.bmp by default)
+        ./ccap
+        
+        # Capture with specific device
+        ./ccap --device 0
+        
+        # Capture with specific resolution
+        ./ccap --width 1920 --height 1080
+        
+        # Capture with specific pixel format
+        ./ccap --format YUYV
+        
+        # Capture with internal format (camera native format)
+        ./ccap --internal-format MJPEG
+        
+        # Capture multiple frames
+        ./ccap --count 10
+        
+        # Save to specific file
+        ./ccap --output my-capture.bmp
+        
+        # Preview window (with GLFW support)
+        ./ccap --preview
+        ```
+        
+        ## Available Options
+        
+        Run `./ccap --help` for complete list of options.
+        
+        ## 🔧 Troubleshooting
+        
+        ### "ccap cannot be opened because the developer cannot be verified"
+        
+        This is macOS Gatekeeper security feature. See the **First-time Setup** section above for solutions.
+        
+        ### Check if quarantine attribute is set
+        ```bash
+        xattr -l ccap
+        # If you see "com.apple.quarantine", it's quarantined
+        ```
+        
+        ### Remove quarantine from all files in directory
+        ```bash
+        xattr -dr com.apple.quarantine .
+        ```
+        
+        ## System Requirements
+        
+        - **macOS**: 10.13 or higher
+        - Universal Binary (supports both Intel and Apple Silicon)
+        
+        ## Notes
+        
+        - This CLI tool is statically linked and has no external dependencies
+        - BMP format is the only supported output format
+        - For more advanced usage, please refer to the ccap library documentation
+        - The `run_ccap.sh` script automatically handles macOS security on first run
+        EOF
+        else
+          # Generic USAGE.md for Windows and Linux
+          cat > cli-package/USAGE.md << 'EOF'
         # ccap CLI Tool Usage
         
         ## Quick Start
@@ -568,7 +672,6 @@ jobs:
         
         ## System Requirements
         
-        - **macOS**: 10.13 or higher
         - **Windows**: Windows 10 or higher
         - **Linux**: Modern Linux distribution with V4L2 support (kernel 2.6+)
         
@@ -578,6 +681,51 @@ jobs:
         - BMP format is the only supported output format
         - For more advanced usage, please refer to the ccap library documentation
         EOF
+        fi
+        
+    - name: Create macOS convenience script
+      if: matrix.os == 'macos-latest'
+      shell: bash
+      run: |
+        # Create run_ccap.sh wrapper script for macOS
+        cat > cli-package/run_ccap.sh << 'EOF'
+        #!/bin/bash
+        
+        # ccap convenience wrapper for macOS
+        # This script automatically removes the quarantine attribute on first run
+        
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        CCAP_BIN="$SCRIPT_DIR/ccap"
+        
+        # Check if ccap executable exists
+        if [ ! -f "$CCAP_BIN" ]; then
+            echo "Error: ccap executable not found at: $CCAP_BIN"
+            exit 1
+        fi
+        
+        # Check if quarantine attribute is set
+        if xattr -l "$CCAP_BIN" 2>/dev/null | grep -q "com.apple.quarantine"; then
+            echo "🔓 First run detected: Removing macOS quarantine attribute..."
+            if xattr -d com.apple.quarantine "$CCAP_BIN" 2>/dev/null; then
+                echo "✅ Quarantine attribute removed successfully"
+            else
+                echo "⚠️  Warning: Could not remove quarantine attribute"
+                echo "    You may need to run: xattr -d com.apple.quarantine ccap"
+                echo ""
+            fi
+        fi
+        
+        # Ensure executable permission
+        if [ ! -x "$CCAP_BIN" ]; then
+            chmod +x "$CCAP_BIN" 2>/dev/null || true
+        fi
+        
+        # Execute ccap with all passed arguments
+        exec "$CCAP_BIN" "$@"
+        EOF
+        
+        # Make the wrapper script executable
+        chmod +x cli-package/run_ccap.sh
         
     - name: Create CLI archive
       shell: bash
@@ -753,7 +901,20 @@ jobs:
         **For Standalone CLI Tool:**
         1. Download the appropriate standalone package for your platform
         2. Extract the archive
-        3. Run the command-line tool directly (no installation required):
+        3. Run the command-line tool:
+           
+           **macOS users:**
+           ```bash
+           # Option 1: Use the convenience script (recommended, handles security automatically)
+           ./run_ccap.sh --list-devices
+           ./run_ccap.sh --help
+           
+           # Option 2: Remove quarantine attribute manually
+           xattr -d com.apple.quarantine ccap
+           ./ccap --list-devices
+           ```
+           
+           **Windows/Linux users:**
            ```bash
            # List available cameras
            ./ccap --list-devices
@@ -761,7 +922,9 @@ jobs:
            # Capture a frame
            ./ccap --output my-capture.bmp
            ```
-        4. See `USAGE.md` in the package for complete usage guide
+        4. See `USAGE.md` in the package for complete usage guide and troubleshooting
+        
+        > **Note for macOS users:** macOS Gatekeeper will block unsigned executables. Use `run_ccap.sh` script (included) or see USAGE.md for solutions.
         
         ### 📋 System Requirements
         
