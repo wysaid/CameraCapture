@@ -16,7 +16,9 @@
 #endif
 
 #include "ccap_imp_windows.h"
+#ifdef CCAP_ENABLE_FILE_PLAYBACK
 #include "ccap_file_reader_windows.h"
+#endif
 
 #include "ccap_convert.h"
 #include "ccap_convert_frame.h"
@@ -667,6 +669,10 @@ bool ProviderDirectShow::open(std::string_view deviceNameOrFilePath) {
 }
 
 bool ProviderDirectShow::openFile(std::string_view filePath) {
+#ifndef CCAP_ENABLE_FILE_PLAYBACK
+    CCAP_LOG_E("File playback support is disabled. Rebuild with CCAP_ENABLE_FILE_PLAYBACK=ON to enable this feature.\n");
+    return false;
+#else
     if (m_isOpened || m_fileReader) {
         reportError(ErrorCode::DeviceOpenFailed, "Camera or file already opened, please close it first");
         return false;
@@ -683,6 +689,7 @@ bool ProviderDirectShow::openFile(std::string_view filePath) {
     
     m_isOpened = true;
     return true;
+#endif // CCAP_ENABLE_FILE_PLAYBACK
 }
 
 bool ProviderDirectShow::openCamera(std::string_view deviceName) {
@@ -996,22 +1003,32 @@ ULONG STDMETHODCALLTYPE ProviderDirectShow::Release() { // same as AddRef
 }
 
 bool ProviderDirectShow::isOpened() const {
+#ifdef CCAP_ENABLE_FILE_PLAYBACK
     if (m_isFileMode && m_fileReader) {
         return m_fileReader->isOpened();
     }
+#endif
     return m_isOpened;
 }
 
 std::optional<DeviceInfo> ProviderDirectShow::getDeviceInfo() const {
     // For file mode, return basic info
+#ifdef CCAP_ENABLE_FILE_PLAYBACK
     if (m_isFileMode && m_fileReader) {
+#else
+    if (m_isFileMode) {
+#endif
         std::optional<DeviceInfo> info;
         info.emplace();
         info->deviceName = "Video File";
         info->supportedPixelFormats.push_back(PixelFormat::BGR24);
         info->supportedPixelFormats.push_back(PixelFormat::BGRA32);
         info->supportedPixelFormats.push_back(PixelFormat::NV12);
-        info->supportedResolutions.push_back({(uint32_t)m_fileReader->getWidth(), (uint32_t)m_fileReader->getHeight()});
+#ifdef CCAP_ENABLE_FILE_PLAYBACK
+        if (m_fileReader) {
+            info->supportedResolutions.push_back({(uint32_t)m_fileReader->getWidth(), (uint32_t)m_fileReader->getHeight()});
+        }
+#endif
         return info;
     }
     
@@ -1103,10 +1120,12 @@ void ProviderDirectShow::close() {
     }
     
     // Close file reader if present
+#ifdef CCAP_ENABLE_FILE_PLAYBACK
     if (m_fileReader) {
         m_fileReader->close();
         m_fileReader.reset();
     }
+#endif
     
     m_isOpened = false;
     m_isRunning = false;
@@ -1119,9 +1138,11 @@ bool ProviderDirectShow::start() {
     if (!m_isOpened) return false;
     
     // File mode
+#ifdef CCAP_ENABLE_FILE_PLAYBACK
     if (m_isFileMode && m_fileReader) {
         return m_fileReader->start();
     }
+#endif
     
     // Camera mode
     if (!m_isRunning && m_mediaControl) {
@@ -1140,10 +1161,12 @@ void ProviderDirectShow::stop() {
     CCAP_LOG_V("ccap: ProviderDirectShow stop called\n");
 
     // File mode
+#ifdef CCAP_ENABLE_FILE_PLAYBACK
     if (m_isFileMode && m_fileReader) {
         m_fileReader->stop();
         return;
     }
+#endif
 
     if (m_grabFrameWaiting) {
         CCAP_LOG_V("ccap: VideoFrame waiting stopped\n");
@@ -1161,13 +1184,19 @@ void ProviderDirectShow::stop() {
 }
 
 bool ProviderDirectShow::isStarted() const {
+#ifdef CCAP_ENABLE_FILE_PLAYBACK
     if (m_isFileMode && m_fileReader) {
         return m_fileReader->isStarted();
     }
+#endif
     return m_isRunning && m_mediaControl;
 }
 
 bool ProviderDirectShow::setFileProperty(PropertyName prop, double value) {
+#ifndef CCAP_ENABLE_FILE_PLAYBACK
+    CCAP_LOG_E("File playback support is disabled.\n");
+    return false;
+#else
     if (!m_isFileMode || !m_fileReader) {
         return false;
     }
@@ -1182,9 +1211,14 @@ bool ProviderDirectShow::setFileProperty(PropertyName prop, double value) {
     default:
         return false;
     }
+#endif // CCAP_ENABLE_FILE_PLAYBACK
 }
 
 double ProviderDirectShow::getFileProperty(PropertyName prop) const {
+#ifndef CCAP_ENABLE_FILE_PLAYBACK
+    CCAP_LOG_E("File playback support is disabled.\n");
+    return NAN;
+#else
     if (!m_isFileMode || !m_fileReader) {
         return NAN;
     }
@@ -1203,6 +1237,7 @@ double ProviderDirectShow::getFileProperty(PropertyName prop) const {
     default:
         return NAN;
     }
+#endif // CCAP_ENABLE_FILE_PLAYBACK
 }
 
 ProviderImp* createProviderDirectShow() { return new ProviderDirectShow(); }

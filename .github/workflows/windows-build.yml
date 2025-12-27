@@ -633,3 +633,52 @@ jobs:
           build/${{ matrix.config }}-${{ matrix.library_type }}/3-capture_callback.exe
           build/${{ matrix.config }}-${{ matrix.library_type }}/*_results.xml
         if-no-files-found: warn
+
+  # Test building with file playback disabled (VS2022 Release only)
+  build-vs2022-no-file-playback:
+    name: Windows VS2022 Release - No File Playback
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Visual Studio environment
+      uses: microsoft/setup-msbuild@v1.1
+      
+    - name: Configure CMake (File Playback Disabled)
+      run: |
+        Write-Host "Configuring Windows Release build with CCAP_ENABLE_FILE_PLAYBACK=OFF"
+        New-Item -ItemType Directory -Force -Path "build/Release-no-file-playback"
+        cd "build/Release-no-file-playback"
+        cmake ../.. -G "Visual Studio 17 2022" -A x64 -DCCAP_BUILD_TESTS=ON -DCCAP_ENABLE_FILE_PLAYBACK=OFF
+      
+    - name: Build
+      run: |
+        cd "build/Release-no-file-playback"
+        cmake --build . --config Release --parallel
+        
+    - name: Verify build
+      shell: bash
+      working-directory: build/Release-no-file-playback/Release
+      run: |
+        echo "Verifying build with file playback disabled:"
+        ls -la | grep -E "ccap" || echo "No ccap libraries found"
+        
+        # Verify library exists
+        if [ -f "ccap.lib" ]; then
+          echo "✓ Static library ccap.lib successfully built"
+        else
+          echo "✗ Static library ccap.lib not found"
+          exit 1
+        fi
+        
+        # Verify example programs are built
+        if [ -f "0-print_camera.exe" ]; then
+          echo "✓ Example programs built successfully"
+        else
+          echo "✗ Example programs not found"
+          exit 1
+        fi
+        
+        echo "✓ Build verification passed - file playback disabled build works correctly"
