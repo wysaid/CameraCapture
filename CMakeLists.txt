@@ -220,8 +220,28 @@ elseif (UNIX AND NOT APPLE AND NOT WIN32)
 
     # Propagate to pkg-config for consumers
     set(PKG_CONFIG_LIBS_PRIVATE "Libs.private: -lpthread")
+elseif (WIN32)
+    # Windows – link Media Foundation libraries for video file playback
+    target_link_libraries(ccap PUBLIC
+            mfplat
+            mfreadwrite
+            mfuuid
+            shlwapi
+            propsys)
+
+    # MSVC: Delay load Media Foundation DLLs to support Windows XP camera functionality
+    # The program can start on XP and use DirectShow cameras, but will crash if video playback is attempted
+    if (MSVC)
+        set_target_properties(ccap PROPERTIES 
+            LINK_FLAGS "/DELAYLOAD:mfplat.dll /DELAYLOAD:mfreadwrite.dll"
+        )
+        target_link_libraries(ccap PUBLIC delayimp.lib)
+    endif ()
+
+    # Set pkg-config private libs for Windows
+    set(PKG_CONFIG_LIBS_PRIVATE "Libs.private: -lmfplat -lmfreadwrite -lmfuuid -lshlwapi -lpropsys")
 else ()
-    # Windows (including MinGW) or other platforms
+    # Other platforms
     set(PKG_CONFIG_LIBS_PRIVATE "")
 endif ()
 
