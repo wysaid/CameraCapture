@@ -9,7 +9,7 @@ fn main() {
     // Locate ccap root:
     // 1. Check for local "native" directory (Packaged/Crates.io mode)
     // 2. Fallback to "../../" (Repo/Git mode)
-    let (ccap_root, is_packaged) = if manifest_path.join("native").exists() {
+    let (ccap_root, _is_packaged) = if manifest_path.join("native").exists() {
         (manifest_path.join("native"), true)
     } else {
         (manifest_path.parent().unwrap().parent().unwrap().to_path_buf(), false)
