@@ -157,6 +157,7 @@ impl Utils {
     }
 
     /// Save RGB data as BMP file (generic version)
+    #[allow(clippy::too_many_arguments)]
     pub fn save_rgb_data_as_bmp<P: AsRef<Path>>(
         filename: P,
         data: &[u8],

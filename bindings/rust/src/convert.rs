@@ -202,6 +202,7 @@ impl Convert {
     }
 
     /// Convert I420 to RGB24
+    #[allow(clippy::too_many_arguments)]
     pub fn i420_to_rgb24(
         y_data: &[u8],
         y_stride: usize,
@@ -236,6 +237,7 @@ impl Convert {
     }
 
     /// Convert I420 to BGR24
+    #[allow(clippy::too_many_arguments)]
     pub fn i420_to_bgr24(
         y_data: &[u8],
         y_stride: usize,

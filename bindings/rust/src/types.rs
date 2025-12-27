@@ -83,9 +83,9 @@ impl PixelFormat {
     }
 }
 
-impl Into<sys::CcapPixelFormat> for PixelFormat {
-    fn into(self) -> sys::CcapPixelFormat {
-        match self {
+impl From<PixelFormat> for sys::CcapPixelFormat {
+    fn from(val: PixelFormat) -> Self {
+        match val {
             PixelFormat::Unknown => sys::CcapPixelFormat_CCAP_PIXEL_FORMAT_UNKNOWN,
             PixelFormat::Nv12 => sys::CcapPixelFormat_CCAP_PIXEL_FORMAT_NV12,
             PixelFormat::Nv12F => sys::CcapPixelFormat_CCAP_PIXEL_FORMAT_NV12F,

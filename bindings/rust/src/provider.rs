@@ -249,7 +249,7 @@ impl Provider {
     pub fn set_pixel_format(&mut self, format: PixelFormat) -> Result<()> {
         self.set_property(
             PropertyName::PixelFormatOutput,
-            format.to_c_enum() as u32 as f64,
+            format.to_c_enum() as f64,
         )
     }
 
