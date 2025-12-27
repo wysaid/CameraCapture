@@ -23,6 +23,19 @@ jobs:
       
     - name: Setup Visual Studio environment
       uses: microsoft/setup-msbuild@v1.1
+    
+    # Cache CMake build directory for Windows
+    - name: Setup CMake build cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          build/${{ matrix.config }}-${{ matrix.library_type }}/CMakeFiles
+          build/${{ matrix.config }}-${{ matrix.library_type }}/CMakeCache.txt
+          build/${{ matrix.config }}-${{ matrix.library_type }}/**/*.obj
+        key: ${{ runner.os }}-msvc-${{ matrix.config }}-${{ matrix.library_type }}-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**') }}
+        restore-keys: |
+          ${{ runner.os }}-msvc-${{ matrix.config }}-${{ matrix.library_type }}-
+          ${{ runner.os }}-msvc-${{ matrix.config }}-
       
     - name: Configure CMake
       run: |

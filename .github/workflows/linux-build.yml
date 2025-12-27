@@ -21,6 +21,13 @@ jobs:
       with:
         submodules: recursive
     
+    # Cache APT packages to avoid repeated downloads
+    - name: Cache APT packages
+      uses: awalsh128/cache-apt-pkgs-action@latest
+      with:
+        packages: cmake build-essential gcc libasan6 libwayland-dev libxkbcommon-dev wayland-protocols libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
+        version: 1.0
+    
     - name: Install base dependencies
       run: |
         sudo apt-get update
@@ -33,6 +40,19 @@ jobs:
       run: |
         sudo apt-get install -y libglfw3-dev
         echo "GLFW_INSTALLED=true" >> $GITHUB_ENV
+    
+    # Cache CMake build directory to speed up incremental builds
+    - name: Setup CMake build cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          build/${{ matrix.build_type }}-${{ matrix.library_type }}/CMakeFiles
+          build/${{ matrix.build_type }}-${{ matrix.library_type }}/CMakeCache.txt
+          build/${{ matrix.build_type }}-${{ matrix.library_type }}/**/*.o
+        key: ${{ runner.os }}-gcc-${{ matrix.build_type }}-${{ matrix.library_type }}-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**') }}
+        restore-keys: |
+          ${{ runner.os }}-gcc-${{ matrix.build_type }}-${{ matrix.library_type }}-
+          ${{ runner.os }}-gcc-${{ matrix.build_type }}-
         
     - name: Setup compiler
       run: |
@@ -176,12 +196,32 @@ jobs:
       with:
         submodules: recursive
     
+    # Cache APT packages to avoid repeated downloads
+    - name: Cache APT packages
+      uses: awalsh128/cache-apt-pkgs-action@latest
+      with:
+        packages: cmake build-essential clang libglfw3-dev libasan6 libwayland-dev libxkbcommon-dev wayland-protocols libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
+        version: 1.0
+    
     - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y cmake build-essential clang libglfw3-dev libasan6 \
           libwayland-dev libxkbcommon-dev wayland-protocols \
           libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
+    
+    # Cache CMake build directory to speed up incremental builds
+    - name: Setup CMake build cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          build/${{ matrix.build_type }}-${{ matrix.library_type }}/CMakeFiles
+          build/${{ matrix.build_type }}-${{ matrix.library_type }}/CMakeCache.txt
+          build/${{ matrix.build_type }}-${{ matrix.library_type }}/**/*.o
+        key: ${{ runner.os }}-clang-${{ matrix.build_type }}-${{ matrix.library_type }}-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**') }}
+        restore-keys: |
+          ${{ runner.os }}-clang-${{ matrix.build_type }}-${{ matrix.library_type }}-
+          ${{ runner.os }}-clang-${{ matrix.build_type }}-
         
     - name: Setup compiler
       run: |
@@ -278,6 +318,13 @@ jobs:
       with:
         submodules: recursive
     
+    # Cache APT packages for cross-compilation toolchain
+    - name: Cache cross-compilation toolchain packages
+      uses: awalsh128/cache-apt-pkgs-action@latest
+      with:
+        packages: cmake build-essential gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libwayland-dev libxkbcommon-dev wayland-protocols libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
+        version: 1.0
+    
     - name: Install cross-compilation toolchain
       run: |
         sudo apt-get update
@@ -285,6 +332,19 @@ jobs:
           libwayland-dev libxkbcommon-dev wayland-protocols \
           libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
         echo "Cross-compilation toolchain installed"
+    
+    # Cache CMake build directory for ARM64
+    - name: Setup CMake build cache for ARM64
+      uses: actions/cache@v4
+      with:
+        path: |
+          build/arm64/${{ matrix.build_type }}-${{ matrix.library_type }}/CMakeFiles
+          build/arm64/${{ matrix.build_type }}-${{ matrix.library_type }}/CMakeCache.txt
+          build/arm64/${{ matrix.build_type }}-${{ matrix.library_type }}/**/*.o
+        key: ${{ runner.os }}-arm64-gcc-${{ matrix.build_type }}-${{ matrix.library_type }}-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**') }}
+        restore-keys: |
+          ${{ runner.os }}-arm64-gcc-${{ matrix.build_type }}-${{ matrix.library_type }}-
+          ${{ runner.os }}-arm64-gcc-${{ matrix.build_type }}-
         
     - name: Configure CMake for ARM64
       run: |
@@ -314,6 +374,14 @@ jobs:
       if: matrix.build_type == 'Release'
       run: |
         cmake --build build/arm64/${{ matrix.build_type }}-${{ matrix.library_type }} --config ${{ matrix.build_type }} --target ccap_convert_test --parallel $(nproc)
+
+    # Cache QEMU installation
+    - name: Cache QEMU
+      if: (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && matrix.build_type == 'Release'
+      uses: awalsh128/cache-apt-pkgs-action@latest
+      with:
+        packages: qemu-user qemu-user-static
+        version: 1.0
 
     - name: Install QEMU for ARM64 test emulation (PRs and main push, Release only)
       if: (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && matrix.build_type == 'Release'
@@ -387,7 +455,8 @@ jobs:
   build-fedora:
     name: "Build Fedora (${{ matrix.build_type }}-${{ matrix.library_type }})"
     runs-on: ubuntu-latest
-    container: fedora:latest
+    container: 
+      image: fedora:latest
     
     strategy:
       matrix:
@@ -399,6 +468,15 @@ jobs:
       run: |
         dnf update -y
         dnf install -y git
+    
+    # Cache DNF packages to avoid repeated downloads in Fedora container
+    - name: Cache DNF packages
+      uses: actions/cache@v4
+      with:
+        path: /var/cache/dnf
+        key: fedora-dnf-${{ hashFiles('.github/workflows/linux-build.yml') }}
+        restore-keys: |
+          fedora-dnf-
         
     - uses: actions/checkout@v4
       with:
@@ -409,6 +487,19 @@ jobs:
         dnf install -y cmake gcc-c++ make libasan \
           wayland-devel libxkbcommon-devel wayland-protocols-devel \
           libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel
+    
+    # Cache CMake build directory for Fedora
+    - name: Setup CMake build cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          build/${{ matrix.build_type }}-${{ matrix.library_type }}/CMakeFiles
+          build/${{ matrix.build_type }}-${{ matrix.library_type }}/CMakeCache.txt
+          build/${{ matrix.build_type }}-${{ matrix.library_type }}/**/*.o
+        key: fedora-${{ matrix.build_type }}-${{ matrix.library_type }}-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**') }}
+        restore-keys: |
+          fedora-${{ matrix.build_type }}-${{ matrix.library_type }}-
+          fedora-${{ matrix.build_type }}-
         
     - name: Configure CMake
       run: |
