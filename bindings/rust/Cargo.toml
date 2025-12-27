@@ -26,8 +26,10 @@ cc = "1.0"
 tokio-test = "0.4"
 
 [features]
-default = []
+default = ["static-link"]
 async = ["tokio", "tokio-stream", "futures"]
+static-link = [] # Link against pre-built static library (for development)
+build-source = [] # Build from source using cc crate (for distribution)
 
 [[example]]
 name = "print_camera"
