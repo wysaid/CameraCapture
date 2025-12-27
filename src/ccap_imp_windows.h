@@ -63,7 +63,9 @@ public:
 
 namespace ccap {
 
+#ifdef CCAP_ENABLE_FILE_PLAYBACK
 class FileReaderWindows;
+#endif
 
 class ProviderDirectShow : public ProviderImp, public ISampleGrabberCB {
 public:
@@ -142,8 +144,10 @@ private:
 
     std::mutex m_callbackMutex;
     
+#ifdef CCAP_ENABLE_FILE_PLAYBACK
     // File reader for video file playback
     std::unique_ptr<FileReaderWindows> m_fileReader;
+#endif
 };
 
 ProviderImp* createProviderDirectShow();

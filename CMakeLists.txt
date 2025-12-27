@@ -9,6 +9,7 @@ endif ()
 option(CCAP_NO_LOG "Disable logging" OFF)
 option(CCAP_BUILD_SHARED "Build ccap as shared library" OFF)
 option(CCAP_WIN_NO_DEVICE_VERIFY "Skip device verification on Windows (for buggy camera drivers)" OFF)
+option(CCAP_ENABLE_FILE_PLAYBACK "Enable video file playback support (Windows: Media Foundation, macOS: AVFoundation)" ON)
 
 if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set(CCAP_IS_ROOT_PROJECT ON)
@@ -126,6 +127,12 @@ endif ()
 
 file(GLOB LIB_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h)
 
+# Exclude file reader sources if file playback is disabled
+if (NOT CCAP_ENABLE_FILE_PLAYBACK)
+    list(FILTER LIB_SOURCE EXCLUDE REGEX ".*ccap_file_reader.*")
+    message(STATUS "ccap: Video file playback support disabled")
+endif ()
+
 if (APPLE)
     file(GLOB LIB_SOURCE_MAC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.mm)
     message(STATUS "ccap: Using Objective-C++ for macOS: ${LIB_SOURCE_MAC}")
@@ -194,6 +201,13 @@ if (CCAP_WIN_NO_DEVICE_VERIFY)
     message(STATUS "ccap: Skip device verification on Windows (for buggy camera drivers)")
 endif ()
 
+if (CCAP_ENABLE_FILE_PLAYBACK)
+    target_compile_definitions(ccap PUBLIC CCAP_ENABLE_FILE_PLAYBACK=1)
+    message(STATUS "ccap: Video file playback support enabled")
+else ()
+    message(STATUS "ccap: Video file playback support disabled")
+endif ()
+
 # Configure shared library export definitions
 if (CCAP_BUILD_SHARED)
     target_compile_definitions(ccap PUBLIC CCAP_SHARED=1)
@@ -221,25 +235,31 @@ elseif (UNIX AND NOT APPLE AND NOT WIN32)
     # Propagate to pkg-config for consumers
     set(PKG_CONFIG_LIBS_PRIVATE "Libs.private: -lpthread")
 elseif (WIN32)
-    # Windows – link Media Foundation libraries for video file playback
-    target_link_libraries(ccap PUBLIC
-            mfplat
-            mfreadwrite
-            mfuuid
-            shlwapi
-            propsys)
+    # Windows – link Media Foundation libraries for video file playback (if enabled)
+    if (CCAP_ENABLE_FILE_PLAYBACK)
+        target_link_libraries(ccap PUBLIC
+                mfplat
+                mfreadwrite
+                mfuuid
+                shlwapi
+                propsys)
 
-    # MSVC: Delay load Media Foundation DLLs to support Windows XP camera functionality
-    # The program can start on XP and use DirectShow cameras, but will crash if video playback is attempted
-    if (MSVC)
-        set_target_properties(ccap PROPERTIES 
-            LINK_FLAGS "/DELAYLOAD:mfplat.dll /DELAYLOAD:mfreadwrite.dll"
-        )
-        target_link_libraries(ccap PUBLIC delayimp.lib)
+        # MSVC: Delay load Media Foundation DLLs to support Windows XP camera functionality
+        # The program can start on XP and use DirectShow cameras, but will crash if video playback is attempted
+        if (MSVC)
+            set_target_properties(ccap PROPERTIES 
+                LINK_FLAGS "/DELAYLOAD:mfplat.dll /DELAYLOAD:mfreadwrite.dll"
+            )
+            target_link_libraries(ccap PUBLIC delayimp.lib)
+        endif ()
+
+        # Set pkg-config private libs for Windows with Media Foundation
+        set(PKG_CONFIG_LIBS_PRIVATE "Libs.private: -lmfplat -lmfreadwrite -lmfuuid -lshlwapi -lpropsys")
+    else ()
+        # No Media Foundation libraries when file playback is disabled
+        set(PKG_CONFIG_LIBS_PRIVATE "")
+        message(STATUS "ccap: Windows build without Media Foundation libraries (file playback disabled)")
     endif ()
-
-    # Set pkg-config private libs for Windows
-    set(PKG_CONFIG_LIBS_PRIVATE "Libs.private: -lmfplat -lmfreadwrite -lmfuuid -lshlwapi -lpropsys")
 else ()
     # Other platforms
     set(PKG_CONFIG_LIBS_PRIVATE "")
