@@ -8,6 +8,7 @@ use std::ptr;
 pub struct Provider {
     handle: *mut sys::CcapProvider,
     is_opened: bool,
+    callback_ptr: Option<*mut std::ffi::c_void>,
 }
 
 unsafe impl Send for Provider {}
@@ -23,6 +24,7 @@ impl Provider {
         Ok(Provider {
             handle,
             is_opened: false,
+            callback_ptr: None,
         })
     }
     
@@ -36,6 +38,7 @@ impl Provider {
         Ok(Provider {
             handle,
             is_opened: true, // C API likely opens device automatically
+            callback_ptr: None,
         })
     }
     
@@ -52,6 +55,7 @@ impl Provider {
         Ok(Provider {
             handle,
             is_opened: true, // C API likely opens device automatically
+            callback_ptr: None,
         })
     }
     
@@ -153,9 +157,22 @@ impl Provider {
     }
     
     /// Open device with optional device name and auto start
-    pub fn open_device(&mut self, _device_name: Option<&str>, auto_start: bool) -> Result<()> {
-        // If device_name is provided, we might need to recreate provider with that device
-        self.open()?;
+    pub fn open_device(&mut self, device_name: Option<&str>, auto_start: bool) -> Result<()> {
+        if let Some(name) = device_name {
+            // Recreate provider with specific device
+            if !self.handle.is_null() {
+                unsafe { sys::ccap_provider_destroy(self.handle); }
+            }
+            let c_name = CString::new(name)
+                .map_err(|_| CcapError::InvalidParameter("device name contains null byte".to_string()))?;
+            self.handle = unsafe { sys::ccap_provider_create_with_device(c_name.as_ptr(), ptr::null()) };
+            if self.handle.is_null() {
+                return Err(CcapError::InvalidDevice(name.to_string()));
+            }
+            self.is_opened = true;
+        } else {
+            self.open()?;
+        }
         if auto_start {
             self.start_capture()?;
         }
@@ -225,7 +242,10 @@ impl Provider {
     
     /// Set pixel format
     pub fn set_pixel_format(&mut self, format: PixelFormat) -> Result<()> {
-        self.set_property(PropertyName::PixelFormatOutput, format as u32 as f64)
+        self.set_property(
+            PropertyName::PixelFormatOutput,
+            format.to_c_enum() as u32 as f64,
+        )
     }
     
     /// Grab a single frame with timeout
@@ -297,7 +317,7 @@ impl Provider {
     /// Get current pixel format (convenience getter)
     pub fn pixel_format(&self) -> Result<PixelFormat> {
         let format_val = self.get_property(PropertyName::PixelFormatOutput)? as u32;
-        Ok(PixelFormat::from(format_val))
+        Ok(PixelFormat::from_c_enum(format_val as sys::CcapPixelFormat))
     }
     
     /// Get current frame rate (convenience getter)
@@ -356,6 +376,9 @@ impl Provider {
             }
         }
         
+        // Clean up old callback if exists
+        self.cleanup_callback();
+        
         // Create a new provider with the specified device index
         self.handle = unsafe { 
             sys::ccap_provider_create_with_index(device_index, ptr::null()) 
@@ -379,6 +402,9 @@ impl Provider {
         F: Fn(&VideoFrame) -> bool + Send + Sync + 'static,
     {
         use std::os::raw::c_void;
+        
+        // Clean up old callback if exists
+        self.cleanup_callback();
         
         unsafe extern "C" fn new_frame_callback_wrapper(
             frame: *const sys::CcapVideoFrame,
@@ -408,6 +434,7 @@ impl Provider {
         };
         
         if success {
+            self.callback_ptr = Some(callback_ptr as *mut c_void);
             Ok(())
         } else {
             // Clean up on failure
@@ -429,15 +456,28 @@ impl Provider {
         };
         
         if success {
+            self.cleanup_callback();
             Ok(())
         } else {
-            Err(CcapError::CaptureStartFailed)
+            Err(CcapError::CaptureStopFailed)
+        }
+    }
+    
+    /// Clean up callback pointer
+    fn cleanup_callback(&mut self) {
+        if let Some(callback_ptr) = self.callback_ptr.take() {
+            unsafe {
+                let _ = Box::from_raw(callback_ptr as *mut Box<dyn Fn(&VideoFrame) -> bool + Send + Sync>);
+            }
         }
     }
 }
 
 impl Drop for Provider {
     fn drop(&mut self) {
+        // Clean up callback first
+        self.cleanup_callback();
+        
         if !self.handle.is_null() {
             unsafe {
                 sys::ccap_provider_destroy(self.handle);

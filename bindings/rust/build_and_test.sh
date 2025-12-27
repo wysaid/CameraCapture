@@ -26,7 +26,7 @@ if [ ! -f "$PROJECT_ROOT/build/Debug/libccap.a" ] && [ ! -f "$PROJECT_ROOT/build
         mkdir -p build/Debug
         cd build/Debug
         cmake ../.. -DCMAKE_BUILD_TYPE=Debug
-        make -j$(nproc 2>/dev/null || echo 4)
+        make -j"$(nproc 2>/dev/null || echo 4)"
     else
         echo "Build directory exists, assuming library is built"
     fi

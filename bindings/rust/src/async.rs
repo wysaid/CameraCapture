@@ -13,9 +13,14 @@ use std::time::Duration;
 
 #[cfg(feature = "async")]
 /// Async camera provider wrapper
+/// 
+/// Note: The frame streaming feature is incomplete. The frame_sender is reserved
+/// for future implementation where frames will be automatically pushed to the stream.
 pub struct AsyncProvider {
     provider: Arc<Mutex<SyncProvider>>,
     frame_receiver: Option<mpsc::UnboundedReceiver<VideoFrame>>,
+    /// Kept for future frame streaming implementation
+    #[allow(dead_code)]
     _frame_sender: mpsc::UnboundedSender<VideoFrame>,
 }
 
