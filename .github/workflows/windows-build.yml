@@ -275,6 +275,20 @@ jobs:
       # Use @latest to ensure CMake 3.31+ is available, which is required for VS 2026 support
       uses: lukka/get-cmake@latest
       
+    # Cache CMake build directory for VS2026
+    - name: Setup CMake build cache
+      if: steps.check-vs2026.outputs.VS_2026_AVAILABLE == 'true'
+      uses: actions/cache@v4
+      with:
+        path: |
+          build/${{ matrix.config }}-${{ matrix.library_type }}/CMakeFiles
+          build/${{ matrix.config }}-${{ matrix.library_type }}/CMakeCache.txt
+          build/${{ matrix.config }}-${{ matrix.library_type }}/**/*.obj
+        key: ${{ runner.os }}-vs2026-${{ matrix.config }}-${{ matrix.library_type }}-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**') }}
+        restore-keys: |
+          ${{ runner.os }}-vs2026-${{ matrix.config }}-${{ matrix.library_type }}-
+          ${{ runner.os }}-vs2026-${{ matrix.config }}-
+      
     - name: Configure CMake with VS2026
       if: steps.check-vs2026.outputs.VS_2026_AVAILABLE == 'true'
       run: |
@@ -485,6 +499,19 @@ jobs:
           mingw-w64-x86_64-cmake
           mingw-w64-x86_64-ninja
           make
+          
+    # Cache CMake build directory for MinGW
+    - name: Setup CMake build cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          build/${{ matrix.config }}-${{ matrix.library_type }}/CMakeFiles
+          build/${{ matrix.config }}-${{ matrix.library_type }}/CMakeCache.txt
+          build/${{ matrix.config }}-${{ matrix.library_type }}/**/*.o
+        key: ${{ runner.os }}-mingw-${{ matrix.config }}-${{ matrix.library_type }}-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**') }}
+        restore-keys: |
+          ${{ runner.os }}-mingw-${{ matrix.config }}-${{ matrix.library_type }}-
+          ${{ runner.os }}-mingw-${{ matrix.config }}-
           
     - name: Configure CMake with MinGW
       shell: msys2 {0}
