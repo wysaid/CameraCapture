@@ -240,12 +240,12 @@ For complete CLI documentation, see [CLI Tool Guide](./docs/content/cli.md).
 
 | Platform | Compiler | System Requirements |
 |----------|----------|---------------------|
-| **Windows** | MSVC 2019+ | DirectShow |
+| **Windows** | MSVC 2019+ (including 2026) / MinGW-w64 | DirectShow |
 | **macOS** | Xcode 11+ | macOS 10.13+ |
 | **iOS** | Xcode 11+ | iOS 13.0+ |
 | **Linux** | GCC 7+ / Clang 6+ | V4L2 (Linux 2.6+) |
 
-**Build Requirements**: CMake 3.14+, C++17 (C++ interface), C99 (C interface)
+**Build Requirements**: CMake 3.14+ (3.31+ recommended for MSVC 2026), C++17 (C++ interface), C99 (C interface)
 
 ### Supported Linux Distributions
 

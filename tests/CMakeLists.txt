@@ -2,6 +2,15 @@ cmake_minimum_required(VERSION 3.14)
 
 # Google Test
 include(FetchContent)
+
+# Fix GoogleTest pthread issues on MinGW
+# MinGW on Windows uses native threading, not pthread
+# Setting this BEFORE FetchContent prevents GoogleTest from searching for Threads package
+if(MINGW)
+    set(gtest_disable_pthreads ON CACHE BOOL "" FORCE)
+    message(STATUS "MinGW detected: Disabling pthread for GoogleTest")
+endif()
+
 FetchContent_Declare(
         googletest
         GIT_REPOSITORY https://github.com/google/googletest.git
@@ -13,6 +22,35 @@ message(STATUS "Fetching Google Test archive...")
 # For Windows: Prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
+
+# Fix compile definitions for tests on MinGW
+# GoogleTest sets GTEST_HAS_PTHREAD=1 by default on MinGW, which causes AutoHandle errors
+if(MINGW)
+    # Remove GTEST_HAS_PTHREAD=1 from all googletest targets and set it to 0
+    foreach(target gtest gtest_main gmock gmock_main)
+        if(TARGET ${target})
+            # Get current compile definitions
+            get_target_property(compile_defs ${target} INTERFACE_COMPILE_DEFINITIONS)
+            if(compile_defs)
+                # Create a new list without GTEST_HAS_PTHREAD
+                set(new_defs "")
+                foreach(def IN LISTS compile_defs)
+                    if(NOT def MATCHES "GTEST_HAS_PTHREAD")
+                        list(APPEND new_defs ${def})
+                    endif()
+                endforeach()
+                # Add GTEST_HAS_PTHREAD=0
+                list(APPEND new_defs "GTEST_HAS_PTHREAD=0")
+                # Replace the property
+                set_property(TARGET ${target} PROPERTY INTERFACE_COMPILE_DEFINITIONS ${new_defs})
+            else()
+                # If no definitions exist, just set GTEST_HAS_PTHREAD=0
+                set_property(TARGET ${target} PROPERTY INTERFACE_COMPILE_DEFINITIONS "GTEST_HAS_PTHREAD=0")
+            endif()
+        endif()
+    endforeach()
+    message(STATUS "MinGW: Overridden GTEST_HAS_PTHREAD to 0 for test compilation")
+endif()
 
 if (NOT DEFINED LIBYUV_REPO_URL)
     if (DEFINED ENV{LIBYUV_REPO_URL})
@@ -164,7 +202,7 @@ if (CCAP_BUILD_CLI)
     target_compile_definitions(ccap_cli_test PRIVATE
             $<$<CONFIG:Debug>:DEBUG>
             $<$<CONFIG:Release>:NDEBUG>
-            $<$<NOT:$<BOOL:${MSVC}>>:GTEST_HAS_PTHREAD=1>
+            $<$<AND:$<NOT:$<BOOL:${MSVC}>>,$<NOT:$<BOOL:${MINGW}>>>:GTEST_HAS_PTHREAD=1>
     )
 
     if (MSVC)
@@ -223,13 +261,13 @@ set_target_properties(ccap_performance_test PROPERTIES
 target_compile_definitions(ccap_convert_test PRIVATE
         $<$<CONFIG:Debug>:DEBUG> # Define DEBUG macro for Debug builds
         $<$<CONFIG:Release>:NDEBUG> # Define NDEBUG macro for Release builds
-        $<$<NOT:$<BOOL:${MSVC}>>:GTEST_HAS_PTHREAD=1> # Enable pthread for non-MSVC compilers
+        $<$<AND:$<NOT:$<BOOL:${MSVC}>>,$<NOT:$<BOOL:${MINGW}>>>:GTEST_HAS_PTHREAD=1> # Enable pthread for non-MSVC/non-MinGW compilers
 )
 
 target_compile_definitions(ccap_performance_test PRIVATE
         $<$<CONFIG:Debug>:DEBUG> # Define DEBUG macro for Debug builds
         $<$<CONFIG:Release>:NDEBUG> # Define NDEBUG macro for Release builds
-        $<$<NOT:$<BOOL:${MSVC}>>:GTEST_HAS_PTHREAD=1> # Enable pthread for non-MSVC compilers
+        $<$<AND:$<NOT:$<BOOL:${MSVC}>>,$<NOT:$<BOOL:${MINGW}>>>:GTEST_HAS_PTHREAD=1> # Enable pthread for non-MSVC/non-MinGW compilers
 )
 
 if (MSVC)
