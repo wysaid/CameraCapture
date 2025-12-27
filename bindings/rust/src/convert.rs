@@ -1,8 +1,7 @@
 use crate::error::{CcapError, Result};
-use crate::types::{PixelFormat, ColorConversionBackend};
-use crate::frame::VideoFrame;
 use crate::sys;
-use std::ffi::{CStr, CString};
+use crate::types::ColorConversionBackend;
+use std::os::raw::c_int;
 
 /// Color conversion utilities
 pub struct Convert;
@@ -16,10 +15,8 @@ impl Convert {
 
     /// Set color conversion backend
     pub fn set_backend(backend: ColorConversionBackend) -> Result<()> {
-        let success = unsafe {
-            sys::ccap_convert_set_backend(backend.to_c_enum())
-        };
-        
+        let success = unsafe { sys::ccap_convert_set_backend(backend.to_c_enum()) };
+
         if success {
             Ok(())
         } else {
@@ -27,302 +24,250 @@ impl Convert {
         }
     }
 
-    /// Get backend name as string
-    pub fn backend_name() -> Result<String> {
-        let backend_ptr = unsafe { sys::ccap_convert_get_backend_name() };
-        if backend_ptr.is_null() {
-            return Err(CcapError::InternalError("Failed to get backend name".to_string()));
-        }
-
-        let backend_cstr = unsafe { CStr::from_ptr(backend_ptr) };
-        backend_cstr
-            .to_str()
-            .map(|s| s.to_string())
-            .map_err(|_| CcapError::StringConversionError("Invalid backend name".to_string()))
+    /// Check if AVX2 is available
+    pub fn has_avx2() -> bool {
+        unsafe { sys::ccap_convert_has_avx2() }
     }
 
-    /// Check if backend is available
-    pub fn is_backend_available(backend: ColorConversionBackend) -> bool {
-        unsafe { sys::ccap_convert_is_backend_available(backend.to_c_enum()) }
+    /// Check if Apple Accelerate is available
+    pub fn has_apple_accelerate() -> bool {
+        unsafe { sys::ccap_convert_has_apple_accelerate() }
     }
 
-    /// Convert frame to different pixel format
-    pub fn convert_frame(
-        src_frame: &VideoFrame,
-        dst_format: PixelFormat,
-    ) -> Result<VideoFrame> {
-        let dst_ptr = unsafe {
-            sys::ccap_convert_frame(src_frame.as_c_ptr(), dst_format.to_c_enum())
-        };
-
-        if dst_ptr.is_null() {
-            Err(CcapError::ConversionFailed)
-        } else {
-            Ok(VideoFrame::from_c_ptr(dst_ptr))
-        }
+    /// Check if NEON is available
+    pub fn has_neon() -> bool {
+        unsafe { sys::ccap_convert_has_neon() }
     }
 
-    /// Convert YUYV422 to RGB24
-    pub fn yuyv422_to_rgb24(
+    /// Convert YUYV to RGB24
+    pub fn yuyv_to_rgb24(
         src_data: &[u8],
+        src_stride: usize,
         width: u32,
         height: u32,
     ) -> Result<Vec<u8>> {
-        let dst_size = (width * height * 3) as usize;
+        let dst_stride = (width * 3) as usize;
+        let dst_size = dst_stride * height as usize;
         let mut dst_data = vec![0u8; dst_size];
 
-        let success = unsafe {
-            sys::ccap_convert_yuyv422_to_rgb24(
+        unsafe {
+            sys::ccap_convert_yuyv_to_rgb24(
                 src_data.as_ptr(),
+                src_stride as c_int,
                 dst_data.as_mut_ptr(),
-                width,
-                height,
+                dst_stride as c_int,
+                width as c_int,
+                height as c_int,
+                sys::CcapConvertFlag_CCAP_CONVERT_FLAG_DEFAULT,
             )
         };
 
-        if success {
-            Ok(dst_data)
-        } else {
-            Err(CcapError::ConversionFailed)
-        }
+        Ok(dst_data)
     }
 
-    /// Convert YUYV422 to BGR24
-    pub fn yuyv422_to_bgr24(
+    /// Convert YUYV to BGR24
+    pub fn yuyv_to_bgr24(
         src_data: &[u8],
+        src_stride: usize,
         width: u32,
         height: u32,
     ) -> Result<Vec<u8>> {
-        let dst_size = (width * height * 3) as usize;
+        let dst_stride = (width * 3) as usize;
+        let dst_size = dst_stride * height as usize;
         let mut dst_data = vec![0u8; dst_size];
 
-        let success = unsafe {
-            sys::ccap_convert_yuyv422_to_bgr24(
+        unsafe {
+            sys::ccap_convert_yuyv_to_bgr24(
                 src_data.as_ptr(),
+                src_stride as c_int,
                 dst_data.as_mut_ptr(),
-                width,
-                height,
+                dst_stride as c_int,
+                width as c_int,
+                height as c_int,
+                sys::CcapConvertFlag_CCAP_CONVERT_FLAG_DEFAULT,
             )
         };
 
-        if success {
-            Ok(dst_data)
-        } else {
-            Err(CcapError::ConversionFailed)
-        }
+        Ok(dst_data)
     }
 
-    /// Convert RGB24 to BGR24
-    pub fn rgb24_to_bgr24(
+    /// Convert RGB to BGR
+    pub fn rgb_to_bgr(
         src_data: &[u8],
+        src_stride: usize,
         width: u32,
         height: u32,
     ) -> Result<Vec<u8>> {
-        let dst_size = (width * height * 3) as usize;
+        let dst_stride = (width * 3) as usize;
+        let dst_size = dst_stride * height as usize;
         let mut dst_data = vec![0u8; dst_size];
 
-        let success = unsafe {
-            sys::ccap_convert_rgb24_to_bgr24(
+        unsafe {
+            sys::ccap_convert_rgb_to_bgr(
                 src_data.as_ptr(),
+                src_stride as c_int,
                 dst_data.as_mut_ptr(),
-                width,
-                height,
+                dst_stride as c_int,
+                width as c_int,
+                height as c_int,
             )
         };
 
-        if success {
-            Ok(dst_data)
-        } else {
-            Err(CcapError::ConversionFailed)
-        }
+        Ok(dst_data)
     }
 
-    /// Convert BGR24 to RGB24
-    pub fn bgr24_to_rgb24(
+    /// Convert BGR to RGB
+    pub fn bgr_to_rgb(
         src_data: &[u8],
+        src_stride: usize,
         width: u32,
         height: u32,
     ) -> Result<Vec<u8>> {
-        let dst_size = (width * height * 3) as usize;
+        let dst_stride = (width * 3) as usize;
+        let dst_size = dst_stride * height as usize;
         let mut dst_data = vec![0u8; dst_size];
 
-        let success = unsafe {
-            sys::ccap_convert_bgr24_to_rgb24(
+        unsafe {
+            sys::ccap_convert_bgr_to_rgb(
                 src_data.as_ptr(),
+                src_stride as c_int,
                 dst_data.as_mut_ptr(),
-                width,
-                height,
+                dst_stride as c_int,
+                width as c_int,
+                height as c_int,
             )
         };
 
-        if success {
-            Ok(dst_data)
-        } else {
-            Err(CcapError::ConversionFailed)
-        }
-    }
-
-    /// Convert MJPEG to RGB24
-    pub fn mjpeg_to_rgb24(
-        src_data: &[u8],
-        width: u32,
-        height: u32,
-    ) -> Result<Vec<u8>> {
-        let dst_size = (width * height * 3) as usize;
-        let mut dst_data = vec![0u8; dst_size];
-
-        let success = unsafe {
-            sys::ccap_convert_mjpeg_to_rgb24(
-                src_data.as_ptr(),
-                src_data.len(),
-                dst_data.as_mut_ptr(),
-                width,
-                height,
-            )
-        };
-
-        if success {
-            Ok(dst_data)
-        } else {
-            Err(CcapError::ConversionFailed)
-        }
-    }
-
-    /// Convert MJPEG to BGR24
-    pub fn mjpeg_to_bgr24(
-        src_data: &[u8],
-        width: u32,
-        height: u32,
-    ) -> Result<Vec<u8>> {
-        let dst_size = (width * height * 3) as usize;
-        let mut dst_data = vec![0u8; dst_size];
-
-        let success = unsafe {
-            sys::ccap_convert_mjpeg_to_bgr24(
-                src_data.as_ptr(),
-                src_data.len(),
-                dst_data.as_mut_ptr(),
-                width,
-                height,
-            )
-        };
-
-        if success {
-            Ok(dst_data)
-        } else {
-            Err(CcapError::ConversionFailed)
-        }
+        Ok(dst_data)
     }
 
     /// Convert NV12 to RGB24
     pub fn nv12_to_rgb24(
         y_data: &[u8],
+        y_stride: usize,
         uv_data: &[u8],
+        uv_stride: usize,
         width: u32,
         height: u32,
     ) -> Result<Vec<u8>> {
-        let dst_size = (width * height * 3) as usize;
+        let dst_stride = (width * 3) as usize;
+        let dst_size = dst_stride * height as usize;
         let mut dst_data = vec![0u8; dst_size];
 
-        let success = unsafe {
+        unsafe {
             sys::ccap_convert_nv12_to_rgb24(
                 y_data.as_ptr(),
+                y_stride as c_int,
                 uv_data.as_ptr(),
+                uv_stride as c_int,
                 dst_data.as_mut_ptr(),
-                width,
-                height,
+                dst_stride as c_int,
+                width as c_int,
+                height as c_int,
+                sys::CcapConvertFlag_CCAP_CONVERT_FLAG_DEFAULT,
             )
         };
 
-        if success {
-            Ok(dst_data)
-        } else {
-            Err(CcapError::ConversionFailed)
-        }
+        Ok(dst_data)
     }
 
     /// Convert NV12 to BGR24
     pub fn nv12_to_bgr24(
         y_data: &[u8],
+        y_stride: usize,
         uv_data: &[u8],
+        uv_stride: usize,
         width: u32,
         height: u32,
     ) -> Result<Vec<u8>> {
-        let dst_size = (width * height * 3) as usize;
+        let dst_stride = (width * 3) as usize;
+        let dst_size = dst_stride * height as usize;
         let mut dst_data = vec![0u8; dst_size];
 
-        let success = unsafe {
+        unsafe {
             sys::ccap_convert_nv12_to_bgr24(
                 y_data.as_ptr(),
+                y_stride as c_int,
                 uv_data.as_ptr(),
+                uv_stride as c_int,
                 dst_data.as_mut_ptr(),
-                width,
-                height,
+                dst_stride as c_int,
+                width as c_int,
+                height as c_int,
+                sys::CcapConvertFlag_CCAP_CONVERT_FLAG_DEFAULT,
             )
         };
 
-        if success {
-            Ok(dst_data)
-        } else {
-            Err(CcapError::ConversionFailed)
-        }
+        Ok(dst_data)
     }
 
-    /// Convert YV12 to RGB24
-    pub fn yv12_to_rgb24(
+    /// Convert I420 to RGB24
+    #[allow(clippy::too_many_arguments)]
+    pub fn i420_to_rgb24(
         y_data: &[u8],
+        y_stride: usize,
         u_data: &[u8],
+        u_stride: usize,
         v_data: &[u8],
+        v_stride: usize,
         width: u32,
         height: u32,
     ) -> Result<Vec<u8>> {
-        let dst_size = (width * height * 3) as usize;
+        let dst_stride = (width * 3) as usize;
+        let dst_size = dst_stride * height as usize;
         let mut dst_data = vec![0u8; dst_size];
 
-        let success = unsafe {
-            sys::ccap_convert_yv12_to_rgb24(
+        unsafe {
+            sys::ccap_convert_i420_to_rgb24(
                 y_data.as_ptr(),
+                y_stride as c_int,
                 u_data.as_ptr(),
+                u_stride as c_int,
                 v_data.as_ptr(),
+                v_stride as c_int,
                 dst_data.as_mut_ptr(),
-                width,
-                height,
+                dst_stride as c_int,
+                width as c_int,
+                height as c_int,
+                sys::CcapConvertFlag_CCAP_CONVERT_FLAG_DEFAULT,
             )
         };
 
-        if success {
-            Ok(dst_data)
-        } else {
-            Err(CcapError::ConversionFailed)
-        }
+        Ok(dst_data)
     }
 
-    /// Convert YV12 to BGR24
-    pub fn yv12_to_bgr24(
+    /// Convert I420 to BGR24
+    #[allow(clippy::too_many_arguments)]
+    pub fn i420_to_bgr24(
         y_data: &[u8],
+        y_stride: usize,
         u_data: &[u8],
+        u_stride: usize,
         v_data: &[u8],
+        v_stride: usize,
         width: u32,
         height: u32,
     ) -> Result<Vec<u8>> {
-        let dst_size = (width * height * 3) as usize;
+        let dst_stride = (width * 3) as usize;
+        let dst_size = dst_stride * height as usize;
         let mut dst_data = vec![0u8; dst_size];
 
-        let success = unsafe {
-            sys::ccap_convert_yv12_to_bgr24(
+        unsafe {
+            sys::ccap_convert_i420_to_bgr24(
                 y_data.as_ptr(),
+                y_stride as c_int,
                 u_data.as_ptr(),
+                u_stride as c_int,
                 v_data.as_ptr(),
+                v_stride as c_int,
                 dst_data.as_mut_ptr(),
-                width,
-                height,
+                dst_stride as c_int,
+                width as c_int,
+                height as c_int,
+                sys::CcapConvertFlag_CCAP_CONVERT_FLAG_DEFAULT,
             )
         };
 
-        if success {
-            Ok(dst_data)
-        } else {
-            Err(CcapError::ConversionFailed)
-        }
+        Ok(dst_data)
     }
 }
