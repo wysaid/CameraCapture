@@ -18,6 +18,19 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
+    
+    # Cache CMake build directory for macOS
+    - name: Setup CMake build cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          build/${{ matrix.config }}-${{ matrix.library_type }}/CMakeFiles
+          build/${{ matrix.config }}-${{ matrix.library_type }}/CMakeCache.txt
+          build/${{ matrix.config }}-${{ matrix.library_type }}/**/*.o
+        key: ${{ runner.os }}-${{ matrix.config }}-${{ matrix.library_type }}-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.config }}-${{ matrix.library_type }}-
+          ${{ runner.os }}-${{ matrix.config }}-
       
     - name: Configure CMake
       run: |
