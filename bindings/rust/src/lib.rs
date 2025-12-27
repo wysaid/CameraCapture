@@ -21,8 +21,7 @@ mod types;
 mod frame;
 mod provider;
 mod utils;
-// TODO: Fix these modules later
-// mod convert;
+mod convert;
 
 #[cfg(feature = "async")]
 pub mod r#async;
@@ -33,7 +32,7 @@ pub use types::*;
 pub use frame::*;
 pub use provider::Provider;
 pub use utils::{Utils, LogLevel};
-// pub use convert::Convert;
+pub use convert::Convert;
 
 /// Get library version string
 pub fn version() -> Result<String> {
