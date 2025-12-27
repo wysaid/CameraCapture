@@ -21,6 +21,9 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: read
+
 jobs:
   # Job 1: Static Linking (Development Mode)
   # Verifies that the crate links correctly against a pre-built C++ library.

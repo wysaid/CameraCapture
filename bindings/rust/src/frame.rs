@@ -21,12 +21,15 @@ impl DeviceInfo {
             .map_err(|e| CcapError::StringConversionError(e.to_string()))?
             .to_string();
 
-        let supported_pixel_formats = info.supportedPixelFormats[..info.pixelFormatCount]
+        // Ensure we don't exceed array bounds
+        let format_count = (info.pixelFormatCount).min(info.supportedPixelFormats.len());
+        let supported_pixel_formats = info.supportedPixelFormats[..format_count]
             .iter()
             .map(|&format| PixelFormat::from_c_enum(format))
             .collect();
 
-        let supported_resolutions = info.supportedResolutions[..info.resolutionCount]
+        let resolution_count = (info.resolutionCount).min(info.supportedResolutions.len());
+        let supported_resolutions = info.supportedResolutions[..resolution_count]
             .iter()
             .map(|&res| Resolution::from(res))
             .collect();
@@ -78,6 +81,21 @@ impl VideoFrame {
         let success = unsafe { sys::ccap_video_frame_get_info(self.frame, &mut info) };
         
         if success {
+            // Calculate proper plane sizes based on pixel format
+            // For plane 0 (Y or main): stride * height
+            // For chroma planes (UV): stride * height/2 for most formats
+            let plane0_size = (info.stride[0] as usize) * (info.height as usize);
+            let plane1_size = if info.stride[1] > 0 {
+                (info.stride[1] as usize) * ((info.height as usize + 1) / 2)
+            } else {
+                0
+            };
+            let plane2_size = if info.stride[2] > 0 {
+                (info.stride[2] as usize) * ((info.height as usize + 1) / 2)
+            } else {
+                0
+            };
+            
             Ok(VideoFrameInfo {
                 width: info.width,
                 height: info.height,
@@ -88,13 +106,13 @@ impl VideoFrame {
                 orientation: FrameOrientation::from(info.orientation),
                 data_planes: [
                     if info.data[0].is_null() { None } else { Some(unsafe { 
-                        std::slice::from_raw_parts(info.data[0], info.stride[0] as usize) 
+                        std::slice::from_raw_parts(info.data[0], plane0_size) 
                     }) },
                     if info.data[1].is_null() { None } else { Some(unsafe { 
-                        std::slice::from_raw_parts(info.data[1], info.stride[1] as usize) 
+                        std::slice::from_raw_parts(info.data[1], plane1_size) 
                     }) },
                     if info.data[2].is_null() { None } else { Some(unsafe { 
-                        std::slice::from_raw_parts(info.data[2], info.stride[2] as usize) 
+                        std::slice::from_raw_parts(info.data[2], plane2_size) 
                     }) },
                 ],
                 strides: [info.stride[0], info.stride[1], info.stride[2]],
