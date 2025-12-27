@@ -7,20 +7,78 @@ fn main() {
     let manifest_path = PathBuf::from(&manifest_dir);
     let ccap_root = manifest_path.parent().unwrap().parent().unwrap();
     
-    // Determine build profile
-    let profile = env::var("PROFILE").unwrap_or_else(|_| "debug".to_string());
-    let build_type = if profile == "release" { "Release" } else { "Debug" };
+    // Check if we should build from source or link against pre-built library
+    let build_from_source = env::var("CARGO_FEATURE_BUILD_SOURCE").is_ok();
+    
+    if build_from_source {
+        // Build from source using cc crate
+        let mut build = cc::Build::new();
+        
+        // Add source files
+        build.file(ccap_root.join("src/ccap_core.cpp"))
+             .file(ccap_root.join("src/ccap_utils.cpp"))
+             .file(ccap_root.join("src/ccap_convert.cpp"))
+             .file(ccap_root.join("src/ccap_convert_frame.cpp"))
+             .file(ccap_root.join("src/ccap_convert_avx2.cpp"))
+             .file(ccap_root.join("src/ccap_convert_neon.cpp"))
+             .file(ccap_root.join("src/ccap_imp.cpp"))
+             .file(ccap_root.join("src/ccap_c.cpp"))
+             .file(ccap_root.join("src/ccap_utils_c.cpp"))
+             .file(ccap_root.join("src/ccap_convert_c.cpp"));
+             
+        // Platform specific sources
+        #[cfg(target_os = "macos")]
+        {
+            build.file(ccap_root.join("src/ccap_imp_apple.mm"))
+                 .file(ccap_root.join("src/ccap_convert_apple.cpp"));
+        }
+        
+        #[cfg(target_os = "linux")]
+        {
+            build.file(ccap_root.join("src/ccap_imp_linux.cpp"));
+        }
+        
+        #[cfg(target_os = "windows")]
+        {
+            build.file(ccap_root.join("src/ccap_imp_windows.cpp"));
+        }
+        
+        // Include directories
+        build.include(ccap_root.join("include"))
+             .include(ccap_root.join("src"));
+             
+        // Compiler flags
+        build.cpp(true)
+             .std("c++17"); // Use C++17
+             
+        #[cfg(target_os = "macos")]
+        {
+            build.flag("-fobjc-arc"); // Enable ARC for Objective-C++
+        }
+        
+        // Compile
+        build.compile("ccap");
+        
+        println!("cargo:warning=Building ccap from source...");
+    } else {
+        // Link against pre-built library (Development mode)
+        // Determine build profile
+        let profile = env::var("PROFILE").unwrap_or_else(|_| "debug".to_string());
+        let build_type = if profile == "release" { "Release" } else { "Debug" };
 
-    // Add the ccap library search path
-    // Try specific build type first, then fallback to others
-    println!("cargo:rustc-link-search=native={}/build/{}", ccap_root.display(), build_type);
-    println!("cargo:rustc-link-search=native={}/build/Debug", ccap_root.display());
-    println!("cargo:rustc-link-search=native={}/build/Release", ccap_root.display());
+        // Add the ccap library search path
+        // Try specific build type first, then fallback to others
+        println!("cargo:rustc-link-search=native={}/build/{}", ccap_root.display(), build_type);
+        println!("cargo:rustc-link-search=native={}/build/Debug", ccap_root.display());
+        println!("cargo:rustc-link-search=native={}/build/Release", ccap_root.display());
+        
+        // Link to ccap library
+        println!("cargo:rustc-link-lib=static=ccap");
+        
+        println!("cargo:warning=Linking against pre-built ccap library (dev mode)...");
+    }
     
-    // Link to ccap library
-    println!("cargo:rustc-link-lib=static=ccap");
-    
-    // Platform-specific linking
+    // Platform-specific linking (Common for both modes)
     #[cfg(target_os = "macos")]
     {
         println!("cargo:rustc-link-lib=framework=Foundation");
