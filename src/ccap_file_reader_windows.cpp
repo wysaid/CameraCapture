@@ -12,12 +12,19 @@
 #include "ccap_imp_windows.h"
 #include "ccap_convert_frame.h"
 
+// MinGW compatibility: Ensure SHStrDupW is declared before propvarutil.h needs it
+#include <shlwapi.h>
+#ifdef __MINGW32__
+extern "C" {
+HRESULT WINAPI SHStrDupW(LPCWSTR psz, LPWSTR *ppwsz);
+}
+#endif
+
 #include <mfapi.h>
 #include <mfidl.h>
 #include <mfreadwrite.h>
 #include <mferror.h>
 #include <propvarutil.h>
-#include <shlwapi.h>
 
 #include <chrono>
 #include <thread>
@@ -27,6 +34,7 @@
 #pragma comment(lib, "mfreadwrite.lib")
 #pragma comment(lib, "mfuuid.lib")
 #pragma comment(lib, "shlwapi.lib")
+#pragma comment(lib, "propsys.lib")
 
 namespace {
 // Conversion factor: 1 second = 10,000,000 units (100-nanosecond units used by Media Foundation)
@@ -126,7 +134,10 @@ bool FileReaderWindows::createSourceReader(const std::wstring& filePath) {
     hr = m_sourceReader->GetPresentationAttribute(MF_SOURCE_READER_MEDIASOURCE, MF_PD_DURATION, &var);
     if (SUCCEEDED(hr)) {
         LONGLONG duration100ns = 0;
-        PropVariantToInt64(var, &duration100ns);
+        // MinGW-compatible way to extract LONGLONG from PROPVARIANT
+        if (var.vt == VT_I8) {
+            duration100ns = var.hVal.QuadPart;
+        }
         m_duration = static_cast<double>(duration100ns) / kMFTimeUnitsPerSecond;
     }
     PropVariantClear(&var);
