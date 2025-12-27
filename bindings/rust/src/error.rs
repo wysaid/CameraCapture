@@ -42,6 +42,9 @@ pub enum CcapError {
     /// Backend set failed
     BackendSetFailed,
     
+    /// Color conversion failed
+    ConversionFailed,
+    
     /// String conversion error
     StringConversionError(String),
     
@@ -77,6 +80,7 @@ impl std::fmt::Display for CcapError {
             CcapError::InvalidParameter(param) => write!(f, "Invalid parameter: {}", param),
             CcapError::NotSupported => write!(f, "Operation not supported"),
             CcapError::BackendSetFailed => write!(f, "Backend set failed"),
+            CcapError::ConversionFailed => write!(f, "Color conversion failed"),
             CcapError::StringConversionError(msg) => write!(f, "String conversion error: {}", msg),
             CcapError::FileOperationFailed(msg) => write!(f, "File operation failed: {}", msg),
             CcapError::DeviceNotFound => write!(f, "Device not found"),

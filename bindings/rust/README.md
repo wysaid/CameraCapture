@@ -46,11 +46,11 @@ fn main() -> Result<()> {
     
     // Open the first camera
     if !devices.is_empty() {
-        provider.open(Some(&devices[0]), true)?;
+        provider.open_device(Some(&devices[0]), true)?;
         println!("Camera opened successfully!");
         
-        // Capture a frame
-        if let Some(frame) = provider.grab_frame_blocking()? {
+        // Capture a frame (with 3 second timeout)
+        if let Some(frame) = provider.grab_frame(3000)? {
             let info = frame.info()?;
             println!("Captured frame: {}x{}, format: {:?}", 
                      info.width, info.height, info.pixel_format);

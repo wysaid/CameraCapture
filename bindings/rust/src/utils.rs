@@ -2,7 +2,7 @@ use crate::error::{CcapError, Result};
 use crate::types::PixelFormat;
 use crate::frame::VideoFrame;
 use crate::sys;
-use std::ffi::{ CString};
+use std::ffi::CString;
 use std::path::Path;
 
 /// Utility functions
