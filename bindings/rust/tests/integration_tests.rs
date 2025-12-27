@@ -1,8 +1,8 @@
 //! Integration tests for ccap rust bindings
-//! 
+//!
 //! Tests the main API functionality
 
-use ccap::{Provider, Result, CcapError, PixelFormat};
+use ccap::{CcapError, PixelFormat, Provider, Result};
 
 #[test]
 fn test_provider_creation() -> Result<()> {
@@ -20,7 +20,7 @@ fn test_library_version() -> Result<()> {
     Ok(())
 }
 
-#[test] 
+#[test]
 fn test_device_listing() -> Result<()> {
     let provider = Provider::new()?;
     let devices = provider.list_devices()?;
@@ -64,11 +64,11 @@ fn test_provider_with_index() {
 fn test_device_operations_without_camera() {
     // Test that operations work regardless of camera presence
     let provider = Provider::new().expect("Failed to create provider");
-    
+
     // These should work with or without cameras
     let devices = provider.list_devices().expect("Failed to list devices");
     println!("Found {} device(s)", devices.len());
-    
+
     let version = Provider::version().expect("Failed to get version");
     assert!(!version.is_empty());
 }

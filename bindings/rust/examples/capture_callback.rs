@@ -1,4 +1,4 @@
-use ccap::{Provider, Result, Utils, PropertyName, PixelFormat, LogLevel};
+use ccap::{LogLevel, PixelFormat, PropertyName, Provider, Result, Utils};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -9,7 +9,10 @@ fn main() -> Result<()> {
 
     // Set error callback to receive error notifications
     Provider::set_error_callback(|error_code, description| {
-        eprintln!("Camera Error - Code: {}, Description: {}", error_code, description);
+        eprintln!(
+            "Camera Error - Code: {}, Description: {}",
+            error_code, description
+        );
     });
 
     let temp_provider = Provider::new()?;
@@ -29,7 +32,7 @@ fn main() -> Result<()> {
     } else {
         0 // Just use first device for now
     };
-    
+
     // Create provider with selected device
     let mut provider = Provider::with_device(device_index as i32)?;
 
@@ -40,7 +43,10 @@ fn main() -> Result<()> {
 
     provider.set_property(PropertyName::Width, requested_width as f64)?;
     provider.set_property(PropertyName::Height, requested_height as f64)?;
-    provider.set_property(PropertyName::PixelFormatOutput, PixelFormat::Bgra32 as u32 as f64)?;
+    provider.set_property(
+        PropertyName::PixelFormatOutput,
+        PixelFormat::Bgra32 as u32 as f64,
+    )?;
     provider.set_property(PropertyName::FrameRate, requested_fps)?;
 
     // Open and start camera
@@ -61,7 +67,8 @@ fn main() -> Result<()> {
              requested_width, requested_height, real_width, real_height, requested_fps, real_fps);
 
     // Create directory for captures (using std::fs)
-    std::fs::create_dir_all("./image_capture").map_err(|e| ccap::CcapError::FileOperationFailed(e.to_string()))?;
+    std::fs::create_dir_all("./image_capture")
+        .map_err(|e| ccap::CcapError::FileOperationFailed(e.to_string()))?;
 
     // Statistics tracking
     let frame_count = Arc::new(Mutex::new(0u32));
@@ -72,8 +79,13 @@ fn main() -> Result<()> {
         let mut count = frame_count_clone.lock().unwrap();
         *count += 1;
 
-        println!("VideoFrame {} grabbed: width = {}, height = {}, bytes: {}", 
-                 frame.index(), frame.width(), frame.height(), frame.data_size());
+        println!(
+            "VideoFrame {} grabbed: width = {}, height = {}, bytes: {}",
+            frame.index(),
+            frame.width(),
+            frame.height(),
+            frame.data_size()
+        );
 
         // Try to save frame to directory
         if let Ok(filename) = Utils::dump_frame_to_directory(frame, "./image_capture") {
@@ -92,7 +104,7 @@ fn main() -> Result<()> {
     // Get final count
     let final_count = *frame_count.lock().unwrap();
     println!("Captured {} frames, stopping...", final_count);
-    
+
     // Remove callback before dropping
     let _ = provider.remove_new_frame_callback();
 

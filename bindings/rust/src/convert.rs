@@ -1,6 +1,6 @@
 use crate::error::{CcapError, Result};
-use crate::types::ColorConversionBackend;
 use crate::sys;
+use crate::types::ColorConversionBackend;
 use std::os::raw::c_int;
 
 /// Color conversion utilities
@@ -15,10 +15,8 @@ impl Convert {
 
     /// Set color conversion backend
     pub fn set_backend(backend: ColorConversionBackend) -> Result<()> {
-        let success = unsafe {
-            sys::ccap_convert_set_backend(backend.to_c_enum())
-        };
-        
+        let success = unsafe { sys::ccap_convert_set_backend(backend.to_c_enum()) };
+
         if success {
             Ok(())
         } else {

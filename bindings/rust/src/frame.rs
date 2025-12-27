@@ -1,4 +1,4 @@
-use crate::{sys, error::CcapError, types::*};
+use crate::{error::CcapError, sys, types::*};
 use std::ffi::CStr;
 
 /// Device information structure
@@ -50,12 +50,18 @@ pub struct VideoFrame {
 
 impl VideoFrame {
     pub(crate) fn from_c_ptr(frame: *mut sys::CcapVideoFrame) -> Self {
-        VideoFrame { frame, owns_frame: true }
+        VideoFrame {
+            frame,
+            owns_frame: true,
+        }
     }
 
     /// Create frame from raw pointer without owning it (for callbacks)
     pub(crate) fn from_c_ptr_ref(frame: *mut sys::CcapVideoFrame) -> Self {
-        VideoFrame { frame, owns_frame: false }
+        VideoFrame {
+            frame,
+            owns_frame: false,
+        }
     }
 
     /// Get the internal C pointer (for internal use)
@@ -70,16 +76,19 @@ impl VideoFrame {
         if frame.is_null() {
             None
         } else {
-            Some(VideoFrame { frame, owns_frame: true })
+            Some(VideoFrame {
+                frame,
+                owns_frame: true,
+            })
         }
     }
 
     /// Get frame information
     pub fn info<'a>(&'a self) -> crate::error::Result<VideoFrameInfo<'a>> {
         let mut info = sys::CcapVideoFrameInfo::default();
-        
+
         let success = unsafe { sys::ccap_video_frame_get_info(self.frame, &mut info) };
-        
+
         if success {
             // Calculate proper plane sizes based on pixel format
             // For plane 0 (Y or main): stride * height
@@ -95,7 +104,7 @@ impl VideoFrame {
             } else {
                 0
             };
-            
+
             Ok(VideoFrameInfo {
                 width: info.width,
                 height: info.height,
@@ -105,15 +114,21 @@ impl VideoFrame {
                 frame_index: info.frameIndex,
                 orientation: FrameOrientation::from(info.orientation),
                 data_planes: [
-                    if info.data[0].is_null() { None } else { Some(unsafe { 
-                        std::slice::from_raw_parts(info.data[0], plane0_size) 
-                    }) },
-                    if info.data[1].is_null() { None } else { Some(unsafe { 
-                        std::slice::from_raw_parts(info.data[1], plane1_size) 
-                    }) },
-                    if info.data[2].is_null() { None } else { Some(unsafe { 
-                        std::slice::from_raw_parts(info.data[2], plane2_size) 
-                    }) },
+                    if info.data[0].is_null() {
+                        None
+                    } else {
+                        Some(unsafe { std::slice::from_raw_parts(info.data[0], plane0_size) })
+                    },
+                    if info.data[1].is_null() {
+                        None
+                    } else {
+                        Some(unsafe { std::slice::from_raw_parts(info.data[1], plane1_size) })
+                    },
+                    if info.data[2].is_null() {
+                        None
+                    } else {
+                        Some(unsafe { std::slice::from_raw_parts(info.data[2], plane2_size) })
+                    },
                 ],
                 strides: [info.stride[0], info.stride[1], info.stride[2]],
             })
@@ -125,33 +140,33 @@ impl VideoFrame {
     /// Get all frame data as a slice
     pub fn data(&self) -> crate::error::Result<&[u8]> {
         let mut info = sys::CcapVideoFrameInfo::default();
-        
+
         let success = unsafe { sys::ccap_video_frame_get_info(self.frame, &mut info) };
-        
+
         if success && !info.data[0].is_null() {
-            Ok(unsafe {
-                std::slice::from_raw_parts(info.data[0], info.sizeInBytes as usize)
-            })
+            Ok(unsafe { std::slice::from_raw_parts(info.data[0], info.sizeInBytes as usize) })
         } else {
             Err(CcapError::FrameGrabFailed)
         }
     }
-    
+
     /// Get frame width (convenience method)
     pub fn width(&self) -> u32 {
         self.info().map(|info| info.width).unwrap_or(0)
     }
-    
+
     /// Get frame height (convenience method)
     pub fn height(&self) -> u32 {
         self.info().map(|info| info.height).unwrap_or(0)
     }
-    
+
     /// Get pixel format (convenience method)
     pub fn pixel_format(&self) -> PixelFormat {
-        self.info().map(|info| info.pixel_format).unwrap_or(PixelFormat::Unknown)
+        self.info()
+            .map(|info| info.pixel_format)
+            .unwrap_or(PixelFormat::Unknown)
     }
-    
+
     /// Get data size in bytes (convenience method)
     pub fn data_size(&self) -> u32 {
         self.info().map(|info| info.size_in_bytes).unwrap_or(0)
