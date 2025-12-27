@@ -5,7 +5,15 @@ fn main() {
     // Tell cargo to look for shared libraries in the specified directory
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     let manifest_path = PathBuf::from(&manifest_dir);
-    let ccap_root = manifest_path.parent().unwrap().parent().unwrap();
+    
+    // Locate ccap root:
+    // 1. Check for local "native" directory (Packaged/Crates.io mode)
+    // 2. Fallback to "../../" (Repo/Git mode)
+    let (ccap_root, is_packaged) = if manifest_path.join("native").exists() {
+        (manifest_path.join("native"), true)
+    } else {
+        (manifest_path.parent().unwrap().parent().unwrap().to_path_buf(), false)
+    };
     
     // Check if we should build from source or link against pre-built library
     let build_from_source = env::var("CARGO_FEATURE_BUILD_SOURCE").is_ok();
