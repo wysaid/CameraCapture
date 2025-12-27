@@ -2,68 +2,30 @@ name: Rust CI
 
 on:
   push:
-    branches: [ main, develop ]
-    paths: [ 'bindings/rust/**' ]
+    branches: [ main, develop, feature/rust ]
+    paths:
+      - 'bindings/rust/**'
+      - 'src/**'
+      - 'include/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/rust.yml'
   pull_request:
-    branches: [ main, develop ]
-    paths: [ 'bindings/rust/**' ]
+    branches: [ main, develop, feature/rust ]
+    paths:
+      - 'bindings/rust/**'
+      - 'src/**'
+      - 'include/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/rust.yml'
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-    name: Build and Test
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake build-essential pkg-config
-
-    - name: Install Rust toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@v1
-      with:
-        toolchain: stable
-        components: clippy, rustfmt
-
-    - name: Build C library
-      run: |
-        mkdir -p build/Debug
-        cd build/Debug
-        cmake -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF ../..
-        make -j$(nproc)
-
-    - name: Check formatting
-      working-directory: bindings/rust
-      run: cargo fmt -- --check
-
-    - name: Run clippy
-      working-directory: bindings/rust
-      run: cargo clippy --all-targets --all-features -- -D warnings
-
-    - name: Build Rust bindings
-      working-directory: bindings/rust
-      run: cargo build --verbose
-
-    - name: Run tests
-      working-directory: bindings/rust
-      run: cargo test --verbose
-
-    - name: Build examples
-      working-directory: bindings/rust
-      run: |
-        cargo build --example print_camera
-        cargo build --example minimal_example
-        cargo build --example capture_grab
-        cargo build --example capture_callback
-
-  cross-platform:
-    name: Cross-platform Build
+  # Job 1: Static Linking (Development Mode)
+  # Verifies that the crate links correctly against a pre-built C++ library.
+  static-link:
+    name: Static Link (Dev)
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -81,39 +43,90 @@ jobs:
 
     - name: Install system dependencies (Windows)
       if: matrix.os == 'windows-latest'
-      run: |
-        choco install cmake
+      run: choco install cmake
 
     - name: Install system dependencies (macOS)
       if: matrix.os == 'macos-latest'
+      run: brew install cmake
+
+    - name: Install Rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: stable
+        components: clippy, rustfmt
+
+    # Build C++ Library (Linux/macOS)
+    # We build in build/Debug to match build.rs expectations for Unix Makefiles
+    - name: Build C library (Unix)
+      if: runner.os != 'Windows'
       run: |
-        brew install cmake
+        mkdir -p build/Debug
+        cd build/Debug
+        cmake -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_EXAMPLES=OFF -DCCAP_BUILD_TESTS=OFF ../..
+        cmake --build . --config Debug --parallel
+
+    # Build C++ Library (Windows)
+    # On Windows (MSVC), building in 'build' creates 'build/Debug/ccap.lib'
+    # This matches build.rs expectation: native={root}/build/Debug
+    - name: Build C library (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        mkdir build
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_EXAMPLES=OFF -DCCAP_BUILD_TESTS=OFF ..
+        cmake --build . --config Debug --parallel
+
+    - name: Check formatting
+      if: matrix.os == 'ubuntu-latest'
+      working-directory: bindings/rust
+      run: cargo fmt -- --check
+
+    - name: Run clippy
+      if: matrix.os == 'ubuntu-latest'
+      working-directory: bindings/rust
+      run: cargo clippy --all-targets --features static-link -- -D warnings
+
+    - name: Build Rust bindings
+      working-directory: bindings/rust
+      run: cargo build --verbose --features static-link
+
+    - name: Run tests
+      working-directory: bindings/rust
+      run: cargo test --verbose --features static-link
+
+  # Job 2: Source Build (Distribution Mode)
+  # Verifies that the crate builds correctly from source using the cc crate.
+  # This is crucial for crates.io distribution.
+  build-source:
+    name: Build Source (Dist)
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install system dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential pkg-config
 
     - name: Install Rust toolchain
       uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         toolchain: stable
 
-    - name: Build C library (Ubuntu/macOS)
-      if: matrix.os != 'windows-latest'
-      run: |
-        mkdir -p build/Debug
-        cd build/Debug
-        cmake -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF ../..
-        make -j$(nproc || echo 4)
+    # Note: We intentionally DO NOT build the C++ library manually here.
+    # The build.rs script should handle it via the 'build-source' feature.
 
-    - name: Build C library (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        mkdir build/Debug
-        cd build/Debug
-        cmake -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_EXAMPLES=ON -DCCAP_BUILD_TESTS=OFF ../..
-        cmake --build . --config Debug
-
-    - name: Build Rust bindings
+    - name: Build Rust bindings (Source)
       working-directory: bindings/rust
-      run: cargo build --verbose
+      # Disable default features (static-link) and enable build-source
+      run: cargo build --verbose --no-default-features --features build-source
 
-    - name: Run tests
+    - name: Run tests (Source)
       working-directory: bindings/rust
-      run: cargo test --verbose
+      run: cargo test --verbose --no-default-features --features build-source
