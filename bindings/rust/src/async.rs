@@ -1,5 +1,5 @@
 //! Async support for ccap
-//! 
+//!
 //! This module provides async/await interfaces for camera capture operations.
 
 #[cfg(feature = "async")]
@@ -7,13 +7,13 @@ use crate::{Provider as SyncProvider, Result, VideoFrame};
 #[cfg(feature = "async")]
 use std::sync::Arc;
 #[cfg(feature = "async")]
-use tokio::sync::{mpsc, Mutex};
-#[cfg(feature = "async")]
 use std::time::Duration;
+#[cfg(feature = "async")]
+use tokio::sync::{mpsc, Mutex};
 
 #[cfg(feature = "async")]
 /// Async camera provider wrapper
-/// 
+///
 /// Note: The frame streaming feature is incomplete. The frame_sender is reserved
 /// for future implementation where frames will be automatically pushed to the stream.
 pub struct AsyncProvider {
@@ -30,7 +30,7 @@ impl AsyncProvider {
     pub async fn new() -> Result<Self> {
         let provider = SyncProvider::new()?;
         let (tx, rx) = mpsc::unbounded_channel();
-        
+
         Ok(AsyncProvider {
             provider: Arc::new(Mutex::new(provider)),
             frame_receiver: Some(rx),
@@ -78,11 +78,13 @@ impl AsyncProvider {
     pub async fn grab_frame_timeout(&self, timeout: Duration) -> Result<Option<VideoFrame>> {
         let provider = Arc::clone(&self.provider);
         let timeout_ms = timeout.as_millis() as u32;
-        
+
         tokio::task::spawn_blocking(move || {
             let mut provider = provider.blocking_lock();
             provider.grab_frame(timeout_ms)
-        }).await.map_err(|e| crate::CcapError::InternalError(e.to_string()))?
+        })
+        .await
+        .map_err(|e| crate::CcapError::InternalError(e.to_string()))?
     }
 
     /// Grab a frame asynchronously (non-blocking)
@@ -93,9 +95,11 @@ impl AsyncProvider {
     #[cfg(feature = "async")]
     /// Create a stream of frames
     pub fn frame_stream(&mut self) -> impl futures::Stream<Item = VideoFrame> {
-        let receiver = self.frame_receiver.take()
+        let receiver = self
+            .frame_receiver
+            .take()
             .expect("Frame stream can only be created once");
-        
+
         tokio_stream::wrappers::UnboundedReceiverStream::new(receiver)
     }
 }
@@ -113,9 +117,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_async_find_devices() {
-        let provider = AsyncProvider::new().await.expect("Failed to create provider");
+        let provider = AsyncProvider::new()
+            .await
+            .expect("Failed to create provider");
         let devices = provider.find_device_names().await;
-        
+
         match devices {
             Ok(devices) => {
                 println!("Found {} devices:", devices.len());

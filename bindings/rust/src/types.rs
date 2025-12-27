@@ -83,9 +83,9 @@ impl PixelFormat {
     }
 }
 
-impl Into<sys::CcapPixelFormat> for PixelFormat {
-    fn into(self) -> sys::CcapPixelFormat {
-        match self {
+impl From<PixelFormat> for sys::CcapPixelFormat {
+    fn from(val: PixelFormat) -> Self {
+        match val {
             PixelFormat::Unknown => sys::CcapPixelFormat_CCAP_PIXEL_FORMAT_UNKNOWN,
             PixelFormat::Nv12 => sys::CcapPixelFormat_CCAP_PIXEL_FORMAT_NV12,
             PixelFormat::Nv12F => sys::CcapPixelFormat_CCAP_PIXEL_FORMAT_NV12F,
@@ -115,8 +115,12 @@ pub enum FrameOrientation {
 impl From<sys::CcapFrameOrientation> for FrameOrientation {
     fn from(orientation: sys::CcapFrameOrientation) -> Self {
         match orientation {
-            sys::CcapFrameOrientation_CCAP_FRAME_ORIENTATION_TOP_TO_BOTTOM => FrameOrientation::TopToBottom,
-            sys::CcapFrameOrientation_CCAP_FRAME_ORIENTATION_BOTTOM_TO_TOP => FrameOrientation::BottomToTop,
+            sys::CcapFrameOrientation_CCAP_FRAME_ORIENTATION_TOP_TO_BOTTOM => {
+                FrameOrientation::TopToBottom
+            }
+            sys::CcapFrameOrientation_CCAP_FRAME_ORIENTATION_BOTTOM_TO_TOP => {
+                FrameOrientation::BottomToTop
+            }
             _ => FrameOrientation::TopToBottom,
         }
     }
@@ -152,8 +156,12 @@ impl From<PropertyName> for sys::CcapPropertyName {
             PropertyName::Width => sys::CcapPropertyName_CCAP_PROPERTY_WIDTH,
             PropertyName::Height => sys::CcapPropertyName_CCAP_PROPERTY_HEIGHT,
             PropertyName::FrameRate => sys::CcapPropertyName_CCAP_PROPERTY_FRAME_RATE,
-            PropertyName::PixelFormatInternal => sys::CcapPropertyName_CCAP_PROPERTY_PIXEL_FORMAT_INTERNAL,
-            PropertyName::PixelFormatOutput => sys::CcapPropertyName_CCAP_PROPERTY_PIXEL_FORMAT_OUTPUT,
+            PropertyName::PixelFormatInternal => {
+                sys::CcapPropertyName_CCAP_PROPERTY_PIXEL_FORMAT_INTERNAL
+            }
+            PropertyName::PixelFormatOutput => {
+                sys::CcapPropertyName_CCAP_PROPERTY_PIXEL_FORMAT_OUTPUT
+            }
             PropertyName::FrameOrientation => sys::CcapPropertyName_CCAP_PROPERTY_FRAME_ORIENTATION,
         }
     }
@@ -179,7 +187,9 @@ impl ColorConversionBackend {
             ColorConversionBackend::Cpu => sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_CPU,
             ColorConversionBackend::Avx2 => sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_AVX2,
             ColorConversionBackend::Neon => sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_NEON,
-            ColorConversionBackend::Accelerate => sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_APPLE_ACCELERATE,
+            ColorConversionBackend::Accelerate => {
+                sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_APPLE_ACCELERATE
+            }
         }
     }
 
@@ -189,7 +199,9 @@ impl ColorConversionBackend {
             sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_CPU => ColorConversionBackend::Cpu,
             sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_AVX2 => ColorConversionBackend::Avx2,
             sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_NEON => ColorConversionBackend::Neon,
-            sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_APPLE_ACCELERATE => ColorConversionBackend::Accelerate,
+            sys::CcapConvertBackend_CCAP_CONVERT_BACKEND_APPLE_ACCELERATE => {
+                ColorConversionBackend::Accelerate
+            }
             _ => ColorConversionBackend::Cpu,
         }
     }

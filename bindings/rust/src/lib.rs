@@ -16,23 +16,23 @@ pub mod sys {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
 
+mod convert;
 mod error;
-mod types;
 mod frame;
 mod provider;
+mod types;
 mod utils;
-mod convert;
 
 #[cfg(feature = "async")]
 pub mod r#async;
 
 // Public re-exports
+pub use convert::Convert;
 pub use error::{CcapError, Result};
-pub use types::*;
 pub use frame::*;
 pub use provider::Provider;
-pub use utils::{Utils, LogLevel};
-pub use convert::Convert;
+pub use types::*;
+pub use utils::{LogLevel, Utils};
 
 /// Get library version string
 pub fn version() -> Result<String> {

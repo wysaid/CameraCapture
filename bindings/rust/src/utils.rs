@@ -1,7 +1,7 @@
 use crate::error::{CcapError, Result};
-use crate::types::PixelFormat;
 use crate::frame::VideoFrame;
 use crate::sys;
+use crate::types::PixelFormat;
 use std::ffi::CString;
 use std::path::Path;
 
@@ -12,19 +12,20 @@ impl Utils {
     /// Convert pixel format enum to string
     pub fn pixel_format_to_string(format: PixelFormat) -> Result<String> {
         let mut buffer = [0i8; 64];
-        let result = unsafe { 
-            sys::ccap_pixel_format_to_string(format.to_c_enum(), buffer.as_mut_ptr(), buffer.len()) 
+        let result = unsafe {
+            sys::ccap_pixel_format_to_string(format.to_c_enum(), buffer.as_mut_ptr(), buffer.len())
         };
-        
+
         if result < 0 {
-            return Err(CcapError::StringConversionError("Unknown pixel format".to_string()));
+            return Err(CcapError::StringConversionError(
+                "Unknown pixel format".to_string(),
+            ));
         }
 
         let c_str = unsafe { std::ffi::CStr::from_ptr(buffer.as_ptr()) };
-        c_str
-            .to_str()
-            .map(|s| s.to_string())
-            .map_err(|_| CcapError::StringConversionError("Invalid pixel format string".to_string()))
+        c_str.to_str().map(|s| s.to_string()).map_err(|_| {
+            CcapError::StringConversionError("Invalid pixel format string".to_string())
+        })
     }
 
     /// Convert string to pixel format enum
@@ -44,7 +45,9 @@ impl Utils {
             "bgr24" => Ok(PixelFormat::Bgr24),
             "rgba32" => Ok(PixelFormat::Rgba32),
             "bgra32" => Ok(PixelFormat::Bgra32),
-            _ => Err(CcapError::StringConversionError("Unknown pixel format string".to_string()))
+            _ => Err(CcapError::StringConversionError(
+                "Unknown pixel format string".to_string(),
+            )),
         }
     }
 
@@ -56,25 +59,27 @@ impl Utils {
     }
 
     /// Save a video frame to a file with automatic format detection
-    pub fn dump_frame_to_file<P: AsRef<Path>>(frame: &VideoFrame, filename_no_suffix: P) -> Result<String> {
-        let path_str = filename_no_suffix.as_ref().to_str()
+    pub fn dump_frame_to_file<P: AsRef<Path>>(
+        frame: &VideoFrame,
+        filename_no_suffix: P,
+    ) -> Result<String> {
+        let path_str = filename_no_suffix
+            .as_ref()
+            .to_str()
             .ok_or_else(|| CcapError::StringConversionError("Invalid file path".to_string()))?;
-        
+
         let c_path = CString::new(path_str)
             .map_err(|_| CcapError::StringConversionError("Invalid file path".to_string()))?;
 
         // First call to get required buffer size
         let buffer_size = unsafe {
-            sys::ccap_dump_frame_to_file(
-                frame.as_c_ptr(),
-                c_path.as_ptr(),
-                std::ptr::null_mut(),
-                0,
-            )
+            sys::ccap_dump_frame_to_file(frame.as_c_ptr(), c_path.as_ptr(), std::ptr::null_mut(), 0)
         };
 
         if buffer_size <= 0 {
-            return Err(CcapError::FileOperationFailed("Failed to dump frame to file".to_string()));
+            return Err(CcapError::FileOperationFailed(
+                "Failed to dump frame to file".to_string(),
+            ));
         }
 
         // Second call to get actual result
@@ -89,7 +94,9 @@ impl Utils {
         };
 
         if result_len <= 0 {
-            return Err(CcapError::FileOperationFailed("Failed to dump frame to file".to_string()));
+            return Err(CcapError::FileOperationFailed(
+                "Failed to dump frame to file".to_string(),
+            ));
         }
 
         // Convert to string
@@ -99,10 +106,14 @@ impl Utils {
     }
 
     /// Save a video frame to directory with auto-generated filename
-    pub fn dump_frame_to_directory<P: AsRef<Path>>(frame: &VideoFrame, directory: P) -> Result<String> {
-        let dir_str = directory.as_ref().to_str()
-            .ok_or_else(|| CcapError::StringConversionError("Invalid directory path".to_string()))?;
-        
+    pub fn dump_frame_to_directory<P: AsRef<Path>>(
+        frame: &VideoFrame,
+        directory: P,
+    ) -> Result<String> {
+        let dir_str = directory.as_ref().to_str().ok_or_else(|| {
+            CcapError::StringConversionError("Invalid directory path".to_string())
+        })?;
+
         let c_dir = CString::new(dir_str)
             .map_err(|_| CcapError::StringConversionError("Invalid directory path".to_string()))?;
 
@@ -117,7 +128,9 @@ impl Utils {
         };
 
         if buffer_size <= 0 {
-            return Err(CcapError::FileOperationFailed("Failed to dump frame to directory".to_string()));
+            return Err(CcapError::FileOperationFailed(
+                "Failed to dump frame to directory".to_string(),
+            ));
         }
 
         // Second call to get actual result
@@ -132,7 +145,9 @@ impl Utils {
         };
 
         if result_len <= 0 {
-            return Err(CcapError::FileOperationFailed("Failed to dump frame to directory".to_string()));
+            return Err(CcapError::FileOperationFailed(
+                "Failed to dump frame to directory".to_string(),
+            ));
         }
 
         // Convert to string
@@ -142,6 +157,7 @@ impl Utils {
     }
 
     /// Save RGB data as BMP file (generic version)
+    #[allow(clippy::too_many_arguments)]
     pub fn save_rgb_data_as_bmp<P: AsRef<Path>>(
         filename: P,
         data: &[u8],
@@ -152,12 +168,14 @@ impl Utils {
         has_alpha: bool,
         is_top_to_bottom: bool,
     ) -> Result<()> {
-        let path_str = filename.as_ref().to_str()
+        let path_str = filename
+            .as_ref()
+            .to_str()
             .ok_or_else(|| CcapError::StringConversionError("Invalid file path".to_string()))?;
-        
+
         let c_path = CString::new(path_str)
             .map_err(|_| CcapError::StringConversionError("Invalid file path".to_string()))?;
-        
+
         let success = unsafe {
             sys::ccap_save_rgb_data_as_bmp(
                 c_path.as_ptr(),
@@ -170,11 +188,13 @@ impl Utils {
                 is_top_to_bottom,
             )
         };
-        
+
         if success {
             Ok(())
         } else {
-            Err(CcapError::FileOperationFailed("Failed to save RGB data as BMP".to_string()))
+            Err(CcapError::FileOperationFailed(
+                "Failed to save RGB data as BMP".to_string(),
+            ))
         }
     }
 
@@ -183,28 +203,28 @@ impl Utils {
         if devices.is_empty() {
             return Err(CcapError::DeviceNotFound);
         }
-        
+
         if devices.len() == 1 {
             println!("Using the only available device: {}", devices[0]);
             return Ok(0);
         }
-        
+
         println!("Multiple devices found, please select one:");
         for (i, device) in devices.iter().enumerate() {
             println!("  {}: {}", i, device);
         }
-        
+
         print!("Enter the index of the device you want to use: ");
         use std::io::{self, Write};
         io::stdout().flush().unwrap();
-        
+
         let mut input = String::new();
-        io::stdin().read_line(&mut input)
+        io::stdin()
+            .read_line(&mut input)
             .map_err(|e| CcapError::InvalidParameter(format!("Failed to read input: {}", e)))?;
-        
-        let selected_index = input.trim().parse::<usize>()
-            .unwrap_or(0);
-        
+
+        let selected_index = input.trim().parse::<usize>().unwrap_or(0);
+
         if selected_index >= devices.len() {
             println!("Invalid index, using the first device: {}", devices[0]);
             Ok(0)

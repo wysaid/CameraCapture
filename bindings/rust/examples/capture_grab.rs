@@ -1,4 +1,4 @@
-use ccap::{Provider, Result, PixelFormat, Utils, PropertyName, LogLevel};
+use ccap::{LogLevel, PropertyName, Provider, Result, Utils};
 use std::fs;
 
 fn main() -> Result<()> {
@@ -7,7 +7,10 @@ fn main() -> Result<()> {
 
     // Set error callback to receive error notifications
     Provider::set_error_callback(|error_code, description| {
-        eprintln!("Camera Error - Code: {}, Description: {}", error_code, description);
+        eprintln!(
+            "Camera Error - Code: {}, Description: {}",
+            error_code, description
+        );
     });
 
     // Create a camera provider
@@ -27,23 +30,28 @@ fn main() -> Result<()> {
     let real_height = provider.get_property(PropertyName::Height)? as u32;
     let real_fps = provider.get_property(PropertyName::FrameRate)?;
 
-    println!("Camera started successfully, real resolution: {}x{}, real fps: {}",
-           real_width, real_height, real_fps);
+    println!(
+        "Camera started successfully, real resolution: {}x{}, real fps: {}",
+        real_width, real_height, real_fps
+    );
 
     // Create capture directory
     let capture_dir = "./image_capture";
     if !std::path::Path::new(capture_dir).exists() {
-        fs::create_dir_all(capture_dir)
-            .map_err(|e| ccap::CcapError::InvalidParameter(format!("Failed to create directory: {}", e)))?;
+        fs::create_dir_all(capture_dir).map_err(|e| {
+            ccap::CcapError::InvalidParameter(format!("Failed to create directory: {}", e))
+        })?;
     }
 
     // Capture frames (3000 ms timeout when grabbing frames)
     let mut frame_count = 0;
     while let Some(frame) = provider.grab_frame(3000)? {
         let frame_info = frame.info()?;
-        println!("VideoFrame {} grabbed: width = {}, height = {}, bytes: {}", 
-            frame_info.frame_index, frame_info.width, frame_info.height, frame_info.size_in_bytes);
-        
+        println!(
+            "VideoFrame {} grabbed: width = {}, height = {}, bytes: {}",
+            frame_info.frame_index, frame_info.width, frame_info.height, frame_info.size_in_bytes
+        );
+
         // Save frame to directory
         match Utils::dump_frame_to_directory(&frame, capture_dir) {
             Ok(dump_file) => {

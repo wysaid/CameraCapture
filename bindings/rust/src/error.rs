@@ -5,62 +5,59 @@
 pub enum CcapError {
     /// No error occurred
     None,
-    
+
     /// No camera device found
     NoDeviceFound,
-    
+
     /// Invalid device specified
     InvalidDevice(String),
-    
+
     /// Camera device open failed
     DeviceOpenFailed,
-    
+
     /// Device already opened
     DeviceAlreadyOpened,
-    
+
     /// Device not opened
     DeviceNotOpened,
-    
+
     /// Capture start failed
     CaptureStartFailed,
-    
+
     /// Capture stop failed
     CaptureStopFailed,
-    
+
     /// Frame grab failed
     FrameGrabFailed,
-    
+
     /// Timeout occurred
     Timeout,
-    
+
     /// Invalid parameter
     InvalidParameter(String),
-    
+
     /// Not supported operation
     NotSupported,
-    
+
     /// Backend set failed
     BackendSetFailed,
-    
-    /// Color conversion failed
-    ConversionFailed,
-    
+
     /// String conversion error
     StringConversionError(String),
-    
+
     /// File operation failed
     FileOperationFailed(String),
-    
+
     /// Device not found (alias for NoDeviceFound for compatibility)
     DeviceNotFound,
-    
+
     /// Internal error
     InternalError(String),
-    
+
     /// Unknown error with error code
     Unknown {
         /// Error code from the underlying system
-        code: i32 
+        code: i32,
     },
 }
 
@@ -80,7 +77,6 @@ impl std::fmt::Display for CcapError {
             CcapError::InvalidParameter(param) => write!(f, "Invalid parameter: {}", param),
             CcapError::NotSupported => write!(f, "Operation not supported"),
             CcapError::BackendSetFailed => write!(f, "Backend set failed"),
-            CcapError::ConversionFailed => write!(f, "Color conversion failed"),
             CcapError::StringConversionError(msg) => write!(f, "String conversion error: {}", msg),
             CcapError::FileOperationFailed(msg) => write!(f, "File operation failed: {}", msg),
             CcapError::DeviceNotFound => write!(f, "Device not found"),
@@ -95,7 +91,7 @@ impl std::error::Error for CcapError {}
 impl From<i32> for CcapError {
     fn from(code: i32) -> Self {
         use crate::sys::*;
-        
+
         #[allow(non_upper_case_globals)]
         match code as u32 {
             CcapErrorCode_CCAP_ERROR_NONE => CcapError::None,
@@ -108,7 +104,9 @@ impl From<i32> for CcapError {
             CcapErrorCode_CCAP_ERROR_FRAME_CAPTURE_TIMEOUT => CcapError::Timeout,
             CcapErrorCode_CCAP_ERROR_UNSUPPORTED_PIXEL_FORMAT => CcapError::NotSupported,
             CcapErrorCode_CCAP_ERROR_UNSUPPORTED_RESOLUTION => CcapError::NotSupported,
-            CcapErrorCode_CCAP_ERROR_PROPERTY_SET_FAILED => CcapError::InvalidParameter("".to_string()),
+            CcapErrorCode_CCAP_ERROR_PROPERTY_SET_FAILED => {
+                CcapError::InvalidParameter("".to_string())
+            }
             CcapErrorCode_CCAP_ERROR_MEMORY_ALLOCATION_FAILED => CcapError::Unknown { code },
             CcapErrorCode_CCAP_ERROR_INTERNAL_ERROR => CcapError::Unknown { code },
             _ => CcapError::Unknown { code },
