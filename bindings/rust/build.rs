@@ -7,7 +7,13 @@ fn main() {
     let manifest_path = PathBuf::from(&manifest_dir);
     let ccap_root = manifest_path.parent().unwrap().parent().unwrap();
     
+    // Determine build profile
+    let profile = env::var("PROFILE").unwrap_or_else(|_| "debug".to_string());
+    let build_type = if profile == "release" { "Release" } else { "Debug" };
+
     // Add the ccap library search path
+    // Try specific build type first, then fallback to others
+    println!("cargo:rustc-link-search=native={}/build/{}", ccap_root.display(), build_type);
     println!("cargo:rustc-link-search=native={}/build/Debug", ccap_root.display());
     println!("cargo:rustc-link-search=native={}/build/Release", ccap_root.display());
     

@@ -72,7 +72,7 @@ impl VideoFrame {
     }
 
     /// Get frame information
-    pub fn info(&self) -> crate::error::Result<VideoFrameInfo> {
+    pub fn info<'a>(&'a self) -> crate::error::Result<VideoFrameInfo<'a>> {
         let mut info = sys::CcapVideoFrameInfo::default();
         
         let success = unsafe { sys::ccap_video_frame_get_info(self.frame, &mut info) };
@@ -161,7 +161,7 @@ unsafe impl Sync for VideoFrame {}
 
 /// High-level video frame information
 #[derive(Debug)]
-pub struct VideoFrameInfo {
+pub struct VideoFrameInfo<'a> {
     /// Frame width in pixels
     pub width: u32,
     /// Frame height in pixels
@@ -177,7 +177,7 @@ pub struct VideoFrameInfo {
     /// Frame orientation
     pub orientation: FrameOrientation,
     /// Frame data planes (up to 3 planes)
-    pub data_planes: [Option<&'static [u8]>; 3],
+    pub data_planes: [Option<&'a [u8]>; 3],
     /// Stride values for each plane
     pub strides: [u32; 3],
 }
