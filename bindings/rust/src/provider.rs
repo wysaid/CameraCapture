@@ -247,10 +247,7 @@ impl Provider {
 
     /// Set pixel format
     pub fn set_pixel_format(&mut self, format: PixelFormat) -> Result<()> {
-        self.set_property(
-            PropertyName::PixelFormatOutput,
-            format.to_c_enum() as f64,
-        )
+        self.set_property(PropertyName::PixelFormatOutput, format.to_c_enum() as f64)
     }
 
     /// Grab a single frame with timeout
