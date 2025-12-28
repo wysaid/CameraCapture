@@ -1070,7 +1070,7 @@
             "args": [
                 "-l",
                 "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then ./5-play_video_c.exe test.mp4; else ./5-play_video_c test.mp4; fi )"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./5-play_video_c.exe; else ./5-play_video_c; fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/build/Debug"
@@ -1082,7 +1082,7 @@
             ],
             "windows": {
                 "command": ".\\5-play_video_c.exe",
-                "args": ["test.mp4"],
+                "args": [],
                 "options": {
                     "cwd": "${workspaceFolder}/build/Debug"
                 },
@@ -1096,7 +1096,7 @@
             "args": [
                 "-l",
                 "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then ./5-play_video_c.exe test.mp4; else ./5-play_video_c test.mp4; fi )"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./5-play_video_c.exe; else ./5-play_video_c; fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/build/Release"
@@ -1108,7 +1108,7 @@
             ],
             "windows": {
                 "command": ".\\5-play_video_c.exe",
-                "args": ["test.mp4"],
+                "args": [],
                 "options": {
                     "cwd": "${workspaceFolder}/build/Release"
                 },

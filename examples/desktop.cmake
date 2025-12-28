@@ -112,16 +112,16 @@ if(EXISTS "${TEST_VIDEO_PATH}")
         
         # Check if example name contains "video"
         if(${EXAMPLE_NAME} MATCHES "video")
-            # Create a custom command to link test video to output directory after build
+            # Create a custom command to copy test video to output directory after build
             add_custom_command(
                 TARGET ${EXAMPLE_NAME} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E create_symlink
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
                     "${TEST_VIDEO_PATH}"
                     "$<TARGET_FILE_DIR:${EXAMPLE_NAME}>/test.mp4"
-                COMMENT "Linking test video to ${EXAMPLE_NAME} output directory"
+                COMMENT "Copying test video to ${EXAMPLE_NAME} output directory"
                 VERBATIM
             )
-            message(STATUS "ccap: Will link test video for example: ${EXAMPLE_NAME}")
+            message(STATUS "ccap: Will copy test video for example: ${EXAMPLE_NAME}")
         endif()
     endforeach()
 else()

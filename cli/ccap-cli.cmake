@@ -7,53 +7,46 @@ if (UNIX AND NOT APPLE AND NOT DEFINED CCAP_CLI_WITH_GLFW)
     # User hasn't explicitly set CCAP_CLI_WITH_GLFW
     # Try to configure GLFW to see if Linux dependencies (Wayland/X11) are available
     message(STATUS "ccap CLI: Auto-detecting GLFW availability by attempting to configure it...")
-    
     set(GLFW_DIR ${CMAKE_CURRENT_SOURCE_DIR}/examples/desktop/glfw)
     if (EXISTS ${GLFW_DIR}/CMakeLists.txt)
         # Save current policy settings
         cmake_policy(PUSH)
-        
         # Prepare GLFW configuration
         set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
         set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
         set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
         set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
-        
         # Try to add GLFW, suppress errors temporarily
         set(_GLFW_TEST_BUILD_DIR ${CMAKE_BINARY_DIR}/glfw_cli_test)
-        
         # Use execute_process to test GLFW configuration in isolation
         execute_process(
-            COMMAND ${CMAKE_COMMAND} ${GLFW_DIR}
-                    -B ${_GLFW_TEST_BUILD_DIR}
-                    -DGLFW_BUILD_EXAMPLES=OFF
-                    -DGLFW_BUILD_TESTS=OFF
-                    -DGLFW_BUILD_DOCS=OFF
-                    -DGLFW_INSTALL=OFF
-            RESULT_VARIABLE GLFW_CONFIG_RESULT
-            OUTPUT_QUIET
-            ERROR_QUIET
+                COMMAND ${CMAKE_COMMAND} ${GLFW_DIR}
+                -B ${_GLFW_TEST_BUILD_DIR}
+                -DGLFW_BUILD_EXAMPLES=OFF
+                -DGLFW_BUILD_TESTS=OFF
+                -DGLFW_BUILD_DOCS=OFF
+                -DGLFW_INSTALL=OFF
+                RESULT_VARIABLE GLFW_CONFIG_RESULT
+                OUTPUT_QUIET
+                ERROR_QUIET
         )
-        
         cmake_policy(POP)
-        
         # Clean up test build
         file(REMOVE_RECURSE ${_GLFW_TEST_BUILD_DIR})
-        
         if (GLFW_CONFIG_RESULT EQUAL 0)
             set(CCAP_CLI_WITH_GLFW ON CACHE BOOL "Enable GLFW window preview for CLI tool" FORCE)
             message(STATUS "ccap CLI: GLFW configured successfully, enabling preview support")
-        else()
+        else ()
             set(CCAP_CLI_WITH_GLFW OFF CACHE BOOL "Enable GLFW window preview for CLI tool" FORCE)
             message(STATUS "ccap CLI: GLFW configuration failed, disabling preview support")
             message(STATUS "ccap CLI: Install X11: libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev")
             message(STATUS "ccap CLI: Or Wayland: libwayland-dev libxkbcommon-dev wayland-protocols")
-        endif()
-    else()
+        endif ()
+    else ()
         set(CCAP_CLI_WITH_GLFW OFF CACHE BOOL "Enable GLFW window preview for CLI tool" FORCE)
         message(STATUS "ccap CLI: GLFW source not found, disabling preview support")
-    endif()
-endif()
+    endif ()
+endif ()
 
 # CLI-specific options (only available when building CLI)
 option(CCAP_CLI_WITH_GLFW "Enable GLFW window preview for CLI tool" ON)
@@ -99,7 +92,6 @@ if (CCAP_BUILD_CLI_STANDALONE AND UNIX AND NOT APPLE)
             CCAP_HAS_STATIC_LIBSTDCXX
     )
     unset(CMAKE_REQUIRED_FLAGS)
-    
     if (CCAP_HAS_STATIC_LIBSTDCXX)
         target_link_options(ccap-cli PRIVATE
                 -static-libgcc
@@ -124,8 +116,8 @@ target_include_directories(ccap-cli PRIVATE
 if (CCAP_CLI_WITH_STB_IMAGE)
     target_compile_definitions(ccap-cli PRIVATE CCAP_CLI_WITH_STB_IMAGE=1)
     # Use stb_image_write.h from examples/desktop/glfw/deps directory
-    target_include_directories(ccap-cli PRIVATE 
-        ${CMAKE_CURRENT_SOURCE_DIR}/examples/desktop/glfw/deps
+    target_include_directories(ccap-cli PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/examples/desktop/glfw/deps
     )
     message(STATUS "ccap CLI: stb_image_write enabled (JPG/PNG support)")
 else ()
@@ -140,28 +132,27 @@ target_compile_definitions(ccap-cli PRIVATE
 # Detect libc type (glibc vs musl)
 if (UNIX AND NOT APPLE)
     # Try to detect musl vs glibc
-    execute_process(
-        COMMAND ${CMAKE_C_COMPILER} -dumpmachine
-        OUTPUT_VARIABLE TARGET_TRIPLE
-        OUTPUT_STRIP_TRAILING_WHITESPACE
+    execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpmachine
+            OUTPUT_VARIABLE TARGET_TRIPLE
+            OUTPUT_STRIP_TRAILING_WHITESPACE
     )
     if (TARGET_TRIPLE MATCHES "musl")
         set(CCAP_CLI_LIBC_TYPE "musl")
-    else()
+    else ()
         # Check for glibc by trying to compile a test program
         file(WRITE ${CMAKE_BINARY_DIR}/check_glibc.c "#include <features.h>\n#ifndef __GLIBC__\n#error not glibc\n#endif\nint main(){return 0;}\n")
         try_compile(HAS_GLIBC
-            ${CMAKE_BINARY_DIR}
-            SOURCES ${CMAKE_BINARY_DIR}/check_glibc.c
+                ${CMAKE_BINARY_DIR}
+                SOURCES ${CMAKE_BINARY_DIR}/check_glibc.c
         )
         if (HAS_GLIBC)
             set(CCAP_CLI_LIBC_TYPE "glibc")
-        else()
+        else ()
             set(CCAP_CLI_LIBC_TYPE "unknown")
-        endif()
-    endif()
+        endif ()
+    endif ()
     message(STATUS "ccap CLI: Detected libc type: ${CCAP_CLI_LIBC_TYPE}")
-endif()
+endif ()
 
 # Add build information for --version output
 target_compile_definitions(ccap-cli PRIVATE
@@ -174,9 +165,9 @@ target_compile_definitions(ccap-cli PRIVATE
 # Add libc type for Linux builds
 if (UNIX AND NOT APPLE AND DEFINED CCAP_CLI_LIBC_TYPE)
     target_compile_definitions(ccap-cli PRIVATE
-        CCAP_CLI_LIBC_TYPE="${CCAP_CLI_LIBC_TYPE}"
+            CCAP_CLI_LIBC_TYPE="${CCAP_CLI_LIBC_TYPE}"
     )
-endif()
+endif ()
 
 # Add static linking information
 if (CCAP_BUILD_CLI_STANDALONE)
@@ -204,10 +195,9 @@ endif ()
 if (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
     include(CheckIPOSupported)
     check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
-    
     if (ipo_supported)
         set_target_properties(ccap-cli PROPERTIES
-            INTERPROCEDURAL_OPTIMIZATION TRUE
+                INTERPROCEDURAL_OPTIMIZATION TRUE
         )
         message(STATUS "ccap CLI: LTO/IPO enabled for ${CMAKE_BUILD_TYPE} build")
     else ()
@@ -239,7 +229,6 @@ if (CCAP_CLI_WITH_GLFW)
         set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
         set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
         set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
-        
         # Use bundled GLFW from examples
         set(GLFW_DIR ${CMAKE_CURRENT_SOURCE_DIR}/examples/desktop/glfw)
         if (EXISTS ${GLFW_DIR}/CMakeLists.txt)
