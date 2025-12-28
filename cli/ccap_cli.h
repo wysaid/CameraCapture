@@ -45,18 +45,30 @@ struct CLIOptions {
     int width = 1280;
     int height = 720;
     double fps = 30.0;
+    bool fpsSpecified = false;  // Whether FPS was explicitly specified
     int captureCount = 1;
-    int timeoutMs = 5000;
+    bool captureCountSpecified = false;  // Whether -c was explicitly specified
+    int grabTimeoutMs = 5000;  // Timeout for grabbing a single frame (milliseconds)
     std::string outputDir;
     ccap::PixelFormat outputFormat = ccap::PixelFormat::Unknown;
     ccap::PixelFormat internalFormat = ccap::PixelFormat::Unknown;
     bool saveYuv = false;
     ImageFormat imageFormat = ImageFormat::JPG; // Default to JPG format
     int jpegQuality = 90; // JPEG quality (1-100), default 90
+    bool saveFrames = false;  // Whether to save captured frames
+    bool saveFramesSpecified = false;  // Whether --save was explicitly specified
 
     // Preview options (only when GLFW is enabled)
     bool enablePreview = false;
     bool previewOnly = false;
+
+    // Timeout options
+    int timeoutSeconds = 0;  // Program timeout in seconds (0 = no timeout)
+    int timeoutExitCode = 0;  // Exit code when timeout occurs
+
+    // Loop options (video playback only)
+    bool enableLoop = false;
+    int loopCount = 0;  // 0 = infinite loop, >0 = specific number of loops
 
     // Format conversion options
     std::string convertInput;
@@ -126,6 +138,13 @@ int listDevices();
  * @return 0 on success, non-zero on error
  */
 int showDeviceInfo(int deviceIndex);
+
+/**
+ * @brief Print video file information
+ * @param videoPath Path to video file
+ * @return 0 on success, non-zero on error
+ */
+int printVideoInfo(const std::string& videoPath);
 
 /**
  * @brief Save a video frame to file

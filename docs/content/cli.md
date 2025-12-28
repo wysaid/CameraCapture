@@ -83,28 +83,46 @@ The executable will be located in the `build/` directory (or `build/Debug`, `bui
 | `-h, --help` | Show help message and exit |
 | `-v, --version` | Show version information |
 | `--verbose` | Enable verbose logging output |
+| `--timeout SECONDS` | Program timeout: auto-exit after N seconds |
+| `--timeout-exit-code CODE` | Exit code when timeout occurs (default: 0) |
 
 ### Device Enumeration
 
 | Option | Description |
 |--------|-------------|
 | `-l, --list-devices` | List all available camera devices |
-| `-i, --device-info [INDEX]` | Show detailed capabilities for device at INDEX<br>If INDEX is omitted, shows info for all devices |
+| `-I, --device-info [INDEX]` | Show detailed capabilities for device at INDEX<br>If INDEX is omitted, shows info for all devices |
 
-### Capture Options
+### Input Options
 
 | Option | Default | Description |
 |--------|---------|-------------|
+| `-i, --input SOURCE` | - | Input source: video file path, device index, or device name |
 | `-d, --device INDEX\|NAME` | `0` | Select camera device by index or name |
+
+### Capture Options (Camera Mode)
+
+| Option | Default | Description |
+|--------|---------|-------------|
 | `-w, --width WIDTH` | `1280` | Set capture width in pixels |
 | `-H, --height HEIGHT` | `720` | Set capture height in pixels |
-| `-f, --fps FPS` | `30.0` | Set frame rate |
-| `-c, --count COUNT` | `1` | Number of frames to capture |
-| `-t, --timeout MS` | `5000` | Capture timeout in milliseconds |
+| `-f, --fps FPS` | `30.0` | Set frame rate (supports floating point, e.g., 29.97) |
+| `-c, --count COUNT` | - | Number of frames to capture, then exit |
+| `-t, --grab-timeout MS` | `5000` | Timeout for grabbing a single frame in milliseconds |
+| `--format, --output-format` | - | Output pixel format (see [Supported Formats](#supported-formats)) |
+| `--internal-format FORMAT` | - | Camera's internal pixel format (camera mode only) |
+
+### Save Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
 | `-o, --output DIR` | - | Output directory for captured images |
-| `--format FORMAT` | - | Output pixel format (see [Supported Formats](#supported-formats)) |
-| `--internal-format FORMAT` | - | Camera's internal pixel format |
-| `--save-yuv` | - | Save frames as raw YUV data instead of converting to image |
+| `-s, --save` | - | Enable saving captured frames to output directory |
+| `--save-yuv` | - | Save frames as raw YUV data (auto-enables --save, auto-sets --internal-format nv12) |
+| `--save-format FORMAT` | `jpg` | Image format: `jpg`, `png`, `bmp` (auto-enables --save) |
+| `--save-jpg` | - | Save as JPEG format (shortcut for `--save-format jpg`) |
+| `--save-png` | - | Save as PNG format (shortcut for `--save-format png`) |
+| `--save-bmp` | - | Save as BMP format (shortcut for `--save-format bmp`) |
 | `--image-format FORMAT` | `jpg` | Image output format: `jpg`, `png`, `bmp` (requires `CCAP_CLI_WITH_STB_IMAGE=ON` for jpg/png) |
 | `--jpeg-quality QUALITY` | `90` | JPEG quality (1-100, only for JPG format) |
 
@@ -115,7 +133,15 @@ These options are only available when built with GLFW support (`CCAP_CLI_WITH_GL
 | Option | Description |
 |--------|-------------|
 | `-p, --preview` | Enable real-time preview window |
-| `--preview-only` | Show preview without saving frames to disk |
+| `--preview-only` | Same as --preview (kept for compatibility) |
+
+### Video Playback Options
+
+| Option | Description |
+|--------|-------------|
+| `--loop[=N]` | Loop video playback. Omit N for infinite loop, or specify N for exact number of loops |
+
+**Note:** `--loop` and `-c` are mutually exclusive. Use `-c` to limit captured frames, or `--loop` for video looping, but not both.
 
 ### Format Conversion
 
@@ -149,7 +175,7 @@ These options are only available when built with GLFW support (`CCAP_CLI_WITH_GL
 
 ## Usage Examples
 
-### Device Discovery
+### Device Discovery and Information
 
 List all available cameras:
 ```bash
@@ -159,6 +185,8 @@ ccap --list-devices
 Show detailed information for the first camera:
 ```bash
 ccap --device-info 0
+# or simply:
+ccap -d 0
 ```
 
 Show information for all cameras:
@@ -166,11 +194,16 @@ Show information for all cameras:
 ccap --device-info
 ```
 
+Print video file information:
+```bash
+ccap -i /path/to/video.mp4
+```
+
 ### Basic Frame Capture
 
-Capture a single frame from the default camera (saved as JPG by default):
+Capture 5 frames from the default camera:
 ```bash
-ccap -d 0 -o ./captures
+ccap -d 0 -c 5 -o ./captures
 ```
 
 Capture 10 frames at 1080p resolution:
@@ -183,26 +216,55 @@ Capture using a specific camera by name:
 ccap -d "HD Pro Webcam C920" -c 5 -o ./captures
 ```
 
-### Image Format Options
+### Save Options
 
-Capture frames as JPEG (default, requires CCAP_CLI_WITH_STB_IMAGE=ON):
+Save frames as JPEG (default):
 ```bash
-ccap -d 0 -c 5 -o ./captures --image-format jpg
+ccap -d 0 -c 5 -o ./captures --save-jpg
 ```
 
-Capture frames as PNG:
+Save frames as PNG:
 ```bash
-ccap -d 0 -c 5 -o ./captures --image-format png
+ccap -d 0 -c 5 -o ./captures --save-png
 ```
 
-Capture frames as BMP (always available):
+Save frames as BMP (always available):
 ```bash
-ccap -d 0 -c 5 -o ./captures --image-format bmp
+ccap -d 0 -c 5 -o ./captures --save-bmp
 ```
 
-Capture with custom JPEG quality:
+Save with custom JPEG quality:
 ```bash
-ccap -d 0 -c 5 -o ./captures --image-format jpg --jpeg-quality 95
+ccap -d 0 -c 5 -o ./captures --save-format jpg --jpeg-quality 95
+```
+
+### Timeout and Automated Exit
+
+Preview for 60 seconds then exit:
+```bash
+ccap -d 0 --preview --timeout 60
+```
+
+Capture with timeout and custom exit code:
+```bash
+ccap -d 0 --preview --timeout 30 --timeout-exit-code 100
+```
+
+### Video Playback
+
+Extract 30 frames from a video file:
+```bash
+ccap -i /path/to/video.mp4 -c 30 -o ./frames
+```
+
+Loop video playback indefinitely:
+```bash
+ccap -i /path/to/video.mp4 --preview --loop
+```
+
+Loop video 5 times:
+```bash
+ccap -i /path/to/video.mp4 --preview --loop=5
 ```
 
 ### Format-Specific Capture
@@ -221,7 +283,7 @@ ccap -d 0 --internal-format nv12 --format bgr24 -c 5 -o ./captures
 
 Save frames as raw YUV data:
 ```bash
-ccap -d 0 --format nv12 --save-yuv -c 5 -o ./yuv_captures
+ccap -d 0 --save-yuv -c 5 -o ./yuv_captures
 ```
 
 Convert a YUV file to BMP image:
