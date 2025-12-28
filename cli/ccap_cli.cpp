@@ -15,6 +15,7 @@
 #include <ccap_config.h>
 #include <ccap_convert.h>
 #include <chrono>
+#include <climits>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -118,19 +119,30 @@ void printUsage(const char* programName) {
               << "\n"
               << "Global options:\n"
               << "  --verbose                  enable verbose logging\n"
+              << "  --timeout seconds          program timeout (auto-exit after N seconds)\n"
+              << "  --timeout-exit-code code   exit code when timeout occurs (default: 0)\n"
               << "\n"
-              << "Capture options:\n"
+              << "Input options:\n"
               << "  -i, --input source         input source: video file, device index, or device name\n"
               << "  -d, --device index|name    select camera device by index or name (default: 0)\n"
+              << "\n"
+              << "Capture options (camera mode):\n"
               << "  -w, --width width          set capture width (default: " << DEFAULT_WIDTH << ")\n"
               << "  -H, --height height        set capture height (default: " << DEFAULT_HEIGHT << ")\n"
               << "  -f, --fps fps              set frame rate (default: " << DEFAULT_FPS << ")\n"
-              << "  -c, --count count          number of frames to capture (default: " << DEFAULT_CAPTURE_COUNT << ")\n"
-              << "  -t, --timeout ms           capture timeout in milliseconds (default: " << DEFAULT_TIMEOUT_MS << ")\n"
+              << "  -c, --count count          number of frames to capture, then exit\n"
+              << "  -t, --grab-timeout ms      timeout for grabbing a single frame (default: " << DEFAULT_TIMEOUT_MS << ")\n"
+              << "  --format, --output-format  output pixel format: rgb24, bgr24, rgba32, bgra32, nv12, i420, yuyv, uyvy\n"
+              << "  --internal-format format   internal pixel format (camera native format, camera mode only)\n"
+              << "\n"
+              << "Save options:\n"
               << "  -o, --output dir           output directory for captured images\n"
-              << "  --format format            output pixel format: rgb24, bgr24, rgba32, bgra32, nv12, i420, yuyv, uyvy\n"
-              << "  --internal-format format   internal pixel format (camera native format)\n"
-              << "  --save-yuv                 save YUV frames directly without conversion\n"
+              << "  -s, --save                 save captured frames to output directory\n"
+              << "  --save-yuv                 save YUV frames directly (auto-enables --save)\n"
+              << "  --save-format format       image format: jpg, png, bmp (auto-enables --save)\n"
+              << "  --save-jpg                 save as JPEG format (shortcut for --save-format jpg)\n"
+              << "  --save-png                 save as PNG format (shortcut for --save-format png)\n"
+              << "  --save-bmp                 save as BMP format (shortcut for --save-format bmp)\n"
 #ifdef CCAP_CLI_WITH_STB_IMAGE
               << "  --image-format format      image format: jpg, png, bmp (default: jpg)\n"
               << "  --jpeg-quality quality     JPEG quality 1-100 (default: 90, only for jpg)\n"
@@ -141,10 +153,15 @@ void printUsage(const char* programName) {
 
 #ifdef CCAP_CLI_WITH_GLFW
     std::cout << "Preview options:\n"
-              << "  -p, --preview              enable window preview (no frame saving)\n"
+              << "  -p, --preview              enable window preview\n"
               << "  --preview-only             same as --preview (kept for compatibility)\n"
               << "\n";
 #endif
+
+    std::cout << "Video playback options:\n"
+              << "  --loop[=N]                 loop video playback (N times, omit for infinite)\n"
+              << "                             Note: --loop and -c are mutually exclusive\n"
+              << "\n";
 
     std::cout << "Format conversion options:\n"
               << "  --convert input            convert YUV file to image\n"
@@ -157,15 +174,13 @@ void printUsage(const char* programName) {
     std::cout << "Examples:\n"
               << "  " << programName << " --list-devices\n"
               << "  " << programName << " --device-info 0\n"
-#ifdef CCAP_CLI_WITH_STB_IMAGE
-              << "  " << programName << " -d 0 -w 1920 -H 1080 -c 10 -o ./captures --image-format jpg\n"
-#else
-              << "  " << programName << " -d 0 -w 1920 -H 1080 -c 10 -o ./captures\n"
-#endif
-              << "  " << programName << " -i 0 -w 1920 -H 1080 -c 10 -o ./captures --image-format png\n"
-              << "  " << programName << " -i /path/to/video.mp4 -c 30 -o ./frames\n"
-              << "  " << programName << " -i \"Full HD webcam\" -c 5 -o ./captures\n"
-              << "  " << programName << " --video /path/to/video.mp4 -c 30 -o ./frames\n";
+              << "  " << programName << " -d 0                                 # print camera info\n"
+              << "  " << programName << " -i /path/to/video.mp4                # print video info\n"
+              << "  " << programName << " -d 0 -c 10 -o ./captures             # capture 10 frames\n"
+              << "  " << programName << " -d 0 -c 10 -o ./captures --save-jpg  # capture and save as JPEG\n"
+              << "  " << programName << " -i /path/to/video.mp4 -c 30 -o ./frames  # extract 30 frames from video\n"
+              << "  " << programName << " -i /path/to/video.mp4 --loop         # loop video playback\n"
+              << "  " << programName << " --timeout 60 -d 0 --preview          # preview for 60 seconds then exit\n";
 #ifdef CCAP_CLI_WITH_GLFW
     std::cout << "  " << programName << " -d 0 --preview\n"
               << "  " << programName << " -i /path/to/video.mp4 --preview\n";
@@ -324,20 +339,33 @@ CLIOptions parseArgs(int argc, char* argv[]) {
         } else if (arg == "-f" || arg == "--fps") {
             if (i + 1 < argc) {
                 opts.fps = std::atof(argv[++i]);
+                opts.fpsSpecified = true;
             }
         } else if (arg == "-c" || arg == "--count") {
             if (i + 1 < argc) {
                 opts.captureCount = std::atoi(argv[++i]);
+                opts.captureCountSpecified = true;
             }
-        } else if (arg == "-t" || arg == "--timeout") {
+        } else if (arg == "-t" || arg == "--grab-timeout") {
             if (i + 1 < argc) {
-                opts.timeoutMs = std::atoi(argv[++i]);
+                opts.grabTimeoutMs = std::atoi(argv[++i]);
+            }
+        } else if (arg == "--timeout") {
+            if (i + 1 < argc) {
+                opts.timeoutSeconds = std::atoi(argv[++i]);
+            }
+        } else if (arg == "--timeout-exit-code") {
+            if (i + 1 < argc) {
+                opts.timeoutExitCode = std::atoi(argv[++i]);
             }
         } else if (arg == "-o" || arg == "--output") {
             if (i + 1 < argc) {
                 opts.outputDir = argv[++i];
             }
-        } else if (arg == "--format") {
+        } else if (arg == "-s" || arg == "--save") {
+            opts.saveFrames = true;
+            opts.saveFramesSpecified = true;
+        } else if (arg == "--format" || arg == "--output-format") {
             if (i + 1 < argc) {
                 auto info = parsePixelFormat(argv[++i]);
                 opts.outputFormat = info.format;
@@ -349,6 +377,25 @@ CLIOptions parseArgs(int argc, char* argv[]) {
             }
         } else if (arg == "--save-yuv") {
             opts.saveYuv = true;
+            opts.saveFrames = true;
+            // Auto-set internal format to NV12 if not specified
+            if (opts.internalFormat == ccap::PixelFormat::Unknown) {
+                opts.internalFormat = ccap::PixelFormat::NV12;
+            }
+        } else if (arg == "--save-format") {
+            if (i + 1 < argc) {
+                opts.imageFormat = parseImageFormat(argv[++i]);
+                opts.saveFrames = true;
+            }
+        } else if (arg == "--save-jpg" || arg == "--save-jpeg") {
+            opts.imageFormat = ImageFormat::JPG;
+            opts.saveFrames = true;
+        } else if (arg == "--save-png") {
+            opts.imageFormat = ImageFormat::PNG;
+            opts.saveFrames = true;
+        } else if (arg == "--save-bmp") {
+            opts.imageFormat = ImageFormat::BMP;
+            opts.saveFrames = true;
         } else if (arg == "--image-format") {
             if (i + 1 < argc) {
                 opts.imageFormat = parseImageFormat(argv[++i]);
@@ -358,6 +405,27 @@ CLIOptions parseArgs(int argc, char* argv[]) {
                 int quality = std::atoi(argv[++i]);
                 opts.jpegQuality = std::max(1, std::min(100, quality)); // Clamp to 1-100
             }
+        } else if (arg == "--loop" || arg.rfind("--loop=", 0) == 0) {
+            opts.enableLoop = true;
+            if (arg.rfind("--loop=", 0) == 0) {
+                // Parse loop count from --loop=N
+                std::string countStr = arg.substr(7);
+                opts.loopCount = std::atoi(countStr.c_str());
+            } else if (i + 1 < argc && argv[i + 1][0] != '-') {
+                // Check if next arg is a number (optional loop count)
+                const char* nextArg = argv[i + 1];
+                bool isNum = true;
+                for (const char* p = nextArg; *p; ++p) {
+                    if (!std::isdigit(*p)) {
+                        isNum = false;
+                        break;
+                    }
+                }
+                if (isNum) {
+                    opts.loopCount = std::atoi(argv[++i]);
+                }
+            }
+            // loopCount = 0 means infinite loop
         }
 #ifdef CCAP_CLI_WITH_GLFW
         else if (arg == "-p" || arg == "--preview") {
@@ -393,6 +461,16 @@ CLIOptions parseArgs(int argc, char* argv[]) {
             printUsage(argv[0]);
             std::exit(1);
         }
+    }
+
+    // Post-processing: auto-enable save mode if -o is specified without preview
+    if (!opts.outputDir.empty() && !opts.enablePreview && !opts.saveFramesSpecified) {
+        opts.saveFrames = true;
+    }
+
+    // Post-processing: if -o is specified with save options, enable save
+    if (!opts.outputDir.empty() && (opts.saveYuv || opts.saveFramesSpecified)) {
+        opts.saveFrames = true;
     }
 
     return opts;
@@ -512,6 +590,35 @@ int showDeviceInfo(int deviceIndex) {
     }
 
     return 0;
+}
+
+int printVideoInfo(const std::string& videoPath) {
+#if defined(CCAP_ENABLE_FILE_PLAYBACK)
+    ccap::Provider provider;
+    if (!provider.open(videoPath, false)) { // Don't start capture, just get info
+        std::cerr << "Failed to open video file: " << videoPath << std::endl;
+        return 1;
+    }
+
+    double duration = provider.get(ccap::PropertyName::Duration);
+    double frameCount = provider.get(ccap::PropertyName::FrameCount);
+    double frameRate = provider.get(ccap::PropertyName::FrameRate);
+    int width = static_cast<int>(provider.get(ccap::PropertyName::Width));
+    int height = static_cast<int>(provider.get(ccap::PropertyName::Height));
+
+    std::cout << "\n===== Video File Information =====" << std::endl;
+    std::cout << "  File: " << videoPath << std::endl;
+    std::cout << "  Resolution: " << width << "x" << height << std::endl;
+    std::cout << "  Frame rate: " << frameRate << " fps" << std::endl;
+    std::cout << "  Duration: " << duration << " seconds" << std::endl;
+    std::cout << "  Total frames: " << static_cast<int>(frameCount) << std::endl;
+    std::cout << "===================================" << std::endl;
+    return 0;
+#else
+    std::cerr << "Video file playback is not supported. Rebuild with CCAP_ENABLE_FILE_PLAYBACK=ON" << std::endl;
+    (void)videoPath;
+    return 1;
+#endif
 }
 
 bool saveFrameToFile(ccap::VideoFrame* frame, const std::string& outputPath, bool saveAsYuv,
@@ -668,14 +775,16 @@ int captureFrames(const CLIOptions& opts) {
     ccap::Provider provider;
 
     // Set capture parameters (only meaningful for camera mode)
-    if (opts.videoFilePath.empty()) {
+    bool isVideoMode = !opts.videoFilePath.empty();
+    if (!isVideoMode) {
         provider.set(ccap::PropertyName::Width, opts.width);
         provider.set(ccap::PropertyName::Height, opts.height);
         provider.set(ccap::PropertyName::FrameRate, opts.fps);
-    }
 
-    if (opts.internalFormat != ccap::PixelFormat::Unknown) {
-        provider.set(ccap::PropertyName::PixelFormatInternal, opts.internalFormat);
+        // Internal format only applies to camera mode
+        if (opts.internalFormat != ccap::PixelFormat::Unknown) {
+            provider.set(ccap::PropertyName::PixelFormatInternal, opts.internalFormat);
+        }
     }
 
     if (opts.outputFormat != ccap::PixelFormat::Unknown) {
@@ -684,7 +793,7 @@ int captureFrames(const CLIOptions& opts) {
 
     // Open device or video file
     bool opened = false;
-    if (!opts.videoFilePath.empty()) {
+    if (isVideoMode) {
         // Video file playback mode
 #if defined(CCAP_ENABLE_FILE_PLAYBACK)
         opened = provider.open(opts.videoFilePath, true);
@@ -727,12 +836,13 @@ int captureFrames(const CLIOptions& opts) {
     }
 
     if (!opened || !provider.isStarted()) {
-        std::cerr << "Failed to open/start " << (opts.videoFilePath.empty() ? "camera device" : "video file") << "." << std::endl;
+        std::cerr << "Failed to open/start " << (isVideoMode ? "video file" : "camera device") << "." << std::endl;
         return 1;
     }
 
-    // Create output directory if specified
-    if (!opts.outputDir.empty()) {
+    // Create output directory if saving frames
+    bool shouldSave = opts.saveFrames && !opts.outputDir.empty();
+    if (shouldSave) {
         std::error_code ec;
         std::filesystem::create_directories(opts.outputDir, ec);
         if (ec) {
@@ -743,38 +853,80 @@ int captureFrames(const CLIOptions& opts) {
 
     std::string outputDir = opts.outputDir.empty() ? "." : opts.outputDir;
 
-    std::cout << "Capturing " << opts.captureCount << " frame(s)..." << std::endl;
+    // Setup timeout tracking
+    auto startTime = std::chrono::steady_clock::now();
+    bool timeoutOccurred = false;
+
+    // Loop control for video playback
+    int currentLoop = 0;
+    int maxLoops = opts.enableLoop ? (opts.loopCount > 0 ? opts.loopCount : -1) : 1; // -1 = infinite
+
+    std::cout << "Capturing " << (opts.captureCountSpecified ? std::to_string(opts.captureCount) + " frame(s)" : "frames") << "..." << std::endl;
 
     int capturedCount = 0;
-    while (capturedCount < opts.captureCount) {
-        auto frame = provider.grab(opts.timeoutMs);
+    int totalCaptureLimit = opts.captureCountSpecified ? opts.captureCount : INT_MAX;
+
+    while (capturedCount < totalCaptureLimit) {
+        // Check program timeout
+        if (opts.timeoutSeconds > 0) {
+            auto now = std::chrono::steady_clock::now();
+            auto elapsedSeconds = std::chrono::duration_cast<std::chrono::seconds>(now - startTime).count();
+            if (elapsedSeconds >= opts.timeoutSeconds) {
+                std::cout << "Program timeout reached (" << opts.timeoutSeconds << " seconds)." << std::endl;
+                timeoutOccurred = true;
+                break;
+            }
+        }
+
+        auto frame = provider.grab(opts.grabTimeoutMs);
         if (!frame) {
-            std::cerr << "Timeout waiting for frame." << std::endl;
-            break;
+            if (isVideoMode) {
+                // Video ended
+                currentLoop++;
+                if (maxLoops == -1 || currentLoop < maxLoops) {
+                    // Seek to beginning for loop
+                    provider.set(ccap::PropertyName::CurrentTime, 0.0);
+                    std::cout << "Loop " << currentLoop << " completed, restarting..." << std::endl;
+                    continue;
+                } else {
+                    std::cout << "Video playback finished." << std::endl;
+                    break;
+                }
+            } else {
+                std::cerr << "Timeout waiting for frame." << std::endl;
+                break;
+            }
         }
 
         std::cout << "Frame " << frame->frameIndex << ": " << frame->width << "x" << frame->height
                   << " format=" << ccap::pixelFormatToString(frame->pixelFormat) << std::endl;
 
-        // Generate output filename
-        auto now = std::chrono::system_clock::now();
-        auto nowTime = std::chrono::system_clock::to_time_t(now);
-        std::tm nowTm = *std::localtime(&nowTime);
-        char timestamp[64];
-        std::strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", &nowTm);
+        // Save frame if enabled
+        if (shouldSave) {
+            // Generate output filename
+            auto now = std::chrono::system_clock::now();
+            auto nowTime = std::chrono::system_clock::to_time_t(now);
+            std::tm nowTm = *std::localtime(&nowTime);
+            char timestamp[64];
+            std::strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", &nowTm);
 
-        std::string baseName = outputDir + "/capture_" + std::string(timestamp) + "_" +
-            std::to_string(frame->width) + "x" + std::to_string(frame->height) + "_" +
-            std::to_string(frame->frameIndex);
+            std::string baseName = outputDir + "/capture_" + std::string(timestamp) + "_" +
+                std::to_string(frame->width) + "x" + std::to_string(frame->height) + "_" +
+                std::to_string(frame->frameIndex);
 
-        if (!saveFrameToFile(frame.get(), baseName, opts.saveYuv, opts.imageFormat, opts.jpegQuality)) {
-            std::cerr << "Failed to save frame." << std::endl;
+            if (!saveFrameToFile(frame.get(), baseName, opts.saveYuv, opts.imageFormat, opts.jpegQuality)) {
+                std::cerr << "Failed to save frame." << std::endl;
+            }
         }
 
         ++capturedCount;
     }
 
     std::cout << "Captured " << capturedCount << " frame(s)." << std::endl;
+    
+    if (timeoutOccurred) {
+        return opts.timeoutExitCode;
+    }
     return 0;
 }
 
@@ -960,14 +1112,39 @@ int runPreview(const CLIOptions& opts) {
     // Pre-allocate texture storage once
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, frameWidth, frameHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 
-    std::string sourceType = opts.videoFilePath.empty() ? "camera" : "video file";
+    bool isVideoMode = !opts.videoFilePath.empty();
+    std::string sourceType = isVideoMode ? "video file" : "camera";
     std::cout << "Preview started for " << sourceType << ". Press ESC or close window to exit." << std::endl;
-    if (!opts.videoFilePath.empty()) {
-        std::cout << "Note: In preview mode, frames are NOT saved to disk." << std::endl;
-    }
+
+    // Setup timeout and frame counting
+    auto startTime = std::chrono::steady_clock::now();
+    bool timeoutOccurred = false;
+    int capturedCount = 0;
+    int totalCaptureLimit = opts.captureCountSpecified ? opts.captureCount : INT_MAX;
+
+    // Loop control for video playback
+    int currentLoop = 0;
+    int maxLoops = (isVideoMode && opts.enableLoop) ? (opts.loopCount > 0 ? opts.loopCount : -1) : 1;
 
     while (!glfwWindowShouldClose(window)) {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+            break;
+        }
+
+        // Check program timeout
+        if (opts.timeoutSeconds > 0) {
+            auto now = std::chrono::steady_clock::now();
+            auto elapsedSeconds = std::chrono::duration_cast<std::chrono::seconds>(now - startTime).count();
+            if (elapsedSeconds >= opts.timeoutSeconds) {
+                std::cout << "Program timeout reached (" << opts.timeoutSeconds << " seconds)." << std::endl;
+                timeoutOccurred = true;
+                break;
+            }
+        }
+
+        // Check frame count limit
+        if (capturedCount >= totalCaptureLimit) {
+            std::cout << "Frame count limit reached (" << opts.captureCount << " frames)." << std::endl;
             break;
         }
 
@@ -977,11 +1154,20 @@ int runPreview(const CLIOptions& opts) {
         if (auto frame = provider.grab(500)) {
             // Update texture data efficiently using glTexSubImage2D
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, frameWidth, frameHeight, GL_RGBA, GL_UNSIGNED_BYTE, frame->data[0]);
+            ++capturedCount;
         } else {
             // If grab fails in file mode, video has ended
-            if (!opts.videoFilePath.empty()) {
-                std::cout << "Video playback finished." << std::endl;
-                break;
+            if (isVideoMode) {
+                currentLoop++;
+                if (maxLoops == -1 || currentLoop < maxLoops) {
+                    // Seek to beginning for loop
+                    provider.set(ccap::PropertyName::CurrentTime, 0.0);
+                    std::cout << "Loop " << currentLoop << " completed, restarting..." << std::endl;
+                    continue;
+                } else {
+                    std::cout << "Video playback finished." << std::endl;
+                    break;
+                }
             }
             // For camera mode, continue waiting for next frame
         }
@@ -1007,6 +1193,9 @@ int runPreview(const CLIOptions& opts) {
     glDeleteTextures(1, &texture);
     glfwTerminate();
 
+    if (timeoutOccurred) {
+        return opts.timeoutExitCode;
+    }
     return 0;
 }
 
@@ -1224,6 +1413,24 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
+    // Check for conflicting options
+    if (opts.captureCountSpecified && opts.enableLoop) {
+        std::cerr << "Error: -c/--count and --loop are mutually exclusive." << std::endl;
+        std::cerr << "Use -c to limit captured frames, or --loop for video looping, but not both." << std::endl;
+        return 1;
+    }
+
+    // --loop only applies to video mode
+    if (opts.enableLoop && opts.videoFilePath.empty()) {
+        std::cerr << "Warning: --loop option is only effective for video file playback." << std::endl;
+    }
+
+    // --save requires -o
+    if (opts.saveFrames && opts.outputDir.empty()) {
+        std::cerr << "Error: --save requires -o/--output to specify output directory." << std::endl;
+        return 1;
+    }
+
     if (opts.verbose) {
         ccap::setLogLevel(ccap::LogLevel::Verbose);
     }
@@ -1247,15 +1454,41 @@ int main(int argc, char* argv[]) {
         return ccap_cli::convertYuvToImage(opts);
     }
 
+    // Check if we should just print info (no action specified)
+    bool hasAction = opts.enablePreview || opts.saveFrames || opts.captureCountSpecified || !opts.outputDir.empty();
+    
+    // If video file specified without action, print video info
+    if (!opts.videoFilePath.empty() && !hasAction) {
+        return ccap_cli::printVideoInfo(opts.videoFilePath);
+    }
+    
+    // If camera device specified without action, print camera info
+    if (opts.videoFilePath.empty() && !hasAction && 
+        (opts.inputSource.empty() || !opts.deviceName.empty() || opts.deviceIndex >= 0)) {
+        // Print camera info (equivalent to --device-info)
+        if (!opts.deviceName.empty()) {
+            // Find device index by name
+            ccap::Provider provider;
+            auto deviceNames = provider.findDeviceNames();
+            for (size_t i = 0; i < deviceNames.size(); ++i) {
+                if (deviceNames[i] == opts.deviceName) {
+                    return ccap_cli::showDeviceInfo(static_cast<int>(i));
+                }
+            }
+            std::cerr << "Device not found: " << opts.deviceName << std::endl;
+            return 1;
+        }
+        return ccap_cli::showDeviceInfo(opts.deviceIndex);
+    }
+
 #ifdef CCAP_CLI_WITH_GLFW
     if (opts.enablePreview) {
-        // Preview mode: don't save frames to avoid stuttering
         return ccap_cli::runPreview(opts);
     }
 #endif
 
-    // Default: capture mode (saves frames)
-    if (!opts.outputDir.empty() || opts.captureCount > 0) {
+    // Default: capture mode
+    if (!opts.outputDir.empty() || opts.captureCountSpecified || opts.saveFrames) {
         return ccap_cli::captureFrames(opts);
     }
 
