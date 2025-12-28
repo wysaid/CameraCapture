@@ -1370,6 +1370,54 @@
                 },
                 "problemMatcher": "$msCompile"
             }
+        },
+        {
+            "label": "Run ccap CLI --preview video (Debug)",
+            "type": "shell",
+            "command": ".\\ccap.exe",
+            "args": ["-i", "test.mp4", "--preview"],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Debug"
+            },
+            "group": "build",
+            "dependsOn": [
+                "Config: Enable CLI Tool",
+                "Build Project (Debug)"
+            ],
+            "dependsOrder": "sequence",
+            "problemMatcher": "$msCompile",
+            "windows": {
+                "command": ".\\ccap.exe",
+                "args": ["-i", "test.mp4", "--preview"],
+                "options": {
+                    "cwd": "${workspaceFolder}/build/Debug"
+                },
+                "problemMatcher": "$msCompile"
+            }
+        },
+        {
+            "label": "Run ccap CLI --preview video (Release)",
+            "type": "shell",
+            "command": ".\\ccap.exe",
+            "args": ["-i", "test.mp4", "--preview"],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Release"
+            },
+            "group": "build",
+            "dependsOn": [
+                "Config: Enable CLI Tool",
+                "Build Project (Release)"
+            ],
+            "dependsOrder": "sequence",
+            "problemMatcher": "$msCompile",
+            "windows": {
+                "command": ".\\ccap.exe",
+                "args": ["-i", "test.mp4", "--preview"],
+                "options": {
+                    "cwd": "${workspaceFolder}/build/Release"
+                },
+                "problemMatcher": "$msCompile"
+            }
         }
     ]
 }
