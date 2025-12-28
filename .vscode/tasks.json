@@ -142,34 +142,6 @@
             "problemMatcher": []
         },
         {
-            "label": "Config: Enable CLI Standalone and Reload",
-            "type": "shell",
-            "command": "echo",
-            "args": [
-                "CLI Standalone Enabled and Project Reloaded"
-            ],
-            "group": "build",
-            "dependsOn": [
-                "Config: Enable CLI Standalone",
-                "Load Project"
-            ],
-            "dependsOrder": "sequence"
-        },
-        {
-            "label": "Config: Disable CLI Standalone and Reload",
-            "type": "shell",
-            "command": "echo",
-            "args": [
-                "CLI Standalone Disabled and Project Reloaded"
-            ],
-            "group": "build",
-            "dependsOn": [
-                "Config: Disable CLI Standalone",
-                "Load Project"
-            ],
-            "dependsOrder": "sequence"
-        },
-        {
             "label": "Config: Setup dev.cmake",
             "type": "shell",
             "command": "bash",
@@ -266,7 +238,7 @@
                 "command": "cmd",
                 "args": [
                     "/c",
-                    "(if not exist build (mkdir build && cd build && cmake ..) ) & cmake --build build --parallel %NUMBER_OF_PROCESSORS%"
+                    "(if not exist build (mkdir build && cd build && cmake ..) ) & cmake --build build --config Debug --parallel %NUMBER_OF_PROCESSORS%"
                 ],
                 "options": {
                     "cwd": "${workspaceFolder}"
@@ -559,6 +531,21 @@
                 "run_tests.sh",
                 "--shuffle",
                 "--exit-when-failed"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/scripts"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Run Video Tests",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "run_tests.sh",
+                "--video"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/scripts"
@@ -1025,6 +1012,110 @@
             }
         },
         {
+            "label": "Run 5-play_video (Debug)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./5-play_video.exe; else ./5-play_video; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Debug"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Debug)"
+            ],
+            "windows": {
+                "command": ".\\5-play_video.exe",
+                "args": [],
+                "options": {
+                    "cwd": "${workspaceFolder}/build/Debug"
+                },
+                "problemMatcher": "$msCompile"
+            }
+        },
+        {
+            "label": "Run 5-play_video (Release)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./5-play_video.exe; else ./5-play_video; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Release"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Release)"
+            ],
+            "windows": {
+                "command": ".\\5-play_video.exe",
+                "args": [],
+                "options": {
+                    "cwd": "${workspaceFolder}/build/Release"
+                },
+                "problemMatcher": "$msCompile"
+            }
+        },
+        {
+            "label": "Run 5-play_video_c (Debug)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./5-play_video_c.exe test.mp4; else ./5-play_video_c test.mp4; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Debug"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Debug)"
+            ],
+            "windows": {
+                "command": ".\\5-play_video_c.exe",
+                "args": ["test.mp4"],
+                "options": {
+                    "cwd": "${workspaceFolder}/build/Debug"
+                },
+                "problemMatcher": "$msCompile"
+            }
+        },
+        {
+            "label": "Run 5-play_video_c (Release)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./5-play_video_c.exe test.mp4; else ./5-play_video_c test.mp4; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Release"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Release)"
+            ],
+            "windows": {
+                "command": ".\\5-play_video_c.exe",
+                "args": ["test.mp4"],
+                "options": {
+                    "cwd": "${workspaceFolder}/build/Release"
+                },
+                "problemMatcher": "$msCompile"
+            }
+        },
+        {
             "label": "Run ccap CLI --help (Debug)",
             "type": "shell",
             "command": "bash",
@@ -1221,6 +1312,62 @@
             "windows": {
                 "command": ".\\ccap.exe",
                 "args": ["-d", "0", "-c", "5", "-o", ".\\captures"],
+                "problemMatcher": "$msCompile"
+            }
+        },
+        {
+            "label": "Run ccap CLI --video test.mp4 (Debug)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./ccap.exe --video test.mp4 -c 10 -o ./video_frames; else ./ccap --video test.mp4 -c 10 -o ./video_frames; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Debug"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Config: Enable CLI Tool",
+                "Build Project (Debug)"
+            ],
+            "dependsOrder": "sequence",
+            "windows": {
+                "command": ".\\ccap.exe",
+                "args": ["--video", "test.mp4", "-c", "10", "-o", ".\\video_frames"],
+                "options": {
+                    "cwd": "${workspaceFolder}/build/Debug"
+                },
+                "problemMatcher": "$msCompile"
+            }
+        },
+        {
+            "label": "Run ccap CLI --video test.mp4 (Release)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./ccap.exe --video test.mp4 -c 10 -o ./video_frames; else ./ccap --video test.mp4 -c 10 -o ./video_frames; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Release"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Config: Enable CLI Tool",
+                "Build Project (Release)"
+            ],
+            "dependsOrder": "sequence",
+            "windows": {
+                "command": ".\\ccap.exe",
+                "args": ["--video", "test.mp4", "-c", "10", "-o", ".\\video_frames"],
+                "options": {
+                    "cwd": "${workspaceFolder}/build/Release"
+                },
                 "problemMatcher": "$msCompile"
             }
         }

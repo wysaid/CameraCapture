@@ -27,13 +27,23 @@ int main(int argc, char** argv) {
                   << ", Description: " << description << std::endl;
     });
 
+    std::string videoPath;
+    
     if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <video_file_path>" << std::endl;
-        std::cerr << "Example: " << argv[0] << " /path/to/video.mp4" << std::endl;
-        return -1;
+        // Check if test.mp4 exists in current directory
+        std::string defaultVideo = "test.mp4";
+        if (std::filesystem::exists(defaultVideo)) {
+            std::cout << "No video path provided, using default: " << defaultVideo << std::endl;
+            videoPath = defaultVideo;
+        } else {
+            std::cerr << "Usage: " << argv[0] << " <video_file_path>" << std::endl;
+            std::cerr << "Example: " << argv[0] << " /path/to/video.mp4" << std::endl;
+            std::cerr << "\nNote: You can also place a test.mp4 file in the same directory as this executable." << std::endl;
+            return -1;
+        }
+    } else {
+        videoPath = argv[1];
     }
-
-    std::string videoPath = argv[1];
 
     // Check if file exists
     if (!std::filesystem::exists(videoPath)) {
