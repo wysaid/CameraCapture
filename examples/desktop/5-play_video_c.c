@@ -28,13 +28,25 @@ int main(int argc, char** argv) {
     printf("ccap C Interface Video Playback Example\n");
     printf("Version: %s\n\n", ccap_get_version());
 
+    const char* videoPath = NULL;
+    
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <video_file_path>\n", argv[0]);
-        fprintf(stderr, "Example: %s /path/to/video.mp4\n", argv[0]);
-        return -1;
+        // Check if test.mp4 exists in current directory
+        const char* defaultVideo = "test.mp4";
+        FILE* testFile = fopen(defaultVideo, "rb");
+        if (testFile != NULL) {
+            fclose(testFile);
+            printf("No video path provided, using default: %s\n", defaultVideo);
+            videoPath = defaultVideo;
+        } else {
+            fprintf(stderr, "Usage: %s <video_file_path>\n", argv[0]);
+            fprintf(stderr, "Example: %s /path/to/video.mp4\n", argv[0]);
+            fprintf(stderr, "\nNote: You can also place a test.mp4 file in the same directory as this executable.\n");
+            return -1;
+        }
+    } else {
+        videoPath = argv[1];
     }
-
-    const char* videoPath = argv[1];
 
     // Enable verbose log to see debug information
     ccap_set_log_level(CCAP_LOG_LEVEL_VERBOSE);
