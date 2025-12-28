@@ -141,8 +141,8 @@ void printUsage(const char* programName) {
 
 #ifdef CCAP_CLI_WITH_GLFW
     std::cout << "Preview options:\n"
-              << "  -p, --preview              enable window preview\n"
-              << "  --preview-only             preview without saving frames\n"
+              << "  -p, --preview              enable window preview (no frame saving)\n"
+              << "  --preview-only             same as --preview (kept for compatibility)\n"
               << "\n";
 #endif
 
@@ -167,7 +167,8 @@ void printUsage(const char* programName) {
               << "  " << programName << " -i \"Full HD webcam\" -c 5 -o ./captures\n"
               << "  " << programName << " --video /path/to/video.mp4 -c 30 -o ./frames\n";
 #ifdef CCAP_CLI_WITH_GLFW
-    std::cout << "  " << programName << " -d 0 --preview\n";
+    std::cout << "  " << programName << " -d 0 --preview\n"
+              << "  " << programName << " -i /path/to/video.mp4 --preview\n";
 #endif
 #ifdef CCAP_CLI_WITH_STB_IMAGE
     std::cout << "  " << programName << " --convert input.yuv --yuv-format nv12 --yuv-width 1920 --yuv-height 1080 --convert-output output.jpg --image-format jpg\n";
@@ -959,7 +960,11 @@ int runPreview(const CLIOptions& opts) {
     // Pre-allocate texture storage once
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, frameWidth, frameHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 
-    std::cout << "Preview started. Press ESC or close window to exit." << std::endl;
+    std::string sourceType = opts.videoFilePath.empty() ? "camera" : "video file";
+    std::cout << "Preview started for " << sourceType << ". Press ESC or close window to exit." << std::endl;
+    if (!opts.videoFilePath.empty()) {
+        std::cout << "Note: In preview mode, frames are NOT saved to disk." << std::endl;
+    }
 
     while (!glfwWindowShouldClose(window)) {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -972,6 +977,13 @@ int runPreview(const CLIOptions& opts) {
         if (auto frame = provider.grab(500)) {
             // Update texture data efficiently using glTexSubImage2D
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, frameWidth, frameHeight, GL_RGBA, GL_UNSIGNED_BYTE, frame->data[0]);
+        } else {
+            // If grab fails in file mode, video has ended
+            if (!opts.videoFilePath.empty()) {
+                std::cout << "Video playback finished." << std::endl;
+                break;
+            }
+            // For camera mode, continue waiting for next frame
         }
 
         int windowWidth, windowHeight;
@@ -1237,15 +1249,12 @@ int main(int argc, char* argv[]) {
 
 #ifdef CCAP_CLI_WITH_GLFW
     if (opts.enablePreview) {
-        if (opts.previewOnly) {
-            return ccap_cli::runPreview(opts);
-        }
-        // TODO: Support preview + capture simultaneously
+        // Preview mode: don't save frames to avoid stuttering
         return ccap_cli::runPreview(opts);
     }
 #endif
 
-    // Default: capture mode
+    // Default: capture mode (saves frames)
     if (!opts.outputDir.empty() || opts.captureCount > 0) {
         return ccap_cli::captureFrames(opts);
     }
