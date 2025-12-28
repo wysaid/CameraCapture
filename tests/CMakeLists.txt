@@ -223,6 +223,55 @@ if (CCAP_BUILD_CLI)
     endif ()
 endif ()
 
+# File playback test executable - tests video file playback functionality
+# Only build if file playback is enabled (Windows/macOS only)
+if (CCAP_ENABLE_FILE_PLAYBACK)
+    add_executable(
+            ccap_file_playback_test
+            test_file_playback.cpp
+    )
+
+    target_link_libraries(
+            ccap_file_playback_test
+            PRIVATE
+            ccap_test_utils
+            gtest
+            gmock
+    )
+
+    set_target_properties(ccap_file_playback_test PROPERTIES
+            CXX_STANDARD 17
+            CXX_STANDARD_REQUIRED ON
+    )
+
+    target_compile_definitions(ccap_file_playback_test PRIVATE
+            $<$<CONFIG:Debug>:DEBUG>
+            $<$<CONFIG:Release>:NDEBUG>
+            $<$<AND:$<NOT:$<BOOL:${MSVC}>>,$<NOT:$<BOOL:${MINGW}>>>:GTEST_HAS_PTHREAD=1>
+    )
+
+    if (MSVC)
+        target_compile_options(ccap_file_playback_test PRIVATE
+                /MP
+                /std:c++17
+                /Zc:__cplusplus
+                /Zc:preprocessor
+                /source-charset:utf-8
+                /bigobj
+                /wd4996
+                /D_CRT_SECURE_NO_WARNINGS
+        )
+    else ()
+        target_compile_options(ccap_file_playback_test PRIVATE
+                -std=c++17
+        )
+    endif ()
+    
+    message(STATUS "ccap: File playback tests enabled")
+else ()
+    message(STATUS "ccap: File playback tests disabled (CCAP_ENABLE_FILE_PLAYBACK is OFF)")
+endif ()
+
 # Enable testing before any test registration
 enable_testing()
 
@@ -240,6 +289,9 @@ if (NOT CMAKE_CROSSCOMPILING)
     endif ()
     if (CCAP_BUILD_CLI)
         gtest_discover_tests(ccap_cli_test DISCOVERY_MODE PRE_TEST)
+    endif ()
+    if (CCAP_ENABLE_FILE_PLAYBACK)
+        gtest_discover_tests(ccap_file_playback_test DISCOVERY_MODE PRE_TEST)
     endif ()
 else ()
     message(STATUS "CMAKE_CROSSCOMPILING is ON: skipping GoogleTest discovery at configure time.")

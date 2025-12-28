@@ -87,7 +87,13 @@ CommandResult executeCommand(const std::string& command) {
         result.output += buffer.data();
     }
     
-    result.exitCode = MY_PCLOSE(pipe.release()) >> 8;
+    // Get exit code - _pclose on Windows returns exit code directly, pclose on Unix returns status
+    int status = MY_PCLOSE(pipe.release());
+#ifdef _WIN32
+    result.exitCode = status;  // Windows: _pclose returns exit code directly
+#else
+    result.exitCode = WIFEXITED(status) ? WEXITSTATUS(status) : -1;  // Unix: extract exit code from status
+#endif
     
     return result;
 }
@@ -103,18 +109,22 @@ std::string getCLIPath() {
     fs::path cliPath = testExePath / "ccap";
 #endif
     
-    // If not found, try parent directory (common build layout)
+    // If not found, try parent directory (common build layout: tests -> parent)
     if (!fs::exists(cliPath)) {
         cliPath = testExePath.parent_path() / cliPath.filename();
     }
     
-    // Try just the name (in PATH)
+    // On Windows MSVC multi-config, try going from tests/Release -> build/Release
+    // tests/Release -> tests -> build -> build/Release
     if (!fs::exists(cliPath)) {
-#ifdef _WIN32
-        cliPath = "ccap.exe";
-#else
-        cliPath = "./ccap";
-#endif
+        auto testsDir = testExePath.parent_path();  // tests/Release -> tests
+        auto buildDir = testsDir.parent_path();      // tests -> build
+        cliPath = buildDir / testExePath.filename() / cliPath.filename();  // build/Release/ccap.exe
+    }
+    
+    // If still not found, return an empty string to trigger skip
+    if (!fs::exists(cliPath)) {
+        return "";
     }
     
     return cliPath.string();
@@ -602,6 +612,147 @@ TEST_F(CCAPCLITest, ConvertNV12ToImage_Green) {
     EXPECT_LT(pixel.b, 100) << "Blue channel too high: " << (int)pixel.b;
 }
 
+// ============================================================================
+// Video File Playback Tests
+// ============================================================================
+
+#if defined(CCAP_ENABLE_FILE_PLAYBACK)
+
+// Helper to get test video path (from built-in tests/test-data directory)
+std::string getTestVideoPath() {
+    // Test video is in tests/test-data directory (built-in test resource)
+    fs::path projectRoot = fs::current_path();
+    
+    // Navigate to project root
+    while (projectRoot.has_parent_path()) {
+        if (fs::exists(projectRoot / "CMakeLists.txt") && fs::exists(projectRoot / "tests")) {
+            break;
+        }
+        projectRoot = projectRoot.parent_path();
+    }
+    
+    fs::path testVideoPath = projectRoot / "tests" / "test-data" / "test.mp4";
+    
+    if (!fs::exists(testVideoPath)) {
+        return "";  // Test video not available
+    }
+    
+    return testVideoPath.string();
+}
+
+TEST_F(CCAPCLITest, VideoPlayback_CaptureFrames) {
+    std::string videoPath = getTestVideoPath();
+    if (videoPath.empty()) {
+        GTEST_SKIP() << "Test video not available";
+    }
+    
+    // Capture 5 frames from video file with BMP output (default when STB not available)
+    std::string cmd = "--video \"" + videoPath + "\" -c 5 --image-format bmp -o " + testOutputDir.string();
+    
+    auto result = runCLI(cmd);
+    ASSERT_EQ(result.exitCode, 0) << "Video playback failed: " << result.output;
+    
+    // Verify frames were saved
+    int frameCount = 0;
+    for (const auto& entry : fs::directory_iterator(testOutputDir)) {
+        if (entry.path().extension() == ".bmp") {
+            frameCount++;
+        }
+    }
+    
+    EXPECT_EQ(frameCount, 5) << "Expected 5 frames to be saved";
+    
+    // Verify output contains video information
+    EXPECT_THAT(result.output, testing::HasSubstr("Video file:"));
+    EXPECT_THAT(result.output, testing::HasSubstr("Resolution:"));
+    EXPECT_THAT(result.output, testing::HasSubstr("Frame rate:"));
+}
+
+TEST_F(CCAPCLITest, VideoPlayback_LimitedCapture) {
+    std::string videoPath = getTestVideoPath();
+    if (videoPath.empty()) {
+        GTEST_SKIP() << "Test video not available";
+    }
+    
+    // Capture only 3 frames with BMP output
+    std::string cmd = "--video \"" + videoPath + "\" -c 3 --image-format bmp -o " + testOutputDir.string();
+    
+    auto result = runCLI(cmd);
+    ASSERT_EQ(result.exitCode, 0);
+    
+    // Count output files
+    int frameCount = 0;
+    for (const auto& entry : fs::directory_iterator(testOutputDir)) {
+        if (entry.path().extension() == ".bmp") {
+            frameCount++;
+        }
+    }
+    
+    EXPECT_EQ(frameCount, 3) << "Should capture exactly 3 frames";
+}
+
+TEST_F(CCAPCLITest, VideoPlayback_InvalidFile) {
+    std::string invalidPath = testOutputDir.string() + "/nonexistent.mp4";
+    
+    std::string cmd = "--video \"" + invalidPath + "\" -c 1 -o " + testOutputDir.string();
+    
+    auto result = runCLI(cmd);
+    
+    // Should fail with non-zero exit code
+    EXPECT_NE(result.exitCode, 0) << "Should fail with invalid video file";
+    EXPECT_THAT(result.output, testing::HasSubstr("Failed to open video file"));
+}
+
+TEST_F(CCAPCLITest, VideoPlayback_WithPixelFormat) {
+    std::string videoPath = getTestVideoPath();
+    if (videoPath.empty()) {
+        GTEST_SKIP() << "Test video not available";
+    }
+    
+    // Capture frames with specific pixel format and BMP output
+    std::string cmd = "--video \"" + videoPath + "\" -c 2 --format rgb24 --image-format bmp -o " + testOutputDir.string();
+    
+    auto result = runCLI(cmd);
+    ASSERT_EQ(result.exitCode, 0) << "Video playback with format failed: " << result.output;
+    
+    // Verify frames were created
+    int frameCount = 0;
+    for (const auto& entry : fs::directory_iterator(testOutputDir)) {
+        if (entry.path().extension() == ".bmp") {
+            frameCount++;
+        }
+    }
+    
+    EXPECT_EQ(frameCount, 2);
+}
+
+#ifdef CCAP_CLI_WITH_STB_IMAGE
+TEST_F(CCAPCLITest, VideoPlayback_JPEGOutput) {
+    std::string videoPath = getTestVideoPath();
+    if (videoPath.empty()) {
+        GTEST_SKIP() << "Test video not available";
+    }
+    
+    // Capture frames and save as JPEG
+    std::string cmd = "--video \"" + videoPath + "\" -c 3 --image-format jpg --jpeg-quality 85 -o " + testOutputDir.string();
+    
+    auto result = runCLI(cmd);
+    ASSERT_EQ(result.exitCode, 0);
+    
+    // Verify JPEG files were created
+    int jpegCount = 0;
+    for (const auto& entry : fs::directory_iterator(testOutputDir)) {
+        if (entry.path().extension() == ".jpg") {
+            jpegCount++;
+        }
+    }
+    
+    EXPECT_EQ(jpegCount, 3) << "Expected 3 JPEG files";
+}
+#endif // CCAP_CLI_WITH_STB_IMAGE
+
+#endif // CCAP_ENABLE_FILE_PLAYBACK
+
 // Device-dependent tests requiring an actual camera device
 
 TEST_F(CCAPCLIDeviceTest, CaptureDefaultDevice) {
@@ -838,4 +989,63 @@ TEST_F(CCAPCLITest, ConvertI420ToImage_Green) {
     EXPECT_LT(pixel.r, 100) << "Red channel too high: " << (int)pixel.r;
     EXPECT_GT(pixel.g, 200) << "Green channel too low: " << (int)pixel.g;
     EXPECT_LT(pixel.b, 100) << "Blue channel too high: " << (int)pixel.b;
+}
+
+// Test new -i/--input parameter with video file
+TEST_F(CCAPCLITest, InputParameter_VideoFile) {
+    std::string videoPath = getTestVideoPath();
+    if (videoPath.empty()) {
+        GTEST_SKIP() << "Test video not available";
+    }
+    
+    // Use -i parameter with video file path
+    std::string cmd = "-i \"" + videoPath + "\" -c 3 --image-format bmp -o " + testOutputDir.string();
+    
+    auto result = runCLI(cmd);
+    ASSERT_EQ(result.exitCode, 0) << "Input parameter with video file failed: " << result.output;
+    EXPECT_THAT(result.output, testing::HasSubstr("Video file:"));
+    
+    // Verify frames were created
+    int frameCount = 0;
+    for (const auto& entry : fs::directory_iterator(testOutputDir)) {
+        if (entry.path().extension() == ".bmp") {
+            frameCount++;
+        }
+    }
+    
+    EXPECT_EQ(frameCount, 3) << "Should capture exactly 3 frames";
+}
+
+// Test new -i/--input parameter with device index
+TEST_F(CCAPCLIDeviceTest, InputParameter_DeviceIndex) {
+    // Use -i parameter with device index
+    std::string cmd = "-i 0 -c 1 --image-format bmp -o " + testOutputDir.string();
+    
+    auto result = runCLI(cmd);
+    
+    if (result.exitCode == 0) {
+        // If succeeded, should have created output
+        int imageCount = 0;
+        for (const auto& entry : fs::directory_iterator(testOutputDir)) {
+            if (entry.path().extension() == ".bmp") {
+                imageCount++;
+            }
+        }
+        EXPECT_EQ(imageCount, 1) << "Expected 1 image file, found " << imageCount;
+    }
+}
+
+// Test new -i/--input parameter with non-existent device name
+TEST_F(CCAPCLIDeviceTest, InputParameter_DeviceName) {
+    // Use -i parameter with a device name that doesn't exist
+    std::string cmd = "-i \"NonExistentDevice\" -c 1 --image-format bmp -o " + testOutputDir.string();
+    
+    auto result = runCLI(cmd);
+    
+    // Should fail because device doesn't exist
+    EXPECT_NE(result.exitCode, 0) << "Should fail with non-existent device";
+    EXPECT_THAT(result.output, testing::AnyOf(
+        testing::HasSubstr("Failed to open"),
+        testing::HasSubstr("No video capture device")
+    ));
 }

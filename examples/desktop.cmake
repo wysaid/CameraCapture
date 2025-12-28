@@ -99,3 +99,31 @@ foreach(EXAMPLE ${EXAMPLE_SOURCE})
         message(STATUS "ccap: Add example: ${EXAMPLE_NAME}")
     endif()
 endforeach()
+
+# Link built-in test video for video examples
+set(TEST_VIDEO_PATH "${CMAKE_SOURCE_DIR}/tests/test-data/test.mp4")
+
+if(EXISTS "${TEST_VIDEO_PATH}")
+    message(STATUS "ccap: Built-in test video found at ${TEST_VIDEO_PATH}")
+    
+    foreach(EXAMPLE ${EXAMPLE_SOURCE})
+        get_filename_component(EXAMPLE_NAME ${EXAMPLE} NAME)
+        string(REGEX REPLACE "\\.(cpp|c)$" "" EXAMPLE_NAME ${EXAMPLE_NAME})
+        
+        # Check if example name contains "video"
+        if(${EXAMPLE_NAME} MATCHES "video")
+            # Create a custom command to link test video to output directory after build
+            add_custom_command(
+                TARGET ${EXAMPLE_NAME} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E create_symlink
+                    "${TEST_VIDEO_PATH}"
+                    "$<TARGET_FILE_DIR:${EXAMPLE_NAME}>/test.mp4"
+                COMMENT "Linking test video to ${EXAMPLE_NAME} output directory"
+                VERBATIM
+            )
+            message(STATUS "ccap: Will link test video for example: ${EXAMPLE_NAME}")
+        endif()
+    endforeach()
+else()
+    message(WARNING "ccap: Built-in test video not found at ${TEST_VIDEO_PATH}")
+endif()

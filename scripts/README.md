@@ -76,11 +76,29 @@ This directory contains various build and test scripts for the ccap project.
 
 ### Test Scripts
 
+- **`run_tests.sh`** - Comprehensive test runner for all ccap tests
+
+  ```bash
+  # Run all tests (functional + performance)
+  /path/to/ccap/scripts/run_tests.sh
+  
+  # Run only functional tests (with AddressSanitizer)
+  /path/to/ccap/scripts/run_tests.sh --functional
+  
+  # Run only performance tests (without ASAN)
+  /path/to/ccap/scripts/run_tests.sh --performance
+  
+  # Run video file playback tests
+  /path/to/ccap/scripts/run_tests.sh --video
+  ```
+  
+  Video playback tests use a built-in test video (tests/test-data/test.mp4) included in the repository.
+
 - **`test_arch.sh`** - Architecture detection test
 
-```bash
-/path/to/ccap/scripts/test_arch.sh
-```
+  ```bash
+  /path/to/ccap/scripts/test_arch.sh
+  ```
 
 This script detects the current system and compiler architecture support, helping debug NEON feature detection issues.
 

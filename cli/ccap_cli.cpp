@@ -114,12 +114,13 @@ void printUsage(const char* programName) {
               << "  -h, --help                 show this help message\n"
               << "  -v, --version              show version information\n"
               << "  -l, --list-devices         list all available camera devices\n"
-              << "  -i, --device-info index    show detailed info for device at index\n"
+              << "  -I, --device-info index    show detailed info for device at index\n"
               << "\n"
               << "Global options:\n"
               << "  --verbose                  enable verbose logging\n"
               << "\n"
               << "Capture options:\n"
+              << "  -i, --input source         input source: video file, device index, or device name\n"
               << "  -d, --device index|name    select camera device by index or name (default: 0)\n"
               << "  -w, --width width          set capture width (default: " << DEFAULT_WIDTH << ")\n"
               << "  -H, --height height        set capture height (default: " << DEFAULT_HEIGHT << ")\n"
@@ -161,7 +162,10 @@ void printUsage(const char* programName) {
 #else
               << "  " << programName << " -d 0 -w 1920 -H 1080 -c 10 -o ./captures\n"
 #endif
-              << "  " << programName << " -d 0 -w 1920 -H 1080 -c 10 -o ./captures --image-format png\n";
+              << "  " << programName << " -i 0 -w 1920 -H 1080 -c 10 -o ./captures --image-format png\n"
+              << "  " << programName << " -i /path/to/video.mp4 -c 30 -o ./frames\n"
+              << "  " << programName << " -i \"Full HD webcam\" -c 5 -o ./captures\n"
+              << "  " << programName << " --video /path/to/video.mp4 -c 30 -o ./frames\n";
 #ifdef CCAP_CLI_WITH_GLFW
     std::cout << "  " << programName << " -d 0 --preview\n";
 #endif
@@ -236,6 +240,39 @@ ImageFormat parseImageFormat(const std::string& formatStr) {
     return ImageFormat::JPG;
 }
 
+void parseInputSource(const std::string& inputStr, CLIOptions& opts) {
+    // Check if input is a pure number (device index)
+    bool isNumber = true;
+    for (char c : inputStr) {
+        if (!std::isdigit(c) && c != '-') {
+            isNumber = false;
+            break;
+        }
+    }
+    
+    if (isNumber) {
+        // Input is a device index
+        opts.deviceIndex = std::atoi(inputStr.c_str());
+        opts.deviceName.clear();
+        opts.videoFilePath.clear();
+        return;
+    }
+    
+    // Check if input is an existing file (video file)
+    std::filesystem::path inputPath(inputStr);
+    std::error_code ec;
+    if (std::filesystem::exists(inputPath, ec) && std::filesystem::is_regular_file(inputPath, ec)) {
+        // Input is a video file
+        opts.videoFilePath = inputStr;
+        opts.deviceName.clear();
+        return;
+    }
+    
+    // Input is a device name (not a file, not a number)
+    opts.deviceName = inputStr;
+    opts.videoFilePath.clear();
+}
+
 CLIOptions parseArgs(int argc, char* argv[]) {
     CLIOptions opts;
 
@@ -250,10 +287,16 @@ CLIOptions parseArgs(int argc, char* argv[]) {
             opts.verbose = true;
         } else if (arg == "-l" || arg == "--list-devices") {
             opts.listDevices = true;
-        } else if (arg == "-i" || arg == "--device-info") {
+        } else if (arg == "-I" || arg == "--device-info") {
             opts.showDeviceInfo = true;
             if (i + 1 < argc && argv[i + 1][0] != '-') {
                 opts.deviceInfoIndex = std::atoi(argv[++i]);
+            }
+        } else if (arg == "-i" || arg == "--input") {
+            if (i + 1 < argc) {
+                std::string inputStr = argv[++i];
+                opts.inputSource = inputStr;
+                parseInputSource(inputStr, opts);
             }
         } else if (arg == "-d" || arg == "--device") {
             if (i + 1 < argc) {
@@ -264,6 +307,10 @@ CLIOptions parseArgs(int argc, char* argv[]) {
                 } else {
                     opts.deviceName = val;
                 }
+            }
+        } else if (arg == "--video") {
+            if (i + 1 < argc) {
+                opts.videoFilePath = argv[++i];
             }
         } else if (arg == "-w" || arg == "--width") {
             if (i + 1 < argc) {
@@ -619,10 +666,12 @@ bool saveFrameAsImage(ccap::VideoFrame* frame, const std::string& outputPath,
 int captureFrames(const CLIOptions& opts) {
     ccap::Provider provider;
 
-    // Set capture parameters
-    provider.set(ccap::PropertyName::Width, opts.width);
-    provider.set(ccap::PropertyName::Height, opts.height);
-    provider.set(ccap::PropertyName::FrameRate, opts.fps);
+    // Set capture parameters (only meaningful for camera mode)
+    if (opts.videoFilePath.empty()) {
+        provider.set(ccap::PropertyName::Width, opts.width);
+        provider.set(ccap::PropertyName::Height, opts.height);
+        provider.set(ccap::PropertyName::FrameRate, opts.fps);
+    }
 
     if (opts.internalFormat != ccap::PixelFormat::Unknown) {
         provider.set(ccap::PropertyName::PixelFormatInternal, opts.internalFormat);
@@ -632,16 +681,52 @@ int captureFrames(const CLIOptions& opts) {
         provider.set(ccap::PropertyName::PixelFormatOutput, opts.outputFormat);
     }
 
-    // Open device
+    // Open device or video file
     bool opened = false;
-    if (!opts.deviceName.empty()) {
-        opened = provider.open(opts.deviceName, true);
+    if (!opts.videoFilePath.empty()) {
+        // Video file playback mode
+#if defined(CCAP_ENABLE_FILE_PLAYBACK)
+        opened = provider.open(opts.videoFilePath, true);
+        if (!opened) {
+            std::cerr << "Failed to open video file: " << opts.videoFilePath << std::endl;
+            std::cerr << "Make sure the file exists and is a supported video format." << std::endl;
+            return 1;
+        }
+        
+        if (provider.isFileMode()) {
+            // Get video properties
+            double duration = provider.get(ccap::PropertyName::Duration);
+            double frameCount = provider.get(ccap::PropertyName::FrameCount);
+            double frameRate = provider.get(ccap::PropertyName::FrameRate);
+            int width = static_cast<int>(provider.get(ccap::PropertyName::Width));
+            int height = static_cast<int>(provider.get(ccap::PropertyName::Height));
+            
+            std::cout << "Video file: " << opts.videoFilePath << std::endl;
+            std::cout << "  Resolution: " << width << "x" << height << std::endl;
+            std::cout << "  Frame rate: " << frameRate << " fps" << std::endl;
+            std::cout << "  Duration: " << duration << " seconds" << std::endl;
+            std::cout << "  Total frames: " << static_cast<int>(frameCount) << std::endl;
+        }
+#else
+        std::cerr << "Video file playback is not supported. Rebuild with CCAP_ENABLE_FILE_PLAYBACK=ON" << std::endl;
+        return 1;
+#endif
     } else {
-        opened = provider.open(opts.deviceIndex, true);
+        // Camera capture mode
+        if (!opts.deviceName.empty()) {
+            opened = provider.open(opts.deviceName, true);
+        } else {
+            opened = provider.open(opts.deviceIndex, true);
+        }
+        
+        if (!opened) {
+            std::cerr << "Failed to open camera device." << std::endl;
+            return 1;
+        }
     }
 
     if (!opened || !provider.isStarted()) {
-        std::cerr << "Failed to open/start camera device." << std::endl;
+        std::cerr << "Failed to open/start " << (opts.videoFilePath.empty() ? "camera device" : "video file") << "." << std::endl;
         return 1;
     }
 
@@ -718,23 +803,40 @@ void main() {
 int runPreview(const CLIOptions& opts) {
     ccap::Provider provider;
 
-    // Set capture parameters
-    provider.set(ccap::PropertyName::Width, opts.width);
-    provider.set(ccap::PropertyName::Height, opts.height);
-    provider.set(ccap::PropertyName::FrameRate, opts.fps);
+    // Set capture parameters (only meaningful for camera mode)
+    if (opts.videoFilePath.empty()) {
+        provider.set(ccap::PropertyName::Width, opts.width);
+        provider.set(ccap::PropertyName::Height, opts.height);
+        provider.set(ccap::PropertyName::FrameRate, opts.fps);
+    }
     provider.set(ccap::PropertyName::PixelFormatOutput, ccap::PixelFormat::RGBA32);
     provider.set(ccap::PropertyName::FrameOrientation, ccap::FrameOrientation::BottomToTop);
 
-    // Open device
+    // Open device or video file
     bool opened = false;
-    if (!opts.deviceName.empty()) {
-        opened = provider.open(opts.deviceName, true);
+    if (!opts.videoFilePath.empty()) {
+        // Video file playback mode
+#if defined(CCAP_ENABLE_FILE_PLAYBACK)
+        opened = provider.open(opts.videoFilePath, true);
+        if (!opened) {
+            std::cerr << "Failed to open video file: " << opts.videoFilePath << std::endl;
+            return 1;
+        }
+#else
+        std::cerr << "Video file playback is not supported. Rebuild with CCAP_ENABLE_FILE_PLAYBACK=ON" << std::endl;
+        return 1;
+#endif
     } else {
-        opened = provider.open(opts.deviceIndex, true);
+        // Camera capture mode
+        if (!opts.deviceName.empty()) {
+            opened = provider.open(opts.deviceName, true);
+        } else {
+            opened = provider.open(opts.deviceIndex, true);
+        }
     }
 
     if (!opened || !provider.isStarted()) {
-        std::cerr << "Failed to open/start camera device." << std::endl;
+        std::cerr << "Failed to open/start " << (opts.videoFilePath.empty() ? "camera device" : "video file") << "." << std::endl;
         return 1;
     }
 

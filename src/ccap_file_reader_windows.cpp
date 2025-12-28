@@ -120,6 +120,14 @@ bool FileReaderWindows::createSourceReader(const std::wstring& filePath) {
         return false;
     }
     
+    // Enable video processing for format conversion
+    hr = attributes->SetUINT32(MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, TRUE);
+    if (FAILED(hr)) {
+        attributes->Release();
+        reportError(ErrorCode::FileOpenFailed, "Failed to enable video processing");
+        return false;
+    }
+    
     hr = MFCreateSourceReaderFromURL(filePath.c_str(), attributes, &m_sourceReader);
     attributes->Release();
     
@@ -134,11 +142,10 @@ bool FileReaderWindows::createSourceReader(const std::wstring& filePath) {
     hr = m_sourceReader->GetPresentationAttribute(MF_SOURCE_READER_MEDIASOURCE, MF_PD_DURATION, &var);
     if (SUCCEEDED(hr)) {
         LONGLONG duration100ns = 0;
-        // MinGW-compatible way to extract LONGLONG from PROPVARIANT
-        if (var.vt == VT_I8) {
-            duration100ns = var.hVal.QuadPart;
+        // Use PropVariantToInt64 for proper PROPVARIANT handling
+        if (SUCCEEDED(PropVariantToInt64(var, &duration100ns))) {
+            m_duration = static_cast<double>(duration100ns) / kMFTimeUnitsPerSecond;
         }
-        m_duration = static_cast<double>(duration100ns) / kMFTimeUnitsPerSecond;
     }
     PropVariantClear(&var);
     
@@ -185,10 +192,20 @@ bool FileReaderWindows::configureOutput() {
     if (!m_sourceReader) {
         return false;
     }
+
+    // Deselect all streams first
+    m_sourceReader->SetStreamSelection(MF_SOURCE_READER_ALL_STREAMS, FALSE);
+    
+    // Select only the first video stream
+    HRESULT hr = m_sourceReader->SetStreamSelection(MF_SOURCE_READER_FIRST_VIDEO_STREAM, TRUE);
+    if (FAILED(hr)) {
+        reportError(ErrorCode::UnsupportedVideoFormat, "Failed to select video stream");
+        return false;
+    }
     
     // Create output media type - request NV12 or RGB32 based on provider settings
     IMFMediaType* outputType = nullptr;
-    HRESULT hr = MFCreateMediaType(&outputType);
+    hr = MFCreateMediaType(&outputType);
     if (FAILED(hr)) {
         return false;
     }

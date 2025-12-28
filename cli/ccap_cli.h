@@ -38,8 +38,10 @@ struct CLIOptions {
     int deviceInfoIndex = -1; // -1 means all devices
 
     // Capture options
+    std::string inputSource;  // Unified input: video file, device index, or device name
     int deviceIndex = 0;
     std::string deviceName;
+    std::string videoFilePath;  // Path to video file (for file playback mode)
     int width = 1280;
     int height = 720;
     double fps = 30.0;
@@ -82,6 +84,13 @@ void printVersion();
  * @param programName Name of the program (argv[0])
  */
 void printUsage(const char* programName);
+
+/**
+ * @brief Parse input source and update CLIOptions accordingly
+ * @param inputStr Input string (file path, device index, or device name)
+ * @param opts CLIOptions to update
+ */
+void parseInputSource(const std::string& inputStr, CLIOptions& opts);
 
 /**
  * @brief Parse pixel format string to PixelFormat enum
