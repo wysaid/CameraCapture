@@ -15,10 +15,10 @@
 
 #include "ccap_imp.h"
 
+#include <atomic>
+#include <memory>
 #include <string>
 #include <string_view>
-#include <memory>
-#include <atomic>
 
 struct IMFSourceReader;
 struct IMFMediaType;
@@ -83,22 +83,22 @@ private:
 
     ProviderDirectShow* m_provider = nullptr;
     IMFSourceReader* m_sourceReader = nullptr;
-    
+
     double m_duration = 0.0;
     double m_frameRate = 30.0;
     int64_t m_totalFrameCount = 0;
     int m_width = 0;
     int m_height = 0;
-    
-    std::atomic<int64_t> m_currentFrameIndex{0};
-    std::atomic<double> m_currentTime{0.0};
-    std::atomic<double> m_playbackSpeed{1.0};
-    
-    std::atomic<bool> m_isOpened{false};
-    std::atomic<bool> m_isStarted{false};
-    std::atomic<bool> m_shouldStop{false};
-    std::atomic<bool> m_isReading{false};
-    
+
+    std::atomic<int64_t> m_currentFrameIndex{ 0 };
+    std::atomic<double> m_currentTime{ 0.0 };
+    std::atomic<double> m_playbackSpeed{ 1.0 };
+
+    std::atomic<bool> m_isOpened{ false };
+    std::atomic<bool> m_isStarted{ false };
+    std::atomic<bool> m_shouldStop{ false };
+    std::atomic<bool> m_isReading{ false };
+
     bool m_mfInitialized = false;
 };
 

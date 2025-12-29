@@ -93,7 +93,7 @@ public:
     inline const std::function<std::shared_ptr<Allocator>()>& getAllocatorFactory() const { return m_allocatorFactory; }
 
     bool tooManyNewFrames();
-    
+
     /// Notify waiting grab() calls to wake up (e.g., when playback completes or device stops)
     void notifyGrabWaiters();
 

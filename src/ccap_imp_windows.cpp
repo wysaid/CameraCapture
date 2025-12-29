@@ -37,8 +37,9 @@
 // Include initguid.h before our GUID definitions header so that DEFINE_GUID
 // actually defines the GUIDs (rather than just declaring them as extern).
 // This avoids the need to link against strmiids.lib.
-#include <initguid.h>
 #include "ccap_dshow_guids.h"
+
+#include <initguid.h>
 
 /// @see <https://doxygen.reactos.org/d9/dce/structtagVIDEOINFOHEADER2.html>
 typedef struct tagVIDEOINFOHEADER2 {
@@ -680,13 +681,13 @@ bool ProviderDirectShow::openFile(std::string_view filePath) {
 
     m_isFileMode = true;
     m_fileReader = std::make_unique<FileReaderWindows>(this);
-    
+
     if (!m_fileReader->open(filePath)) {
         m_fileReader.reset();
         m_isFileMode = false;
         return false;
     }
-    
+
     m_isOpened = true;
     return true;
 #endif // CCAP_ENABLE_FILE_PLAYBACK
@@ -797,13 +798,13 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
             // biHeight may be negative. Negative height indicates top-to-bottom orientation.
             // Positive height indicates bottom-to-top orientation (standard Windows DIB format).
             m_frameProp.height = abs(vih->bmiHeader.biHeight);
-            
+
             // For YUV formats, always assume TopToBottom orientation regardless of biHeight
             // This fixes issues with some virtual cameras (like OBS) that report positive biHeight
             // but actually deliver TopToBottom data
             auto info = findPixelFormatInfo(mt.subtype);
             bool isYUVFormat = (info.pixelFormat & kPixelFormatYUVColorBit) != 0;
-            
+
             if (isYUVFormat) {
                 // YUV data is typically TopToBottom, ignore biHeight sign
                 m_inputOrientation = FrameOrientation::TopToBottom;
@@ -813,7 +814,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
             } else {
                 m_inputOrientation = FrameOrientation::BottomToTop;
             }
-            
+
             m_frameProp.fps = vih->AvgTimePerFrame != 0 ? 10000000.0 / vih->AvgTimePerFrame : 0;
             if (info.pixelFormat != PixelFormat::Unknown) {
                 m_frameProp.cameraPixelFormat = info.pixelFormat;
@@ -1026,12 +1027,12 @@ std::optional<DeviceInfo> ProviderDirectShow::getDeviceInfo() const {
         info->supportedPixelFormats.push_back(PixelFormat::NV12);
 #ifdef CCAP_ENABLE_FILE_PLAYBACK
         if (m_fileReader) {
-            info->supportedResolutions.push_back({(uint32_t)m_fileReader->getWidth(), (uint32_t)m_fileReader->getHeight()});
+            info->supportedResolutions.push_back({ (uint32_t)m_fileReader->getWidth(), (uint32_t)m_fileReader->getHeight() });
         }
 #endif
         return info;
     }
-    
+
     std::optional<DeviceInfo> info;
     bool hasMJPG = false;
 
@@ -1118,7 +1119,7 @@ void ProviderDirectShow::close() {
         m_graph->Release();
         m_graph = nullptr;
     }
-    
+
     // Close file reader if present
 #ifdef CCAP_ENABLE_FILE_PLAYBACK
     if (m_fileReader) {
@@ -1126,7 +1127,7 @@ void ProviderDirectShow::close() {
         m_fileReader.reset();
     }
 #endif
-    
+
     m_isOpened = false;
     m_isRunning = false;
     m_isFileMode = false;
@@ -1136,14 +1137,14 @@ void ProviderDirectShow::close() {
 
 bool ProviderDirectShow::start() {
     if (!m_isOpened) return false;
-    
+
     // File mode
 #ifdef CCAP_ENABLE_FILE_PLAYBACK
     if (m_isFileMode && m_fileReader) {
         return m_fileReader->start();
     }
 #endif
-    
+
     // Camera mode
     if (!m_isRunning && m_mediaControl) {
         HRESULT hr = m_mediaControl->Run();
@@ -1200,7 +1201,7 @@ bool ProviderDirectShow::setFileProperty(PropertyName prop, double value) {
     if (!m_isFileMode || !m_fileReader) {
         return false;
     }
-    
+
     switch (prop) {
     case PropertyName::CurrentTime:
         return m_fileReader->seekToTime(value);
@@ -1222,7 +1223,7 @@ double ProviderDirectShow::getFileProperty(PropertyName prop) const {
     if (!m_isFileMode || !m_fileReader) {
         return NAN;
     }
-    
+
     switch (prop) {
     case PropertyName::Duration:
         return m_fileReader->getDuration();
