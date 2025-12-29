@@ -57,13 +57,22 @@ message(STATUS "ccap CLI: CCAP_CLI_WITH_STB_IMAGE=${CCAP_CLI_WITH_STB_IMAGE}")
 
 set(CLI_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cli)
 
-# CLI source files
+# CLI source files - modular architecture
 set(CLI_SOURCES
         ${CLI_SOURCE_DIR}/ccap_cli.cpp
+        ${CLI_SOURCE_DIR}/args_parser.cpp
+        ${CLI_SOURCE_DIR}/ccap_cli_utils.cpp
+)
+
+# CLI header files
+set(CLI_HEADERS
+        ${CLI_SOURCE_DIR}/ccap_cli.h
+        ${CLI_SOURCE_DIR}/args_parser.h
+        ${CLI_SOURCE_DIR}/ccap_cli_utils.h
 )
 
 # Create CLI executable
-add_executable(ccap-cli ${CLI_SOURCES})
+add_executable(ccap-cli ${CLI_SOURCES} ${CLI_HEADERS})
 
 # Set output name to 'ccap' for the CLI tool
 set_target_properties(ccap-cli PROPERTIES

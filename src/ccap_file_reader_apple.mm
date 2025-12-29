@@ -229,6 +229,9 @@ using namespace ccap;
     _opened = NO;
     _currentFrameIndex = 0;
     _currentTime = 0.0;
+    
+    // Clean up queue only when fully closing (ARC will handle release)
+    _readQueue = nil;
 }
 
 - (BOOL)start {
@@ -244,7 +247,10 @@ using namespace ccap;
     _started = YES;
     _startTime = std::chrono::steady_clock::now();
     
-    _readQueue = dispatch_queue_create("ccap.file_reader", DISPATCH_QUEUE_SERIAL);
+    // Reuse existing queue or create new one
+    if (!_readQueue) {
+        _readQueue = dispatch_queue_create("ccap.file_reader", DISPATCH_QUEUE_SERIAL);
+    }
     
     dispatch_async(_readQueue, ^{
         [self readLoop];
@@ -266,6 +272,8 @@ using namespace ccap;
     if (_assetReader) {
         [_assetReader cancelReading];
     }
+    
+    // Queue will be reused on next start(), cleaned up only in close()
 }
 
 - (void)readLoop {
@@ -387,7 +395,7 @@ using namespace ccap;
         newFrame = fakeFrame;
     }
     
-    newFrame->frameIndex = _provider->frameIndex()++;
+    newFrame->frameIndex = _currentFrameIndex;
     
     _provider->newFrameAvailable(std::move(newFrame));
 }
@@ -399,7 +407,7 @@ using namespace ccap;
 - (BOOL)seekToTime:(double)timeInSeconds {
     if (!_opened) return NO;
     
-    timeInSeconds = std::max(0.0, std::min(timeInSeconds, _videoDuration));
+    timeInSeconds = std::clamp(timeInSeconds, 0.0, _videoDuration);
     _currentTime = timeInSeconds;
     _currentFrameIndex = (int64_t)(timeInSeconds * _frameRate);
     
@@ -419,7 +427,7 @@ using namespace ccap;
 - (BOOL)seekToFrame:(int64_t)frameIndex {
     if (!_opened) return NO;
     
-    frameIndex = std::max((int64_t)0, std::min(frameIndex, _totalFrameCount));
+    frameIndex = std::clamp(frameIndex, (int64_t)0, _totalFrameCount);
     _currentFrameIndex = frameIndex;
     _currentTime = (double)frameIndex / _frameRate;
     

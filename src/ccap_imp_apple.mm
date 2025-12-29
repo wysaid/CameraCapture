@@ -1032,10 +1032,12 @@ std::vector<std::string> ProviderApple::findDeviceNames() {
 }
 
 bool ProviderApple::open(std::string_view deviceNameOrFilePath) {
+#ifdef CCAP_ENABLE_FILE_PLAYBACK
     // Check if this looks like a file path
     if (looksLikeFilePath(deviceNameOrFilePath)) {
         return openFile(deviceNameOrFilePath);
     }
+#endif
     return openCamera(deviceNameOrFilePath);
 }
 

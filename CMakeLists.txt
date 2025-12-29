@@ -247,8 +247,9 @@ elseif (WIN32)
         # MSVC: Delay load Media Foundation DLLs to support Windows XP camera functionality
         # The program can start on XP and use DirectShow cameras, but will crash if video playback is attempted
         if (MSVC)
-            set_target_properties(ccap PROPERTIES 
-                LINK_FLAGS "/DELAYLOAD:mfplat.dll /DELAYLOAD:mfreadwrite.dll"
+            target_link_options(ccap PRIVATE
+                /DELAYLOAD:mfplat.dll
+                /DELAYLOAD:mfreadwrite.dll
             )
             target_link_libraries(ccap PUBLIC delayimp.lib)
         endif ()

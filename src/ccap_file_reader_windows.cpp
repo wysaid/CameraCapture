@@ -30,11 +30,13 @@ HRESULT WINAPI SHStrDupW(LPCWSTR psz, LPWSTR* ppwsz);
 #include <propvarutil.h>
 #include <thread>
 
+#ifdef _MSC_VER
 #pragma comment(lib, "mfplat.lib")
 #pragma comment(lib, "mfreadwrite.lib")
 #pragma comment(lib, "mfuuid.lib")
 #pragma comment(lib, "shlwapi.lib")
 #pragma comment(lib, "propsys.lib")
+#endif
 
 namespace {
 // Conversion factor: 1 second = 10,000,000 units (100-nanosecond units used by Media Foundation)
@@ -90,10 +92,12 @@ bool FileReaderWindows::open(std::string_view filePath) {
     // Check if file exists
     if (!PathFileExistsW(widePath.c_str())) {
         reportError(ErrorCode::FileOpenFailed, "File does not exist");
+        uninitMediaFoundation();
         return false;
     }
 
     if (!createSourceReader(widePath)) {
+        close();
         return false;
     }
 
@@ -401,7 +405,7 @@ void FileReaderWindows::readLoop() {
                     inplaceConvertFrame(newFrame.get(), prop.outputPixelFormat, false);
                 }
 
-                newFrame->frameIndex = m_provider->frameIndex()++;
+                newFrame->frameIndex = m_currentFrameIndex;
 
                 m_provider->newFrameAvailable(std::move(newFrame));
             }
@@ -422,7 +426,9 @@ void FileReaderWindows::readLoop() {
     m_isReading = false;
     m_isStarted = false;
     // Notify waiting grab() calls that playback has finished
-    notifyGrabWaiters();
+    if (m_provider) {
+        m_provider->notifyGrabWaiters();
+    }
 }
 
 double FileReaderWindows::getDuration() const {
@@ -442,7 +448,13 @@ bool FileReaderWindows::seekToTime(double timeInSeconds) {
         return false;
     }
 
-    timeInSeconds = std::clamp(timeInSeconds, 0.0, m_duration);
+    // Stop reading to avoid race condition with IMFSourceReader
+    bool wasStarted = m_isStarted;
+    if (wasStarted) {
+        stop();
+    }
+
+    timeInSeconds = (std::max)(0.0, (std::min)(timeInSeconds, m_duration));
 
     PROPVARIANT var;
     PropVariantInit(&var);
@@ -459,6 +471,11 @@ bool FileReaderWindows::seekToTime(double timeInSeconds) {
 
     m_currentTime = timeInSeconds;
     m_currentFrameIndex = static_cast<int64_t>(timeInSeconds * m_frameRate);
+
+    // Resume playback if it was started before seeking
+    if (wasStarted) {
+        start();
+    }
 
     return true;
 }
