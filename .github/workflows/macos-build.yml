@@ -129,6 +129,9 @@ jobs:
             export DYLD_LIBRARY_PATH="$PWD/../build/${{ matrix.config }}-${{ matrix.library_type }}:$DYLD_LIBRARY_PATH"
           fi
           ./run_tests.sh --performance --skip-build
+          
+          # Run video file playback tests (Release only)
+          ./run_tests.sh --video --skip-build
         fi
       
     - name: Upload artifacts

@@ -106,7 +106,7 @@ The executable will be located in the `build/` directory (or `build/Debug`, `bui
 |--------|---------|-------------|
 | `-w, --width WIDTH` | `1280` | Set capture width in pixels |
 | `-H, --height HEIGHT` | `720` | Set capture height in pixels |
-| `-f, --fps FPS` | `30.0` | Set frame rate (supports floating point, e.g., 29.97) |
+| `-f, --fps FPS` | `30.0` | Set frame rate (supports floating point, e.g., 29.97)<br>**Camera mode:** Sets the camera's capture frame rate<br>**Video mode:** Calculates playback speed (e.g., video is 15fps, --fps 30 → 2.0x speed)<br>**Note:** Cannot be used with `--speed` |
 | `-c, --count COUNT` | - | Number of frames to capture, then exit |
 | `-t, --grab-timeout MS` | `5000` | Timeout for grabbing a single frame in milliseconds |
 | `--format, --output-format` | - | Output pixel format (see [Supported Formats](#supported-formats)) |
@@ -140,6 +140,7 @@ These options are only available when built with GLFW support (`CCAP_CLI_WITH_GL
 | Option | Description |
 |--------|-------------|
 | `--loop[=N]` | Loop video playback. Omit N for infinite loop, or specify N for exact number of loops |
+| `--speed SPEED` | Playback speed multiplier<br>`0.0` = no frame rate control (process as fast as possible)<br>`1.0` = normal speed (match video's original frame rate)<br>`>1.0` = speed up (e.g., 2.0 = 2x speed)<br>`<1.0` = slow down (e.g., 0.5 = half speed)<br>Default: `0.0` for capture mode, `1.0` for preview mode<br>**Note:** Cannot be used with `-f/--fps` |
 
 **Note:** `--loop` and `-c` are mutually exclusive. Use `-c` to limit captured frames, or `--loop` for video looping, but not both.
 
@@ -265,6 +266,30 @@ ccap -i /path/to/video.mp4 --preview --loop
 Loop video 5 times:
 ```bash
 ccap -i /path/to/video.mp4 --preview --loop=5
+```
+
+Preview video at 2x speed:
+```bash
+ccap -i /path/to/video.mp4 --preview --speed 2.0
+```
+
+Extract frames at maximum speed (no frame rate control):
+```bash
+ccap -i /path/to/video.mp4 -c 100 -o ./frames --speed 0.0
+```
+
+Preview video at half speed (slow motion):
+```bash
+ccap -i /path/to/video.mp4 --preview --speed 0.5
+```
+
+Control playback using --fps (automatically calculates speed):
+```bash
+# Video is 30fps, play at 60fps (2x speed)
+ccap -i /path/to/video.mp4 --preview --fps 60
+
+# Video is 30fps, play at 15fps (0.5x speed)
+ccap -i /path/to/video.mp4 --preview --fps 15
 ```
 
 ### Format-Specific Capture

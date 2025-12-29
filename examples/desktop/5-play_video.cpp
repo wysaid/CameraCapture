@@ -18,6 +18,13 @@
 #include <string>
 
 int main(int argc, char** argv) {
+#ifdef __linux__
+    std::cerr << "\n[WARNING] Video playback is currently not supported on Linux." << std::endl;
+    std::cerr << "This feature may be implemented in a future version." << std::endl;
+    std::cerr << "Currently supported platforms: Windows, macOS\n" << std::endl;
+    return 0;
+#endif
+
     /// Enable verbose log to see debug information
     ccap::setLogLevel(ccap::LogLevel::Verbose);
 

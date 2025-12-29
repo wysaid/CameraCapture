@@ -38,44 +38,6 @@ This directory contains various build and test scripts for the ccap project.
 
 ### Test Scripts
 
-- **`test_arch.sh`** - Architecture detection test
-
-  ```bash
-  /path/to/ccap/scripts/test_arch.sh
-  ```
-
-### Windows Build
-
-- **`build.sh`** - Universal build script supporting multiple architectures
-
-```bash
-# Build native architecture version (recommended)
-/path/to/ccap/scripts/build.sh native Debug
-
-# Build ARM64 version
-/path/to/ccap/scripts/build.sh arm64 Debug
-
-# Build x86_64 version
-/path/to/ccap/scripts/build.sh x86_64 Debug
-
-# Build universal version (both architectures)
-/path/to/ccap/scripts/build.sh universal Release
-```
-
-- **`build_arm64.sh`** - Dedicated ARM64 build script
-
-```bash
-/path/to/ccap/scripts/build_arm64.sh Debug
-```
-
-- **`build_x86_64.sh`** - Dedicated x86_64 build script
-
-```bash
-/path/to/ccap/scripts/build_x86_64.sh Debug
-```
-
-### Test Scripts
-
 - **`run_tests.sh`** - Comprehensive test runner for all ccap tests
 
   ```bash

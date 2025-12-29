@@ -43,6 +43,12 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    if (opts.fpsSpecified && opts.playbackSpeedSpecified) {
+        std::cerr << "Error: -f/--fps and --speed are mutually exclusive." << std::endl;
+        std::cerr << "Use -f/--fps for camera frame rate or video playback rate, or --speed for explicit playback speed control, but not both." << std::endl;
+        return 1;
+    }
+
     // --loop only applies to video mode
     if (opts.enableLoop && opts.videoFilePath.empty()) {
         std::cerr << "Warning: --loop option is only effective for video file playback." << std::endl;
@@ -54,8 +60,25 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    // Set log level based on options
     if (opts.verbose) {
         ccap::setLogLevel(ccap::LogLevel::Verbose);
+    } else {
+        // Check if -q/--quiet was specified by looking at argv
+        bool quietMode = false;
+        for (int i = 1; i < argc; ++i) {
+            std::string arg = argv[i];
+            if (arg == "-q" || arg == "--quiet") {
+                quietMode = true;
+                break;
+            }
+        }
+        
+        if (quietMode) {
+            ccap::setLogLevel(ccap::LogLevel::Error);
+        } else {
+            ccap::setLogLevel(ccap::LogLevel::Info);
+        }
     }
 
     // Set error callback

@@ -82,7 +82,7 @@ using namespace ccap;
         _provider = provider;
         _isReading = false;
         _shouldStop = false;
-        _playbackSpeed = 1.0;
+        _playbackSpeed = 0.0;
         _currentFrameIndex = 0;
         _currentTime = 0.0;
         _opened = NO;
@@ -280,10 +280,17 @@ using namespace ccap;
     _isReading = true;
     
     auto lastFrameTime = std::chrono::steady_clock::now();
-    double targetFrameInterval = 1.0 / (_frameRate * _playbackSpeed);
+    double targetFrameInterval = (_playbackSpeed > 0.0) ? (1.0 / (_frameRate * _playbackSpeed)) : 0.0;
     
     while (!_shouldStop && _assetReader.status == AVAssetReaderStatusReading) {
         @autoreleasepool {
+            // Backpressure: if queue is full, wait for consumer to catch up
+            // This prevents dropping frames in file mode
+            if (!_provider->shouldReadMoreFrames()) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                continue;
+            }
+
             CMSampleBufferRef sampleBuffer = [_trackOutput copyNextSampleBuffer];
             
             if (!sampleBuffer) {
@@ -293,16 +300,18 @@ using namespace ccap;
                 break;
             }
             
-            // Frame rate control
-            auto now = std::chrono::steady_clock::now();
-            double elapsedSeconds = std::chrono::duration<double>(now - lastFrameTime).count();
-            double sleepTime = targetFrameInterval - elapsedSeconds;
-            
-            if (sleepTime > 0.001) {
-                std::this_thread::sleep_for(std::chrono::duration<double>(sleepTime));
+            // Frame rate control (only when playback speed > 0)
+            if (targetFrameInterval > 0.0) {
+                auto now = std::chrono::steady_clock::now();
+                double elapsedSeconds = std::chrono::duration<double>(now - lastFrameTime).count();
+                double sleepTime = targetFrameInterval - elapsedSeconds;
+                
+                if (sleepTime > 0.001) {
+                    std::this_thread::sleep_for(std::chrono::duration<double>(sleepTime));
+                }
+                
+                lastFrameTime = std::chrono::steady_clock::now();
             }
-            
-            lastFrameTime = std::chrono::steady_clock::now();
             
             // Process the frame
             [self processFrame:sampleBuffer];
@@ -313,7 +322,7 @@ using namespace ccap;
             _currentTime = (double)_currentFrameIndex / _frameRate;
             
             // Update target interval in case playback speed changed
-            targetFrameInterval = 1.0 / (_frameRate * _playbackSpeed);
+            targetFrameInterval = (_playbackSpeed > 0.0) ? (1.0 / (_frameRate * _playbackSpeed)) : 0.0;
         }
     }
     
@@ -367,10 +376,20 @@ using namespace ccap;
         newFrame->stride[2] = 0;
     }
     
-    newFrame->orientation = FrameOrientation::TopToBottom;
+    // Note: AVFoundation (AVAssetReader) returns video frames in TopToBottom order
+    // for all formats (NV12, BGRA32), similar to Media Foundation on Windows.
+    constexpr FrameOrientation inputOrientation = FrameOrientation::TopToBottom;
     
+    // Check if conversion or flip is needed
     auto& prop = _provider->getFrameProperty();
-    bool zeroCopy = (newFrame->pixelFormat == prop.outputPixelFormat);
+    bool isOutputYUV = (newFrame->pixelFormat & kPixelFormatYUVColorBit) != 0;
+    FrameOrientation targetOrientation = isOutputYUV ? FrameOrientation::TopToBottom : _provider->frameOrientation();
+    bool shouldFlip = !isOutputYUV && (inputOrientation != targetOrientation);
+    bool shouldConvert = newFrame->pixelFormat != prop.outputPixelFormat;
+    
+    newFrame->orientation = targetOrientation;
+    
+    bool zeroCopy = !shouldConvert && !shouldFlip;
     
     if (!zeroCopy) {
         if (!newFrame->allocator) {
@@ -378,7 +397,7 @@ using namespace ccap;
             newFrame->allocator = f ? f() : std::make_shared<DefaultAllocator>();
         }
         
-        zeroCopy = !inplaceConvertFrame(newFrame.get(), prop.outputPixelFormat, false);
+        zeroCopy = !inplaceConvertFrame(newFrame.get(), prop.outputPixelFormat, shouldFlip);
         CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
     }
     
@@ -445,7 +464,7 @@ using namespace ccap;
 }
 
 - (BOOL)setPlaybackSpeed:(double)speed {
-    if (speed <= 0) return NO;
+    if (speed < 0) return NO;
     _playbackSpeed = speed;
     return YES;
 }

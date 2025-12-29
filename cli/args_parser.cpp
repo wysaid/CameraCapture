@@ -93,7 +93,8 @@ void printUsage(const char* programName) {
               << "  -I, --device-info index    show detailed info for device at index\n"
               << "\n"
               << "Global options:\n"
-              << "  --verbose                  enable verbose logging\n"
+              << "  --verbose                  enable verbose logging (shows all messages)\n"
+              << "  -q, --quiet                quiet mode (only show errors, equivalent to log level Error)\n"
               << "  --timeout seconds          program timeout (auto-exit after N seconds)\n"
               << "  --timeout-exit-code code   exit code when timeout occurs (default: 0)\n"
               << "\n"
@@ -105,6 +106,9 @@ void printUsage(const char* programName) {
               << "  -w, --width width          set capture width (default: " << DEFAULT_WIDTH << ")\n"
               << "  -H, --height height        set capture height (default: " << DEFAULT_HEIGHT << ")\n"
               << "  -f, --fps fps              set frame rate (default: " << DEFAULT_FPS << ")\n"
+              << "                             Camera mode: sets camera capture frame rate\n"
+              << "                             Video mode: calculates playback speed from video's native fps\n"
+              << "                             Note: Cannot be used with --speed\n"
               << "  -c, --count count          number of frames to capture, then exit\n"
               << "  -t, --grab-timeout ms      timeout for grabbing a single frame (default: " << DEFAULT_TIMEOUT_MS << ")\n"
               << "  --format, --output-format  output pixel format: rgb24, bgr24, rgba32, bgra32, nv12, i420, yuyv, uyvy\n"
@@ -136,6 +140,13 @@ void printUsage(const char* programName) {
     std::cout << "Video playback options:\n"
               << "  --loop[=N]                 loop video playback (N times, omit for infinite)\n"
               << "                             Note: --loop and -c are mutually exclusive\n"
+              << "  --speed speed              playback speed multiplier\n"
+              << "                             0.0 = no frame rate control (process as fast as possible)\n"
+              << "                             1.0 = normal speed (match video's original frame rate)\n"
+              << "                             >1.0 = speed up (e.g., 2.0 = 2x speed)\n"
+              << "                             <1.0 = slow down (e.g., 0.5 = half speed)\n"
+              << "                             Default: 0.0 for capture mode, 1.0 for preview mode\n"
+              << "                             Note: Cannot be used with -f/--fps\n"
               << "\n";
 
     std::cout << "Format conversion options:\n"
@@ -401,6 +412,11 @@ CLIOptions parseArgs(int argc, char* argv[]) {
                 }
             }
             // loopCount = 0 means infinite loop
+        } else if (arg == "--speed") {
+            if (i + 1 < argc) {
+                opts.playbackSpeed = std::atof(argv[++i]);
+                opts.playbackSpeedSpecified = true;
+            }
         } else if (arg == "-p" || arg == "--preview") {
             opts.enablePreview = true;
         } else if (arg == "--preview-only") {

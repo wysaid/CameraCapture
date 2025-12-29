@@ -21,8 +21,15 @@
 #include <vector>
 
 #ifdef CCAP_CLI_WITH_STB_IMAGE
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 #endif
 
 #ifdef CCAP_CLI_WITH_GLFW
@@ -223,11 +230,43 @@ int captureFrames(const CLIOptions& opts) {
             int width = static_cast<int>(provider.get(ccap::PropertyName::Width));
             int height = static_cast<int>(provider.get(ccap::PropertyName::Height));
 
-            std::cout << "Video file: " << opts.videoFilePath << std::endl;
-            std::cout << "  Resolution: " << width << "x" << height << std::endl;
-            std::cout << "  Frame rate: " << frameRate << " fps" << std::endl;
-            std::cout << "  Duration: " << duration << " seconds" << std::endl;
-            std::cout << "  Total frames: " << static_cast<int>(frameCount) << std::endl;
+            // Always print video information (unless quiet mode)
+            if (ccap::infoLogEnabled()) {
+                std::cout << "Video file: " << opts.videoFilePath << std::endl;
+                std::cout << "  Resolution: " << width << "x" << height << std::endl;
+                std::cout << "  Frame rate: " << frameRate << " fps" << std::endl;
+                std::cout << "  Duration: " << duration << " seconds" << std::endl;
+                std::cout << "  Total frames: " << static_cast<int>(frameCount) << std::endl;
+            }
+
+            // Calculate and set playback speed
+            double playbackSpeed = 0.0;
+            if (opts.playbackSpeedSpecified) {
+                playbackSpeed = opts.playbackSpeed;
+                if (ccap::infoLogEnabled()) {
+                    std::cout << "  Playback speed: " << playbackSpeed << "x" << std::endl;
+                }
+            } else if (opts.fpsSpecified) {
+                // Calculate speed from desired fps
+                if (frameRate > 0) {
+                    playbackSpeed = opts.fps / frameRate;
+                    if (ccap::infoLogEnabled()) {
+                        std::cout << "  Calculated playback speed: " << playbackSpeed << "x (from --fps " << opts.fps << ")" << std::endl;
+                    }
+                } else {
+                    std::cerr << "Warning: Cannot calculate playback speed, video frame rate is 0." << std::endl;
+                }
+            } else {
+                // Default: no frame rate control (0.0)
+                playbackSpeed = 0.0;
+                if (ccap::infoLogEnabled()) {
+                    std::cout << "  Playback speed: 0.0 (no frame rate control, process as fast as possible)" << std::endl;
+                }
+            }
+            
+            if (playbackSpeed >= 0) {
+                provider.set(ccap::PropertyName::PlaybackSpeed, playbackSpeed);
+            }
         }
 #else
         std::cerr << "Video file playback is not supported. Rebuild with CCAP_ENABLE_FILE_PLAYBACK=ON" << std::endl;
@@ -411,19 +450,27 @@ bool saveFrameAsImage(ccap::VideoFrame* frame, const std::string& outputPath,
             imageData = tempBuffer.data();
         }
 
-        // stb_image_write expects top-to-bottom orientation by default
-        // If frame is bottom-to-top, we need to flip
-        if (!isTopToBottom) {
+        // PNG/JPG formats expect top-to-bottom scan line order (first row at memory start).
+        // On Windows, video frames from Media Foundation have inverted orientation metadata:
+        //   - When orientation reports BottomToTop, actual data is TopToBottom (no flip needed)
+        //   - When orientation reports TopToBottom, actual data is BottomToTop (flip needed)
+        if (isTopToBottom) {
             if (tempBuffer.empty()) {
                 tempBuffer.resize(width * height * comp);
-                std::memcpy(tempBuffer.data(), frame->data[0], width * height * comp);
+                // Copy with proper stride handling
+                for (int y = 0; y < height; ++y) {
+                    std::memcpy(&tempBuffer[y * width * comp],
+                                &frame->data[0][y * stride],
+                                width * comp);
+                }
                 imageData = tempBuffer.data();
             }
-            // Flip vertically
+            // Flip vertically in tempBuffer
             std::vector<uint8_t> rowBuffer(width * comp);
+            uint8_t* mutableData = tempBuffer.data();
             for (int y = 0; y < height / 2; ++y) {
-                uint8_t* top = const_cast<uint8_t*>(&imageData[y * width * comp]);
-                uint8_t* bottom = const_cast<uint8_t*>(&imageData[(height - 1 - y) * width * comp]);
+                uint8_t* top = &mutableData[y * width * comp];
+                uint8_t* bottom = &mutableData[(height - 1 - y) * width * comp];
                 std::memcpy(rowBuffer.data(), top, width * comp);
                 std::memcpy(top, bottom, width * comp);
                 std::memcpy(bottom, rowBuffer.data(), width * comp);
@@ -727,8 +774,9 @@ int runPreview(const CLIOptions& opts) {
         provider.set(ccap::PropertyName::Height, opts.height);
         provider.set(ccap::PropertyName::FrameRate, opts.fps);
     }
-    provider.set(ccap::PropertyName::PixelFormatOutput, ccap::PixelFormat::RGBA32);
+    
     provider.set(ccap::PropertyName::FrameOrientation, ccap::FrameOrientation::BottomToTop);
+    provider.set(ccap::PropertyName::PixelFormatOutput, ccap::PixelFormat::RGBA32);
 
     // Open device or video file
     bool opened = false;
@@ -740,6 +788,47 @@ int runPreview(const CLIOptions& opts) {
             std::cerr << "Failed to open video file: " << opts.videoFilePath << std::endl;
             return 1;
         }
+        
+        // Get video properties and print information
+        double videoFrameRate = provider.get(ccap::PropertyName::FrameRate);
+        double duration = provider.get(ccap::PropertyName::Duration);
+        double frameCount = provider.get(ccap::PropertyName::FrameCount);
+        int videoWidth = static_cast<int>(provider.get(ccap::PropertyName::Width));
+        int videoHeight = static_cast<int>(provider.get(ccap::PropertyName::Height));
+        
+        if (ccap::infoLogEnabled()) {
+            std::cout << "Video file: " << opts.videoFilePath << std::endl;
+            std::cout << "  Resolution: " << videoWidth << "x" << videoHeight << std::endl;
+            std::cout << "  Frame rate: " << videoFrameRate << " fps" << std::endl;
+            std::cout << "  Duration: " << duration << " seconds" << std::endl;
+            std::cout << "  Total frames: " << static_cast<int>(frameCount) << std::endl;
+        }
+        
+        // Calculate and set playback speed
+        double playbackSpeed = 1.0; // Default for preview mode
+        if (opts.playbackSpeedSpecified) {
+            playbackSpeed = opts.playbackSpeed;
+            if (ccap::infoLogEnabled()) {
+                std::cout << "  Playback speed: " << playbackSpeed << "x" << std::endl;
+            }
+        } else if (opts.fpsSpecified) {
+            // Calculate speed from desired fps
+            if (videoFrameRate > 0) {
+                playbackSpeed = opts.fps / videoFrameRate;
+                if (ccap::infoLogEnabled()) {
+                    std::cout << "  Calculated playback speed: " << playbackSpeed << "x (from --fps " << opts.fps << ")" << std::endl;
+                }
+            } else {
+                std::cerr << "Warning: Cannot calculate playback speed, video frame rate is 0. Using default 1.0x." << std::endl;
+            }
+        } else {
+            // Default 1.0 for preview mode
+            if (ccap::infoLogEnabled()) {
+                std::cout << "  Playback speed: 1.0x (normal speed)" << std::endl;
+            }
+        }
+        
+        provider.set(ccap::PropertyName::PlaybackSpeed, playbackSpeed);
 #else
         std::cerr << "Video file playback is not supported. Rebuild with CCAP_ENABLE_FILE_PLAYBACK=ON" << std::endl;
         return 1;
@@ -763,10 +852,28 @@ int runPreview(const CLIOptions& opts) {
     if (auto frame = provider.grab(5000)) {
         frameWidth = frame->width;
         frameHeight = frame->height;
-        std::cout << "Camera resolution: " << frameWidth << "x" << frameHeight << std::endl;
+        if (ccap::infoLogEnabled()) {
+            std::cout << "Camera resolution: " << frameWidth << "x" << frameHeight << std::endl;
+        }
     } else {
         std::cerr << "Failed to grab initial frame." << std::endl;
         return 1;
+    }
+
+    // Calculate window size - scale up if resolution is too low (below 480p)
+    int windowWidth = frameWidth;
+    int windowHeight = frameHeight;
+    constexpr int MIN_DISPLAY_HEIGHT = 480;
+    
+    // Only scale up for video files, not for cameras
+    if (!opts.videoFilePath.empty() && frameHeight < MIN_DISPLAY_HEIGHT) {
+        double scale = static_cast<double>(MIN_DISPLAY_HEIGHT) / frameHeight;
+        windowWidth = static_cast<int>(frameWidth * scale);
+        windowHeight = static_cast<int>(frameHeight * scale);
+        if (ccap::infoLogEnabled()) {
+            std::cout << "Video resolution is below " << MIN_DISPLAY_HEIGHT << "p, scaling window to " 
+                      << windowWidth << "x" << windowHeight << " (" << scale << "x)" << std::endl;
+        }
     }
 
     // Initialize GLFW
@@ -780,7 +887,7 @@ int runPreview(const CLIOptions& opts) {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
-    GLFWwindow* window = glfwCreateWindow(frameWidth, frameHeight, "ccap Preview", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(windowWidth, windowHeight, "ccap Preview", nullptr, nullptr);
     if (!window) {
         glfwTerminate();
         std::cerr << "Failed to create GLFW window." << std::endl;

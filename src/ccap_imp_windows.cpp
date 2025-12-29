@@ -1135,6 +1135,12 @@ void ProviderDirectShow::close() {
     }
 #endif
 
+    // Clear any pending frames from the queue
+    {
+        std::lock_guard<std::mutex> lock(m_availableFrameMutex);
+        m_availableFrames = {};
+    }
+
     m_isOpened = false;
     m_isRunning = false;
     m_isFileMode = false;

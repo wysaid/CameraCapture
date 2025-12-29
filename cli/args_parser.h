@@ -74,6 +74,8 @@ struct CLIOptions {
     // Loop settings (video playback)
     bool enableLoop = false;
     int loopCount = 0; // 0 = infinite loop
+    double playbackSpeed = 0.0; // 0.0 = no frame rate control, 1.0 = normal speed
+    bool playbackSpeedSpecified = false;
 
     // Conversion settings
     std::string convertInput;

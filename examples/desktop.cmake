@@ -57,6 +57,13 @@ target_include_directories(common_utils PRIVATE ${DESKTOP_EXAMPLES_DIR}/utils)
 target_compile_definitions(common_utils PUBLIC _CRT_SECURE_NO_WARNINGS=1)
 target_link_libraries(common_utils PUBLIC ccap)
 
+# MSVC-specific settings for examples
+if (MSVC)
+    target_compile_options(common_utils PUBLIC
+        /source-charset:utf-8
+    )
+endif ()
+
 file(GLOB EXAMPLE_SOURCE ${DESKTOP_EXAMPLES_DIR}/*.cpp ${DESKTOP_EXAMPLES_DIR}/*.c)
 
 foreach(EXAMPLE ${EXAMPLE_SOURCE})

@@ -28,6 +28,13 @@ int main(int argc, char** argv) {
     printf("ccap C Interface Video Playback Example\n");
     printf("Version: %s\n\n", ccap_get_version());
 
+#ifdef __linux__
+    fprintf(stderr, "\n[WARNING] Video playback is currently not supported on Linux.\n");
+    fprintf(stderr, "This feature may be implemented in a future version.\n");
+    fprintf(stderr, "Currently supported platforms: Windows, macOS\n\n");
+    return 0;
+#endif
+
     const char* videoPath = NULL;
 
     if (argc < 2) {
@@ -75,7 +82,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    char captureDir[1024];
+    char captureDir[1024 + 32];  // Extra space for "/video_frames" and safety margin
     snprintf(captureDir, sizeof(captureDir), "%s/video_frames", cwd);
     createDirectory(captureDir);
 

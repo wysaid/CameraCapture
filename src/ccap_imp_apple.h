@@ -46,8 +46,8 @@ public:
     inline bool hasNewFrameCallback() const { return m_callback && *m_callback; }
 
     // File playback support
-    bool setFileProperty(PropertyName prop, double value);
-    double getFileProperty(PropertyName prop) const;
+    bool setFileProperty(PropertyName prop, double value) override;
+    double getFileProperty(PropertyName prop) const override;
 
 private:
     bool openCamera(std::string_view deviceName);

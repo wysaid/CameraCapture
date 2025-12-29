@@ -1139,6 +1139,14 @@ void ProviderApple::close() {
         [m_imp destroy];
         m_imp = nil;
     }
+    
+    // Clear any pending frames from the queue to prevent stale frames
+    // from previous session being grabbed in the next session
+    {
+        std::lock_guard<std::mutex> lock(m_availableFrameMutex);
+        m_availableFrames = {};
+    }
+    
     ccap::resetSharedAllocator();
 }
 
