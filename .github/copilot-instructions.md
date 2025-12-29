@@ -1,10 +1,11 @@
-# GitHub Copilot Instructions for CameraCapture
+# GitHub Copilot Instructions
 
 ## Code Guidelines
-- Add/adjust test cases when fixing bugs or adding features
-- Run all tests before commit
-- Use English for git commit messages and PR descriptions
-- All `.md` files in `docs/` must be in English
-- Only commit necessary new `.md` files after review.
-- To update the version, run `./scripts/update_version.sh <new_version>` to update related files.
-- `dev.cmake` in project root (git-ignored) overrides default CMake options. Remove it for standard builds/tests; keep only when verifying custom settings.
+- Add tests for bug fixes or new features
+- Run all tests before committing
+- Use English for commit messages and PR descriptions
+- `.md` files in `docs/` must be in English
+- Commit new `.md` files only after review
+- Run `./scripts/update_version.sh <new_version>` to update version files
+- `dev.cmake` (git-ignored) overrides default CMake options. Remove it for standard builds/tests; keep for custom settings
+- Run `scripts/format-all.sh` to format source files before committing

@@ -38,7 +38,7 @@ bool ProviderImp::set(PropertyName prop, double value) {
             break;
         }
     }
-    
+
     auto lastProp = m_frameProp;
     switch (prop) {
     case PropertyName::Width:
@@ -99,7 +99,7 @@ double ProviderImp::get(PropertyName prop) {
             break;
         }
     }
-    
+
     switch (prop) {
     case PropertyName::Width:
         return static_cast<double>(m_frameProp.width);
@@ -149,14 +149,16 @@ std::shared_ptr<VideoFrame> ProviderImp::grab(uint32_t timeoutInMs) {
             waitSuccess = m_frameCondition.wait_for(lock, std::chrono::milliseconds(waitTime),
                                                     [this]() { return (m_grabFrameWaiting && !m_availableFrames.empty()) || !isStarted(); });
             if (waitSuccess) break;
-            
+
             waitedTime += waitTime;
             CCAP_LOG_V("ccap: Waiting for new frame... %u ms\n", waitedTime);
         }
 
         m_grabFrameWaiting = false;
         if (!waitSuccess) {
-            reportError(ErrorCode::FrameCaptureTimeout, "Grab timed out after " + std::to_string(timeoutInMs) + " ms");
+            if (isStarted()) { // Don't report timeout if device is closed
+                reportError(ErrorCode::FrameCaptureTimeout, "Grab timed out after " + std::to_string(timeoutInMs) + " ms");
+            }
             return nullptr;
         }
     }

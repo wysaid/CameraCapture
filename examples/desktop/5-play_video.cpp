@@ -23,12 +23,12 @@ int main(int argc, char** argv) {
 
     // Set error callback to receive error notifications
     ccap::setErrorCallback([](ccap::ErrorCode errorCode, std::string_view description) {
-        std::cerr << "Error - Code: " << static_cast<int>(errorCode) 
+        std::cerr << "Error - Code: " << static_cast<int>(errorCode)
                   << ", Description: " << description << std::endl;
     });
 
     std::string videoPath;
-    
+
     if (argc < 2) {
         // Check if test.mp4 exists in current directory
         std::string defaultVideo = "test.mp4";
@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
     // Check if we are in file mode
     if (provider.isFileMode()) {
         std::cout << "Provider is in FILE mode" << std::endl;
-        
+
         // Get video properties (only available in file mode)
         double duration = provider.get(ccap::PropertyName::Duration);
         double frameCount = provider.get(ccap::PropertyName::FrameCount);
@@ -109,9 +109,9 @@ int main(int argc, char** argv) {
     /// Grab frames from the video file
     int maxFrames = 30;
     while (auto frame = provider.grab(3000)) {
-        printf("Frame %d: width=%d, height=%d, bytes=%d, time=%.2fs\n", 
+        printf("Frame %d: width=%d, height=%d, bytes=%d, time=%.2fs\n",
                (int)frame->frameIndex, frame->width, frame->height,
-               (int)frame->sizeInBytes, 
+               (int)frame->sizeInBytes,
                provider.get(ccap::PropertyName::CurrentTime));
 
         // Save every 10th frame
@@ -130,14 +130,14 @@ int main(int argc, char** argv) {
     // Demonstrate seeking (only works in file mode)
     if (provider.isFileMode()) {
         std::cout << "\nDemonstrating seek functionality..." << std::endl;
-        
+
         // Seek to middle of video
         double duration = provider.get(ccap::PropertyName::Duration);
         double seekTime = duration / 2.0;
-        
+
         std::cout << "Seeking to " << seekTime << " seconds..." << std::endl;
         if (provider.set(ccap::PropertyName::CurrentTime, seekTime)) {
-            std::cout << "Seek successful. Current time: " 
+            std::cout << "Seek successful. Current time: "
                       << provider.get(ccap::PropertyName::CurrentTime) << " seconds" << std::endl;
         }
     }

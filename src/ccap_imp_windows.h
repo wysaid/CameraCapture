@@ -134,7 +134,7 @@ private:
 
     std::chrono::steady_clock::time_point m_startTime{};
     FrameOrientation m_inputOrientation = FrameOrientation::TopToBottom;
-    
+
     bool m_firstFrameArrived = false;
 
     // State variables
@@ -143,7 +143,7 @@ private:
     bool m_isRunning{ false };
 
     std::mutex m_callbackMutex;
-    
+
 #ifdef CCAP_ENABLE_FILE_PLAYBACK
     // File reader for video file playback
     std::unique_ptr<FileReaderWindows> m_fileReader;

@@ -9,9 +9,9 @@
 #ifndef CCAP_CONVERT_NEON_H
 #define CCAP_CONVERT_NEON_H
 
-#include <cstdint>
-
 #include "ccap_convert.h"
+
+#include <cstdint>
 
 // NEON support detection for ARM64 platforms
 #if (defined(__aarch64__) || defined(_M_ARM64)) && \

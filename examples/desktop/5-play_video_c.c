@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
     printf("Version: %s\n\n", ccap_get_version());
 
     const char* videoPath = NULL;
-    
+
     if (argc < 2) {
         // Check if test.mp4 exists in current directory
         const char* defaultVideo = "test.mp4";
@@ -131,7 +131,7 @@ int main(int argc, char** argv) {
     // Grab frames from the video file
     int maxFrames = 30;
     int frameCount = 0;
-    
+
     while (frameCount < maxFrames) {
         CcapVideoFrame* frame = ccap_provider_grab(provider, 3000);
         if (frame) {
