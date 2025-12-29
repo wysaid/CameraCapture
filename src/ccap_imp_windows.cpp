@@ -37,9 +37,10 @@
 // Include initguid.h before our GUID definitions header so that DEFINE_GUID
 // actually defines the GUIDs (rather than just declaring them as extern).
 // This avoids the need to link against strmiids.lib.
-#include "ccap_dshow_guids.h"
-
+// clang-format off
 #include <initguid.h>
+#include "ccap_dshow_guids.h"
+// clang-format on
 
 /// @see <https://doxygen.reactos.org/d9/dce/structtagVIDEOINFOHEADER2.html>
 typedef struct tagVIDEOINFOHEADER2 {
@@ -662,10 +663,12 @@ bool ProviderDirectShow::createStream() {
 }
 
 bool ProviderDirectShow::open(std::string_view deviceNameOrFilePath) {
+#ifdef CCAP_ENABLE_FILE_PLAYBACK
     // Check if this looks like a file path
     if (looksLikeFilePath(deviceNameOrFilePath)) {
         return openFile(deviceNameOrFilePath);
     }
+#endif
     return openCamera(deviceNameOrFilePath);
 }
 
@@ -694,8 +697,12 @@ bool ProviderDirectShow::openFile(std::string_view filePath) {
 }
 
 bool ProviderDirectShow::openCamera(std::string_view deviceName) {
-    if (m_isOpened && m_mediaControl) {
-        reportError(ErrorCode::DeviceOpenFailed, "Camera already opened, please close it first");
+    if (m_isOpened || m_mediaControl
+#ifdef CCAP_ENABLE_FILE_PLAYBACK
+        || m_fileReader
+#endif
+    ) {
+        reportError(ErrorCode::DeviceOpenFailed, "Camera or file already opened, please close it first");
         return false;
     }
 

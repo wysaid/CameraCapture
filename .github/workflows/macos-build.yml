@@ -7,6 +7,9 @@ on:
     branches: [ main, ci_test ]
   workflow_dispatch: 
 
+permissions:
+  contents: read
+
 jobs:
   build-mac:
     name: macOS Build (${{ matrix.config }}-${{ matrix.library_type }})
@@ -140,3 +143,48 @@ jobs:
           build/${{ matrix.config }}-${{ matrix.library_type }}/3-capture_callback
           build/${{ matrix.config }}-${{ matrix.library_type }}/*_results.xml
         if-no-files-found: error
+
+  # Test building with file playback disabled (Release only)
+  build-mac-no-file-playback:
+    name: macOS Release - No File Playback
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      
+    - name: Configure CMake (File Playback Disabled)
+      run: |
+        echo "Configuring macOS Release build with CCAP_ENABLE_FILE_PLAYBACK=OFF"
+        mkdir -p build/Release-no-file-playback
+        cd build/Release-no-file-playback
+        cmake ../.. -DCMAKE_BUILD_TYPE=Release -DCCAP_BUILD_TESTS=ON -DCCAP_ENABLE_FILE_PLAYBACK=OFF
+      
+    - name: Build
+      run: |
+        cd build/Release-no-file-playback
+        cmake --build . --config Release --parallel
+        
+    - name: Verify build
+      working-directory: build/Release-no-file-playback
+      run: |
+        echo "Verifying build with file playback disabled:"
+        ls -la | grep -E "ccap" || echo "No ccap libraries found"
+        
+        # Verify library exists
+        if [ -f "libccap.a" ]; then
+          echo "✓ Static library libccap.a successfully built"
+        else
+          echo "✗ Static library libccap.a not found"
+          exit 1
+        fi
+        
+        # Verify example programs are built
+        if [ -f "0-print_camera" ]; then
+          echo "✓ Example programs built successfully"
+        else
+          echo "✗ Example programs not found"
+          exit 1
+        fi
+        
+        echo "✓ Build verification passed - file playback disabled build works correctly"

@@ -13,6 +13,7 @@
 
 #include <gtest/gtest.h>
 #include <ccap.h>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <thread>

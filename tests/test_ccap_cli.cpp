@@ -755,6 +755,48 @@ TEST_F(CCAPCLITest, VideoPlayback_JPEGOutput) {
 
 #endif // CCAP_ENABLE_FILE_PLAYBACK
 
+// Test new -i/--input parameter with video file
+#if defined(CCAP_ENABLE_FILE_PLAYBACK)
+TEST_F(CCAPCLITest, InputParameter_VideoFile) {
+    std::string videoPath = getTestVideoPath();
+    if (videoPath.empty()) {
+        GTEST_SKIP() << "Test video not available";
+    }
+    
+    // Use -i parameter with video file path
+    std::string cmd = "-i \"" + videoPath + "\" -c 3 --image-format bmp -o " + testOutputDir.string();
+    
+    auto result = runCLI(cmd);
+    ASSERT_EQ(result.exitCode, 0) << "Input parameter with video file failed: " << result.output;
+    EXPECT_THAT(result.output, testing::HasSubstr("Video file:"));
+    
+    // Verify frames were created
+    int frameCount = 0;
+    for (const auto& entry : fs::directory_iterator(testOutputDir)) {
+        if (entry.path().extension() == ".bmp") {
+            frameCount++;
+        }
+    }
+    
+    EXPECT_EQ(frameCount, 3) << "Should capture exactly 3 frames";
+}
+
+// Test conflicting options: -c and --loop
+TEST_F(CCAPCLITest, ConflictingOptions_CountAndLoop) {
+    std::string videoPath = getTestVideoPath();
+    if (videoPath.empty()) {
+        GTEST_SKIP() << "Test video not available";
+    }
+    
+    std::string cmd = "-i \"" + videoPath + "\" -c 10 --loop -o " + testOutputDir.string();
+    auto result = runCLI(cmd);
+    
+    // Should fail with error about conflicting options
+    EXPECT_NE(result.exitCode, 0) << "Should fail with conflicting -c and --loop";
+    EXPECT_THAT(result.output, testing::HasSubstr("mutually exclusive"));
+}
+#endif // CCAP_ENABLE_FILE_PLAYBACK
+
 // Device-dependent tests requiring an actual camera device
 
 TEST_F(CCAPCLIDeviceTest, CaptureDefaultDevice) {
@@ -994,31 +1036,6 @@ TEST_F(CCAPCLITest, ConvertI420ToImage_Green) {
     EXPECT_LT(pixel.b, 100) << "Blue channel too high: " << (int)pixel.b;
 }
 
-// Test new -i/--input parameter with video file
-TEST_F(CCAPCLITest, InputParameter_VideoFile) {
-    std::string videoPath = getTestVideoPath();
-    if (videoPath.empty()) {
-        GTEST_SKIP() << "Test video not available";
-    }
-    
-    // Use -i parameter with video file path
-    std::string cmd = "-i \"" + videoPath + "\" -c 3 --image-format bmp -o " + testOutputDir.string();
-    
-    auto result = runCLI(cmd);
-    ASSERT_EQ(result.exitCode, 0) << "Input parameter with video file failed: " << result.output;
-    EXPECT_THAT(result.output, testing::HasSubstr("Video file:"));
-    
-    // Verify frames were created
-    int frameCount = 0;
-    for (const auto& entry : fs::directory_iterator(testOutputDir)) {
-        if (entry.path().extension() == ".bmp") {
-            frameCount++;
-        }
-    }
-    
-    EXPECT_EQ(frameCount, 3) << "Should capture exactly 3 frames";
-}
-
 // Test new -i/--input parameter with device index
 TEST_F(CCAPCLIDeviceTest, InputParameter_DeviceIndex) {
     // Use -i parameter with device index
@@ -1088,21 +1105,6 @@ TEST_F(CCAPCLIDeviceTest, SaveBmpShortcut) {
         }
     }
     EXPECT_GE(bmpCount, 1) << "Expected at least 1 BMP file";
-}
-
-// Test conflicting options: -c and --loop
-TEST_F(CCAPCLITest, ConflictingOptions_CountAndLoop) {
-    std::string videoPath = getTestVideoPath();
-    if (videoPath.empty()) {
-        GTEST_SKIP() << "Test video not available";
-    }
-    
-    std::string cmd = "-i \"" + videoPath + "\" -c 10 --loop -o " + testOutputDir.string();
-    auto result = runCLI(cmd);
-    
-    // Should fail with error about conflicting options
-    EXPECT_NE(result.exitCode, 0) << "Should fail with conflicting -c and --loop";
-    EXPECT_THAT(result.output, testing::HasSubstr("mutually exclusive"));
 }
 
 // Test --save without -o should fail
