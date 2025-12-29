@@ -283,7 +283,11 @@ if [ "$RUN_FUNCTIONAL" = true ]; then
             # Windows MSVC: use single build directory, specify config during build
             cd build
             echo -e "${BLUE}Configuring CMake (Windows MSVC)...${NC}"
-            eval cmake .. -DCCAP_BUILD_TESTS=ON -DCCAP_BUILD_CLI=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $ASAN_FLAGS
+            FILE_PLAYBACK_FLAG=""
+            if [ "$RUN_VIDEO" = true ] || [ "$RUN_ALL" = true ]; then
+                FILE_PLAYBACK_FLAG="-DCCAP_ENABLE_FILE_PLAYBACK=ON"
+            fi
+            eval cmake .. -DCCAP_BUILD_TESTS=ON -DCCAP_BUILD_CLI=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $FILE_PLAYBACK_FLAG $ASAN_FLAGS
 
             echo -e "${BLUE}Building Debug project...${NC}"
             cmake --build . --config Debug --parallel $(detectCores)
@@ -296,7 +300,11 @@ if [ "$RUN_FUNCTIONAL" = true ]; then
             # Linux/Mac: use separate Debug directory
             cd build/Debug
             echo -e "${BLUE}Configuring CMake (Debug)...${NC}"
-            eval cmake ../.. -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_TESTS=ON -DCCAP_BUILD_CLI=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $ASAN_FLAGS
+            FILE_PLAYBACK_FLAG=""
+            if [ "$RUN_VIDEO" = true ] || [ "$RUN_ALL" = true ]; then
+                FILE_PLAYBACK_FLAG="-DCCAP_ENABLE_FILE_PLAYBACK=ON"
+            fi
+            eval cmake ../.. -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_TESTS=ON -DCCAP_BUILD_CLI=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $FILE_PLAYBACK_FLAG $ASAN_FLAGS
 
             echo -e "${BLUE}Building Debug project...${NC}"
             cmake --build . --config Debug --parallel $(detectCores)
@@ -340,20 +348,33 @@ if [ "$RUN_PERFORMANCE" = true ] || [ "$RUN_VIDEO" = true ]; then
             # Only configure if not already configured
             if [ ! -f "CMakeCache.txt" ]; then
                 echo -e "${BLUE}Configuring CMake (Windows MSVC)...${NC}"
-                eval cmake .. -DCCAP_BUILD_TESTS=ON -DCCAP_BUILD_CLI=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $ASAN_FLAGS
+                FILE_PLAYBACK_FLAG=""
+                if [ "$RUN_VIDEO" = true ] || [ "$RUN_ALL" = true ]; then
+                    FILE_PLAYBACK_FLAG="-DCCAP_ENABLE_FILE_PLAYBACK=ON"
+                fi
+                eval cmake .. -DCCAP_BUILD_TESTS=ON -DCCAP_BUILD_CLI=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $FILE_PLAYBACK_FLAG $ASAN_FLAGS
             fi
 
             echo -e "${BLUE}Building Release project...${NC}"
             cmake --build . --config Release --parallel $(detectCores)
 
             echo -e "${BLUE}Building Release tests...${NC}"
-            cmake --build . --config Release --target ccap_performance_test --parallel $(detectCores)
+            if [ "$RUN_PERFORMANCE" = true ]; then
+                cmake --build . --config Release --target ccap_performance_test --parallel $(detectCores)
+            fi
+            if [ "$RUN_VIDEO" = true ]; then
+                cmake --build . --config Release --target ccap_file_playback_test --parallel $(detectCores)
+            fi
             cd ..
         else
             # Linux/Mac: use separate Release directory
             cd build/Release
             echo -e "${BLUE}Configuring CMake (Release)...${NC}"
-            eval cmake ../.. -DCMAKE_BUILD_TYPE=Release -DCCAP_BUILD_TESTS=ON -DCCAP_BUILD_CLI=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $ASAN_FLAGS
+            FILE_PLAYBACK_FLAG=""
+            if [ "$RUN_VIDEO" = true ] || [ "$RUN_ALL" = true ]; then
+                FILE_PLAYBACK_FLAG="-DCCAP_ENABLE_FILE_PLAYBACK=ON"
+            fi
+            eval cmake ../.. -DCMAKE_BUILD_TYPE=Release -DCCAP_BUILD_TESTS=ON -DCCAP_BUILD_CLI=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $FILE_PLAYBACK_FLAG $ASAN_FLAGS
 
             echo -e "${BLUE}Building Release project...${NC}"
             cmake --build . --config Release --parallel $(detectCores)

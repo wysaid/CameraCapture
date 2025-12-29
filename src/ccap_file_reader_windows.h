@@ -92,7 +92,7 @@ private:
 
     std::atomic<int64_t> m_currentFrameIndex{ 0 };
     std::atomic<double> m_currentTime{ 0.0 };
-    std::atomic<double> m_playbackSpeed{ 1.0 };
+    std::atomic<double> m_playbackSpeed{ 0.0 };
 
     std::atomic<bool> m_isOpened{ false };
     std::atomic<bool> m_isStarted{ false };

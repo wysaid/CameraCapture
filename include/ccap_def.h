@@ -223,8 +223,14 @@ enum class PropertyName {
     CurrentTime = 0x50002,
 
     /**
-     * @brief Playback speed multiplier. Read/Write. Default is 1.0 (normal speed).
-     * @note Values > 1.0 speed up playback, values < 1.0 slow down.
+     * @brief Playback speed multiplier. Read/Write. Default is 0.0 (no frame rate control).
+     * @note When set to 0.0 (default), frames are returned immediately without any delay,
+     *       similar to OpenCV's cv::VideoCapture behavior. This is useful for processing
+     *       video frames as fast as possible.
+     *       When set to a positive value:
+     *       - 1.0 = normal speed (matches video's original frame rate)
+     *       - > 1.0 = speeds up playback (e.g., 2.0 = 2x speed)
+     *       - < 1.0 = slows down playback (e.g., 0.5 = half speed)
      *       Only valid in file mode. Returns NaN for camera mode.
      */
     PlaybackSpeed = 0x50003,

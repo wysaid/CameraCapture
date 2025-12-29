@@ -204,6 +204,9 @@ jobs:
             export PATH="$PWD/../build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}:$PATH"
           fi
           ./run_tests.sh --performance --skip-build
+          
+          # Run video file playback tests (Release only)
+          ./run_tests.sh --video --skip-build
         fi
         
     - name: Upload artifacts
@@ -462,6 +465,9 @@ jobs:
             export PATH="$PWD/../build/${{ matrix.config }}-${{ matrix.library_type }}/${{ matrix.config }}:$PATH"
           fi
           ./run_tests.sh --performance --skip-build
+          
+          # Run video file playback tests (Release only)
+          ./run_tests.sh --video --skip-build
         fi
         
     - name: Upload artifacts
@@ -622,6 +628,9 @@ jobs:
           ./run_tests.sh --functional --skip-build
         else
           ./run_tests.sh --performance --skip-build
+          
+          # Run video file playback tests (Release only)
+          ./run_tests.sh --video --skip-build
         fi
         
     - name: Upload artifacts

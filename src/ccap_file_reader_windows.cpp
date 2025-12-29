@@ -30,13 +30,53 @@ HRESULT WINAPI SHStrDupW(LPCWSTR psz, LPWSTR* ppwsz);
 #include <propvarutil.h>
 #include <thread>
 
+// MinGW compatibility: PropVariantToInt64 may not be available
+#ifdef __MINGW32__
+#ifndef PropVariantToInt64
+inline HRESULT PropVariantToInt64(REFPROPVARIANT propvar, LONGLONG* pllVal) {
+    if (!pllVal) return E_POINTER;
+    switch (propvar.vt) {
+        case VT_I8:
+            *pllVal = propvar.hVal.QuadPart;
+            return S_OK;
+        case VT_UI8:
+            *pllVal = static_cast<LONGLONG>(propvar.uhVal.QuadPart);
+            return S_OK;
+        case VT_I4:
+            *pllVal = propvar.lVal;
+            return S_OK;
+        case VT_UI4:
+            *pllVal = propvar.ulVal;
+            return S_OK;
+        case VT_I2:
+            *pllVal = propvar.iVal;
+            return S_OK;
+        case VT_UI2:
+            *pllVal = propvar.uiVal;
+            return S_OK;
+        case VT_I1:
+            *pllVal = propvar.cVal;
+            return S_OK;
+        case VT_UI1:
+            *pllVal = propvar.bVal;
+            return S_OK;
+        default:
+            return DISP_E_TYPEMISMATCH;
+    }
+}
+#endif
+#endif
+
+// MSVC-only: Automatically link required Media Foundation libraries
+// CMake already handles this via target_link_libraries, but this provides
+// a fallback for direct MSVC compilation without CMake
 #ifdef _MSC_VER
 #pragma comment(lib, "mfplat.lib")
 #pragma comment(lib, "mfreadwrite.lib")
 #pragma comment(lib, "mfuuid.lib")
 #pragma comment(lib, "shlwapi.lib")
 #pragma comment(lib, "propsys.lib")
-#endif
+#endif  // _MSC_VER
 
 namespace {
 // Conversion factor: 1 second = 10,000,000 units (100-nanosecond units used by Media Foundation)
@@ -97,7 +137,7 @@ bool FileReaderWindows::open(std::string_view filePath) {
     }
 
     if (!createSourceReader(widePath)) {
-        close();
+        uninitMediaFoundation();
         return false;
     }
 
@@ -312,9 +352,17 @@ void FileReaderWindows::readLoop() {
     m_isReading = true;
 
     auto lastFrameTime = std::chrono::steady_clock::now();
-    double targetFrameInterval = 1.0 / (m_frameRate * m_playbackSpeed.load());
+    double playbackSpeed = m_playbackSpeed.load();
+    double targetFrameInterval = (playbackSpeed > 0.0) ? (1.0 / (m_frameRate * playbackSpeed)) : 0.0;
 
     while (!m_shouldStop && m_sourceReader) {
+        // Backpressure: if queue is full, wait for consumer to catch up
+        // This prevents dropping frames in file mode
+        if (!m_provider->shouldReadMoreFrames()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            continue;
+        }
+
         DWORD streamIndex = 0;
         DWORD flags = 0;
         LONGLONG timestamp = 0;
@@ -338,16 +386,18 @@ void FileReaderWindows::readLoop() {
             continue;
         }
 
-        // Frame rate control
-        auto now = std::chrono::steady_clock::now();
-        double elapsedSeconds = std::chrono::duration<double>(now - lastFrameTime).count();
-        double sleepTime = targetFrameInterval - elapsedSeconds;
+        // Frame rate control (only when playback speed > 0)
+        if (targetFrameInterval > 0.0) {
+            auto now = std::chrono::steady_clock::now();
+            double elapsedSeconds = std::chrono::duration<double>(now - lastFrameTime).count();
+            double sleepTime = targetFrameInterval - elapsedSeconds;
 
-        if (sleepTime > 0.001) {
-            std::this_thread::sleep_for(std::chrono::duration<double>(sleepTime));
+            if (sleepTime > 0.001) {
+                std::this_thread::sleep_for(std::chrono::duration<double>(sleepTime));
+            }
+
+            lastFrameTime = std::chrono::steady_clock::now();
         }
-
-        lastFrameTime = std::chrono::steady_clock::now();
 
         // Process the frame
         IMFMediaBuffer* buffer = nullptr;
@@ -374,6 +424,9 @@ void FileReaderWindows::readLoop() {
                     currentType->Release();
                 }
 
+                // Note: Media Foundation (Source Reader) returns video frames in TopToBottom order
+                // for all formats, unlike DirectShow cameras which may return BottomToTop for RGB.
+                constexpr FrameOrientation inputOrientation = FrameOrientation::TopToBottom;
                 if (subtype == MFVideoFormat_NV12) {
                     newFrame->pixelFormat = PixelFormat::NV12;
                     newFrame->data[0] = data;
@@ -382,7 +435,6 @@ void FileReaderWindows::readLoop() {
                     newFrame->stride[0] = m_width;
                     newFrame->stride[1] = m_width;
                     newFrame->stride[2] = 0;
-                    newFrame->orientation = FrameOrientation::TopToBottom;
                 } else {
                     // RGB32 / BGRA32
                     newFrame->pixelFormat = PixelFormat::BGRA32;
@@ -392,26 +444,51 @@ void FileReaderWindows::readLoop() {
                     newFrame->stride[0] = m_width * 4;
                     newFrame->stride[1] = 0;
                     newFrame->stride[2] = 0;
-                    newFrame->orientation = FrameOrientation::BottomToTop;
                 }
 
-                // Check if conversion is needed
+                // Check if conversion or flip is needed
                 auto& prop = m_provider->getFrameProperty();
-                if (newFrame->pixelFormat != prop.outputPixelFormat) {
+                bool isOutputYUV = (prop.outputPixelFormat & kPixelFormatYUVColorBit) != 0;
+                FrameOrientation targetOrientation = isOutputYUV ? FrameOrientation::TopToBottom : m_provider->frameOrientation();
+                bool shouldFlip = !isOutputYUV && (inputOrientation != targetOrientation);
+                bool shouldConvert = newFrame->pixelFormat != prop.outputPixelFormat;
+
+                newFrame->orientation = targetOrientation;
+
+                bool zeroCopy = !shouldConvert && !shouldFlip;
+
+                if (!zeroCopy) {
                     if (!newFrame->allocator) {
                         auto&& f = m_provider->getAllocatorFactory();
                         newFrame->allocator = f ? f() : std::make_shared<DefaultAllocator>();
                     }
-                    inplaceConvertFrame(newFrame.get(), prop.outputPixelFormat, false);
+                    inplaceConvertFrame(newFrame.get(), prop.outputPixelFormat, shouldFlip);
                 }
 
                 newFrame->frameIndex = m_currentFrameIndex;
 
-                m_provider->newFrameAvailable(std::move(newFrame));
+                if (zeroCopy) {
+                    // Zero-copy path: buffer must stay locked until frame is released
+                    // Use FakeFrame to manage buffer lifetime (similar to camera implementation)
+                    buffer->AddRef(); // Ensure buffer lifecycle
+                    auto manager = std::make_shared<FakeFrame>([newFrame, buffer]() mutable {
+                        newFrame = nullptr;
+                        buffer->Unlock();
+                        buffer->Release();
+                    });
+                    newFrame = std::shared_ptr<VideoFrame>(manager, newFrame.get());
+                    m_provider->newFrameAvailable(std::move(newFrame));
+                    // Don't unlock/release buffer here - FakeFrame will do it when frame is destroyed
+                } else {
+                    // Conversion path: data was copied, safe to unlock immediately
+                    m_provider->newFrameAvailable(std::move(newFrame));
+                    buffer->Unlock();
+                    buffer->Release();
+                }
+            } else {
+                // Failed to lock buffer, release it
+                buffer->Release();
             }
-
-            buffer->Unlock();
-            buffer->Release();
         }
 
         sample->Release();
@@ -420,7 +497,8 @@ void FileReaderWindows::readLoop() {
         m_currentTime = static_cast<double>(timestamp) / kMFTimeUnitsPerSecond;
 
         // Update target interval in case playback speed changed
-        targetFrameInterval = 1.0 / (m_frameRate * m_playbackSpeed.load());
+        playbackSpeed = m_playbackSpeed.load();
+        targetFrameInterval = (playbackSpeed > 0.0) ? (1.0 / (m_frameRate * playbackSpeed)) : 0.0;
     }
 
     m_isReading = false;
@@ -500,7 +578,7 @@ double FileReaderWindows::getPlaybackSpeed() const {
 }
 
 bool FileReaderWindows::setPlaybackSpeed(double speed) {
-    if (speed <= 0) {
+    if (speed < 0) {
         return false;
     }
     m_playbackSpeed = speed;

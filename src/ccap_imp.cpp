@@ -185,7 +185,10 @@ void ProviderImp::newFrameAvailable(std::shared_ptr<VideoFrame> frame) {
         std::lock_guard<std::mutex> lock(m_availableFrameMutex);
 
         m_availableFrames.push(std::move(frame));
-        if (m_availableFrames.size() > m_maxAvailableFrameSize) {
+        
+        // Camera mode: drop old frames when queue is full (real-time streaming)
+        // File mode: never drop frames (backpressure will pause reading)
+        if (!m_isFileMode && m_availableFrames.size() > m_maxAvailableFrameSize) {
             m_availableFrames.pop();
         }
     }
@@ -197,6 +200,18 @@ void ProviderImp::newFrameAvailable(std::shared_ptr<VideoFrame> frame) {
 }
 
 bool ProviderImp::tooManyNewFrames() { return m_availableFrames.size() > m_maxAvailableFrameSize; }
+
+bool ProviderImp::shouldReadMoreFrames() const {
+    // Camera mode: always read (old frames will be dropped)
+    if (!m_isFileMode) {
+        return true;
+    }
+    
+    // File mode: stop reading when queue is full to avoid dropping frames
+    // This implements backpressure - we wait for the consumer to catch up
+    std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(m_availableFrameMutex));
+    return m_availableFrames.size() < m_maxAvailableFrameSize;
+}
 
 void ProviderImp::notifyGrabWaiters() {
     m_frameCondition.notify_all();

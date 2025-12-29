@@ -74,6 +74,23 @@ set(UNIT_TEST OFF CACHE BOOL "" FORCE)
 set(JPEG_FOUND OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(libyuv)
 
+# Add UTF-8 encoding support for libyuv if using MSVC
+if (MSVC)
+    if (TARGET yuv)
+        target_compile_options(yuv PRIVATE /utf-8 /wd4819)
+    endif()
+    if (TARGET yuv_internal)
+        target_compile_options(yuv_internal PRIVATE /utf-8 /wd4819)
+    endif()
+    # Add for all object libraries as well
+    get_property(libyuv_targets DIRECTORY ${libyuv_SOURCE_DIR} PROPERTY BUILDSYSTEM_TARGETS)
+    foreach(target ${libyuv_targets})
+        if (TARGET ${target})
+            target_compile_options(${target} PRIVATE /utf-8 /wd4819)
+        endif()
+    endforeach()
+endif()
+
 # Common test utilities
 add_library(ccap_test_utils
         test_utils.cpp
@@ -97,6 +114,7 @@ if (MSVC)
             /MP
             /std:c++17
             /Zc:__cplusplus
+            /source-charset:utf-8
             /bigobj
             /wd4996
             /D_CRT_SECURE_NO_WARNINGS
@@ -154,6 +172,7 @@ if (WIN32)
                 /MP
                 /std:c++17
                 /Zc:__cplusplus
+                /source-charset:utf-8
                 /bigobj
                 /wd4996
                 /D_CRT_SECURE_NO_WARNINGS
@@ -266,6 +285,48 @@ if (CCAP_ENABLE_FILE_PLAYBACK)
                 -std=c++17
         )
     endif ()
+
+    # Memory safety test executable - tests frame dropping behavior and memory limits
+    add_executable(
+            ccap_memory_safety_test
+            test_memory_safety.cpp
+    )
+
+    target_link_libraries(
+            ccap_memory_safety_test
+            PRIVATE
+            ccap_test_utils
+            gtest
+            gmock
+    )
+
+    set_target_properties(ccap_memory_safety_test PROPERTIES
+            CXX_STANDARD 17
+            CXX_STANDARD_REQUIRED ON
+    )
+
+    target_compile_definitions(ccap_memory_safety_test PRIVATE
+            $<$<CONFIG:Debug>:DEBUG>
+            $<$<CONFIG:Release>:NDEBUG>
+            $<$<AND:$<NOT:$<BOOL:${MSVC}>>,$<NOT:$<BOOL:${MINGW}>>>:GTEST_HAS_PTHREAD=1>
+    )
+
+    if (MSVC)
+        target_compile_options(ccap_memory_safety_test PRIVATE
+                /MP
+                /std:c++17
+                /Zc:__cplusplus
+                /Zc:preprocessor
+                /source-charset:utf-8
+                /bigobj
+                /wd4996
+                /D_CRT_SECURE_NO_WARNINGS
+        )
+    else ()
+        target_compile_options(ccap_memory_safety_test PRIVATE
+                -std=c++17
+        )
+    endif ()
     
     message(STATUS "ccap: File playback tests enabled")
 else ()
@@ -292,6 +353,7 @@ if (NOT CMAKE_CROSSCOMPILING)
     endif ()
     if (CCAP_ENABLE_FILE_PLAYBACK)
         gtest_discover_tests(ccap_file_playback_test DISCOVERY_MODE PRE_TEST)
+        gtest_discover_tests(ccap_memory_safety_test DISCOVERY_MODE PRE_TEST)
     endif ()
 else ()
     message(STATUS "CMAKE_CROSSCOMPILING is ON: skipping GoogleTest discovery at configure time.")

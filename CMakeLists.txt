@@ -272,9 +272,8 @@ if (MSVC)
             $<$<COMPILE_LANGUAGE:CXX>:/std:c++17>
             $<$<COMPILE_LANGUAGE:CXX>:/Zc:__cplusplus>
             $<$<COMPILE_LANGUAGE:CXX>:/Zc:preprocessor>
+            /source-charset:utf-8
     )
-
-    target_compile_options(ccap PRIVATE /source-charset:utf-8)
 
 else ()
     target_compile_options(ccap PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-std=c++17>)

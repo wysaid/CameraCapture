@@ -111,7 +111,7 @@ public:
 
     /**
      * @brief Check if the provider is in file playback mode.
-     * @return true if opened with a video file path, false if opened with a camera device.
+     * @return true if opened with a video file path, false otherwise.
      */
     bool isFileMode() const;
 

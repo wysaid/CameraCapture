@@ -10,6 +10,38 @@ permissions:
   contents: read
 
 jobs:
+  check-env:
+    name: "Check Environment"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create check_env.cpp
+        run: |
+          cat > check_env.cpp << 'EOF'
+          #include <iostream>
+          #include <cstdlib>
+          #include <string>
+
+          int main() {
+              const char* env_p = std::getenv("GITHUB_ACTIONS");
+              if (env_p) {
+                  std::cout << "GITHUB_ACTIONS=" << env_p << std::endl;
+                  std::string env_str(env_p);
+                  if (env_str == "true") {
+                      return 0;
+                  }
+              } else {
+                  std::cout << "GITHUB_ACTIONS is not set" << std::endl;
+              }
+              return 1;
+          }
+          EOF
+
+      - name: Compile check_env.cpp
+        run: g++ check_env.cpp -o check_env
+
+      - name: Run check_env
+        run: ./check_env
+
   build-ubuntu:
     name: "Build (${{ matrix.build_type }}-gcc-${{ matrix.library_type }})"
     runs-on: ubuntu-latest

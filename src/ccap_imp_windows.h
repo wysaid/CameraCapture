@@ -90,6 +90,8 @@ public:
     using ProviderImp::getFreeFrame;
     using ProviderImp::newFrameAvailable;
 
+    inline FrameOrientation frameOrientation() const { return m_frameOrientation; }
+
 private:
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject) override;
     ULONG STDMETHODCALLTYPE AddRef(void) override;

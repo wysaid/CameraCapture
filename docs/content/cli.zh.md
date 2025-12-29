@@ -98,7 +98,7 @@ cmake --build build
 | `-d, --device INDEX\|NAME` | `0` | 通过索引或名称选择相机设备 |
 | `-w, --width WIDTH` | `1280` | 设置捕获宽度(像素) |
 | `-H, --height HEIGHT` | `720` | 设置捕获高度(像素) |
-| `-f, --fps FPS` | `30.0` | 设置帧率 |
+| `-f, --fps FPS` | `30.0` | 设置帧率（支持浮点数，例如 29.97）<br>**相机模式：**设置相机的捕获帧率<br>**视频模式：**计算播放速度（例如视频是 15fps，--fps 30 → 2.0倍速）<br>**注意：**不能与 `--speed` 同时使用 |
 | `-c, --count COUNT` | `1` | 要捕获的帧数 |
 | `-t, --timeout MS` | `5000` | 捕获超时时间(毫秒) |
 | `-o, --output DIR` | - | 捕获图像的输出目录 |
@@ -116,6 +116,16 @@ cmake --build build
 |-----|------|
 | `-p, --preview` | 启用实时预览窗口 |
 | `--preview-only` | 仅显示预览,不保存帧到磁盘 |
+
+### 视频播放选项
+
+| 选项 | 描述 |
+|-----|------|
+| `-i, --input FILE` | 输入视频文件路径 |
+| `--loop[=N]` | 循环播放视频。省略 N 表示无限循环，指定 N 表示精确循环次数 |
+| `--speed SPEED` | 播放速度倍数<br>`0.0` = 无帧率控制（以最快速度处理）<br>`1.0` = 正常速度（匹配视频原始帧率）<br>`>1.0` = 加速播放（例如 2.0 = 2倍速）<br>`<1.0` = 减速播放（例如 0.5 = 半速）<br>默认值：捕获模式下为 `0.0`，预览模式下为 `1.0`<br>**注意：**不能与 `-f/--fps` 同时使用 |
+
+**注意：** `--loop` 和 `-c` 选项互斥。使用 `-c` 限制捕获帧数，或使用 `--loop` 循环播放视频，但不能同时使用两者。
 
 ### 格式转换
 
@@ -269,6 +279,47 @@ ccap -d 0 --preview-only
 在捕获帧的同时预览:
 ```bash
 ccap -d 0 -w 1920 -H 1080 -c 10 -o ./captures --preview
+```
+
+### 视频播放
+
+从视频文件提取 30 帧:
+```bash
+ccap -i /path/to/video.mp4 -c 30 -o ./frames
+```
+
+无限循环播放视频:
+```bash
+ccap -i /path/to/video.mp4 --preview --loop
+```
+
+循环播放视频 5 次:
+```bash
+ccap -i /path/to/video.mp4 --preview --loop=5
+```
+
+以 2 倍速预览视频:
+```bash
+ccap -i /path/to/video.mp4 --preview --speed 2.0
+```
+
+以最快速度提取帧（无帧率控制）:
+```bash
+ccap -i /path/to/video.mp4 -c 100 -o ./frames --speed 0.0
+```
+
+以半速预览视频（慢动作）:
+```bash
+ccap -i /path/to/video.mp4 --preview --speed 0.5
+```
+
+使用 --fps 控制播放（自动计算速度）：
+```bash
+# 视频是 30fps，以 60fps 播放（2倍速）
+ccap -i /path/to/video.mp4 --preview --fps 60
+
+# 视频是 30fps，以 15fps 播放（0.5倍速）
+ccap -i /path/to/video.mp4 --preview --fps 15
 ```
 
 ### 高级用法

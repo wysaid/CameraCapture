@@ -94,6 +94,10 @@ public:
 
     bool tooManyNewFrames();
 
+    /// Check if more frames should be read (handles backpressure for file mode)
+    /// @return true if more frames can be read, false if should wait for consumer
+    bool shouldReadMoreFrames() const;
+
     /// Notify waiting grab() calls to wake up (e.g., when playback completes or device stops)
     void notifyGrabWaiters();
 

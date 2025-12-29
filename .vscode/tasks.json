@@ -387,7 +387,9 @@
             "args": [
                 "clean",
                 "-fdx",
-                "**/*.bmp"
+                "**/*.bmp",
+                "**/*.jpg",
+                "**/*.png"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/build"
@@ -567,7 +569,8 @@
             "problemMatcher": "$gcc",
             "dependsOn": [
                 "Run Functional Tests",
-                "Run Performance Tests"
+                "Run Performance Tests",
+                "Run Video Tests"
             ],
             "dependsOrder": "sequence"
         },

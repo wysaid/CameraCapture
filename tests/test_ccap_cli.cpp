@@ -100,34 +100,39 @@ CommandResult executeCommand(const std::string& command) {
 
 // Get path to ccap CLI executable
 std::string getCLIPath() {
-    // CLI executable is in the same build directory as the test
+    // Get executable path (where the test binary is located)
     fs::path testExePath = fs::current_path();
     
 #ifdef _WIN32
-    fs::path cliPath = testExePath / "ccap.exe";
+    const char* cliName = "ccap.exe";
 #else
-    fs::path cliPath = testExePath / "ccap";
+    const char* cliName = "ccap";
 #endif
     
-    // If not found, try parent directory (common build layout: tests -> parent)
-    if (!fs::exists(cliPath)) {
-        cliPath = testExePath.parent_path() / cliPath.filename();
-    }
+    // Try different possible locations:
+    std::vector<fs::path> possiblePaths = {
+        // 1. Same directory as test (single-config generators like Ninja)
+        testExePath / cliName,
+        
+        // 2. Parent of test directory (tests/Debug -> tests)
+        testExePath.parent_path() / cliName,
+        
+        // 3. For multi-config (MSVC): tests/Debug -> build/Debug
+        testExePath.parent_path().parent_path() / testExePath.filename() / cliName,
+        
+        // 4. When running from build directory: build -> build/Debug
+        testExePath / "Debug" / cliName,
+        testExePath / "Release" / cliName,
+    };
     
-    // On Windows MSVC multi-config, try going from tests/Release -> build/Release
-    // tests/Release -> tests -> build -> build/Release
-    if (!fs::exists(cliPath)) {
-        auto testsDir = testExePath.parent_path();  // tests/Release -> tests
-        auto buildDir = testsDir.parent_path();      // tests -> build
-        cliPath = buildDir / testExePath.filename() / cliPath.filename();  // build/Release/ccap.exe
+    for (const auto& path : possiblePaths) {
+        if (fs::exists(path)) {
+            return path.string();
+        }
     }
     
     // If still not found, return an empty string to trigger skip
-    if (!fs::exists(cliPath)) {
-        return "";
-    }
-    
-    return cliPath.string();
+    return "";
 }
 
 // Check if camera device is available
@@ -1185,3 +1190,245 @@ TEST_F(CCAPCLIDeviceTest, SaveFormatParameter) {
     }
     EXPECT_GE(bmpCount, 1) << "Expected at least 1 BMP file";
 }
+
+#if defined(CCAP_ENABLE_FILE_PLAYBACK)
+// Helper function to check if ffmpeg is available
+static bool isFFmpegAvailable() {
+    auto result = executeCommand("ffmpeg -version");
+    return result.exitCode == 0;
+}
+
+// Helper function to extract first frame from video using ffmpeg
+static std::string extractFrameWithFFmpeg(const std::string& videoPath, const std::string& outputPath) {
+    // Use ffmpeg to extract first frame
+    // -y: overwrite output file
+    // -i: input file
+    // -vf "select=eq(n\,0)": select frame 0 (first frame)
+    // -vframes 1: extract only 1 frame
+    std::string cmd = "ffmpeg -y -loglevel error -i \"" + videoPath + 
+                      "\" -vf \"select=eq(n\\,0)\" -vframes 1 \"" + outputPath + "\"";
+    
+    auto result = executeCommand(cmd);
+    if (result.exitCode != 0 || !fs::exists(outputPath)) {
+        return "";
+    }
+    return outputPath;
+}
+
+// Helper function to load BMP pixel data
+static std::vector<uint8_t> loadBMPPixels(const std::string& filepath, int& width, int& height) {
+    std::ifstream file(filepath, std::ios::binary);
+    if (!file) {
+        return {};
+    }
+    
+    BMPFileHeader fileHeader;
+    file.read(reinterpret_cast<char*>(&fileHeader), sizeof(fileHeader));
+    
+    if (fileHeader.signature != 0x4D42) { // "BM"
+        return {};
+    }
+    
+    BMPInfoHeader infoHeader;
+    file.read(reinterpret_cast<char*>(&infoHeader), sizeof(infoHeader));
+    
+    width = infoHeader.width;
+    height = std::abs(infoHeader.height);
+    bool isTopDown = infoHeader.height < 0;
+    
+    // Only support 24-bit BMP for simplicity
+    if (infoHeader.bitsPerPixel != 24) {
+        return {};
+    }
+    
+    file.seekg(fileHeader.dataOffset);
+    
+    int rowSize = ((width * 3 + 3) / 4) * 4; // 4-byte aligned
+    std::vector<uint8_t> pixels(width * height * 3);
+    
+    // BMP stores pixels bottom-to-top by default (unless height is negative)
+    for (int y = 0; y < height; ++y) {
+        int rowIndex = isTopDown ? y : (height - 1 - y);
+        file.read(reinterpret_cast<char*>(&pixels[rowIndex * width * 3]), width * 3);
+        
+        // Skip padding bytes
+        if (rowSize > width * 3) {
+            file.seekg(rowSize - width * 3, std::ios::cur);
+        }
+    }
+    
+    return pixels;
+}
+
+// Helper function to calculate perceptual similarity (SSIM-like metric)
+static double calculateSimilarity(const std::vector<uint8_t>& pixels1, const std::vector<uint8_t>& pixels2) {
+    if (pixels1.size() != pixels2.size() || pixels1.empty()) {
+        return 0.0;
+    }
+    
+    uint64_t sumSquaredDiff = 0;
+    for (size_t i = 0; i < pixels1.size(); ++i) {
+        int diff = static_cast<int>(pixels1[i]) - static_cast<int>(pixels2[i]);
+        sumSquaredDiff += diff * diff;
+    }
+    
+    // Calculate MSE (Mean Squared Error)
+    double mse = static_cast<double>(sumSquaredDiff) / pixels1.size();
+    
+    // Calculate PSNR (Peak Signal-to-Noise Ratio)
+    // PSNR = 10 * log10(MAX^2 / MSE)
+    // For 8-bit images, MAX = 255
+    if (mse == 0.0) {
+        return 100.0; // Perfect match
+    }
+    
+    double psnr = 10.0 * std::log10((255.0 * 255.0) / mse);
+    
+    // Convert PSNR to similarity score (0-100%)
+    // PSNR > 40 dB is considered very good
+    // PSNR > 30 dB is good
+    return std::min(100.0, psnr * 2.0); // Scale PSNR to 0-100
+}
+
+// Helper to test frame orientation for a specific format
+static void testFrameOrientationForFormat(const std::string& cliPath, 
+                                          const std::string& videoPath,
+                                          const std::string& formatName,
+                                          const std::string& ffmpegExt) {
+    // Create temporary directory for output
+    fs::path tempDir = fs::temp_directory_path() / ("ccap_orientation_test_" + formatName);
+    fs::create_directories(tempDir);
+    
+    // Extract first frame using ffmpeg
+    std::string ffmpegOutput = (tempDir / ("frame_ffmpeg" + ffmpegExt)).string();
+    if (extractFrameWithFFmpeg(videoPath, ffmpegOutput).empty()) {
+        fs::remove_all(tempDir);
+        GTEST_SKIP() << "Failed to extract frame with ffmpeg for format: " << formatName;
+    }
+    
+    // Extract first frame using ccap CLI
+    fs::path ccapOutputDir = tempDir / "ccap_output";
+    fs::create_directories(ccapOutputDir);
+    
+    std::string cmd = cliPath + " -i \"" + videoPath + "\" -c 1 -o \"" + ccapOutputDir.string() + "\" --save-format " + formatName;
+    auto result = executeCommand(cmd);
+    
+    ASSERT_EQ(result.exitCode, 0) << "CLI frame extraction failed for " << formatName << ": " << result.output;
+    
+    // Find the output file created by CLI
+    std::string ccapOutput;
+    std::string targetExt = "." + formatName;
+    for (const auto& entry : fs::directory_iterator(ccapOutputDir)) {
+        if (entry.path().extension() == targetExt) {
+            ccapOutput = entry.path().string();
+            break;
+        }
+    }
+    
+    ASSERT_FALSE(ccapOutput.empty()) << "No " << formatName << " file created by CLI";
+    
+    // Load both images - for non-BMP formats, use ffmpeg to convert to BMP first
+    int width1 = 0, height1 = 0, width2 = 0, height2 = 0;
+    std::vector<uint8_t> pixels1, pixels2;
+    
+    if (ffmpegExt == ".bmp") {
+        pixels1 = loadBMPPixels(ffmpegOutput, width1, height1);
+    } else {
+        // Convert ffmpeg output to BMP for comparison
+        std::string ffmpegBmp = (tempDir / "ffmpeg_converted.bmp").string();
+        std::string convertCmd = "ffmpeg -y -loglevel error -i \"" + ffmpegOutput + "\" \"" + ffmpegBmp + "\"";
+        executeCommand(convertCmd);
+        pixels1 = loadBMPPixels(ffmpegBmp, width1, height1);
+    }
+    
+    // Convert ccap output to BMP for comparison
+    std::string ccapBmp = (tempDir / "ccap_converted.bmp").string();
+    std::string convertCmd = "ffmpeg -y -loglevel error -i \"" + ccapOutput + "\" \"" + ccapBmp + "\"";
+    executeCommand(convertCmd);
+    pixels2 = loadBMPPixels(ccapBmp, width2, height2);
+    
+    ASSERT_FALSE(pixels1.empty()) << "Failed to load ffmpeg frame for " << formatName;
+    ASSERT_FALSE(pixels2.empty()) << "Failed to load ccap frame for " << formatName;
+    
+    EXPECT_EQ(width1, width2) << "Frame width mismatch for " << formatName;
+    EXPECT_EQ(height1, height2) << "Frame height mismatch for " << formatName;
+    
+    if (width1 != width2 || height1 != height2) {
+        fs::remove_all(tempDir);
+        return;
+    }
+    
+    // Calculate similarity
+    double similarity = calculateSimilarity(pixels1, pixels2);
+    
+    // Also test flipped version to diagnose upside-down issue
+    std::vector<uint8_t> pixels2Flipped(pixels2.size());
+    for (int y = 0; y < height2; ++y) {
+        int srcY = height2 - 1 - y;
+        memcpy(&pixels2Flipped[y * width2 * 3], &pixels2[srcY * width2 * 3], width2 * 3);
+    }
+    
+    double similarityFlipped = calculateSimilarity(pixels1, pixels2Flipped);
+    
+    // Report results
+    std::cout << formatName << " frame similarity (direct): " << similarity << "%" << std::endl;
+    std::cout << formatName << " frame similarity (flipped): " << similarityFlipped << "%" << std::endl;
+    
+    // Clean up
+    fs::remove_all(tempDir);
+    
+    // The frames should match when NOT flipped
+    // If flipped version has higher similarity, the CLI output is upside-down
+    if (similarityFlipped > similarity + 5.0) {
+        FAIL() << "CLI " << formatName << " frame appears to be upside-down! "
+               << "Direct similarity: " << similarity << "%, "
+               << "Flipped similarity: " << similarityFlipped << "%";
+    }
+    
+    // Frames should be similar (>75% for lossy formats like JPG, >90% for lossless)
+    double threshold = (formatName == "jpg") ? 75.0 : 90.0;
+    EXPECT_GT(similarity, threshold) << formatName << " frames don't match. CLI might be saving with wrong orientation.";
+}
+
+// Test frame orientation correctness for BMP format
+TEST_F(CCAPCLITest, FrameOrientationMatchesFFmpeg_BMP) {
+    if (!isFFmpegAvailable()) {
+        GTEST_SKIP() << "ffmpeg not found in system PATH";
+    }
+    
+    std::string videoPath = getTestVideoPath();
+    if (videoPath.empty()) {
+        GTEST_SKIP() << "Test video not available";
+    }
+    
+    testFrameOrientationForFormat(cliPath, videoPath, "bmp", ".bmp");
+}
+
+// Test frame orientation correctness for PNG format
+TEST_F(CCAPCLITest, FrameOrientationMatchesFFmpeg_PNG) {
+    if (!isFFmpegAvailable()) {
+        GTEST_SKIP() << "ffmpeg not found in system PATH";
+    }
+    
+    std::string videoPath = getTestVideoPath();
+    if (videoPath.empty()) {
+        GTEST_SKIP() << "Test video not available";
+    }
+    
+    testFrameOrientationForFormat(cliPath, videoPath, "png", ".png");
+}
+
+// Test frame orientation correctness for JPG format
+TEST_F(CCAPCLITest, FrameOrientationMatchesFFmpeg_JPG) {
+    if (!isFFmpegAvailable()) {
+        GTEST_SKIP() << "ffmpeg not found in system PATH";
+    }
+    
+    std::string videoPath = getTestVideoPath();
+    if (videoPath.empty()) {
+        GTEST_SKIP() << "Test video not available";
+    }
+    
+    testFrameOrientationForFormat(cliPath, videoPath, "jpg", ".jpg");
+}
+#endif
