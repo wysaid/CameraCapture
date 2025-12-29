@@ -311,6 +311,11 @@ using namespace ccap;
     
     _isReading = false;
     _started = NO;
+    
+    // Notify waiting grab() calls that playback has finished
+    if (_provider) {
+        _provider->notifyGrabWaiters();
+    }
 }
 
 - (void)processFrame:(CMSampleBufferRef)sampleBuffer {

@@ -801,6 +801,11 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
         CCAP_NSLOG_V(@"ccap: CameraCaptureObjc stop");
         [_session stopRunning];
     }
+    
+    // Notify waiting grab() calls that camera has stopped
+    if (_provider) {
+        _provider->notifyGrabWaiters();
+    }
 }
 
 - (BOOL)isRunning {

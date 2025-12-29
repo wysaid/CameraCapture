@@ -1374,18 +1374,22 @@
         {
             "label": "Run ccap CLI --preview video (Debug)",
             "type": "shell",
-            "command": ".\\ccap.exe",
-            "args": ["-i", "test.mp4", "--preview"],
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./ccap.exe -i test.mp4 --preview; else ./ccap -i test.mp4 --preview; fi )"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}/build/Debug"
             },
             "group": "build",
+            "problemMatcher": "$gcc",
             "dependsOn": [
                 "Config: Enable CLI Tool",
                 "Build Project (Debug)"
             ],
             "dependsOrder": "sequence",
-            "problemMatcher": "$msCompile",
             "windows": {
                 "command": ".\\ccap.exe",
                 "args": ["-i", "test.mp4", "--preview"],
@@ -1398,18 +1402,22 @@
         {
             "label": "Run ccap CLI --preview video (Release)",
             "type": "shell",
-            "command": ".\\ccap.exe",
-            "args": ["-i", "test.mp4", "--preview"],
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./ccap.exe -i test.mp4 --preview; else ./ccap -i test.mp4 --preview; fi )"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}/build/Release"
             },
             "group": "build",
+            "problemMatcher": "$gcc",
             "dependsOn": [
                 "Config: Enable CLI Tool",
                 "Build Project (Release)"
             ],
             "dependsOrder": "sequence",
-            "problemMatcher": "$msCompile",
             "windows": {
                 "command": ".\\ccap.exe",
                 "args": ["-i", "test.mp4", "--preview"],

@@ -147,8 +147,9 @@ std::shared_ptr<VideoFrame> ProviderImp::grab(uint32_t timeoutInMs) {
             uint32_t remainingTime = timeoutInMs - waitedTime;
             uint32_t waitTime = (remainingTime < 1000) ? remainingTime : 1000;
             waitSuccess = m_frameCondition.wait_for(lock, std::chrono::milliseconds(waitTime),
-                                                    [this]() { return m_grabFrameWaiting && !m_availableFrames.empty(); });
+                                                    [this]() { return (m_grabFrameWaiting && !m_availableFrames.empty()) || !isStarted(); });
             if (waitSuccess) break;
+            
             waitedTime += waitTime;
             CCAP_LOG_V("ccap: Waiting for new frame... %u ms\n", waitedTime);
         }
@@ -194,6 +195,10 @@ void ProviderImp::newFrameAvailable(std::shared_ptr<VideoFrame> frame) {
 }
 
 bool ProviderImp::tooManyNewFrames() { return m_availableFrames.size() > m_maxAvailableFrameSize; }
+
+void ProviderImp::notifyGrabWaiters() {
+    m_frameCondition.notify_all();
+}
 
 std::shared_ptr<VideoFrame> ProviderImp::getFreeFrame() {
     std::lock_guard<std::mutex> lock(m_poolMutex);
