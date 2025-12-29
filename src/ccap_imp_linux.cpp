@@ -219,6 +219,9 @@ void ProviderV4L2::stop() {
 
     m_shouldStop = true;
 
+    // Notify waiting grab() calls that camera is stopping
+    notifyGrabWaiters();
+
     // Wait for capture thread to finish
     if (m_captureThread && m_captureThread->joinable()) {
         m_captureThread->join();

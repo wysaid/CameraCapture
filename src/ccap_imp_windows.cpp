@@ -1172,7 +1172,7 @@ void ProviderDirectShow::stop() {
         CCAP_LOG_V("ccap: VideoFrame waiting stopped\n");
 
         m_grabFrameWaiting = false;
-        m_frameCondition.notify_all();
+        notifyGrabWaiters();
     }
 
     if (m_isRunning && m_mediaControl) {
