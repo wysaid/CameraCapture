@@ -479,7 +479,7 @@ ccap -d 0 --format xyz
 
 ## 另请参阅
 
-- [主 ccap 文档](documentation.html) - CameraCapture 库概述
-- [CMake 构建选项](https://github.com/wysaid/CameraCapture/blob/main/docs/CMAKE_OPTIONS.md) - 构建配置详情
-- [C 接口文档](https://github.com/wysaid/CameraCapture/blob/main/docs/C_Interface.md) - C API 参考
+- [主 ccap 文档](documentation.zh.md) - CameraCapture 库概述
+- [CMake 构建选项](cmake-options.zh.md) - 构建配置详情
+- [C 接口文档](c-interface.md) - C API 参考
 - [示例](https://github.com/wysaid/CameraCapture/tree/main/examples) - 使用库的代码示例

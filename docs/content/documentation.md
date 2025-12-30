@@ -9,12 +9,7 @@
 - Cross-platform: Windows, macOS, iOS, Linux
 - Dual API: Modern C++17 and pure C99
 - Command-line tool for scripting and automation
-
-## Quick Links
-
-- [CLI Tool Documentation](cli.html) - Command-line interface for camera operations
-- [C Interface Documentation](https://github.com/wysaid/CameraCapture/blob/main/docs/C_Interface.md) - C99 API reference
-- [CMake Build Options](https://github.com/wysaid/CameraCapture/blob/main/docs/CMAKE_OPTIONS.md) - Build configuration details
+- **Also available:** [C Interface](c-interface.md) for language bindings
 
 ## Installation
 

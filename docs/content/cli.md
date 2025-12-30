@@ -515,7 +515,7 @@ ccap -d 0 --format xyz
 
 ## See Also
 
-- [Main ccap Documentation](documentation.html) - Overview of the CameraCapture library
-- [CMake Build Options](https://github.com/wysaid/CameraCapture/blob/main/docs/CMAKE_OPTIONS.md) - Build configuration details
-- [C Interface Documentation](https://github.com/wysaid/CameraCapture/blob/main/docs/C_Interface.md) - C API reference
+- [Main ccap Documentation](documentation.md) - Overview of the CameraCapture library
+- [CMake Build Options](cmake-options.md) - Build configuration details
+- [C Interface Documentation](c-interface.md) - C API reference
 - [Examples](https://github.com/wysaid/CameraCapture/tree/main/examples) - Code examples using the library

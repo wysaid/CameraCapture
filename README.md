@@ -594,7 +594,7 @@ gcc -std=c99 your_code.c -o your_app \
 
 #### Complete Documentation
 
-For detailed usage instructions and examples of the C interface, see: [C Interface Documentation](./docs/C_Interface.md)
+For detailed usage instructions and examples of the C interface, see: [C Interface Documentation](./docs/content/c-interface.md)
 
 **Additional C Utilities**: For pixel format string conversion and file I/O functions, also include:
 
