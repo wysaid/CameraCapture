@@ -6,14 +6,6 @@
 
 set -e
 
-# Check bash version (associative arrays require bash 4+)
-if ((BASH_VERSINFO[0] < 4)); then
-    echo "❌ Error: This script requires bash 4.0 or later"
-    echo "  Current version: ${BASH_VERSION}"
-    echo "  On macOS, install newer bash: brew install bash"
-    exit 1
-fi
-
 # Color definitions for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'

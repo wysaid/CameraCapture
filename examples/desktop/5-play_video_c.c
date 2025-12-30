@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    char captureDir[1024 + 32];  // Extra space for "/video_frames" and safety margin
+    char captureDir[1024 + 32]; // Extra space for "/video_frames" and safety margin
     snprintf(captureDir, sizeof(captureDir), "%s/video_frames", cwd);
     createDirectory(captureDir);
 

@@ -36,32 +36,32 @@ HRESULT WINAPI SHStrDupW(LPCWSTR psz, LPWSTR* ppwsz);
 inline HRESULT PropVariantToInt64(REFPROPVARIANT propvar, LONGLONG* pllVal) {
     if (!pllVal) return E_POINTER;
     switch (propvar.vt) {
-        case VT_I8:
-            *pllVal = propvar.hVal.QuadPart;
-            return S_OK;
-        case VT_UI8:
-            *pllVal = static_cast<LONGLONG>(propvar.uhVal.QuadPart);
-            return S_OK;
-        case VT_I4:
-            *pllVal = propvar.lVal;
-            return S_OK;
-        case VT_UI4:
-            *pllVal = propvar.ulVal;
-            return S_OK;
-        case VT_I2:
-            *pllVal = propvar.iVal;
-            return S_OK;
-        case VT_UI2:
-            *pllVal = propvar.uiVal;
-            return S_OK;
-        case VT_I1:
-            *pllVal = propvar.cVal;
-            return S_OK;
-        case VT_UI1:
-            *pllVal = propvar.bVal;
-            return S_OK;
-        default:
-            return DISP_E_TYPEMISMATCH;
+    case VT_I8:
+        *pllVal = propvar.hVal.QuadPart;
+        return S_OK;
+    case VT_UI8:
+        *pllVal = static_cast<LONGLONG>(propvar.uhVal.QuadPart);
+        return S_OK;
+    case VT_I4:
+        *pllVal = propvar.lVal;
+        return S_OK;
+    case VT_UI4:
+        *pllVal = propvar.ulVal;
+        return S_OK;
+    case VT_I2:
+        *pllVal = propvar.iVal;
+        return S_OK;
+    case VT_UI2:
+        *pllVal = propvar.uiVal;
+        return S_OK;
+    case VT_I1:
+        *pllVal = propvar.cVal;
+        return S_OK;
+    case VT_UI1:
+        *pllVal = propvar.bVal;
+        return S_OK;
+    default:
+        return DISP_E_TYPEMISMATCH;
     }
 }
 #endif
@@ -76,7 +76,7 @@ inline HRESULT PropVariantToInt64(REFPROPVARIANT propvar, LONGLONG* pllVal) {
 #pragma comment(lib, "mfuuid.lib")
 #pragma comment(lib, "shlwapi.lib")
 #pragma comment(lib, "propsys.lib")
-#endif  // _MSC_VER
+#endif // _MSC_VER
 
 namespace {
 // Conversion factor: 1 second = 10,000,000 units (100-nanosecond units used by Media Foundation)

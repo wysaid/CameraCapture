@@ -193,20 +193,6 @@
             "dependsOrder": "sequence"
         },
         {
-            "label": "Reload Project",
-            "type": "shell",
-            "command": "echo",
-            "args": [
-                "Done!",
-            ],
-            "group": "build",
-            "dependsOn": [
-                "Clean Project",
-                "Load Project"
-            ],
-            "dependsOrder": "sequence"
-        },
-        {
             "label": "Reload Project (Shared)",
             "type": "shell",
             "command": "echo",
