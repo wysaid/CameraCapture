@@ -1732,8 +1732,8 @@ jobs:
         
         - **Getting Started**: [README.md](https://github.com/wysaid/CameraCapture#readme)
         - **Build & Install**: [BUILD_AND_INSTALL.md](https://github.com/wysaid/CameraCapture/blob/main/BUILD_AND_INSTALL.md)
-        - **CLI Tool Guide**: [CLI Documentation](https://ccap.work/cli.html)
-        - **C Interface**: [C_Interface.md](https://github.com/wysaid/CameraCapture/blob/main/docs/C_Interface.md)
+        - **CLI Tool Guide**: [CLI Documentation](https://ccap.work/documentation.html?doc=cli)
+        - **C Interface**: [C Interface Documentation](https://ccap.work/documentation.html?doc=c-interface)
         - **API Reference**: [ccap.work/documentation.html](https://ccap.work/documentation.html)
         
         ---

@@ -511,7 +511,7 @@ gcc -std=c99 your_code.c -o your_app \
 
 #### 完整文档
 
-C 接口的详细使用说明和示例请参见：[C 接口文档](./docs/C_Interface.md)
+C 接口的详细使用说明和示例请参见：[C 接口文档](./docs/content/c-interface.md)
 
 **额外的 C 工具函数**：如需像素格式字符串转换和文件 I/O 功能，还需包含：
 

@@ -9,12 +9,7 @@
 - 跨平台：Windows、macOS、iOS、Linux
 - 双 API：现代 C++17 和纯 C99
 - 用于脚本和自动化的命令行工具
-
-## 快速链接
-
-- [CLI 工具文档](cli.zh.html) - 相机操作的命令行界面
-- [C 接口文档](https://github.com/wysaid/CameraCapture/blob/main/docs/C_Interface.md) - C99 API 参考
-- [CMake 构建选项](https://github.com/wysaid/CameraCapture/blob/main/docs/CMAKE_OPTIONS.md) - 构建配置详情
+- **同时提供：**[C 接口](c-interface.zh.md)用于语言绑定
 
 ## 安装
 

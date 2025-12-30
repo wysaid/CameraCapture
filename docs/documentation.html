@@ -28,8 +28,16 @@
                 <li><a href="index.html#download"><span class="lang-en">Download</span><span class="lang-zh">下载</span></a></li>
                 <li><a href="index.html#features"><span class="lang-en">Features</span><span class="lang-zh">特性</span></a></li>
                 <li><a href="index.html#quickstart"><span class="lang-en">Quick Start</span><span class="lang-zh">快速开始</span></a></li>
-                <li><a href="documentation.html"><span class="lang-en">Documentation</span><span class="lang-zh">文档</span></a></li>
-                <li><a href="cli.html"><span class="lang-en">CLI Tool</span><span class="lang-zh">CLI 工具</span></a></li>
+                <li class="nav-dropdown">
+                    <a href="documentation.html"><span class="lang-en">Documentation</span><span class="lang-zh">文档</span></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="documentation.html?doc=c-interface"><span class="lang-en">C Interface</span><span class="lang-zh">C 接口</span></a></li>
+                        <li><a href="documentation.html?doc=implementation-details"><span class="lang-en">Implementation Details</span><span class="lang-zh">实现细节</span></a></li>
+                        <li><a href="documentation.html?doc=video-memory-management"><span class="lang-en">Memory & Video Playback</span><span class="lang-zh">内存管理与视频播放</span></a></li>
+                        <li><a href="documentation.html?doc=cmake-options"><span class="lang-en">CMake Build Options</span><span class="lang-zh">CMake 构建选项</span></a></li>
+                    </ul>
+                </li>
+                <li><a href="documentation.html?doc=cli"><span class="lang-en">CLI Tool</span><span class="lang-zh">CLI 工具</span></a></li>
                 <li><a href="https://github.com/wysaid/CameraCapture">GitHub</a></li>
                 <li><button class="lang-switch" onclick="ccap.toggleLanguage()">🌐 中文</button></li>
             </ul>
@@ -67,9 +75,11 @@
                     <h4 class="lang-zh">文档</h4>
                     <ul>
                         <li><a href="documentation.html"><span class="lang-en">Main Documentation</span><span class="lang-zh">主文档</span></a></li>
-                        <li><a href="cli.html"><span class="lang-en">CLI Tool</span><span class="lang-zh">CLI 工具</span></a></li>
-                        <li><a href="https://github.com/wysaid/CameraCapture/blob/main/docs/C_Interface.md">C Interface</a></li>
-                        <li><a href="https://github.com/wysaid/CameraCapture/blob/main/docs/CMAKE_OPTIONS.md"><span class="lang-en">CMake Options</span><span class="lang-zh">CMake 选项</span></a></li>
+                        <li><a href="documentation.html?doc=cli"><span class="lang-en">CLI Tool</span><span class="lang-zh">CLI 工具</span></a></li>
+                        <li><a href="documentation.html?doc=c-interface"><span class="lang-en">C Interface</span><span class="lang-zh">C 接口</span></a></li>
+                        <li><a href="documentation.html?doc=implementation-details"><span class="lang-en">Implementation Details</span><span class="lang-zh">实现细节</span></a></li>
+                        <li><a href="documentation.html?doc=video-memory-management"><span class="lang-en">Memory Management</span><span class="lang-zh">内存管理</span></a></li>
+                        <li><a href="documentation.html?doc=cmake-options"><span class="lang-en">CMake Options</span><span class="lang-zh">CMake 选项</span></a></li>
                     </ul>
                 </div>
                 
@@ -149,11 +159,76 @@
                 return html;
             }
 
+            // Convert markdown file links to HTML page links
+            function convertMarkdownLinksToHtml(html) {
+                var tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+                
+                // Find all links
+                var links = tempDiv.querySelectorAll('a[href]');
+                links.forEach(function(link) {
+                    var href = link.getAttribute('href');
+                    
+                    // Skip external links, anchors, and already-converted links
+                    if (!href || href.startsWith('http://') || href.startsWith('https://') || 
+                        href.startsWith('#') || href.includes('documentation.html')) {
+                        return;
+                    }
+                    
+                    // Convert .md links to HTML page links
+                    if (href.endsWith('.md')) {
+                        var filename = href.split('/').pop(); // Get filename
+                        var baseName = filename.replace(/\.zh\.md$/, '').replace(/\.md$/, '');
+                        
+                        // Map filenames to appropriate URLs
+                        if (baseName === 'documentation') {
+                            link.setAttribute('href', 'documentation.html');
+                        } else if (baseName === 'cli') {
+                            link.setAttribute('href', 'documentation.html?doc=cli');
+                        } else if (baseName === 'c-interface') {
+                            link.setAttribute('href', 'documentation.html?doc=c-interface');
+                        } else if (baseName === 'implementation-details') {
+                            link.setAttribute('href', 'documentation.html?doc=implementation-details');
+                        } else if (baseName === 'video-memory-management') {
+                            link.setAttribute('href', 'documentation.html?doc=video-memory-management');
+                        } else if (baseName === 'cmake-options') {
+                            link.setAttribute('href', 'documentation.html?doc=cmake-options');
+                        } else {
+                            // Generic conversion for any other .md files
+                            link.setAttribute('href', 'documentation.html?doc=' + baseName);
+                        }
+                    }
+                });
+                
+                return tempDiv.innerHTML;
+            }
+
             // Fetch and render markdown documentation
             function loadDocumentation() {
                 var lang = getCurrentLang();
-                var primaryFile = lang === 'zh' ? 'content/documentation.zh.md' : 'content/documentation.md';
-                var fallbackFile = 'content/documentation.md';
+                
+                // Check for ?doc= query parameter
+                var urlParams = new URLSearchParams(window.location.search);
+                var docName = urlParams.get('doc');
+                
+                var primaryFile, fallbackFile;
+                if (docName) {
+                    // Remove any existing language suffix from docName
+                    var baseDocName = docName.endsWith('.zh') ? docName.replace('.zh', '') : docName;
+                    
+                    // Load document based on current interface language, not URL suffix
+                    if (lang === 'zh') {
+                        primaryFile = 'content/' + baseDocName + '.zh.md';
+                        fallbackFile = 'content/' + baseDocName + '.md';
+                    } else {
+                        primaryFile = 'content/' + baseDocName + '.md';
+                        fallbackFile = 'content/documentation.md';
+                    }
+                } else {
+                    // Default to main documentation
+                    primaryFile = lang === 'zh' ? 'content/documentation.zh.md' : 'content/documentation.md';
+                    fallbackFile = 'content/documentation.md';
+                }
                 
                 fetch(primaryFile)
                     .then(function(response) {
@@ -173,7 +248,11 @@
                         // Render markdown to HTML using marked.js and sanitize
                         var rawHtml = marked.parse(markdown);
                         var safeHtml = sanitizeHtml(rawHtml);
-                        document.getElementById('doc-content').innerHTML = safeHtml;
+                        
+                        // Convert .md links to HTML page links
+                        var htmlWithConvertedLinks = convertMarkdownLinksToHtml(safeHtml);
+                        
+                        document.getElementById('doc-content').innerHTML = htmlWithConvertedLinks;
                         
                         // Apply syntax highlighting to code blocks
                         // Use setTimeout to ensure DOM is fully updated
@@ -195,6 +274,9 @@
                         
                         // Initialize scroll spy
                         initScrollSpy();
+                        
+                        // Handle anchor navigation after content is loaded
+                        handleAnchorNavigation();
                     })
                     .catch(function(error) {
                         console.error('Error loading documentation:', error);
@@ -218,7 +300,7 @@
                 return text
                     .toLowerCase()
                     .trim()
-                    .replace(/[^\w\s-]/g, '')
+                    .replace(/[^\w\s\u4E00-\u9FFF-]/g, '') // Support Chinese characters (U+4E00 to U+9FFF)
                     .replace(/\s+/g, '-')
                     .replace(/-+/g, '-');
             }
@@ -306,6 +388,23 @@
                 window.addEventListener('scroll', updateActiveLink);
                 updateActiveLink();
             }
+
+            // Handle anchor navigation when URL hash changes
+            function handleAnchorNavigation() {
+                var hash = window.location.hash.substr(1); // Remove the # symbol
+                if (hash) {
+                    var targetElement = document.getElementById(decodeURIComponent(hash));
+                    if (targetElement) {
+                        // Scroll to the target element with a small delay to ensure DOM is ready
+                        setTimeout(function() {
+                            targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 50);
+                    }
+                }
+            }
+
+            // Listen for hash changes (when clicking anchor links)
+            window.addEventListener('hashchange', handleAnchorNavigation);
 
             // Debounced version of loadDocumentation to prevent excessive calls
             var debouncedLoadDocumentation = debounce(loadDocumentation, 100);
