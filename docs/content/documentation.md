@@ -4,11 +4,12 @@
 
 ## Key Features
 
-- Zero external dependencies - uses only system frameworks
+- No third-party dependencies - uses only system frameworks
 - Hardware-accelerated format conversion (AVX2, Apple Accelerate, NEON)
 - Cross-platform: Windows, macOS, iOS, Linux
 - Dual API: Modern C++17 and pure C99
-- Command-line tool for scripting and automation
+- Video file playback (Windows & macOS) - play MP4, AVI, MOV, MKV and other formats
+- Command-line tool for scripting, automation, and video processing
 - **Also available:** [C Interface](c-interface.md) for language bindings
 
 ## Installation
@@ -101,6 +102,9 @@ public:
     
     // Device info
     std::optional<DeviceInfo> getDeviceInfo() const;
+    
+    // File mode check (for video playback)
+    bool isFileMode() const;
 };
 ```
 
@@ -149,6 +153,41 @@ auto frame = provider.grab();
 cv::Mat mat = ccap::convertRgbFrameToMat(*frame);
 ```
 
+## Video File Playback
+
+ccap supports playing video files using the same API as camera capture (Windows and macOS only):
+
+```cpp
+#include <ccap.h>
+
+ccap::Provider provider;
+
+// Open video file - same API as camera
+if (provider.open("/path/to/video.mp4", true)) {
+    // Check if in file mode
+    if (provider.isFileMode()) {
+        // Get video properties
+        double duration = provider.get(ccap::PropertyName::Duration);
+        double frameCount = provider.get(ccap::PropertyName::FrameCount);
+        
+        // Set playback speed (1.0 = normal speed)
+        provider.set(ccap::PropertyName::PlaybackSpeed, 1.0);
+        
+        // Seek to specific time
+        provider.set(ccap::PropertyName::CurrentTime, 10.0);
+    }
+    
+    // Grab frames - same API as camera
+    while (auto frame = provider.grab(3000)) {
+        // Process frame...
+    }
+}
+```
+
+**Supported formats**: MP4, AVI, MOV, MKV, and other formats supported by the platform's media framework.
+
+**Note**: Video playback is currently not supported on Linux.
+
 ## Properties
 
 | Property | Description |
@@ -159,6 +198,10 @@ cv::Mat mat = ccap::convertRgbFrameToMat(*frame);
 | `PixelFormatInternal` | Camera's internal pixel format |
 | `PixelFormatOutput` | Output pixel format (with conversion) |
 | `FrameOrientation` | Frame orientation/rotation |
+| `Duration` | Video duration in seconds (read-only, file mode only) |
+| `CurrentTime` | Current playback time in seconds (file mode only) |
+| `FrameCount` | Total frame count (read-only, file mode only) |
+| `PlaybackSpeed` | Playback speed multiplier, 1.0 = normal (file mode only) |
 
 ## Pixel Formats
 

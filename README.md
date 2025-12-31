@@ -10,7 +10,7 @@
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
-A high-performance, lightweight cross-platform camera capture library with hardware-accelerated pixel format conversion, providing complete C++ and pure C language interfaces.
+A high-performance, lightweight cross-platform camera capture library with hardware-accelerated pixel format conversion, supporting both camera capture and video file playback (Windows/macOS), providing complete C++ and pure C language interfaces.
 
 > 🌐 **Official Website:** [ccap.work](https://ccap.work)
 
@@ -28,11 +28,12 @@ A high-performance, lightweight cross-platform camera capture library with hardw
 ## Features
 
 - **High Performance**: Hardware-accelerated pixel format conversion with up to 10x speedup (AVX2, Apple Accelerate, NEON)
-- **Lightweight**: Zero external dependencies - uses only system frameworks
+- **Lightweight**: No third-party dependencies - uses only system frameworks
 - **Cross Platform**: Windows (DirectShow), macOS/iOS (AVFoundation), Linux (V4L2)
 - **Multiple Formats**: RGB, BGR, YUV (NV12/I420) with automatic conversion
 - **Dual Language APIs**: ✨ **Complete Pure C Interface** - Both modern C++ API and traditional C99 interface for various project integration and language bindings
-- **CLI Tool**: Ready-to-use command-line tool for quick camera operations - list devices, capture images, real-time preview ([Documentation](./docs/content/cli.md))
+- **Video File Playback**: 🎬 Play video files (MP4, AVI, MOV, etc.) using the same API as camera capture - supports Windows and macOS
+- **CLI Tool**: Ready-to-use command-line tool for quick camera operations and video processing - list devices, capture images, real-time preview, video playback ([Documentation](./docs/content/cli.md))
 - **Production Ready**: Comprehensive test suite with 95%+ accuracy validation
 - **Virtual Camera Support**: Compatible with OBS Virtual Camera and similar tools
 
@@ -208,7 +209,7 @@ int main() {
 
 ## CLI Tool
 
-ccap includes a powerful command-line tool for quick camera operations without writing code:
+ccap includes a powerful command-line tool for quick camera operations and video processing without writing code:
 
 ```bash
 # Build with CLI tool enabled
@@ -224,15 +225,23 @@ cmake --build .
 
 # Real-time preview (requires GLFW)
 ./ccap --preview
+
+# Play video file and extract frames
+./ccap -i video.mp4 -c 30 -o ./frames
+
+# Video preview with playback controls
+./ccap -i video.mp4 --preview --speed 1.0
 ```
 
 **Key Features:**
 - 📷 List and select camera devices
 - 🎯 Capture single or multiple images
 - 👁️ Real-time preview window (with GLFW)
+- 🎬 Video file playback and frame extraction
 - ⚙️ Configure resolution, format, and frame rate
 - 💾 Save images in various formats (JPEG, PNG, BMP, etc.)
 - ⏱️ Duration-based or count-based capture modes
+- 🔁 Video looping and playback speed control
 
 For complete CLI documentation, see [CLI Tool Guide](./docs/content/cli.md).
 
@@ -265,6 +274,7 @@ For complete CLI documentation, see [CLI Tool Guide](./docs/content/cli.md).
 | [2-capture_grab](./examples/desktop/2-capture_grab.cpp) / [2-capture_grab_c](./examples/desktop/2-capture_grab_c.c) | Continuous capture | C++ / C | Desktop |
 | [3-capture_callback](./examples/desktop/3-capture_callback.cpp) / [3-capture_callback_c](./examples/desktop/3-capture_callback_c.c) | Callback-based capture | C++ / C | Desktop |
 | [4-example_with_glfw](./examples/desktop/4-example_with_glfw.cpp) / [4-example_with_glfw_c](./examples/desktop/4-example_with_glfw_c.c) | OpenGL rendering | C++ / C | Desktop |
+| [5-play_video](./examples/desktop/5-play_video.cpp) / [5-play_video_c](./examples/desktop/5-play_video_c.c) | Video file playback | C++ / C | Windows/macOS |
 | [iOS Demo](./examples/) | iOS application | Objective-C++ | iOS |
 
 ### Build and Run Examples
@@ -326,6 +336,7 @@ public:
     
     // Device info and advanced configuration
     std::optional<DeviceInfo> getDeviceInfo() const;
+    bool isFileMode() const;  // Check if playing video file vs camera
     void setFrameAllocator(std::function<std::shared_ptr<Allocator>()> allocatorFactory);
     void setMaxAvailableFrameSize(uint32_t size);
     void setMaxCacheFrameSize(uint32_t size);
@@ -363,7 +374,13 @@ enum class PropertyName {
     Width, Height, FrameRate,
     PixelFormatInternal,        // Camera's internal format
     PixelFormatOutput,          // Output format (with conversion)
-    FrameOrientation
+    FrameOrientation,
+    
+    // Video file playback properties (file mode only)
+    Duration,                   // Video duration in seconds (read-only)
+    CurrentTime,                // Current playback time in seconds
+    FrameCount,                 // Total frame count (read-only)
+    PlaybackSpeed               // Playback speed multiplier (1.0 = normal speed)
 };
 
 enum class PixelFormat : uint32_t {
@@ -399,6 +416,42 @@ namespace ccap {
     void setLogLevel(LogLevel level);
 }
 ```
+
+### Video File Playback
+
+ccap supports playing video files using the same API as camera capture (Windows and macOS only):
+
+```cpp
+#include <ccap.h>
+
+ccap::Provider provider;
+
+// Open video file - same API as camera
+if (provider.open("/path/to/video.mp4", true)) {
+    // Check if in file mode
+    if (provider.isFileMode()) {
+        // Get video properties
+        double duration = provider.get(ccap::PropertyName::Duration);
+        double frameCount = provider.get(ccap::PropertyName::FrameCount);
+        double frameRate = provider.get(ccap::PropertyName::FrameRate);
+        
+        // Set playback speed (1.0 = normal speed)
+        provider.set(ccap::PropertyName::PlaybackSpeed, 1.0);
+        
+        // Seek to specific time
+        provider.set(ccap::PropertyName::CurrentTime, 10.0);  // Seek to 10 seconds
+    }
+    
+    // Grab frames - same API as camera
+    while (auto frame = provider.grab(3000)) {
+        // Process frame...
+    }
+}
+```
+
+**Supported video formats**: MP4, AVI, MOV, MKV, and other formats supported by the platform's media framework.
+
+**Note**: Video playback is currently not supported on Linux. This feature is available on Windows and macOS only.
 
 ### OpenCV Integration
 

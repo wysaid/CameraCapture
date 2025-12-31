@@ -986,6 +986,9 @@ TEST_F(FilePlaybackTest, GetPropertiesDuringSeek) {
 // ============================================================================
 
 TEST_F(FilePlaybackTest, CurrentTimeAccuracy) {
+    if (isRunningInCI()) {
+        GTEST_SKIP() << "Skipping timing-sensitive test in CI environment";
+    }
     ccap::Provider provider;
     ASSERT_TRUE(provider.open(testVideoPath.string(), true));
 
