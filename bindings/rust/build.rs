@@ -46,7 +46,8 @@ fn main() {
         {
             build
                 .file(ccap_root.join("src/ccap_imp_apple.mm"))
-                .file(ccap_root.join("src/ccap_convert_apple.cpp"));
+                .file(ccap_root.join("src/ccap_convert_apple.cpp"))
+                .file(ccap_root.join("src/ccap_file_reader_apple.mm"));
         }
 
         #[cfg(target_os = "linux")]
@@ -56,7 +57,9 @@ fn main() {
 
         #[cfg(target_os = "windows")]
         {
-            build.file(ccap_root.join("src/ccap_imp_windows.cpp"));
+            build
+                .file(ccap_root.join("src/ccap_imp_windows.cpp"))
+                .file(ccap_root.join("src/ccap_file_reader_windows.cpp"));
         }
 
         // Include directories
@@ -66,6 +69,9 @@ fn main() {
 
         // Compiler flags
         build.cpp(true).std("c++17"); // Use C++17
+
+        // Enable file playback support
+        build.define("CCAP_ENABLE_FILE_PLAYBACK", "1");
 
         #[cfg(target_os = "macos")]
         {
