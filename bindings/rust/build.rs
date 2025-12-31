@@ -90,13 +90,21 @@ fn main() {
                 .include(ccap_root.join("include"))
                 .include(ccap_root.join("src"))
                 .cpp(true)
-                .std("c++17")
-                .flag("-mavx2")
-                .flag("-mfma")
-                .compile("ccap_avx2");
+                .std("c++17");
+
+            // Only add SIMD flags on non-MSVC compilers
+            if !avx2_build.get_compiler().is_like_msvc() {
+                avx2_build.flag("-mavx2").flag("-mfma");
+            } else {
+                // MSVC uses /arch:AVX2
+                avx2_build.flag("/arch:AVX2");
+            }
+
+            avx2_build.compile("ccap_avx2");
         }
 
-        #[cfg(target_arch = "aarch64")]
+        // Always build neon file for hasNEON() symbol
+        // On non-ARM architectures, ENABLE_NEON_IMP will be 0 and function returns false
         {
             let mut neon_build = cc::Build::new();
             neon_build
@@ -104,8 +112,15 @@ fn main() {
                 .include(ccap_root.join("include"))
                 .include(ccap_root.join("src"))
                 .cpp(true)
-                .std("c++17")
-                .compile("ccap_neon");
+                .std("c++17");
+
+            // Only add NEON flags on aarch64
+            #[cfg(target_arch = "aarch64")]
+            {
+                // NEON is always available on aarch64, no special flags needed
+            }
+
+            neon_build.compile("ccap_neon");
         }
 
         println!("cargo:warning=Building ccap from source...");
