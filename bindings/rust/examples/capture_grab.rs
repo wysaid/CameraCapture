@@ -1,4 +1,4 @@
-use ccap::{LogLevel, PixelFormat, PropertyName, Provider, Result, Utils};
+use ccap::{LogLevel, PropertyName, Provider, Result, Utils};
 use std::fs;
 
 fn main() -> Result<()> {

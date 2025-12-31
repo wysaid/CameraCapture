@@ -27,14 +27,10 @@ fn main() -> Result<()> {
     }
 
     // Select camera device (automatically use first device for testing)
-    let device_index = if devices.len() == 1 {
-        0
-    } else {
-        0 // Just use first device for now
-    };
+    let device_index = 0;
 
     // Create provider with selected device
-    let mut provider = Provider::with_device(device_index as i32)?;
+    let mut provider = Provider::with_device(device_index)?;
 
     // Set camera properties
     let requested_width = 1920;
