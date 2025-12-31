@@ -95,7 +95,7 @@ CCAP_EXPORT void setLogLevel(LogLevel level);
 
 #if _CCAP_LOG_ENABLED_
 /// For internal use.
-extern LogLevel globalLogLevel;
+extern CCAP_EXPORT LogLevel globalLogLevel;
 
 inline bool operator&(LogLevel lhs, LogLevelConstants rhs)
 {

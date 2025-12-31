@@ -245,11 +245,13 @@ git clean -fdx install/
 ## Supported Platforms
 
 - ✅ macOS (x86_64, arm64, Universal Binary)
-- ✅ Windows (x86, x64)
-- ⚠️ Linux (to be implemented)
+- ✅ Windows (x86, x64, arm64)
+- ✅ Linux (camera capture only – video playback not yet supported; x86_64, arm64, all distributions with V4L2 support)
+
+**Note**: Video file playback is currently supported on Windows and macOS only. Linux video playback support may be added in a future release.
 
 ## Version Information
 
-Current version: 1.4.1
+Current version: 1.5.0
 
 This is the first official release of the ccap project, including complete CMake configuration and cross-platform build support.

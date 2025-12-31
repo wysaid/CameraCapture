@@ -27,6 +27,18 @@ ProviderImp::~ProviderImp() {
 }
 
 bool ProviderImp::set(PropertyName prop, double value) {
+    // Check for file properties first
+    if (m_isFileMode) {
+        switch (prop) {
+        case PropertyName::CurrentTime:
+        case PropertyName::PlaybackSpeed:
+        case PropertyName::CurrentFrameIndex:
+            return setFileProperty(prop, value);
+        default:
+            break;
+        }
+    }
+
     auto lastProp = m_frameProp;
     switch (prop) {
     case PropertyName::Width:
@@ -74,6 +86,20 @@ bool ProviderImp::set(PropertyName prop, double value) {
 }
 
 double ProviderImp::get(PropertyName prop) {
+    // Check for file properties first
+    if (m_isFileMode) {
+        switch (prop) {
+        case PropertyName::Duration:
+        case PropertyName::CurrentTime:
+        case PropertyName::PlaybackSpeed:
+        case PropertyName::FrameCount:
+        case PropertyName::CurrentFrameIndex:
+            return getFileProperty(prop);
+        default:
+            break;
+        }
+    }
+
     switch (prop) {
     case PropertyName::Width:
         return static_cast<double>(m_frameProp.width);
@@ -121,15 +147,18 @@ std::shared_ptr<VideoFrame> ProviderImp::grab(uint32_t timeoutInMs) {
             uint32_t remainingTime = timeoutInMs - waitedTime;
             uint32_t waitTime = (remainingTime < 1000) ? remainingTime : 1000;
             waitSuccess = m_frameCondition.wait_for(lock, std::chrono::milliseconds(waitTime),
-                                                    [this]() { return m_grabFrameWaiting && !m_availableFrames.empty(); });
+                                                    [this]() { return (m_grabFrameWaiting && !m_availableFrames.empty()) || !isStarted(); });
             if (waitSuccess) break;
+
             waitedTime += waitTime;
             CCAP_LOG_V("ccap: Waiting for new frame... %u ms\n", waitedTime);
         }
 
         m_grabFrameWaiting = false;
         if (!waitSuccess) {
-            reportError(ErrorCode::FrameCaptureTimeout, "Grab timed out after " + std::to_string(timeoutInMs) + " ms");
+            if (isStarted()) { // Don't report timeout if device is closed
+                reportError(ErrorCode::FrameCaptureTimeout, "Grab timed out after " + std::to_string(timeoutInMs) + " ms");
+            }
             return nullptr;
         }
     }
@@ -156,7 +185,10 @@ void ProviderImp::newFrameAvailable(std::shared_ptr<VideoFrame> frame) {
         std::lock_guard<std::mutex> lock(m_availableFrameMutex);
 
         m_availableFrames.push(std::move(frame));
-        if (m_availableFrames.size() > m_maxAvailableFrameSize) {
+
+        // Camera mode: drop old frames when queue is full (real-time streaming)
+        // File mode: never drop frames (backpressure will pause reading)
+        if (!m_isFileMode && m_availableFrames.size() > m_maxAvailableFrameSize) {
             m_availableFrames.pop();
         }
     }
@@ -168,6 +200,22 @@ void ProviderImp::newFrameAvailable(std::shared_ptr<VideoFrame> frame) {
 }
 
 bool ProviderImp::tooManyNewFrames() { return m_availableFrames.size() > m_maxAvailableFrameSize; }
+
+bool ProviderImp::shouldReadMoreFrames() const {
+    // Camera mode: always read (old frames will be dropped)
+    if (!m_isFileMode) {
+        return true;
+    }
+
+    // File mode: stop reading when queue is full to avoid dropping frames
+    // This implements backpressure - we wait for the consumer to catch up
+    std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(m_availableFrameMutex));
+    return m_availableFrames.size() < m_maxAvailableFrameSize;
+}
+
+void ProviderImp::notifyGrabWaiters() {
+    m_frameCondition.notify_all();
+}
 
 std::shared_ptr<VideoFrame> ProviderImp::getFreeFrame() {
     std::lock_guard<std::mutex> lock(m_poolMutex);

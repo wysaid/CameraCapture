@@ -8,7 +8,9 @@
             "compilerPath": "${default}",
             "defines": [
                 "DEBUG=1",
-                "_WIN32=1"
+                "_WIN32=1",
+                "CCAP_CLI_WITH_GLFW=1",
+                "CCAP_ENABLE_FILE_PLAYBACK=1"
             ],
             "configurationProvider": "ms-vscode.cmake-tools",
             "includePath": [

@@ -186,6 +186,8 @@ bool Provider::open(int deviceIndex, bool autoStart) {
 
 bool Provider::isOpened() const { return m_imp && m_imp->isOpened(); }
 
+bool Provider::isFileMode() const { return m_imp && m_imp->isFileMode(); }
+
 std::optional<DeviceInfo> Provider::getDeviceInfo() const { return m_imp ? m_imp->getDeviceInfo() : std::nullopt; }
 
 void Provider::close() {

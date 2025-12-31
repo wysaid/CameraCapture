@@ -38,49 +38,29 @@ This directory contains various build and test scripts for the ccap project.
 
 ### Test Scripts
 
+- **`run_tests.sh`** - Comprehensive test runner for all ccap tests
+
+  ```bash
+  # Run all tests (functional + performance)
+  /path/to/ccap/scripts/run_tests.sh
+  
+  # Run only functional tests (with AddressSanitizer)
+  /path/to/ccap/scripts/run_tests.sh --functional
+  
+  # Run only performance tests (without ASAN)
+  /path/to/ccap/scripts/run_tests.sh --performance
+  
+  # Run video file playback tests
+  /path/to/ccap/scripts/run_tests.sh --video
+  ```
+  
+  Video playback tests use a built-in test video (tests/test-data/test.mp4) included in the repository.
+
 - **`test_arch.sh`** - Architecture detection test
 
   ```bash
   /path/to/ccap/scripts/test_arch.sh
   ```
-
-### Windows Build
-
-- **`build.sh`** - Universal build script supporting multiple architectures
-
-```bash
-# Build native architecture version (recommended)
-/path/to/ccap/scripts/build.sh native Debug
-
-# Build ARM64 version
-/path/to/ccap/scripts/build.sh arm64 Debug
-
-# Build x86_64 version
-/path/to/ccap/scripts/build.sh x86_64 Debug
-
-# Build universal version (both architectures)
-/path/to/ccap/scripts/build.sh universal Release
-```
-
-- **`build_arm64.sh`** - Dedicated ARM64 build script
-
-```bash
-/path/to/ccap/scripts/build_arm64.sh Debug
-```
-
-- **`build_x86_64.sh`** - Dedicated x86_64 build script
-
-```bash
-/path/to/ccap/scripts/build_x86_64.sh Debug
-```
-
-### Test Scripts
-
-- **`test_arch.sh`** - Architecture detection test
-
-```bash
-/path/to/ccap/scripts/test_arch.sh
-```
 
 This script detects the current system and compiler architecture support, helping debug NEON feature detection issues.
 

@@ -62,6 +62,11 @@ public:
 // using DEFINE_GUID to avoid strmiids.lib dependency
 
 namespace ccap {
+
+#ifdef CCAP_ENABLE_FILE_PLAYBACK
+class FileReaderWindows;
+#endif
+
 class ProviderDirectShow : public ProviderImp, public ISampleGrabberCB {
 public:
     ProviderDirectShow();
@@ -77,6 +82,15 @@ public:
 
     HRESULT STDMETHODCALLTYPE SampleCB(double SampleTime, IMediaSample* pSample) override;
     HRESULT STDMETHODCALLTYPE BufferCB(double SampleTime, BYTE* pBuffer, long BufferLen) override;
+
+    // File playback support
+    bool setFileProperty(PropertyName prop, double value) override;
+    double getFileProperty(PropertyName prop) const override;
+
+    using ProviderImp::getFreeFrame;
+    using ProviderImp::newFrameAvailable;
+
+    inline FrameOrientation frameOrientation() const { return m_frameOrientation; }
 
 private:
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject) override;
@@ -106,6 +120,9 @@ private:
         std::function<bool(AM_MEDIA_TYPE* mediaType, const char* name, PixelFormat pixelFormat, const DeviceInfo::Resolution& resolution)>
             callback);
 
+    bool openCamera(std::string_view deviceName);
+    bool openFile(std::string_view filePath);
+
 private:
     IGraphBuilder* m_graph = nullptr;
     ICaptureGraphBuilder2* m_captureBuilder = nullptr;
@@ -119,7 +136,7 @@ private:
 
     std::chrono::steady_clock::time_point m_startTime{};
     FrameOrientation m_inputOrientation = FrameOrientation::TopToBottom;
-    
+
     bool m_firstFrameArrived = false;
 
     // State variables
@@ -128,6 +145,11 @@ private:
     bool m_isRunning{ false };
 
     std::mutex m_callbackMutex;
+
+#ifdef CCAP_ENABLE_FILE_PLAYBACK
+    // File reader for video file playback
+    std::unique_ptr<FileReaderWindows> m_fileReader;
+#endif
 };
 
 ProviderImp* createProviderDirectShow();
