@@ -330,7 +330,7 @@ impl Provider {
     /// Set error callback for camera errors
     pub fn set_error_callback<F>(callback: F)
     where
-        F: Fn(u32, &str) + Send + Sync + 'static,
+        F: Fn(i32, &str) + Send + Sync + 'static,
     {
         use std::os::raw::c_char;
         use std::sync::{Arc, Mutex};
@@ -346,11 +346,11 @@ impl Provider {
                 return;
             }
 
-            let callback = &*(user_data as *const Arc<Mutex<dyn Fn(u32, &str) + Send + Sync>>);
+            let callback = &*(user_data as *const Arc<Mutex<dyn Fn(i32, &str) + Send + Sync>>);
             let desc_cstr = std::ffi::CStr::from_ptr(description);
             if let Ok(desc_str) = desc_cstr.to_str() {
                 if let Ok(cb) = callback.lock() {
-                    cb(error_code, desc_str);
+                    cb(error_code as i32, desc_str);
                 }
             }
         }
