@@ -10,7 +10,7 @@
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
-A high-performance, lightweight cross-platform camera capture library with hardware-accelerated pixel format conversion, providing complete C++ and pure C language interfaces.
+A high-performance, lightweight cross-platform camera capture library with hardware-accelerated pixel format conversion, supporting both camera capture and video file playback (Windows/macOS), providing complete C++ and pure C language interfaces.
 
 > 🌐 **Official Website:** [ccap.work](https://ccap.work)
 
@@ -28,7 +28,7 @@ A high-performance, lightweight cross-platform camera capture library with hardw
 ## Features
 
 - **High Performance**: Hardware-accelerated pixel format conversion with up to 10x speedup (AVX2, Apple Accelerate, NEON)
-- **Lightweight**: Zero external dependencies - uses only system frameworks
+- **Lightweight**: No third-party dependencies - uses only system frameworks
 - **Cross Platform**: Windows (DirectShow), macOS/iOS (AVFoundation), Linux (V4L2)
 - **Multiple Formats**: RGB, BGR, YUV (NV12/I420) with automatic conversion
 - **Dual Language APIs**: ✨ **Complete Pure C Interface** - Both modern C++ API and traditional C99 interface for various project integration and language bindings

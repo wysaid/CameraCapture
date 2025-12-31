@@ -4,7 +4,7 @@
 
 ## Key Features
 
-- Zero external dependencies - uses only system frameworks
+- No third-party dependencies - uses only system frameworks
 - Hardware-accelerated format conversion (AVX2, Apple Accelerate, NEON)
 - Cross-platform: Windows, macOS, iOS, Linux
 - Dual API: Modern C++17 and pure C99

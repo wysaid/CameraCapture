@@ -4,7 +4,7 @@
 
 ## 主要特性
 
-- 零外部依赖 - 仅使用系统框架
+- 无第三方库依赖 - 仅使用系统框架
 - 硬件加速格式转换（AVX2、Apple Accelerate、NEON）
 - 跨平台：Windows、macOS、iOS、Linux
 - 双 API：现代 C++17 和纯 C99
@@ -197,7 +197,8 @@ if (provider.open("/path/to/video.mp4", true)) {
 | `FrameRate` | 捕获帧率 |
 | `PixelFormatInternal` | 相机内部像素格式 |
 | `PixelFormatOutput` | 输出像素格式（带转换） |
-| `FrameOrientation` | 帧方向/旋转 || `Duration` | 视频时长（秒）（只读，仅文件模式） |
+| `FrameOrientation` | 帧方向/旋转 |
+| `Duration` | 视频时长（秒）（只读，仅文件模式） |
 | `CurrentTime` | 当前播放时间（秒）（仅文件模式） |
 | `FrameCount` | 总帧数（只读，仅文件模式） |
 | `PlaybackSpeed` | 播放速度倍数，1.0 = 正常速度（仅文件模式） |
