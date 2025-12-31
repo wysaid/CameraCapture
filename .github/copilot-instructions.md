@@ -1,18 +1,17 @@
 # GitHub Copilot Instructions
 
 ## Code Guidelines
-- Add tests for bug fixes or new features
-- Run all tests before committing
+- Add tests for new features/bug fixes and run all tests before committing
 - Use English for commit messages and PR descriptions
-- Run `./scripts/update_version.sh <new_version>` to update version files
-- `dev.cmake` (git-ignored) overrides default CMake options. Remove it for standard builds/tests; keep for custom settings
-- Run `scripts/format-all.sh` to format source files before committing
+- Run `./scripts/update_version.sh <version>` to update version files
+- Remove `dev.cmake` before standard builds/tests (use for custom CMake options)
+- Run `scripts/format-all.sh` before committing
 
 ## Communication Guidelines
-- Respond in the user's language to facilitate cross-regional team collaboration (except for core documentation in `docs/`)
+- Respond in user's language (except `docs/` which must be English)
 - Maintain language consistency within conversations
 
-## Documentation Guidelines
-- `.md` files in `docs/` must be in English
-- Commit new `.md` files only after review
-- Store development-related documents that don't need to be committed in the `dev-docs/` directory
+## File Management
+- Store temporary files, development documents, and drafts in `dev-docs/`
+- `.md` files in `docs/` must be English and require review before publishing
+- Treat `dev-docs/` as `/tmp`
