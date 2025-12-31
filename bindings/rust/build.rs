@@ -165,6 +165,10 @@ fn main() {
         println!("cargo:rustc-link-lib=strmiids");
         println!("cargo:rustc-link-lib=ole32");
         println!("cargo:rustc-link-lib=oleaut32");
+        // Media Foundation libraries for video file playback
+        println!("cargo:rustc-link-lib=mfplat");
+        println!("cargo:rustc-link-lib=mfreadwrite");
+        println!("cargo:rustc-link-lib=mfuuid");
     }
 
     // Tell cargo to invalidate the built crate whenever the wrapper changes

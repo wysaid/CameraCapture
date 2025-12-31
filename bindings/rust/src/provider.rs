@@ -328,6 +328,15 @@ impl Provider {
     }
 
     /// Set error callback for camera errors
+    /// 
+    /// # Memory Safety
+    /// 
+    /// This is a **global** callback that persists for the lifetime of the program.
+    /// The callback memory is intentionally leaked as it's meant to be set once
+    /// and used throughout the application lifetime.
+    /// 
+    /// If you need to change or remove the callback, consider using instance-level
+    /// callbacks via `set_new_frame_callback` instead.
     pub fn set_error_callback<F>(callback: F)
     where
         F: Fn(i32, &str) + Send + Sync + 'static,
@@ -444,7 +453,7 @@ impl Provider {
             unsafe {
                 let _ = Box::from_raw(callback_ptr);
             }
-            Err(CcapError::CaptureStartFailed)
+            Err(CcapError::InvalidParameter("Failed to set frame callback".to_string()))
         }
     }
 
