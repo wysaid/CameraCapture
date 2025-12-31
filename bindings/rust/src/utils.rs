@@ -58,18 +58,34 @@ impl Utils {
         Ok(())
     }
 
+    /// Convert path to C string safely, handling Windows-specific path issues
+    fn path_to_cstring<P: AsRef<Path>>(path: P) -> Result<CString> {
+        #[cfg(windows)]
+        {
+            // On Windows, handle potential UTF-16 to UTF-8 conversion issues
+            let path_str = path.as_ref().to_string_lossy();
+            CString::new(path_str.as_bytes())
+                .map_err(|_| CcapError::StringConversionError("Invalid file path".to_string()))
+        }
+
+        #[cfg(not(windows))]
+        {
+            // On Unix-like systems, standard conversion should work
+            let path_str = path
+                .as_ref()
+                .to_str()
+                .ok_or_else(|| CcapError::StringConversionError("Invalid file path".to_string()))?;
+            CString::new(path_str)
+                .map_err(|_| CcapError::StringConversionError("Invalid file path".to_string()))
+        }
+    }
+
     /// Save a video frame to a file with automatic format detection
     pub fn dump_frame_to_file<P: AsRef<Path>>(
         frame: &VideoFrame,
         filename_no_suffix: P,
     ) -> Result<String> {
-        let path_str = filename_no_suffix
-            .as_ref()
-            .to_str()
-            .ok_or_else(|| CcapError::StringConversionError("Invalid file path".to_string()))?;
-
-        let c_path = CString::new(path_str)
-            .map_err(|_| CcapError::StringConversionError("Invalid file path".to_string()))?;
+        let c_path = Self::path_to_cstring(filename_no_suffix)?;
 
         // First call to get required buffer size
         let buffer_size = unsafe {
@@ -110,12 +126,7 @@ impl Utils {
         frame: &VideoFrame,
         directory: P,
     ) -> Result<String> {
-        let dir_str = directory.as_ref().to_str().ok_or_else(|| {
-            CcapError::StringConversionError("Invalid directory path".to_string())
-        })?;
-
-        let c_dir = CString::new(dir_str)
-            .map_err(|_| CcapError::StringConversionError("Invalid directory path".to_string()))?;
+        let c_dir = Self::path_to_cstring(directory)?;
 
         // First call to get required buffer size
         let buffer_size = unsafe {
@@ -168,13 +179,7 @@ impl Utils {
         has_alpha: bool,
         is_top_to_bottom: bool,
     ) -> Result<()> {
-        let path_str = filename
-            .as_ref()
-            .to_str()
-            .ok_or_else(|| CcapError::StringConversionError("Invalid file path".to_string()))?;
-
-        let c_path = CString::new(path_str)
-            .map_err(|_| CcapError::StringConversionError("Invalid file path".to_string()))?;
+        let c_path = Self::path_to_cstring(filename)?;
 
         let success = unsafe {
             sys::ccap_save_rgb_data_as_bmp(

@@ -46,7 +46,8 @@ fn main() {
         {
             build
                 .file(ccap_root.join("src/ccap_imp_apple.mm"))
-                .file(ccap_root.join("src/ccap_convert_apple.cpp"));
+                .file(ccap_root.join("src/ccap_convert_apple.cpp"))
+                .file(ccap_root.join("src/ccap_file_reader_apple.mm"));
         }
 
         #[cfg(target_os = "linux")]
@@ -56,7 +57,9 @@ fn main() {
 
         #[cfg(target_os = "windows")]
         {
-            build.file(ccap_root.join("src/ccap_imp_windows.cpp"));
+            build
+                .file(ccap_root.join("src/ccap_imp_windows.cpp"))
+                .file(ccap_root.join("src/ccap_file_reader_windows.cpp"));
         }
 
         // Include directories
@@ -66,6 +69,9 @@ fn main() {
 
         // Compiler flags
         build.cpp(true).std("c++17"); // Use C++17
+
+        // Enable file playback support
+        build.define("CCAP_ENABLE_FILE_PLAYBACK", "1");
 
         #[cfg(target_os = "macos")]
         {
@@ -84,13 +90,21 @@ fn main() {
                 .include(ccap_root.join("include"))
                 .include(ccap_root.join("src"))
                 .cpp(true)
-                .std("c++17")
-                .flag("-mavx2")
-                .flag("-mfma")
-                .compile("ccap_avx2");
+                .std("c++17");
+
+            // Only add SIMD flags on non-MSVC compilers
+            if !avx2_build.get_compiler().is_like_msvc() {
+                avx2_build.flag("-mavx2").flag("-mfma");
+            } else {
+                // MSVC uses /arch:AVX2
+                avx2_build.flag("/arch:AVX2");
+            }
+
+            avx2_build.compile("ccap_avx2");
         }
 
-        #[cfg(target_arch = "aarch64")]
+        // Always build neon file for hasNEON() symbol
+        // On non-ARM architectures, ENABLE_NEON_IMP will be 0 and function returns false
         {
             let mut neon_build = cc::Build::new();
             neon_build
@@ -98,8 +112,15 @@ fn main() {
                 .include(ccap_root.join("include"))
                 .include(ccap_root.join("src"))
                 .cpp(true)
-                .std("c++17")
-                .compile("ccap_neon");
+                .std("c++17");
+
+            // Only add NEON flags on aarch64
+            #[cfg(target_arch = "aarch64")]
+            {
+                // NEON is always available on aarch64, no special flags needed
+            }
+
+            neon_build.compile("ccap_neon");
         }
 
         println!("cargo:warning=Building ccap from source...");
@@ -130,6 +151,9 @@ fn main() {
         );
 
         // Link to ccap library
+        // Note: On MSVC, we always link to the Release version (ccap.lib)
+        // to avoid CRT mismatch issues, since Rust uses the release CRT
+        // even in debug builds by default
         println!("cargo:rustc-link-lib=static=ccap");
 
         println!("cargo:warning=Linking against pre-built ccap library (dev mode)...");
@@ -159,6 +183,10 @@ fn main() {
         println!("cargo:rustc-link-lib=strmiids");
         println!("cargo:rustc-link-lib=ole32");
         println!("cargo:rustc-link-lib=oleaut32");
+        // Media Foundation libraries for video file playback
+        println!("cargo:rustc-link-lib=mfplat");
+        println!("cargo:rustc-link-lib=mfreadwrite");
+        println!("cargo:rustc-link-lib=mfuuid");
     }
 
     // Tell cargo to invalidate the built crate whenever the wrapper changes
