@@ -400,10 +400,8 @@ if (CCAP_BUILD_RUST)
                 COMMENT "Testing Rust bindings"
                 DEPENDS ccap-rust
         )
-        # Add to main build if requested
-        if (CCAP_IS_ROOT_PROJECT)
-            add_dependencies(ccap ccap-rust)
-        endif ()
+        # Rust bindings are optional, do not add to main build automatically
+        # Users can explicitly build with: cmake --build . --target ccap-rust
         message(STATUS "ccap: Rust bindings targets added:")
         message(STATUS "  ccap-rust: Build Rust bindings")
         message(STATUS "  ccap-rust-test: Test Rust bindings")

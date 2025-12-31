@@ -242,7 +242,7 @@ bool inplaceConvertFrame(VideoFrame* frame, PixelFormat toFormat, bool verticalF
     if (ret) {
         assert(frame->pixelFormat == toFormat);
         assert(frame->allocator != nullptr && frame->data[0] == frame->allocator->data());
-        frame->sizeInBytes = frame->allocator->size();
+        frame->sizeInBytes = static_cast<uint32_t>(frame->allocator->size());
     }
     return ret;
 }

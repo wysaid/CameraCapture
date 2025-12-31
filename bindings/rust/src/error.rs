@@ -92,8 +92,12 @@ impl From<i32> for CcapError {
     fn from(code: i32) -> Self {
         use crate::sys::*;
 
+        // Convert i32 to CcapErrorCode for matching
+        // On some platforms CcapErrorCode might be unsigned
+        let code_u = code as CcapErrorCode;
+
         #[allow(non_upper_case_globals)]
-        match code as u32 {
+        match code_u {
             CcapErrorCode_CCAP_ERROR_NONE => CcapError::None,
             CcapErrorCode_CCAP_ERROR_NO_DEVICE_FOUND => CcapError::NoDeviceFound,
             CcapErrorCode_CCAP_ERROR_INVALID_DEVICE => CcapError::InvalidDevice("".to_string()),

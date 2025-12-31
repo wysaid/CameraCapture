@@ -2,7 +2,7 @@ name: Rust CI
 
 on:
   push:
-    branches: [ main, develop, feature/rust ]
+    branches: [ main, develop ]
     paths:
       - 'bindings/rust/**'
       - 'src/**'
@@ -10,7 +10,7 @@ on:
       - 'CMakeLists.txt'
       - '.github/workflows/rust.yml'
   pull_request:
-    branches: [ main, develop, feature/rust ]
+    branches: [ main, develop ]
     paths:
       - 'bindings/rust/**'
       - 'src/**'
@@ -46,7 +46,9 @@ jobs:
 
     - name: Install system dependencies (Windows)
       if: matrix.os == 'windows-latest'
-      run: choco install cmake
+      run: |
+        choco install cmake llvm -y
+        refreshenv
 
     - name: Install system dependencies (macOS)
       if: matrix.os == 'macos-latest'
@@ -70,15 +72,16 @@ jobs:
         cmake --build . --config Debug --parallel
 
     # Build C++ Library (Windows)
-    # On Windows (MSVC), building in 'build' creates 'build/Debug/ccap.lib'
-    # This matches build.rs expectation: native={root}/build/Debug
+    # Build both Debug and Release versions
+    # MSVC is a multi-config generator, so we build to build/ and specify config at build time
     - name: Build C library (Windows)
       if: runner.os == 'Windows'
       run: |
         mkdir build
         cd build
-        cmake -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_EXAMPLES=OFF -DCCAP_BUILD_TESTS=OFF ..
+        cmake -DCCAP_BUILD_EXAMPLES=OFF -DCCAP_BUILD_TESTS=OFF ..
         cmake --build . --config Debug --parallel
+        cmake --build . --config Release --parallel
 
     - name: Check formatting
       if: matrix.os == 'ubuntu-latest'
@@ -92,10 +95,14 @@ jobs:
 
     - name: Build Rust bindings
       working-directory: bindings/rust
+      env:
+        LIBCLANG_PATH: ${{ runner.os == 'Windows' && 'C:\Program Files\LLVM\bin' || '' }}
       run: cargo build --verbose --features static-link
 
     - name: Run tests
       working-directory: bindings/rust
+      env:
+        LIBCLANG_PATH: ${{ runner.os == 'Windows' && 'C:\Program Files\LLVM\bin' || '' }}
       run: cargo test --verbose --features static-link
 
   # Job 2: Source Build (Distribution Mode)

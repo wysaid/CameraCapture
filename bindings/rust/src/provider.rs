@@ -328,9 +328,18 @@ impl Provider {
     }
 
     /// Set error callback for camera errors
+    ///
+    /// # Memory Safety
+    ///
+    /// This is a **global** callback that persists for the lifetime of the program.
+    /// The callback memory is intentionally leaked as it's meant to be set once
+    /// and used throughout the application lifetime.
+    ///
+    /// If you need to change or remove the callback, consider using instance-level
+    /// callbacks via `set_new_frame_callback` instead.
     pub fn set_error_callback<F>(callback: F)
     where
-        F: Fn(u32, &str) + Send + Sync + 'static,
+        F: Fn(i32, &str) + Send + Sync + 'static,
     {
         use std::os::raw::c_char;
         use std::sync::{Arc, Mutex};
@@ -346,11 +355,11 @@ impl Provider {
                 return;
             }
 
-            let callback = &*(user_data as *const Arc<Mutex<dyn Fn(u32, &str) + Send + Sync>>);
+            let callback = &*(user_data as *const Arc<Mutex<dyn Fn(i32, &str) + Send + Sync>>);
             let desc_cstr = std::ffi::CStr::from_ptr(description);
             if let Ok(desc_str) = desc_cstr.to_str() {
                 if let Ok(cb) = callback.lock() {
-                    cb(error_code, desc_str);
+                    cb(error_code as i32, desc_str);
                 }
             }
         }
@@ -444,7 +453,9 @@ impl Provider {
             unsafe {
                 let _ = Box::from_raw(callback_ptr);
             }
-            Err(CcapError::CaptureStartFailed)
+            Err(CcapError::InvalidParameter(
+                "Failed to set frame callback".to_string(),
+            ))
         }
     }
 
