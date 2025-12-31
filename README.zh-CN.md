@@ -32,7 +32,8 @@
 - **跨平台**：Windows（DirectShow）、macOS/iOS（AVFoundation）、Linux（V4L2）
 - **多种格式**：RGB、BGR、YUV（NV12/I420）及自动转换
 - **双语言接口**：✨ **新增完整纯 C 接口**，同时提供现代化 C++ API 和传统 C99 接口，支持各种项目集成和语言绑定
-- **命令行工具**：开箱即用的命令行工具，快速实现相机操作 - 列出设备、捕获图像、实时预览（[文档](./docs/content/cli.zh.md)）
+- **视频文件播放**：🎬 使用与相机相同的 API 播放视频文件（MP4、AVI、MOV 等）- 支持 Windows 和 macOS
+- **命令行工具**：开箱即用的命令行工具，快速实现相机操作和视频处理 - 列出设备、捕捉图像、实时预览、视频播放（[文档](./docs/content/cli.zh.md)）
 - **生产就绪**：完整测试套件，95%+ 精度验证
 - **虚拟相机支持**：兼容 OBS Virtual Camera 等工具
 
@@ -171,7 +172,7 @@ int main() {
 
 ## 命令行工具
 
-ccap 包含一个功能强大的命令行工具，无需编写代码即可快速进行相机操作：
+ccap 包含一个功能强大的命令行工具，无需编写代码即可快速进行相机操作和视频处理：
 
 ```bash
 # 启用 CLI 工具构建
@@ -187,15 +188,23 @@ cmake --build .
 
 # 实时预览（需要 GLFW）
 ./ccap --preview
+
+# 播放视频文件并提取帧
+./ccap -i video.mp4 -c 30 -o ./frames
+
+# 视频预览并控制播放
+./ccap -i video.mp4 --preview --speed 1.0
 ```
 
 **主要功能：**
 - 📷 列出和选择相机设备
 - 🎯 捕获单张或多张图像
 - 👁️ 实时预览窗口（需要 GLFW）
+- 🎬 视频文件播放和帧提取
 - ⚙️ 配置分辨率、格式和帧率
 - 💾 保存为多种图像格式（JPEG、PNG、BMP 等）
 - ⏱️ 基于时长或数量的捕获模式
+- 🔁 视频循环和播放速度控制
 
 完整的 CLI 文档请参阅 [CLI 工具指南](./docs/content/cli.zh.md)。
 
@@ -227,8 +236,7 @@ cmake --build .
 | [1-minimal_example](./examples/desktop/1-minimal_example.cpp) / [1-minimal_example_c](./examples/desktop/1-minimal_example_c.c) | 基本帧捕获 | C++ / C | 桌面端 |
 | [2-capture_grab](./examples/desktop/2-capture_grab.cpp) / [2-capture_grab_c](./examples/desktop/2-capture_grab_c.c) | 连续捕获 | C++ / C | 桌面端 |
 | [3-capture_callback](./examples/desktop/3-capture_callback.cpp) / [3-capture_callback_c](./examples/desktop/3-capture_callback_c.c) | 回调式捕获 | C++ / C | 桌面端 |
-| [4-example_with_glfw](./examples/desktop/4-example_with_glfw.cpp) / [4-example_with_glfw_c](./examples/desktop/4-example_with_glfw_c.c) | OpenGL 渲染 | C++ / C | 桌面端 |
-| [iOS Demo](./examples/) | iOS 应用程序 | Objective-C++ | iOS |
+| [4-example_with_glfw](./examples/desktop/4-example_with_glfw.cpp) / [4-example_with_glfw_c](./examples/desktop/4-example_with_glfw_c.c) | OpenGL 渲染 | C++ / C | 桌面端 || [5-play_video](./examples/desktop/5-play_video.cpp) / [5-play_video_c](./examples/desktop/5-play_video_c.c) | 视频文件播放 | C++ / C | Windows/macOS || [iOS Demo](./examples/) | iOS 应用程序 | Objective-C++ | iOS |
 
 ### 构建和运行示例
 
@@ -291,6 +299,7 @@ public:
     
     // 设备信息和高级配置
     std::optional<DeviceInfo> getDeviceInfo() const;
+    bool isFileMode() const;  // 检查是否在播放视频文件而非相机
     void setFrameAllocator(std::function<std::shared_ptr<Allocator>()> allocatorFactory);
     void setMaxAvailableFrameSize(uint32_t size);
     void setMaxCacheFrameSize(uint32_t size);
@@ -328,7 +337,13 @@ enum class PropertyName {
     Width, Height, FrameRate,
     PixelFormatInternal,        // 相机内部格式
     PixelFormatOutput,          // 输出格式（带转换）
-    FrameOrientation
+    FrameOrientation,
+    
+    // 视频文件播放属性（仅文件模式）
+    Duration,                   // 视频时长（秒）（只读）
+    CurrentTime,                // 当前播放时间（秒）
+    FrameCount,                 // 总帧数（只读）
+    PlaybackSpeed               // 播放速度倍数（1.0 = 正常速度）
 };
 
 enum class PixelFormat : uint32_t {
@@ -364,6 +379,78 @@ namespace ccap {
     void setLogLevel(LogLevel level);
 }
 ```
+
+### 视频文件播放
+
+ccap 支持使用与相机相同的 API 播放视频文件（仅限 Windows 和 macOS）：
+
+```cpp
+#include <ccap.h>
+
+ccap::Provider provider;
+
+// 打开视频文件 - 与相机相同的 API
+if (provider.open("/path/to/video.mp4", true)) {
+    // 检查是否在文件模式
+    if (provider.isFileMode()) {
+        // 获取视频属性
+        double duration = provider.get(ccap::PropertyName::Duration);
+        double frameCount = provider.get(ccap::PropertyName::FrameCount);
+        double frameRate = provider.get(ccap::PropertyName::FrameRate);
+        
+        // 设置播放速度（1.0 = 正常速度）
+        provider.set(ccap::PropertyName::PlaybackSpeed, 1.0);
+        
+        // 跳转到指定时间
+        provider.set(ccap::PropertyName::CurrentTime, 10.0);  // 跳转到 10 秒
+    }
+    
+    // 抓取帧 - 与相机相同的 API
+    while (auto frame = provider.grab(3000)) {
+        // 处理帧...
+    }
+}
+```
+
+**支持的视频格式**：MP4、AVI、MOV、MKV 以及平台媒体框架支持的其他格式。
+
+**注意**：视频播放功能目前不支持 Linux。此功能仅在 Windows 和 macOS 上可用。
+
+### 视频文件播放
+
+ccap 支持使用与相机相同的 API 播放视频文件（仅限 Windows 和 macOS）：
+
+```cpp
+#include <ccap.h>
+
+ccap::Provider provider;
+
+// 打开视频文件 - 与相机相同的 API
+if (provider.open("/path/to/video.mp4", true)) {
+    // 检查是否在文件模式
+    if (provider.isFileMode()) {
+        // 获取视频属性
+        double duration = provider.get(ccap::PropertyName::Duration);
+        double frameCount = provider.get(ccap::PropertyName::FrameCount);
+        double frameRate = provider.get(ccap::PropertyName::FrameRate);
+        
+        // 设置播放速度（1.0 = 正常速度）
+        provider.set(ccap::PropertyName::PlaybackSpeed, 1.0);
+        
+        // 跳转到指定时间
+        provider.set(ccap::PropertyName::CurrentTime, 10.0);  // 跳转到 10 秒
+    }
+    
+    // 抓取帧 - 与相机相同的 API
+    while (auto frame = provider.grab(3000)) {
+        // 处理帧...
+    }
+}
+```
+
+**支持的视频格式**：MP4、AVI、MOV、MKV 以及平台媒体框架支持的其他格式。
+
+**注意**：视频播放功能目前不支持 Linux。此功能仅在 Windows 和 macOS 上可用。
 
 ### OpenCV 集成
 

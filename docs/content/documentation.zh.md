@@ -8,7 +8,8 @@
 - 硬件加速格式转换（AVX2、Apple Accelerate、NEON）
 - 跨平台：Windows、macOS、iOS、Linux
 - 双 API：现代 C++17 和纯 C99
-- 用于脚本和自动化的命令行工具
+- 视频文件播放（Windows & macOS）- 播放 MP4、AVI、MOV、MKV 等格式
+- 用于脚本、自动化和视频处理的命令行工具
 - **同时提供：**[C 接口](c-interface.zh.md)用于语言绑定
 
 ## 安装
@@ -101,6 +102,9 @@ public:
     
     // 设备信息
     std::optional<DeviceInfo> getDeviceInfo() const;
+    
+    // 文件模式检查（用于视频播放）
+    bool isFileMode() const;
 };
 ```
 
@@ -149,6 +153,41 @@ auto frame = provider.grab();
 cv::Mat mat = ccap::convertRgbFrameToMat(*frame);
 ```
 
+## 视频文件播放
+
+ccap 支持使用与相机相同的 API 播放视频文件（仅限 Windows 和 macOS）：
+
+```cpp
+#include <ccap.h>
+
+ccap::Provider provider;
+
+// 打开视频文件 - 与相机相同的 API
+if (provider.open("/path/to/video.mp4", true)) {
+    // 检查是否在文件模式
+    if (provider.isFileMode()) {
+        // 获取视频属性
+        double duration = provider.get(ccap::PropertyName::Duration);
+        double frameCount = provider.get(ccap::PropertyName::FrameCount);
+        
+        // 设置播放速度（1.0 = 正常速度）
+        provider.set(ccap::PropertyName::PlaybackSpeed, 1.0);
+        
+        // 跳转到指定时间
+        provider.set(ccap::PropertyName::CurrentTime, 10.0);
+    }
+    
+    // 抓取帧 - 与相机相同的 API
+    while (auto frame = provider.grab(3000)) {
+        // 处理帧...
+    }
+}
+```
+
+**支持的格式**：MP4、AVI、MOV、MKV 以及平台媒体框架支持的其他格式。
+
+**注意**：视频播放功能目前不支持 Linux。
+
 ## 属性列表
 
 | 属性 | 描述 |
@@ -158,8 +197,10 @@ cv::Mat mat = ccap::convertRgbFrameToMat(*frame);
 | `FrameRate` | 捕获帧率 |
 | `PixelFormatInternal` | 相机内部像素格式 |
 | `PixelFormatOutput` | 输出像素格式（带转换） |
-| `FrameOrientation` | 帧方向/旋转 |
-
+| `FrameOrientation` | 帧方向/旋转 || `Duration` | 视频时长（秒）（只读，仅文件模式） |
+| `CurrentTime` | 当前播放时间（秒）（仅文件模式） |
+| `FrameCount` | 总帧数（只读，仅文件模式） |
+| `PlaybackSpeed` | 播放速度倍数，1.0 = 正常速度（仅文件模式） |
 ## 像素格式
 
 | 格式 | 描述 |
