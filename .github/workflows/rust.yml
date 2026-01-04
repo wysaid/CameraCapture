@@ -20,6 +20,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  CCAP_SKIP_CAMERA_TESTS: 1
 
 permissions:
   contents: read
@@ -42,17 +43,23 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake build-essential pkg-config
+        sudo apt-get install -y cmake build-essential pkg-config libclang-dev
 
     - name: Install system dependencies (Windows)
       if: matrix.os == 'windows-latest'
       run: |
         choco install cmake llvm -y
-        refreshenv
+
+    - name: Configure LIBCLANG_PATH (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: pwsh
+      run: echo "LIBCLANG_PATH=C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_ENV
 
     - name: Install system dependencies (macOS)
       if: matrix.os == 'macos-latest'
-      run: brew install cmake
+      run: |
+        brew install cmake llvm
+        echo "LIBCLANG_PATH=$(brew --prefix llvm)/lib" >> $GITHUB_ENV
 
     - name: Install Rust toolchain
       uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -95,14 +102,10 @@ jobs:
 
     - name: Build Rust bindings
       working-directory: bindings/rust
-      env:
-        LIBCLANG_PATH: ${{ runner.os == 'Windows' && 'C:\Program Files\LLVM\bin' || '' }}
       run: cargo build --verbose --features static-link
 
     - name: Run tests
       working-directory: bindings/rust
-      env:
-        LIBCLANG_PATH: ${{ runner.os == 'Windows' && 'C:\Program Files\LLVM\bin' || '' }}
       run: cargo test --verbose --features static-link
 
   # Job 2: Source Build (Distribution Mode)
@@ -124,6 +127,25 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential pkg-config
+
+    - name: Install system dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: brew install llvm
+
+    - name: Install system dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        choco install llvm -y
+        refreshenv
+
+    - name: Configure LIBCLANG_PATH (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: pwsh
+      run: echo "LIBCLANG_PATH=C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_ENV
+
+    - name: Configure LIBCLANG_PATH (macOS)
+      if: matrix.os == 'macos-latest'
+      run: echo "LIBCLANG_PATH=$(brew --prefix llvm)/lib" >> $GITHUB_ENV
 
     - name: Install Rust toolchain
       uses: actions-rust-lang/setup-rust-toolchain@v1

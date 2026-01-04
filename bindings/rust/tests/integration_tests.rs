@@ -4,6 +4,10 @@
 
 use ccap::{CcapError, PixelFormat, Provider, Result};
 
+fn skip_camera_tests() -> bool {
+    std::env::var("CCAP_SKIP_CAMERA_TESTS").is_ok()
+}
+
 #[test]
 fn test_provider_creation() -> Result<()> {
     let provider = Provider::new()?;
@@ -22,6 +26,10 @@ fn test_library_version() -> Result<()> {
 
 #[test]
 fn test_device_listing() -> Result<()> {
+    if skip_camera_tests() {
+        eprintln!("Skipping device_listing due to CCAP_SKIP_CAMERA_TESTS");
+        return Ok(());
+    }
     let provider = Provider::new()?;
     let devices = provider.list_devices()?;
     // In test environment we might not have cameras, so just check it doesn't crash
@@ -49,6 +57,10 @@ fn test_error_types() {
 
 #[test]
 fn test_provider_with_index() {
+    if skip_camera_tests() {
+        eprintln!("Skipping provider_with_index due to CCAP_SKIP_CAMERA_TESTS");
+        return;
+    }
     // This might fail if no device at index 0, but should not crash
     match Provider::with_device(0) {
         Ok(_provider) => {
@@ -62,6 +74,10 @@ fn test_provider_with_index() {
 
 #[test]
 fn test_device_operations_without_camera() {
+    if skip_camera_tests() {
+        eprintln!("Skipping device_operations_without_camera due to CCAP_SKIP_CAMERA_TESTS");
+        return;
+    }
     // Test that operations work regardless of camera presence
     let provider = Provider::new().expect("Failed to create provider");
 
