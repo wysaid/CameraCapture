@@ -94,14 +94,20 @@ async fn main() -> ccap::Result<()> {
 The crate includes several examples:
 
 ```bash
-# List available cameras
-cargo run --example list_cameras
+# List available cameras and their info
+cargo run --example print_camera
 
-# Capture frames synchronously
-cargo run --example capture_frames
+# Minimal capture example
+cargo run --example minimal_example
 
-# Capture frames asynchronously (requires async feature)
-cargo run --features async --example async_capture
+# Capture frames using grab mode
+cargo run --example capture_grab
+
+# Capture frames using callback mode
+cargo run --example capture_callback
+
+# With async support
+cargo run --features async --example capture_callback
 ```
 
 ## Building
@@ -144,10 +150,11 @@ cargo test
 
 ### Error Handling
 
-All operations return `Result<T, CcapError>` for comprehensive error handling:
+All operations return `Result<T, CcapError>` for comprehensive error handling.
+For frame capture, `grab_frame(timeout_ms)` returns `Result<Option<VideoFrame>, CcapError>`:
 
 ```rust
-match provider.grab_frame_blocking() {
+match provider.grab_frame(3000) {  // 3 second timeout
     Ok(Some(frame)) => { /* process frame */ },
     Ok(None) => println!("No frame available"),
     Err(e) => eprintln!("Capture error: {:?}", e),
