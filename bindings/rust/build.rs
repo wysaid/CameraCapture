@@ -9,15 +9,14 @@ fn main() {
     // Locate ccap root:
     // 1. Check for local "native" directory (Packaged/Crates.io mode)
     // 2. Fallback to "../../" (Repo/Git mode)
-    let (ccap_root, _is_packaged) = if manifest_path.join("native").exists() {
+    let (ccap_root, is_packaged) = if manifest_path.join("native").exists() {
         (manifest_path.join("native"), true)
     } else {
         (
             manifest_path
                 .parent()
-                .unwrap()
-                .parent()
-                .unwrap()
+                .and_then(|p| p.parent())
+                .expect("Cargo manifest must be at least 2 directories deep (bindings/rust/)")
                 .to_path_buf(),
             false,
         )
@@ -191,9 +190,21 @@ fn main() {
 
     // Tell cargo to invalidate the built crate whenever the wrapper changes
     println!("cargo:rerun-if-changed=wrapper.h");
-    println!("cargo:rerun-if-changed=../../include/ccap_c.h");
-    println!("cargo:rerun-if-changed=../../include/ccap_utils_c.h");
-    println!("cargo:rerun-if-changed=../../include/ccap_convert_c.h");
+    // Use ccap_root for include paths to work in both packaged and repo modes
+    if !is_packaged {
+        println!(
+            "cargo:rerun-if-changed={}/include/ccap_c.h",
+            ccap_root.display()
+        );
+        println!(
+            "cargo:rerun-if-changed={}/include/ccap_utils_c.h",
+            ccap_root.display()
+        );
+        println!(
+            "cargo:rerun-if-changed={}/include/ccap_convert_c.h",
+            ccap_root.display()
+        );
+    }
 
     // Generate bindings
     let bindings = bindgen::Builder::default()

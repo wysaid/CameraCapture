@@ -4,6 +4,71 @@
 
 set -e
 
+detect_cli_devices() {
+    local cli_bin=""
+    local original_dir
+    original_dir="$(pwd)"
+
+    # Prefer Debug build
+    if [ -x "$PROJECT_ROOT/build/Debug/ccap" ]; then
+        cli_bin="$PROJECT_ROOT/build/Debug/ccap"
+    elif [ -x "$PROJECT_ROOT/build/Debug/ccap.exe" ]; then
+        cli_bin="$PROJECT_ROOT/build/Debug/ccap.exe"
+    elif [ -x "$PROJECT_ROOT/build/Release/ccap" ]; then
+        cli_bin="$PROJECT_ROOT/build/Release/ccap"
+    elif [ -x "$PROJECT_ROOT/build/Release/ccap.exe" ]; then
+        cli_bin="$PROJECT_ROOT/build/Release/ccap.exe"
+    else
+        echo "ccap CLI not found. Building (Debug) with CCAP_BUILD_CLI=ON..."
+        pushd "$PROJECT_ROOT" >/dev/null
+
+        mkdir -p build/Debug
+        pushd build/Debug >/dev/null
+
+        # Reconfigure with CLI enabled (idempotent)
+        cmake ../.. -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_CLI=ON
+        cmake --build . --config Debug --target ccap-cli -- -j"$(nproc 2>/dev/null || echo 4)"
+
+        popd >/dev/null
+        popd >/dev/null
+
+        cli_bin="$PROJECT_ROOT/build/Debug/ccap"
+    fi
+
+    cd "$original_dir"
+    echo "$cli_bin"
+}
+
+parse_cli_device_count() {
+    local output="$1"
+    local count=0
+
+    if [[ "$output" =~ Found[[:space:]]+([0-9]+)[[:space:]]+camera ]]; then
+        count=${BASH_REMATCH[1]}
+    elif echo "$output" | grep -qi "No camera devices found"; then
+        count=0
+    else
+        count=-1
+    fi
+
+    echo "$count"
+}
+
+parse_rust_device_count() {
+    local output="$1"
+    local count=0
+
+    if [[ "$output" =~ \#\#[[:space:]]+Found[[:space:]]+([0-9]+)[[:space:]]+video[[:space:]]+capture[[:space:]]+device ]]; then
+        count=${BASH_REMATCH[1]}
+    elif echo "$output" | grep -qi "Failed to find any video capture device"; then
+        count=0
+    else
+        count=-1
+    fi
+
+    echo "$count"
+}
+
 echo "ccap Rust Bindings - Build and Test Script"
 echo "==========================================="
 
@@ -22,14 +87,14 @@ if [ ! -f "$PROJECT_ROOT/build/Debug/libccap.a" ] && [ ! -f "$PROJECT_ROOT/build
     echo "ccap C library not found. Building..."
     cd "$PROJECT_ROOT"
 
-    if [ ! -d "build" ]; then
-        mkdir -p build/Debug
-        cd build/Debug
+    mkdir -p build/Debug
+    cd build/Debug
+
+    if [ ! -f "CMakeCache.txt" ]; then
         cmake ../.. -DCMAKE_BUILD_TYPE=Debug
-        make -j"$(nproc 2>/dev/null || echo 4)"
-    else
-        echo "Build directory exists, assuming library is built"
     fi
+
+    cmake --build . --config Debug -- -j"$(nproc 2>/dev/null || echo 4)"
 
     cd "$RUST_DIR"
 else
@@ -63,23 +128,83 @@ echo "Step 4: Building examples..."
 cargo build --examples
 cargo build --features async --examples
 
-# Try to run basic example
 echo ""
-echo "Step 5: Testing basic functionality..."
-echo "Running camera discovery test..."
-if cargo run --example list_cameras; then
-    echo "✅ Camera discovery test passed"
+echo "Step 5: Testing basic functionality (camera discovery vs CLI)..."
+
+# Run Rust discovery (print_camera) and capture output without aborting
+set +e
+RUST_DISCOVERY_OUTPUT=$(cargo run --example print_camera 2>&1)
+RUST_DISCOVERY_STATUS=$?
+set -e
+
+RUST_DEVICE_COUNT=$(parse_rust_device_count "$RUST_DISCOVERY_OUTPUT")
+
+CLI_BIN=$(detect_cli_devices)
+if [ ! -x "$CLI_BIN" ]; then
+    echo "❌ Failed to build or locate ccap CLI for reference checks." >&2
+    exit 1
+fi
+
+set +e
+CLI_DISCOVERY_OUTPUT=$("$CLI_BIN" --list-devices 2>&1)
+CLI_DISCOVERY_STATUS=$?
+set -e
+
+CLI_DEVICE_COUNT=$(parse_cli_device_count "$CLI_DISCOVERY_OUTPUT")
+
+echo "Rust discovery exit: $RUST_DISCOVERY_STATUS, devices: $RUST_DEVICE_COUNT"
+echo "CLI  discovery exit: $CLI_DISCOVERY_STATUS, devices: $CLI_DEVICE_COUNT"
+
+# Decision logic
+if [ $CLI_DISCOVERY_STATUS -ne 0 ]; then
+    echo "❌ CLI discovery failed. Output:" >&2
+    echo "$CLI_DISCOVERY_OUTPUT" >&2
+    exit 1
+fi
+
+if [ $CLI_DEVICE_COUNT -lt 0 ]; then
+    echo "❌ Unable to parse CLI device count. Output:" >&2
+    echo "$CLI_DISCOVERY_OUTPUT" >&2
+    exit 1
+fi
+
+if [ $RUST_DISCOVERY_STATUS -ne 0 ] && [ $CLI_DEVICE_COUNT -gt 0 ]; then
+    echo "❌ Rust discovery failed while CLI sees devices. Output:" >&2
+    echo "$RUST_DISCOVERY_OUTPUT" >&2
+    exit 1
+fi
+
+if [ $RUST_DEVICE_COUNT -lt 0 ]; then
+    echo "⚠️  Rust discovery output could not be parsed. Output:" >&2
+    echo "$RUST_DISCOVERY_OUTPUT" >&2
+    if [ $CLI_DEVICE_COUNT -gt 0 ]; then
+        echo "❌ CLI sees devices but Rust discovery is inconclusive." >&2
+        exit 1
+    fi
+fi
+
+if [ $CLI_DEVICE_COUNT -eq 0 ] && [ $RUST_DEVICE_COUNT -eq 0 ]; then
+    echo "ℹ️  No cameras detected by CLI or Rust. Skipping capture tests (expected in headless environments)."
+elif [ $CLI_DEVICE_COUNT -ne $RUST_DEVICE_COUNT ]; then
+    echo "❌ Device count mismatch (Rust: $RUST_DEVICE_COUNT, CLI: $CLI_DEVICE_COUNT)." >&2
+    echo "Rust output:" >&2
+    echo "$RUST_DISCOVERY_OUTPUT" >&2
+    echo "CLI output:" >&2
+    echo "$CLI_DISCOVERY_OUTPUT" >&2
+    exit 1
 else
-    echo "⚠️  Camera discovery test failed (this may be normal if no cameras are available)"
+    echo "✅ Camera discovery consistent (devices: $CLI_DEVICE_COUNT)."
 fi
 
 echo ""
 echo "✅ All Rust binding builds completed successfully!"
 echo ""
 echo "Usage examples:"
-echo "  cargo run --example list_cameras"
-echo "  cargo run --example capture_frames"
-echo "  cargo run --features async --example async_capture"
+echo "  cargo run --example print_camera"
+echo "  cargo run --example minimal_example"
+echo "  cargo run --example capture_grab"
+echo "  cargo run --example capture_callback"
+echo "  cargo run --features async --example capture_callback"
 echo ""
 echo "To use in your project, add to Cargo.toml:"
 echo '  ccap = { path = "'$RUST_DIR'" }'

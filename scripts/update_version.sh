@@ -91,4 +91,28 @@ update_file "s/version = \".*\"/version = \"$NEW_VERSION\"/" "$PROJECT_ROOT/cona
 # 4. Update BUILD_AND_INSTALL.md (documentation)
 update_file "s/Current version: .*/Current version: $NEW_VERSION/" "$PROJECT_ROOT/BUILD_AND_INSTALL.md" "BUILD_AND_INSTALL.md"
 
+# 5. Update Rust crate version (Cargo.toml)
+update_file "s/^version = \".*\"$/version = \"$NEW_VERSION\"/" "$PROJECT_ROOT/bindings/rust/Cargo.toml" "Rust crate version (Cargo.toml)"
+
+# 6. Update Rust lockfile entry for ccap (Cargo.lock)
+RUST_LOCKFILE="$PROJECT_ROOT/bindings/rust/Cargo.lock"
+if [ -f "$RUST_LOCKFILE" ]; then
+    python3 - "$RUST_LOCKFILE" "$NEW_VERSION" <<'PY'
+import pathlib, re, sys
+
+path = pathlib.Path(sys.argv[1])
+new_ver = sys.argv[2]
+text = path.read_text()
+pattern = r'(?m)(^name = "ccap"\nversion = ")[^"]+("\n)'
+new_text, count = re.subn(pattern, rf"\1{new_ver}\2", text, count=1)
+if count:
+    path.write_text(new_text)
+    print(f"✅ Updated Rust lockfile ccap version to {new_ver}")
+else:
+    print(f"⚠️  ccap entry not found in {path}, lockfile not modified")
+PY
+else
+    echo "⚠️  $RUST_LOCKFILE not found, skipping Rust lockfile update"
+fi
+
 echo "Version update complete!"
