@@ -3,6 +3,7 @@
 [![Windows Build](https://github.com/wysaid/CameraCapture/actions/workflows/windows-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/windows-build.yml)
 [![macOS Build](https://github.com/wysaid/CameraCapture/actions/workflows/macos-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/macos-build.yml)
 [![Linux Build](https://github.com/wysaid/CameraCapture/actions/workflows/linux-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/linux-build.yml)
+[![Rust CI](https://github.com/wysaid/CameraCapture/actions/workflows/rust.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/rust.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![C++17](https://img.shields.io/badge/C++-17-blue.svg)](https://isocpp.org/)
 [![C99](https://img.shields.io/badge/C-99-blue.svg)](https://en.wikipedia.org/wiki/C99)
@@ -10,7 +11,7 @@
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
-高性能、轻量级的跨平台相机捕获库，支持硬件加速的像素格式转换，同时支持相机捕获和视频文件播放（Windows/macOS），提供完整的 C++ 和纯 C 语言接口。
+高性能、轻量级的跨平台相机捕获库，支持硬件加速的像素格式转换，同时支持相机捕获和视频文件播放（Windows/macOS），提供完整的 C++ / 纯 C 语言接口，并提供 Rust bindings。
 
 > 🌐 **官方网站：** [ccap.work](https://ccap.work)
 
@@ -168,6 +169,27 @@ int main() {
     ccap_provider_destroy(provider);
     return 0;
 }
+```
+
+### Rust 绑定
+
+本项目提供 Rust bindings（已发布到 crates.io）：
+
+- Crate：https://crates.io/crates/ccap-rs
+- 文档：https://docs.rs/ccap-rs
+- 源码：`bindings/rust/`
+
+快速安装：
+
+```bash
+cargo add ccap-rs
+```
+
+如果你希望在代码里使用 `ccap` 作为 crate 名称（推荐），可以在 `Cargo.toml` 中这样写：
+
+```toml
+[dependencies]
+ccap = { package = "ccap-rs", version = "<latest>" }
 ```
 
 ## 命令行工具

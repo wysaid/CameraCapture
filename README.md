@@ -3,6 +3,7 @@
 [![Windows Build](https://github.com/wysaid/CameraCapture/actions/workflows/windows-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/windows-build.yml)
 [![macOS Build](https://github.com/wysaid/CameraCapture/actions/workflows/macos-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/macos-build.yml)
 [![Linux Build](https://github.com/wysaid/CameraCapture/actions/workflows/linux-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/linux-build.yml)
+[![Rust CI](https://github.com/wysaid/CameraCapture/actions/workflows/rust.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/rust.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![C++17](https://img.shields.io/badge/C++-17-blue.svg)](https://isocpp.org/)
 [![C99](https://img.shields.io/badge/C-99-blue.svg)](https://en.wikipedia.org/wiki/C99)
@@ -10,7 +11,7 @@
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
-A high-performance, lightweight cross-platform camera capture library with hardware-accelerated pixel format conversion, supporting both camera capture and video file playback (Windows/macOS), providing complete C++ and pure C language interfaces.
+A high-performance, lightweight cross-platform camera capture library with hardware-accelerated pixel format conversion, supporting both camera capture and video file playback (Windows/macOS). Provides complete C++ and pure C interfaces, plus Rust bindings.
 
 > 🌐 **Official Website:** [ccap.work](https://ccap.work)
 
@@ -205,6 +206,27 @@ int main() {
     ccap_provider_destroy(provider);
     return 0;
 }
+```
+
+### Rust Bindings
+
+Rust bindings are available as a crate on crates.io:
+
+- Crate: https://crates.io/crates/ccap-rs
+- Docs: https://docs.rs/ccap-rs
+- Source: `bindings/rust/`
+
+Quick install:
+
+```bash
+cargo add ccap-rs
+```
+
+Or, if you want the crate name in code to be `ccap`:
+
+```toml
+[dependencies]
+ccap = { package = "ccap-rs", version = "<latest>" }
 ```
 
 ## CLI Tool

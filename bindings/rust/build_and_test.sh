@@ -113,9 +113,6 @@ cargo clean
 echo "Building with default features..."
 cargo build
 
-# Build with async features
-echo "Building with async features..."
-cargo build --features async
 
 # Run tests
 echo ""
@@ -126,7 +123,6 @@ cargo test
 echo ""
 echo "Step 4: Building examples..."
 cargo build --examples
-cargo build --features async --examples
 
 echo ""
 echo "Step 5: Testing basic functionality (camera discovery vs CLI)..."
@@ -204,9 +200,7 @@ echo "  cargo run --example print_camera"
 echo "  cargo run --example minimal_example"
 echo "  cargo run --example capture_grab"
 echo "  cargo run --example capture_callback"
-echo "  cargo run --features async --example capture_callback"
 echo ""
 echo "To use in your project, add to Cargo.toml:"
 echo '  ccap = { package = "ccap-rs", path = "'$RUST_DIR'" }'
-echo '  # or with async support:'
-echo '  ccap = { package = "ccap-rs", path = "'$RUST_DIR'", features = ["async"] }'
+echo '  ccap = { package = "ccap-rs", path = "'$RUST_DIR'" }'

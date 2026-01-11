@@ -1,4 +1,4 @@
-use ccap::{Provider, Result, Utils};
+use ccap::{CcapError, Provider, Result, Utils};
 
 fn main() -> Result<()> {
     // Set error callback to receive error notifications
@@ -14,7 +14,13 @@ fn main() -> Result<()> {
     let camera_index = Utils::select_camera(&devices)?;
 
     // Use device index instead of name to avoid issues
-    let mut provider = Provider::with_device(camera_index as i32)?;
+    let camera_index_i32 = i32::try_from(camera_index).map_err(|_| {
+        CcapError::InvalidParameter(format!(
+            "camera index {} does not fit into i32",
+            camera_index
+        ))
+    })?;
+    let mut provider = Provider::with_device(camera_index_i32)?;
     provider.open()?;
     provider.start()?;
 

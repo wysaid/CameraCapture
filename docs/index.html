@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ccap - Cross-Platform Camera Capture Library</title>
-    <meta name="description" content="A high-performance, lightweight cross-platform camera capture library with hardware-accelerated pixel format conversion.">
-    <meta name="keywords" content="camera capture, C++, C, cross-platform, Windows, macOS, iOS, Linux, DirectShow, AVFoundation, V4L2">
+    <meta name="description" content="A high-performance, lightweight cross-platform camera capture library with hardware-accelerated pixel format conversion, plus Rust bindings.">
+    <meta name="keywords" content="camera capture, C++, C, Rust, bindings, cross-platform, Windows, macOS, iOS, Linux, DirectShow, AVFoundation, V4L2">
     <link rel="canonical" href="https://ccap.work/">
     <link rel="stylesheet" href="css/style.css">
     <!-- Highlight.js for syntax highlighting -->
@@ -13,6 +13,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/cpp.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/c.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/rust.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/cmake.min.js" crossorigin="anonymous"></script>
 </head>
@@ -32,6 +33,7 @@
                         <li><a href="documentation.html?doc=implementation-details"><span class="lang-en">Implementation Details</span><span class="lang-zh">实现细节</span></a></li>
                         <li><a href="documentation.html?doc=video-memory-management"><span class="lang-en">Memory & Video Playback</span><span class="lang-zh">内存管理与视频播放</span></a></li>
                         <li><a href="documentation.html?doc=cmake-options"><span class="lang-en">CMake Build Options</span><span class="lang-zh">CMake 构建选项</span></a></li>
+                        <li><a href="documentation.html?doc=rust-bindings"><span class="lang-en">Rust Bindings</span><span class="lang-zh">Rust 绑定</span></a></li>
                     </ul>
                 </li>
                 <li><a href="documentation.html?doc=cli"><span class="lang-en">CLI Tool</span><span class="lang-zh">CLI 工具</span></a></li>
@@ -44,8 +46,8 @@
     <section class="hero">
         <div class="container">
             <h1>(C)amera(CAP)ture</h1>
-            <p class="subtitle lang-en">A lightweight, high-performance cross-platform camera capture library with video file playback support (Windows/macOS)</p>
-            <p class="subtitle lang-zh">轻量级、高性能的跨平台相机捕获库，支持视频文件播放（Windows/macOS）</p>
+            <p class="subtitle lang-en">A lightweight, high-performance cross-platform camera capture library with video file playback support (Windows/macOS), plus Rust bindings.</p>
+            <p class="subtitle lang-zh">轻量级、高性能的跨平台相机捕获库，支持视频文件播放（Windows/macOS），并提供 Rust bindings。</p>
             <p class="tagline lang-en">Hardware-accelerated conversion with AVX2, Apple Accelerate, NEON</p>
             <p class="tagline lang-zh">支持 AVX2、Apple Accelerate、NEON 硬件加速</p>
             
@@ -55,6 +57,9 @@
                 </a>
                 <img src="https://img.shields.io/badge/C++-17-blue.svg" alt="C++17">
                 <img src="https://img.shields.io/badge/C-99-blue.svg" alt="C99">
+                <a href="documentation.html?doc=rust-bindings">
+                    <img src="https://img.shields.io/badge/Rust-bindings-orange.svg" alt="Rust bindings">
+                </a>
             </div>
             
             <div class="cta-buttons">
@@ -190,6 +195,7 @@
             <div class="code-tabs">
                 <button class="code-tab active" onclick="ccap.showCode('cpp', event)">C++</button>
                 <button class="code-tab" onclick="ccap.showCode('c', event)">C</button>
+                <button class="code-tab" onclick="ccap.showCode('rust', event)">Rust</button>
             </div>
             
             <div class="code-block">
@@ -248,6 +254,32 @@ int main() {
     return 0;
 }</code></pre>
                 </div>
+
+                <div id="code-rust" class="code-content">
+<pre><code class="language-rust">// Rust Example
+// Cargo.toml:
+// ccap = { package = "ccap-rs", version = "&lt;latest&gt;" }
+
+use ccap::{Provider, Result};
+
+fn main() -&gt; Result&lt;()&gt; {
+    let mut provider = Provider::new()?;
+
+    let devices = provider.find_device_names()?;
+    println!("Found {} camera(s)", devices.len());
+
+    if let Some(first) = devices.get(0) {
+        provider.open_device(Some(first), true)?;
+
+        if let Some(frame) = provider.grab_frame(3000)? {
+            let info = frame.info()?;
+            println!("Captured: {}x{}", info.width, info.height);
+        }
+    }
+
+    Ok(())
+}</code></pre>
+                </div>
             </div>
         </div>
     </section>
@@ -281,6 +313,14 @@ target_link_libraries(your_app PRIVATE ccap::ccap)</code></pre>
                     <h3>Homebrew (macOS)</h3>
                     <pre><code class="language-bash">brew tap wysaid/ccap
 brew install ccap</code></pre>
+                </div>
+
+                <div class="install-method">
+                    <h3 class="lang-en">Rust (crates.io)</h3>
+                    <h3 class="lang-zh">Rust（crates.io）</h3>
+                    <pre><code class="language-bash">cargo add ccap-rs
+# Recommended in Cargo.toml:
+# ccap = { package = "ccap-rs", version = "&lt;latest&gt;" }</code></pre>
                 </div>
                 
                 <div class="install-method">
@@ -356,6 +396,7 @@ target_link_libraries(your_app ccap::ccap)</code></pre>
                         <li><a href="documentation.html"><span class="lang-en">Getting Started</span><span class="lang-zh">快速开始</span></a></li>
                         <li><a href="documentation.html?doc=cli"><span class="lang-en">CLI Tool</span><span class="lang-zh">CLI 工具</span></a></li>
                         <li><a href="documentation.html?doc=c-interface"><span class="lang-en">C Interface</span><span class="lang-zh">C 接口</span></a></li>
+                        <li><a href="documentation.html?doc=rust-bindings"><span class="lang-en">Rust Bindings</span><span class="lang-zh">Rust 绑定</span></a></li>
                         <li><a href="documentation.html?doc=implementation-details"><span class="lang-en">Implementation Details</span><span class="lang-zh">实现细节</span></a></li>
                         <li><a href="documentation.html?doc=video-memory-management"><span class="lang-en">Memory Management</span><span class="lang-zh">内存管理</span></a></li>
                         <li><a href="documentation.html?doc=cmake-options"><span class="lang-en">CMake Options</span><span class="lang-zh">CMake 选项</span></a></li>

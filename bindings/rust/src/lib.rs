@@ -23,9 +23,6 @@ mod provider;
 mod types;
 mod utils;
 
-#[cfg(feature = "async")]
-pub mod r#async;
-
 // Public re-exports
 pub use convert::Convert;
 pub use error::{CcapError, Result};

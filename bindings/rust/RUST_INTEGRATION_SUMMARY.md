@@ -37,7 +37,7 @@ bindings/rust/
 │   ├── types.rs            # type conversions
 │   ├── frame.rs            # video frame wrapper
 │   ├── provider.rs         # camera provider API
-│   └── async.rs            # async support
+
 ├── examples/               # examples
 │   ├── print_camera.rs     # list devices and basic info
 │   ├── minimal_example.rs  # minimal capture example
@@ -64,9 +64,8 @@ bindings/rust/
     - `Result<T>` type alias following Rust conventions
     - Friendly error messages via `thiserror`
 
-4. **Async support** (optional feature)
-    - Tokio-based async APIs
-    - Streaming-style APIs for continuous frame capture
+4. **Streaming-style capture**
+    - Callback-based continuous frame capture via `Provider::start_streaming(...)`
 
 ### Build System Integration
 
@@ -159,8 +158,6 @@ test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 [dependencies]
 ccap = { package = "ccap-rs", path = "../path/to/ccap/bindings/rust" }
 
-# Or enable async support
-ccap = { package = "ccap-rs", path = "../path/to/ccap/bindings/rust", features = ["async"] }
 ```
 
 ## Summary
@@ -175,7 +172,6 @@ ccap = { package = "ccap-rs", path = "../path/to/ccap/bindings/rust", features =
 - Memory-safe resource management
 - Comprehensive error handling
 - Cross-platform support
-- Async API support
 - Rich examples and documentation
 - Unit test coverage
 
