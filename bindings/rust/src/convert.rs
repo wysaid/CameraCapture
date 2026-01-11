@@ -6,6 +6,19 @@ use std::os::raw::c_int;
 /// Color conversion utilities
 pub struct Convert;
 
+/// Validate that the input buffer has sufficient size
+fn validate_buffer_size(data: &[u8], required: usize, name: &str) -> Result<()> {
+    if data.len() < required {
+        return Err(CcapError::InvalidParameter(format!(
+            "{} buffer too small: got {} bytes, need at least {} bytes",
+            name,
+            data.len(),
+            required
+        )));
+    }
+    Ok(())
+}
+
 impl Convert {
     /// Get current color conversion backend
     pub fn backend() -> ColorConversionBackend {
@@ -40,12 +53,19 @@ impl Convert {
     }
 
     /// Convert YUYV to RGB24
+    ///
+    /// # Errors
+    ///
+    /// Returns `CcapError::InvalidParameter` if `src_data` is too small for the given dimensions.
     pub fn yuyv_to_rgb24(
         src_data: &[u8],
         src_stride: usize,
         width: u32,
         height: u32,
     ) -> Result<Vec<u8>> {
+        let required = src_stride * height as usize;
+        validate_buffer_size(src_data, required, "YUYV source")?;
+
         let dst_stride = (width * 3) as usize;
         let dst_size = dst_stride * height as usize;
         let mut dst_data = vec![0u8; dst_size];
@@ -66,12 +86,19 @@ impl Convert {
     }
 
     /// Convert YUYV to BGR24
+    ///
+    /// # Errors
+    ///
+    /// Returns `CcapError::InvalidParameter` if `src_data` is too small for the given dimensions.
     pub fn yuyv_to_bgr24(
         src_data: &[u8],
         src_stride: usize,
         width: u32,
         height: u32,
     ) -> Result<Vec<u8>> {
+        let required = src_stride * height as usize;
+        validate_buffer_size(src_data, required, "YUYV source")?;
+
         let dst_stride = (width * 3) as usize;
         let dst_size = dst_stride * height as usize;
         let mut dst_data = vec![0u8; dst_size];
@@ -92,12 +119,19 @@ impl Convert {
     }
 
     /// Convert RGB to BGR
+    ///
+    /// # Errors
+    ///
+    /// Returns `CcapError::InvalidParameter` if `src_data` is too small for the given dimensions.
     pub fn rgb_to_bgr(
         src_data: &[u8],
         src_stride: usize,
         width: u32,
         height: u32,
     ) -> Result<Vec<u8>> {
+        let required = src_stride * height as usize;
+        validate_buffer_size(src_data, required, "RGB source")?;
+
         let dst_stride = (width * 3) as usize;
         let dst_size = dst_stride * height as usize;
         let mut dst_data = vec![0u8; dst_size];
@@ -117,12 +151,19 @@ impl Convert {
     }
 
     /// Convert BGR to RGB
+    ///
+    /// # Errors
+    ///
+    /// Returns `CcapError::InvalidParameter` if `src_data` is too small for the given dimensions.
     pub fn bgr_to_rgb(
         src_data: &[u8],
         src_stride: usize,
         width: u32,
         height: u32,
     ) -> Result<Vec<u8>> {
+        let required = src_stride * height as usize;
+        validate_buffer_size(src_data, required, "BGR source")?;
+
         let dst_stride = (width * 3) as usize;
         let dst_size = dst_stride * height as usize;
         let mut dst_data = vec![0u8; dst_size];
@@ -142,6 +183,10 @@ impl Convert {
     }
 
     /// Convert NV12 to RGB24
+    ///
+    /// # Errors
+    ///
+    /// Returns `CcapError::InvalidParameter` if buffers are too small for the given dimensions.
     pub fn nv12_to_rgb24(
         y_data: &[u8],
         y_stride: usize,
@@ -150,6 +195,11 @@ impl Convert {
         width: u32,
         height: u32,
     ) -> Result<Vec<u8>> {
+        let y_required = y_stride * height as usize;
+        let uv_required = uv_stride * ((height as usize + 1) / 2);
+        validate_buffer_size(y_data, y_required, "NV12 Y plane")?;
+        validate_buffer_size(uv_data, uv_required, "NV12 UV plane")?;
+
         let dst_stride = (width * 3) as usize;
         let dst_size = dst_stride * height as usize;
         let mut dst_data = vec![0u8; dst_size];
@@ -172,6 +222,10 @@ impl Convert {
     }
 
     /// Convert NV12 to BGR24
+    ///
+    /// # Errors
+    ///
+    /// Returns `CcapError::InvalidParameter` if buffers are too small for the given dimensions.
     pub fn nv12_to_bgr24(
         y_data: &[u8],
         y_stride: usize,
@@ -180,6 +234,11 @@ impl Convert {
         width: u32,
         height: u32,
     ) -> Result<Vec<u8>> {
+        let y_required = y_stride * height as usize;
+        let uv_required = uv_stride * ((height as usize + 1) / 2);
+        validate_buffer_size(y_data, y_required, "NV12 Y plane")?;
+        validate_buffer_size(uv_data, uv_required, "NV12 UV plane")?;
+
         let dst_stride = (width * 3) as usize;
         let dst_size = dst_stride * height as usize;
         let mut dst_data = vec![0u8; dst_size];
@@ -202,6 +261,10 @@ impl Convert {
     }
 
     /// Convert I420 to RGB24
+    ///
+    /// # Errors
+    ///
+    /// Returns `CcapError::InvalidParameter` if buffers are too small for the given dimensions.
     #[allow(clippy::too_many_arguments)]
     pub fn i420_to_rgb24(
         y_data: &[u8],
@@ -213,6 +276,14 @@ impl Convert {
         width: u32,
         height: u32,
     ) -> Result<Vec<u8>> {
+        let y_required = y_stride * height as usize;
+        let uv_height = (height as usize + 1) / 2;
+        let u_required = u_stride * uv_height;
+        let v_required = v_stride * uv_height;
+        validate_buffer_size(y_data, y_required, "I420 Y plane")?;
+        validate_buffer_size(u_data, u_required, "I420 U plane")?;
+        validate_buffer_size(v_data, v_required, "I420 V plane")?;
+
         let dst_stride = (width * 3) as usize;
         let dst_size = dst_stride * height as usize;
         let mut dst_data = vec![0u8; dst_size];
@@ -237,6 +308,10 @@ impl Convert {
     }
 
     /// Convert I420 to BGR24
+    ///
+    /// # Errors
+    ///
+    /// Returns `CcapError::InvalidParameter` if buffers are too small for the given dimensions.
     #[allow(clippy::too_many_arguments)]
     pub fn i420_to_bgr24(
         y_data: &[u8],
@@ -248,6 +323,14 @@ impl Convert {
         width: u32,
         height: u32,
     ) -> Result<Vec<u8>> {
+        let y_required = y_stride * height as usize;
+        let uv_height = (height as usize + 1) / 2;
+        let u_required = u_stride * uv_height;
+        let v_required = v_stride * uv_height;
+        validate_buffer_size(y_data, y_required, "I420 Y plane")?;
+        validate_buffer_size(u_data, u_required, "I420 U plane")?;
+        validate_buffer_size(v_data, v_required, "I420 V plane")?;
+
         let dst_stride = (width * 3) as usize;
         let dst_size = dst_stride * height as usize;
         let mut dst_data = vec![0u8; dst_size];

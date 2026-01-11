@@ -1,92 +1,85 @@
 //! Error handling for ccap library
 
+use thiserror::Error;
+
 /// Error types for ccap operations
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum CcapError {
     /// No error occurred
+    #[error("No error")]
     None,
 
     /// No camera device found
+    #[error("No camera device found")]
     NoDeviceFound,
 
     /// Invalid device specified
+    #[error("Invalid device: {0}")]
     InvalidDevice(String),
 
     /// Camera device open failed
+    #[error("Camera device open failed")]
     DeviceOpenFailed,
 
     /// Device already opened
+    #[error("Device already opened")]
     DeviceAlreadyOpened,
 
     /// Device not opened
+    #[error("Device not opened")]
     DeviceNotOpened,
 
     /// Capture start failed
+    #[error("Capture start failed")]
     CaptureStartFailed,
 
     /// Capture stop failed
+    #[error("Capture stop failed")]
     CaptureStopFailed,
 
     /// Frame grab failed
+    #[error("Frame grab failed")]
     FrameGrabFailed,
 
     /// Timeout occurred
+    #[error("Timeout occurred")]
     Timeout,
 
     /// Invalid parameter
+    #[error("Invalid parameter: {0}")]
     InvalidParameter(String),
 
     /// Not supported operation
+    #[error("Operation not supported")]
     NotSupported,
 
     /// Backend set failed
+    #[error("Backend set failed")]
     BackendSetFailed,
 
     /// String conversion error
+    #[error("String conversion error: {0}")]
     StringConversionError(String),
 
     /// File operation failed
+    #[error("File operation failed: {0}")]
     FileOperationFailed(String),
 
     /// Device not found (alias for NoDeviceFound for compatibility)
+    #[error("Device not found")]
     DeviceNotFound,
 
     /// Internal error
+    #[error("Internal error: {0}")]
     InternalError(String),
 
     /// Unknown error with error code
+    #[error("Unknown error: {code}")]
     Unknown {
         /// Error code from the underlying system
         code: i32,
     },
 }
-
-impl std::fmt::Display for CcapError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CcapError::None => write!(f, "No error"),
-            CcapError::NoDeviceFound => write!(f, "No camera device found"),
-            CcapError::InvalidDevice(name) => write!(f, "Invalid device: {}", name),
-            CcapError::DeviceOpenFailed => write!(f, "Camera device open failed"),
-            CcapError::DeviceAlreadyOpened => write!(f, "Device already opened"),
-            CcapError::DeviceNotOpened => write!(f, "Device not opened"),
-            CcapError::CaptureStartFailed => write!(f, "Capture start failed"),
-            CcapError::CaptureStopFailed => write!(f, "Capture stop failed"),
-            CcapError::FrameGrabFailed => write!(f, "Frame grab failed"),
-            CcapError::Timeout => write!(f, "Timeout occurred"),
-            CcapError::InvalidParameter(param) => write!(f, "Invalid parameter: {}", param),
-            CcapError::NotSupported => write!(f, "Operation not supported"),
-            CcapError::BackendSetFailed => write!(f, "Backend set failed"),
-            CcapError::StringConversionError(msg) => write!(f, "String conversion error: {}", msg),
-            CcapError::FileOperationFailed(msg) => write!(f, "File operation failed: {}", msg),
-            CcapError::DeviceNotFound => write!(f, "Device not found"),
-            CcapError::InternalError(msg) => write!(f, "Internal error: {}", msg),
-            CcapError::Unknown { code } => write!(f, "Unknown error: {}", code),
-        }
-    }
-}
-
-impl std::error::Error for CcapError {}
 
 impl From<i32> for CcapError {
     fn from(code: i32) -> Self {

@@ -1,7 +1,7 @@
 # ccap-rs - Rust Bindings for CameraCapture
 
-[![Crates.io](https://img.shields.io/crates/v/ccap.svg)](https://crates.io/crates/ccap)
-[![Documentation](https://docs.rs/ccap/badge.svg)](https://docs.rs/ccap)
+[![Crates.io](https://img.shields.io/crates/v/ccap-rs.svg)](https://crates.io/crates/ccap-rs)
+[![Documentation](https://docs.rs/ccap-rs/badge.svg)](https://docs.rs/ccap-rs)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Safe Rust bindings for [ccap](https://github.com/wysaid/CameraCapture) - A high-performance, lightweight cross-platform camera capture library with hardware-accelerated pixel format conversion.
@@ -14,7 +14,6 @@ Safe Rust bindings for [ccap](https://github.com/wysaid/CameraCapture) - A high-
 - **Zero Dependencies**: Uses only system frameworks
 - **Memory Safe**: Safe Rust API with automatic resource management
 - **Async Support**: Optional async/await interface with tokio
-- **Thread Safe**: Safe concurrent access to video frames
 
 ## Quick Start
 
@@ -22,10 +21,10 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ccap = "1.1.0"
+ccap = { package = "ccap-rs", version = "1.5.0" }
 
 # For async support
-ccap = { version = "1.1.0", features = ["async"] }
+ccap = { package = "ccap-rs", version = "1.5.0", features = ["async"] }
 ```
 
 ### Basic Usage
@@ -163,9 +162,13 @@ match provider.grab_frame(3000) {  // 3 second timeout
 
 ### Thread Safety
 
-- `VideoFrame` is `Send + Sync` and can be safely shared between threads
-- `Provider` should be used from a single thread or protected with synchronization
+- `VideoFrame` implements `Send + Sync` allowing frames to be shared between threads
+- `Provider` implements `Send` but the underlying C++ API is **not thread-safe**
+  - Use `Provider` from a single thread, or wrap it with `Arc<Mutex<Provider>>` for multi-threaded access
+  - For async usage, prefer `AsyncProvider` which handles synchronization internally
 - Frame data remains valid until the `VideoFrame` is dropped
+
+> **Note**: Thread safety is based on code inspection. If you encounter issues with concurrent access, please report them.
 
 ## Platform Support
 

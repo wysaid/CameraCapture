@@ -1,6 +1,6 @@
 [package]
-name = "ccap"
-version = "1.5.0"
+name = "ccap-rs"
+version = "1.5.0-test.20260111101345.e10615d"
 edition = "2021"
 rust-version = "1.65"
 authors = ["wysaid <this@wysaid.org>"]
@@ -11,6 +11,12 @@ repository = "https://github.com/wysaid/CameraCapture"
 readme = "README.md"
 keywords = ["camera", "capture", "video", "cross-platform"]
 categories = ["multimedia::video", "api-bindings"]
+
+[lib]
+# Keep the Rust crate name as `ccap` so users can write:
+#   ccap = { package = "ccap-rs", version = "..." }
+# and still `use ccap::Provider;`
+name = "ccap"
 
 [dependencies]
 thiserror = "1.0"
@@ -26,7 +32,7 @@ cc = "1.0"
 tokio-test = "0.4"
 
 [features]
-default = ["static-link"]
+default = ["build-source"]
 async = ["tokio", "tokio-stream", "futures"]
 static-link = [] # Link against pre-built static library (for development)
 build-source = [] # Build from source using cc crate (for distribution)

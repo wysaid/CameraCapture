@@ -94,6 +94,19 @@ impl AsyncProvider {
 
     #[cfg(feature = "async")]
     /// Create a stream of frames
+    ///
+    /// # Warning
+    ///
+    /// **This method is currently incomplete and will never yield any frames.**
+    /// The underlying frame sender is not connected to the capture pipeline.
+    /// Use [`grab_frame()`](Self::grab_frame) or [`grab_frame_timeout()`](Self::grab_frame_timeout) instead.
+    ///
+    /// This API is reserved for future implementation where frames will be
+    /// automatically pushed to the stream via callbacks.
+    #[deprecated(
+        since = "1.5.0",
+        note = "frame_stream() is incomplete and will never yield frames. Use grab_frame() instead."
+    )]
     pub fn frame_stream(&mut self) -> impl futures::Stream<Item = VideoFrame> {
         let receiver = self
             .frame_receiver
