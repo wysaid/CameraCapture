@@ -1,5 +1,57 @@
 use std::env;
+use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
+
+fn file_contains_bytes(path: &Path, needle: &[u8]) -> bool {
+    let Ok(data) = fs::read(path) else {
+        return false;
+    };
+    if needle.is_empty() {
+        return false;
+    }
+    data.windows(needle.len()).any(|w| w == needle)
+}
+
+fn clang_resource_dir() -> Option<PathBuf> {
+    // Prefer clang in PATH.
+    if let Ok(out) = Command::new("clang").arg("--print-resource-dir").output() {
+        if out.status.success() {
+            let s = String::from_utf8_lossy(&out.stdout);
+            let p = s.trim();
+            if !p.is_empty() {
+                return Some(PathBuf::from(p));
+            }
+        }
+    }
+
+    // Fallback to xcrun on macOS.
+    if let Ok(out) = Command::new("xcrun")
+        .args(["--sdk", "macosx", "--find", "clang"])
+        .output()
+    {
+        if out.status.success() {
+            let clang_path = String::from_utf8_lossy(&out.stdout);
+            let clang_path = clang_path.trim();
+            if !clang_path.is_empty() {
+                if let Ok(out2) = Command::new(clang_path)
+                    .arg("--print-resource-dir")
+                    .output()
+                {
+                    if out2.status.success() {
+                        let s = String::from_utf8_lossy(&out2.stdout);
+                        let p = s.trim();
+                        if !p.is_empty() {
+                            return Some(PathBuf::from(p));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    None
+}
 
 fn looks_like_ccap_root(dir: &Path) -> bool {
     dir.join("include/ccap_c.h").exists() && dir.join("src/ccap_core.cpp").exists()
@@ -21,6 +73,15 @@ fn find_ccap_root_from(start: &Path) -> Option<PathBuf> {
 }
 
 fn main() {
+    // Re-run build script when the build script itself changes.
+    println!("cargo:rerun-if-changed=build.rs");
+    // Re-run when wrapper changes (bindgen input).
+    println!("cargo:rerun-if-changed=wrapper.h");
+    // Allow users to override the source checkout location.
+    println!("cargo:rerun-if-env-changed=CCAP_SOURCE_DIR");
+    // Allow users to opt out ASan runtime auto-link (for static-link + ASan prebuilt libs).
+    println!("cargo:rerun-if-env-changed=CCAP_RUST_NO_ASAN_LINK");
+
     // Tell cargo to look for shared libraries in the specified directory
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     let manifest_path = PathBuf::from(&manifest_dir);
@@ -35,7 +96,7 @@ fn main() {
     // Locate ccap root.
     // build-source path (distribution): prefer ./native for crates.io.
     // static-link path (development): prefer repo root / CCAP_SOURCE_DIR for build artifacts.
-    let (ccap_root, is_packaged) = if build_from_source {
+    let (ccap_root, _is_packaged) = if build_from_source {
         // 1) Vendored sources under ./native (ideal for crates.io)
         if manifest_path.join("native").exists() {
             (manifest_path.join("native"), true)
@@ -210,6 +271,53 @@ Please vendor the sources into bindings/rust/native/, or set CCAP_SOURCE_DIR to 
             "Debug"
         };
 
+        // If the prebuilt static library was compiled with AddressSanitizer (ASan), we must link
+        // the ASan runtime as well. The repo's default functional test build enables ASan for
+        // Debug builds (see scripts/run_tests.sh), so this situation is expected.
+        //
+        // We detect this by scanning the archive bytes for common ASan symbols.
+        let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+        if env::var("CCAP_RUST_NO_ASAN_LINK").is_err() && (target_os == "macos" || target_os == "linux") {
+            let archive_path = ccap_root
+                .join("build")
+                .join(build_type)
+                .join("libccap.a");
+
+            let asan_instrumented = file_contains_bytes(&archive_path, b"___asan_init")
+                || file_contains_bytes(&archive_path, b"__asan_init");
+
+            if asan_instrumented {
+                // rustc links with `-nodefaultlibs` which can prevent clang from automatically
+                // adding the ASan runtime, even if `-fsanitize=address` is present.
+                // We therefore explicitly link the runtime.
+                println!("cargo:rustc-link-arg=-fsanitize=address");
+
+                if target_os == "linux" {
+                    // Requires libasan (e.g. Ubuntu: libasan6) to be installed.
+                    println!("cargo:rustc-link-lib=asan");
+                }
+
+                if target_os == "macos" {
+                    // Prefer the ASan runtime shipped with the active clang toolchain.
+                    if let Some(resource_dir) = clang_resource_dir() {
+                        let runtime_dir = resource_dir.join("lib").join("darwin");
+                        let dylib = runtime_dir.join("libclang_rt.asan_osx_dynamic.dylib");
+                        if dylib.exists() {
+                            println!("cargo:rustc-link-search=native={}", runtime_dir.display());
+                            // Ensure the runtime dylib can be found at execution time.
+                            println!("cargo:rustc-link-arg=-Wl,-rpath,{}", runtime_dir.display());
+                        }
+                    }
+                    println!("cargo:rustc-link-lib=dylib=clang_rt.asan_osx_dynamic");
+                }
+
+                println!(
+                    "cargo:warning=Prebuilt {} appears to be ASan-instrumented; linking ASan runtime. Set CCAP_RUST_NO_ASAN_LINK=1 to disable.",
+                    archive_path.display()
+                );
+            }
+        }
+
         // Add the ccap library search path
         // Try specific build type first, then fallback to others
         println!(
@@ -265,20 +373,52 @@ Please vendor the sources into bindings/rust/native/, or set CCAP_SOURCE_DIR to 
         println!("cargo:rustc-link-lib=mfuuid");
     }
 
-    // Tell cargo to invalidate the built crate whenever the wrapper changes
-    println!("cargo:rerun-if-changed=wrapper.h");
-    // Use ccap_root for include paths to work in both packaged and repo modes
-    if !is_packaged {
+    // Use ccap_root for include paths to work in both packaged and repo modes.
+    println!(
+        "cargo:rerun-if-changed={}/include/ccap_c.h",
+        ccap_root.display()
+    );
+    println!(
+        "cargo:rerun-if-changed={}/include/ccap_utils_c.h",
+        ccap_root.display()
+    );
+    println!(
+        "cargo:rerun-if-changed={}/include/ccap_convert_c.h",
+        ccap_root.display()
+    );
+
+    // If we're compiling from source, also re-run when the vendored/source files change.
+    if build_from_source {
         println!(
-            "cargo:rerun-if-changed={}/include/ccap_c.h",
+            "cargo:rerun-if-changed={}/src/ccap_core.cpp",
             ccap_root.display()
         );
         println!(
-            "cargo:rerun-if-changed={}/include/ccap_utils_c.h",
+            "cargo:rerun-if-changed={}/src/ccap_utils.cpp",
             ccap_root.display()
         );
         println!(
-            "cargo:rerun-if-changed={}/include/ccap_convert_c.h",
+            "cargo:rerun-if-changed={}/src/ccap_convert.cpp",
+            ccap_root.display()
+        );
+        println!(
+            "cargo:rerun-if-changed={}/src/ccap_convert_frame.cpp",
+            ccap_root.display()
+        );
+        println!(
+            "cargo:rerun-if-changed={}/src/ccap_imp.cpp",
+            ccap_root.display()
+        );
+        println!(
+            "cargo:rerun-if-changed={}/src/ccap_c.cpp",
+            ccap_root.display()
+        );
+        println!(
+            "cargo:rerun-if-changed={}/src/ccap_utils_c.cpp",
+            ccap_root.display()
+        );
+        println!(
+            "cargo:rerun-if-changed={}/src/ccap_convert_c.cpp",
             ccap_root.display()
         );
     }

@@ -98,15 +98,15 @@ jobs:
     - name: Run clippy
       if: matrix.os == 'ubuntu-latest'
       working-directory: bindings/rust
-      run: cargo clippy --all-targets --features static-link -- -D warnings
+      run: cargo clippy --all-targets --no-default-features --features static-link -- -D warnings
 
     - name: Build Rust bindings
       working-directory: bindings/rust
-      run: cargo build --verbose --features static-link
+      run: cargo build --verbose --no-default-features --features static-link
 
     - name: Run tests
       working-directory: bindings/rust
-      run: cargo test --verbose --features static-link
+      run: cargo test --verbose --no-default-features --features static-link
 
   # Job 2: Source Build (Distribution Mode)
   # Verifies that the crate builds correctly from source using the cc crate.

@@ -72,6 +72,32 @@ This script detects the current system and compiler architecture support, helpin
 
 This script specifically verifies compile-time and runtime detection of NEON instruction set, demonstrating ccap's NEON support status on different architectures.
 
+- **`test_remote_crate.sh`** - Remote crate verification for ccap-rs (Rust bindings)
+
+```bash
+# Test latest published version from crates.io
+/path/to/ccap/scripts/test_remote_crate.sh
+
+# Test specific version
+/path/to/ccap/scripts/test_remote_crate.sh 1.5.0-test.20260111124314.21e5358
+
+# Enable debug mode to see detailed information
+CCAP_TEST_DEBUG=1 /path/to/ccap/scripts/test_remote_crate.sh
+```
+
+This script downloads and tests the ccap-rs package from crates.io in an isolated environment, verifying:
+- Provider API (camera device enumeration)
+- Camera capture (if device available, saves frame to captured_frame.bmp)
+- Video file playback (Windows/macOS only, uses tests/test-data/test.mp4)
+- Convert trait (color format conversions)
+- PixelFormat enum availability
+
+Test results are preserved in `build/rust_crate_verification/ccap-test/` including:
+- `captured_frame.bmp` - Captured camera frame (if camera available)
+- Test binary and source code
+
+To clean up manually: `rm -rf build/rust_crate_verification`
+
 ## Path Handling Technique
 
 All scripts use the following technique to ensure they can be executed from any directory:
