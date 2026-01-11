@@ -277,11 +277,10 @@ Please vendor the sources into bindings/rust/native/, or set CCAP_SOURCE_DIR to 
         //
         // We detect this by scanning the archive bytes for common ASan symbols.
         let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
-        if env::var("CCAP_RUST_NO_ASAN_LINK").is_err() && (target_os == "macos" || target_os == "linux") {
-            let archive_path = ccap_root
-                .join("build")
-                .join(build_type)
-                .join("libccap.a");
+        if env::var("CCAP_RUST_NO_ASAN_LINK").is_err()
+            && (target_os == "macos" || target_os == "linux")
+        {
+            let archive_path = ccap_root.join("build").join(build_type).join("libccap.a");
 
             let asan_instrumented = file_contains_bytes(&archive_path, b"___asan_init")
                 || file_contains_bytes(&archive_path, b"__asan_init");
@@ -419,6 +418,58 @@ Please vendor the sources into bindings/rust/native/, or set CCAP_SOURCE_DIR to 
         );
         println!(
             "cargo:rerun-if-changed={}/src/ccap_convert_c.cpp",
+            ccap_root.display()
+        );
+
+        // Platform-specific sources
+        #[cfg(target_os = "macos")]
+        {
+            println!(
+                "cargo:rerun-if-changed={}/src/ccap_imp_apple.mm",
+                ccap_root.display()
+            );
+            println!(
+                "cargo:rerun-if-changed={}/src/ccap_convert_apple.cpp",
+                ccap_root.display()
+            );
+            println!(
+                "cargo:rerun-if-changed={}/src/ccap_file_reader_apple.mm",
+                ccap_root.display()
+            );
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            println!(
+                "cargo:rerun-if-changed={}/src/ccap_imp_linux.cpp",
+                ccap_root.display()
+            );
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            println!(
+                "cargo:rerun-if-changed={}/src/ccap_imp_windows.cpp",
+                ccap_root.display()
+            );
+            println!(
+                "cargo:rerun-if-changed={}/src/ccap_file_reader_windows.cpp",
+                ccap_root.display()
+            );
+        }
+
+        // SIMD-specific sources
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            println!(
+                "cargo:rerun-if-changed={}/src/ccap_convert_avx2.cpp",
+                ccap_root.display()
+            );
+        }
+
+        // Always built in build-from-source mode to provide hasNEON() symbol.
+        println!(
+            "cargo:rerun-if-changed={}/src/ccap_convert_neon.cpp",
             ccap_root.display()
         );
     }

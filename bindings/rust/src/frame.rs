@@ -194,19 +194,10 @@ impl Drop for VideoFrame {
 // 2. The frame memory is managed by the C library with proper reference counting
 // 3. Once created, the frame data is immutable
 //
-// WARNING: The underlying C++ CcapVideoFrame thread-safety has not been formally
-// verified. Users should exercise caution when sharing frames across threads.
-// If data races are observed, please report them as a bug.
+// NOTE: This does NOT imply that the underlying C++ implementation is fully thread-safe.
+// We only promise that a `VideoFrame` can be moved to another thread (e.g. dropped there).
+// If you observe issues, please report them as a bug.
 unsafe impl Send for VideoFrame {}
-
-// SAFETY: VideoFrame is Sync because:
-// 1. All public methods only read frame data (info(), data(), etc.)
-// 2. No mutable state is exposed through &self methods
-//
-// WARNING: Same caveat as Send - the underlying C++ thread-safety is not
-// formally guaranteed. Concurrent reads should be safe, but this is based
-// on code inspection rather than formal verification.
-unsafe impl Sync for VideoFrame {}
 
 /// High-level video frame information
 #[derive(Debug)]

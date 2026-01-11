@@ -10,7 +10,7 @@
 - Dual API: Modern C++17 and pure C99
 - Video file playback (Windows & macOS) - play MP4, AVI, MOV, MKV and other formats
 - Command-line tool for scripting, automation, and video processing
-- **Also available:** [C Interface](c-interface.md) for language bindings
+- **Language bindings:** [C Interface](c-interface.md) and [Rust Bindings](rust-bindings.md)
 
 ## Installation
 

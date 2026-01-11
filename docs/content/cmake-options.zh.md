@@ -267,6 +267,7 @@ set(CCAP_BUILD_CLI ON CACHE BOOL "" FORCE)
 ## 需要帮助？
 
 - 📖 [完整文档](documentation.zh.md)
+- 🦀 [Rust 绑定](rust-bindings.zh.md)
 - 🐛 [报告问题](https://github.com/wysaid/CameraCapture/issues)
 - 💬 [讨论](https://github.com/wysaid/CameraCapture/discussions)
 - 📧 邮箱：wysaid@gmail.com

@@ -10,7 +10,7 @@
 - 双 API：现代 C++17 和纯 C99
 - 视频文件播放（Windows & macOS）- 播放 MP4、AVI、MOV、MKV 等格式
 - 用于脚本、自动化和视频处理的命令行工具
-- **同时提供：**[C 接口](c-interface.zh.md)用于语言绑定
+- **语言绑定：**[C 接口](c-interface.zh.md) 与 [Rust 绑定](rust-bindings.zh.md)
 
 ## 安装
 

@@ -518,4 +518,5 @@ ccap -d 0 --format xyz
 - [Main ccap Documentation](documentation.md) - Overview of the CameraCapture library
 - [CMake Build Options](cmake-options.md) - Build configuration details
 - [C Interface Documentation](c-interface.md) - C API reference
+- [Rust Bindings](rust-bindings.md) - Rust crate usage and build notes
 - [Examples](https://github.com/wysaid/CameraCapture/tree/main/examples) - Code examples using the library

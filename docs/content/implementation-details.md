@@ -405,6 +405,7 @@ From `.github/copilot-instructions.md`:
 
 - 📖 [Main Documentation](documentation.md)
 - 📖 [CLI Tool Guide](cli.md)
+- 🦀 [Rust Bindings](rust-bindings.md)
 - 🐛 [Report Issues](https://github.com/wysaid/CameraCapture/issues)
 - 💬 [Discussions](https://github.com/wysaid/CameraCapture/discussions)
 - 📧 Email: wysaid@gmail.com

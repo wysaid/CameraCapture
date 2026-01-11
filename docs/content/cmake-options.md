@@ -408,6 +408,7 @@ See `cmake/dev.cmake.example` for more examples.
 - [Build and Install Guide](https://github.com/wysaid/CameraCapture/blob/main/BUILD_AND_INSTALL.md)
 - [CLI Tool Documentation](cli.md)
 - [C Interface Documentation](c-interface.md)
+- [Rust Bindings](rust-bindings.md)
 
 ## Quick Reference Table
 

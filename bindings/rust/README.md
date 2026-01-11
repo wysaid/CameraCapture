@@ -13,19 +13,25 @@ Safe Rust bindings for [ccap](https://github.com/wysaid/CameraCapture) - A high-
 - **Multiple Formats**: RGB, BGR, YUV (NV12/I420) with automatic conversion
 - **Zero Dependencies**: Uses only system frameworks
 - **Memory Safe**: Safe Rust API with automatic resource management
-- **Async Support**: Optional async/await interface with tokio
 
 ## Quick Start
 
-Add this to your `Cargo.toml`:
+### Add dependency
+
+Recommended (always gets the latest published version):
+
+```bash
+cargo add ccap-rs
+```
+
+If you want the crate name in code to be `ccap` (recommended), set it explicitly in your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ccap = { package = "ccap-rs", version = "1.5.0" }
-
-# For async support
-ccap = { package = "ccap-rs", version = "1.5.0", features = ["async"] }
+ccap = { package = "ccap-rs", version = "<latest>" }
 ```
+
+> Tip: Replace `<latest>` with the latest version shown on https://crates.io/crates/ccap-rs
 
 ### Basic Usage
 
@@ -64,30 +70,6 @@ fn main() -> Result<()> {
 }
 ```
 
-### Async Usage
-
-```rust
-use ccap::r#async::AsyncProvider;
-
-#[tokio::main]
-async fn main() -> ccap::Result<()> {
-    let provider = AsyncProvider::new().await?;
-    let devices = provider.find_device_names().await?;
-    
-    if !devices.is_empty() {
-        provider.open(Some(&devices[0]), true).await?;
-        
-        // Async frame capture
-        if let Some(frame) = provider.grab_frame().await? {
-            let info = frame.info()?;
-            println!("Async captured: {}x{}", info.width, info.height);
-        }
-    }
-    
-    Ok(())
-}
-```
-
 ## Examples
 
 The crate includes several examples:
@@ -104,16 +86,24 @@ cargo run --example capture_grab
 
 # Capture frames using callback mode
 cargo run --example capture_callback
-
-# With async support
-cargo run --features async --example capture_callback
 ```
 
 ## Building
 
+### Feature Modes
+
+This crate supports two build modes:
+
+- **Distribution mode (default):** `build-source`
+    - Builds the native C/C++ implementation via the `cc` crate.
+    - Intended for crates.io users.
+- **Development mode:** `static-link`
+    - Links against a pre-built native library from a CameraCapture checkout (e.g. `build/Debug/libccap.a`).
+    - Intended for developing this repository.
+
 ### Prerequisites
 
-Before building the Rust bindings, you need to build the ccap C library:
+If you are using **development mode** (`static-link`), you need to build the native library first:
 
 ```bash
 # From the root of the CameraCapture project
@@ -136,6 +126,38 @@ make -j$(nproc)
 cargo build
 cargo test
 ```
+
+### Using development mode (`static-link`)
+
+```bash
+# Link against pre-built build/Debug or build/Release from the repo
+cargo build --no-default-features --features static-link
+cargo test  --no-default-features --features static-link
+```
+
+#### AddressSanitizer (ASan) and `static-link`
+
+The CameraCapture repo's test scripts may build the native library with **ASan enabled** (e.g. Debug functional tests).
+An ASan-instrumented `libccap.a` requires the ASan runtime at link/run time.
+
+- When using `static-link`, `build.rs` will **only** link the ASan runtime **if it detects** ASan symbols inside the prebuilt `libccap.a`.
+- This does **not** affect the default crates.io build (`build-source`).
+- You can disable the auto-link behavior by setting:
+    - `CCAP_RUST_NO_ASAN_LINK=1`
+
+## Feature flags
+
+- `build-source` (default): build the C/C++ ccap sources during `cargo build` (best for crates.io usage).
+- `static-link`: link against a pre-built static library from a CameraCapture checkout (best for development).
+    - If you use this mode, make sure you have built the C/C++ project first, and set `CCAP_SOURCE_DIR` when needed.
+
+## Platform notes
+
+- Camera capture:
+    - Windows: DirectShow
+    - macOS/iOS: AVFoundation
+    - Linux: V4L2
+- Video file playback support depends on the underlying C/C++ library backend (currently Windows/macOS only).
 
 ## API Documentation
 
@@ -162,13 +184,12 @@ match provider.grab_frame(3000) {  // 3 second timeout
 
 ### Thread Safety
 
-- `VideoFrame` implements `Send + Sync` allowing frames to be shared between threads
+- `VideoFrame` implements `Send` so frames can be moved across threads (e.g. processed/dropped on a worker thread)
 - `Provider` implements `Send` but the underlying C++ API is **not thread-safe**
   - Use `Provider` from a single thread, or wrap it with `Arc<Mutex<Provider>>` for multi-threaded access
-  - For async usage, prefer `AsyncProvider` which handles synchronization internally
 - Frame data remains valid until the `VideoFrame` is dropped
 
-> **Note**: Thread safety is based on code inspection. If you encounter issues with concurrent access, please report them.
+> **Note**: The C++ layer's thread-safety is based on code inspection. If you encounter issues with cross-thread frame usage, please report them.
 
 ## Platform Support
 

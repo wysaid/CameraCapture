@@ -78,17 +78,36 @@ main() {
 
     # Add dependency to Cargo.toml
     log "Adding ccap-rs dependency (version: ${VERSION})..."
-    if grep -q "^\[dependencies\]" Cargo.toml; then
-        sed -i '' "/^\[dependencies\]/a\\
-ccap-rs = \"${VERSION}\"
-" Cargo.toml
-    else
-        cat >>Cargo.toml <<EOF
+    python3 - "${VERSION}" <<'PY'
+import re
+import sys
+from pathlib import Path
 
-[dependencies]
-ccap-rs = "${VERSION}"
-EOF
-    fi
+version = sys.argv[1]
+path = Path("Cargo.toml")
+text = path.read_text(encoding="utf-8")
+
+dep_line = f'ccap-rs = "{version}"\n'
+
+# Find the [dependencies] section (until the next [section] or EOF)
+m = re.search(r'(?ms)^\[dependencies\]\s*\n(.*?)(^\[|\Z)', text)
+
+if m:
+    body = m.group(1)
+    # Replace existing ccap-rs entry if present; otherwise insert at top of the section.
+    if re.search(r'(?m)^ccap-rs\s*=\s*"[^"]*"\s*$', body):
+        body2 = re.sub(r'(?m)^ccap-rs\s*=\s*"[^"]*"\s*$', dep_line.rstrip("\n"), body, count=1)
+    else:
+        body2 = dep_line + body
+    text = text[: m.start(1)] + body2 + text[m.end(1) :]
+else:
+    # No [dependencies] section - append one.
+    if not text.endswith("\n"):
+        text += "\n"
+    text += "\n[dependencies]\n" + dep_line
+
+path.write_text(text, encoding="utf-8")
+PY
 
     # Debug: Show Cargo.toml content
     if [[ "${CCAP_TEST_DEBUG:-0}" == "1" ]]; then

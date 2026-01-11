@@ -482,4 +482,5 @@ ccap -d 0 --format xyz
 - [主 ccap 文档](documentation.zh.md) - CameraCapture 库概述
 - [CMake 构建选项](cmake-options.zh.md) - 构建配置详情
 - [C 接口文档](c-interface.md) - C API 参考
+- [Rust 绑定](rust-bindings.zh.md) - Rust crate 使用与构建说明
 - [示例](https://github.com/wysaid/CameraCapture/tree/main/examples) - 使用库的代码示例

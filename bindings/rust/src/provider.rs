@@ -29,7 +29,7 @@ static GLOBAL_ERROR_CALLBACK: Mutex<Option<SendSyncPtr>> = Mutex::new(None);
 /// **Important**: You must ensure that:
 /// - Only one thread accesses the `Provider` at a time
 /// - Use `Arc<Mutex<Provider>>` or similar synchronization if sharing between threads
-/// - For async usage, prefer [`AsyncProvider`](crate::r#async::AsyncProvider) which handles this internally
+/// - If you need to integrate with an async runtime, wrap the `Provider` yourself (e.g. with a mutex and a dedicated worker thread)
 ///
 /// # Example (Safe Multi-threaded Usage)
 ///
