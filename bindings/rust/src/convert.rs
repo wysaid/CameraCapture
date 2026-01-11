@@ -354,3 +354,247 @@ impl Convert {
         Ok(dst_data)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_backend_detection() {
+        // Should be able to get current backend without panic
+        let backend = Convert::backend();
+        println!("Current backend: {:?}", backend);
+    }
+
+    #[test]
+    fn test_simd_availability() {
+        // These should return booleans without panic
+        let has_avx2 = Convert::has_avx2();
+        let has_neon = Convert::has_neon();
+        let has_accelerate = Convert::has_apple_accelerate();
+
+        println!(
+            "AVX2: {}, NEON: {}, Accelerate: {}",
+            has_avx2, has_neon, has_accelerate
+        );
+
+        // At most one SIMD backend should be available (platform-dependent)
+        // On x86: AVX2 may be available
+        // On ARM: NEON may be available
+        // On macOS: Accelerate may be available
+    }
+
+    #[test]
+    fn test_rgb_bgr_conversion() {
+        let width = 4u32;
+        let height = 4u32;
+        let stride = (width * 3) as usize;
+
+        // Create a simple RGB pattern: red, green, blue, white
+        let mut rgb_data = vec![0u8; stride * height as usize];
+        for y in 0..height as usize {
+            for x in 0..width as usize {
+                let offset = y * stride + x * 3;
+                match (x + y) % 4 {
+                    0 => {
+                        rgb_data[offset] = 255;
+                        rgb_data[offset + 1] = 0;
+                        rgb_data[offset + 2] = 0;
+                    } // Red
+                    1 => {
+                        rgb_data[offset] = 0;
+                        rgb_data[offset + 1] = 255;
+                        rgb_data[offset + 2] = 0;
+                    } // Green
+                    2 => {
+                        rgb_data[offset] = 0;
+                        rgb_data[offset + 1] = 0;
+                        rgb_data[offset + 2] = 255;
+                    } // Blue
+                    _ => {
+                        rgb_data[offset] = 255;
+                        rgb_data[offset + 1] = 255;
+                        rgb_data[offset + 2] = 255;
+                    } // White
+                }
+            }
+        }
+
+        // Convert RGB to BGR
+        let bgr_data = Convert::rgb_to_bgr(&rgb_data, stride, width, height).unwrap();
+        assert_eq!(bgr_data.len(), rgb_data.len());
+
+        // Verify R and B channels are swapped
+        for y in 0..height as usize {
+            for x in 0..width as usize {
+                let offset = y * stride + x * 3;
+                assert_eq!(
+                    rgb_data[offset],
+                    bgr_data[offset + 2],
+                    "R->B at ({}, {})",
+                    x,
+                    y
+                );
+                assert_eq!(
+                    rgb_data[offset + 1],
+                    bgr_data[offset + 1],
+                    "G==G at ({}, {})",
+                    x,
+                    y
+                );
+                assert_eq!(
+                    rgb_data[offset + 2],
+                    bgr_data[offset],
+                    "B->R at ({}, {})",
+                    x,
+                    y
+                );
+            }
+        }
+
+        // Convert back: BGR to RGB should restore original
+        let restored_rgb = Convert::bgr_to_rgb(&bgr_data, stride, width, height).unwrap();
+        assert_eq!(
+            restored_rgb, rgb_data,
+            "Round-trip RGB->BGR->RGB should be identical"
+        );
+    }
+
+    #[test]
+    fn test_nv12_to_rgb_basic() {
+        let width = 16u32;
+        let height = 16u32;
+        let y_stride = width as usize;
+        let uv_stride = width as usize;
+
+        // Create neutral gray NV12 data (Y=128, U=128, V=128 -> gray in RGB)
+        let y_data = vec![128u8; y_stride * height as usize];
+        let uv_data = vec![128u8; uv_stride * (height as usize / 2)];
+
+        let rgb_data =
+            Convert::nv12_to_rgb24(&y_data, y_stride, &uv_data, uv_stride, width, height).unwrap();
+
+        // Verify output size
+        let expected_size = (width * 3) as usize * height as usize;
+        assert_eq!(rgb_data.len(), expected_size);
+
+        // All pixels should be approximately gray (128, 128, 128) with some YUV rounding tolerance
+        for pixel in rgb_data.chunks(3) {
+            assert!(
+                pixel[0] >= 100 && pixel[0] <= 156,
+                "R should be near 128, got {}",
+                pixel[0]
+            );
+            assert!(
+                pixel[1] >= 100 && pixel[1] <= 156,
+                "G should be near 128, got {}",
+                pixel[1]
+            );
+            assert!(
+                pixel[2] >= 100 && pixel[2] <= 156,
+                "B should be near 128, got {}",
+                pixel[2]
+            );
+        }
+    }
+
+    #[test]
+    fn test_nv12_to_bgr_basic() {
+        let width = 16u32;
+        let height = 16u32;
+        let y_stride = width as usize;
+        let uv_stride = width as usize;
+
+        let y_data = vec![128u8; y_stride * height as usize];
+        let uv_data = vec![128u8; uv_stride * (height as usize / 2)];
+
+        let bgr_data =
+            Convert::nv12_to_bgr24(&y_data, y_stride, &uv_data, uv_stride, width, height).unwrap();
+
+        let expected_size = (width * 3) as usize * height as usize;
+        assert_eq!(bgr_data.len(), expected_size);
+    }
+
+    #[test]
+    fn test_i420_to_rgb_basic() {
+        let width = 16u32;
+        let height = 16u32;
+        let y_stride = width as usize;
+        let u_stride = (width / 2) as usize;
+        let v_stride = (width / 2) as usize;
+
+        let y_data = vec![128u8; y_stride * height as usize];
+        let u_data = vec![128u8; u_stride * (height as usize / 2)];
+        let v_data = vec![128u8; v_stride * (height as usize / 2)];
+
+        let rgb_data = Convert::i420_to_rgb24(
+            &y_data, y_stride, &u_data, u_stride, &v_data, v_stride, width, height,
+        )
+        .unwrap();
+
+        let expected_size = (width * 3) as usize * height as usize;
+        assert_eq!(rgb_data.len(), expected_size);
+    }
+
+    #[test]
+    fn test_yuyv_to_rgb_basic() {
+        let width = 16u32;
+        let height = 16u32;
+        let stride = (width * 2) as usize; // YUYV: 2 bytes per pixel
+
+        // Create neutral YUYV data (Y=128, U=128, V=128)
+        let mut yuyv_data = vec![0u8; stride * height as usize];
+        for i in 0..(stride * height as usize / 4) {
+            yuyv_data[i * 4] = 128; // Y0
+            yuyv_data[i * 4 + 1] = 128; // U
+            yuyv_data[i * 4 + 2] = 128; // Y1
+            yuyv_data[i * 4 + 3] = 128; // V
+        }
+
+        let rgb_data = Convert::yuyv_to_rgb24(&yuyv_data, stride, width, height).unwrap();
+
+        let expected_size = (width * 3) as usize * height as usize;
+        assert_eq!(rgb_data.len(), expected_size);
+    }
+
+    #[test]
+    fn test_buffer_too_small_error() {
+        let width = 16u32;
+        let height = 16u32;
+
+        // Provide a buffer that's too small
+        let small_buffer = vec![0u8; 10];
+
+        let result = Convert::yuyv_to_rgb24(&small_buffer, width as usize * 2, width, height);
+        assert!(result.is_err());
+
+        if let Err(CcapError::InvalidParameter(msg)) = result {
+            assert!(
+                msg.contains("too small"),
+                "Error message should mention 'too small'"
+            );
+        } else {
+            panic!("Expected InvalidParameter error");
+        }
+    }
+
+    #[test]
+    fn test_nv12_buffer_validation() {
+        let width = 16u32;
+        let height = 16u32;
+        let y_stride = width as usize;
+        let uv_stride = width as usize;
+
+        // Y plane too small
+        let small_y = vec![0u8; 10];
+        let uv_data = vec![128u8; uv_stride * (height as usize / 2)];
+        let result = Convert::nv12_to_rgb24(&small_y, y_stride, &uv_data, uv_stride, width, height);
+        assert!(result.is_err());
+
+        // UV plane too small
+        let y_data = vec![128u8; y_stride * height as usize];
+        let small_uv = vec![0u8; 10];
+        let result = Convert::nv12_to_rgb24(&y_data, y_stride, &small_uv, uv_stride, width, height);
+        assert!(result.is_err());
+    }
+}

@@ -4,6 +4,39 @@
 
 set -e
 
+jobs_count() {
+    # Cross-platform parallelism detection.
+    if command -v nproc >/dev/null 2>&1; then
+        local n
+        n="$(nproc 2>/dev/null || true)"
+        if [[ "$n" =~ ^[0-9]+$ ]] && [[ "$n" -gt 0 ]]; then
+            echo "$n"
+            return
+        fi
+    fi
+
+    if command -v sysctl >/dev/null 2>&1; then
+        # macOS / BSD
+        local n
+        n="$(sysctl -n hw.ncpu 2>/dev/null || true)"
+        if [[ "$n" =~ ^[0-9]+$ ]] && [[ "$n" -gt 0 ]]; then
+            echo "$n"
+            return
+        fi
+    fi
+
+    if command -v getconf >/dev/null 2>&1; then
+        local n
+        n="$(getconf _NPROCESSORS_ONLN 2>/dev/null || true)"
+        if [[ "$n" =~ ^[0-9]+$ ]] && [[ "$n" -gt 0 ]]; then
+            echo "$n"
+            return
+        fi
+    fi
+
+    echo 4
+}
+
 detect_cli_devices() {
     local cli_bin=""
     local original_dir
@@ -27,12 +60,18 @@ detect_cli_devices() {
 
         # Reconfigure with CLI enabled (idempotent)
         cmake ../.. -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_CLI=ON
-        cmake --build . --config Debug --target ccap-cli -- -j"$(nproc 2>/dev/null || echo 4)"
+        cmake --build . --config Debug --target ccap-cli -- -j"$(jobs_count)"
 
         popd >/dev/null
         popd >/dev/null
 
-        cli_bin="$PROJECT_ROOT/build/Debug/ccap"
+        if [ -x "$PROJECT_ROOT/build/Debug/ccap" ]; then
+            cli_bin="$PROJECT_ROOT/build/Debug/ccap"
+        elif [ -x "$PROJECT_ROOT/build/Debug/ccap.exe" ]; then
+            cli_bin="$PROJECT_ROOT/build/Debug/ccap.exe"
+        else
+            cli_bin="$PROJECT_ROOT/build/Debug/ccap"
+        fi
     fi
 
     cd "$original_dir"
@@ -94,7 +133,7 @@ if [ ! -f "$PROJECT_ROOT/build/Debug/libccap.a" ] && [ ! -f "$PROJECT_ROOT/build
         cmake ../.. -DCMAKE_BUILD_TYPE=Debug
     fi
 
-    cmake --build . --config Debug -- -j"$(nproc 2>/dev/null || echo 4)"
+    cmake --build . --config Debug -- -j"$(jobs_count)"
 
     cd "$RUST_DIR"
 else
@@ -112,7 +151,6 @@ cargo clean
 # Build with default features
 echo "Building with default features..."
 cargo build
-
 
 # Run tests
 echo ""
@@ -202,5 +240,4 @@ echo "  cargo run --example capture_grab"
 echo "  cargo run --example capture_callback"
 echo ""
 echo "To use in your project, add to Cargo.toml:"
-echo '  ccap = { package = "ccap-rs", path = "'$RUST_DIR'" }'
 echo '  ccap = { package = "ccap-rs", path = "'$RUST_DIR'" }'

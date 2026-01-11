@@ -2,8 +2,8 @@
 
 ccap provides first-class Rust bindings via the `ccap-rs` crate.
 
-- Crate: https://crates.io/crates/ccap-rs
-- API docs: https://docs.rs/ccap-rs
+- Crate: [ccap-rs on crates.io](https://crates.io/crates/ccap-rs)
+- API docs: [docs.rs/ccap-rs](https://docs.rs/ccap-rs)
 - Source in this repo: `bindings/rust/`
 
 > Note: The published crate name is `ccap-rs`, but the library name is `ccap` so you can write `use ccap::Provider;`.
@@ -21,9 +21,6 @@ If you prefer using `ccap` as the crate name in code (recommended):
 ```toml
 [dependencies]
 ccap = { package = "ccap-rs", version = "<latest>" }
-
-# Optional: async/await support
-ccap = { package = "ccap-rs", version = "<latest>", features = ["async"] }
 ```
 
 ### Minimal example
@@ -54,7 +51,6 @@ fn main() -> Result<()> {
 - `static-link`: link against a pre-built static library from a CameraCapture checkout.
   - Best for development when you are working on both C/C++ and Rust.
   - If the build script cannot find the repo root automatically, set `CCAP_SOURCE_DIR`.
-- `async`: enables `ccap::r#async::*` and pulls `tokio`/`futures` dependencies.
 
 ## Build notes
 
@@ -88,6 +84,6 @@ Video file playback support depends on the underlying C/C++ backend (currently W
 
 ## See also
 
-- [Main ccap Documentation](documentation.md)
-- [C Interface Documentation](c-interface.md)
-- [CLI Tool Guide](cli.md)
+- [Main ccap Documentation](documentation.md) (English) / [主文档](documentation.zh.md) (中文)
+- [C Interface Documentation](c-interface.md) (English) / [C 接口文档](c-interface.zh.md) (中文)
+- [CLI Tool Guide](cli.md) (English) / [CLI 工具指南](cli.zh.md) (中文)

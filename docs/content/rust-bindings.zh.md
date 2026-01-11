@@ -2,8 +2,8 @@
 
 ccap 提供了完善的 Rust bindings，对应 crates.io 上的 `ccap-rs` crate。
 
-- Crate：https://crates.io/crates/ccap-rs
-- API 文档：https://docs.rs/ccap-rs
+- Crate: [ccap-rs](https://crates.io/crates/ccap-rs)
+- API 文档: [docs.rs/ccap-rs](https://docs.rs/ccap-rs)
 - 仓库内源码：`bindings/rust/`
 
 > 说明：发布到 crates.io 的 crate 名称是 `ccap-rs`，但库名保持为 `ccap`，因此你可以直接 `use ccap::Provider;`。
@@ -21,9 +21,6 @@ cargo add ccap-rs
 ```toml
 [dependencies]
 ccap = { package = "ccap-rs", version = "<latest>" }
-
-# 可选：async/await 支持
-ccap = { package = "ccap-rs", version = "<latest>", features = ["async"] }
 ```
 
 ### 最小示例
@@ -54,7 +51,7 @@ fn main() -> Result<()> {
 - `static-link`：链接到 CameraCapture 源码仓库下预先编译好的静态库。
   - 更适合开发阶段（同时改 C/C++ 与 Rust）。
   - 若构建脚本无法自动定位仓库根目录，可设置 `CCAP_SOURCE_DIR`。
-- `async`：启用 `ccap::r#async::*`，并引入 `tokio`/`futures` 依赖。
+
 
 ## 构建说明
 

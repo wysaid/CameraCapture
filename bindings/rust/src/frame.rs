@@ -188,15 +188,37 @@ impl Drop for VideoFrame {
     }
 }
 
+// # Thread Safety Analysis for VideoFrame
+//
+// ## Send Implementation
+//
 // SAFETY: VideoFrame is Send because:
 // 1. The frame data pointer is obtained via ccap_video_frame_grab() which returns
 //    a new frame that is independent of the Provider
 // 2. The frame memory is managed by the C library with proper reference counting
-// 3. Once created, the frame data is immutable
+// 3. Once created, the frame data is immutable from the Rust side
+// 4. The ccap_video_frame_release() function is safe to call from any thread
 //
-// NOTE: This does NOT imply that the underlying C++ implementation is fully thread-safe.
-// We only promise that a `VideoFrame` can be moved to another thread (e.g. dropped there).
-// If you observe issues, please report them as a bug.
+// ## Why NOT Sync
+//
+// VideoFrame does NOT implement Sync because:
+// 1. The underlying C++ VideoFrame object may have internal mutable state
+// 2. Concurrent read access from multiple threads is not verified safe
+// 3. The C++ library does not document thread-safety guarantees for frame access
+//
+// ## Usage Guidelines
+//
+// - Safe: Moving a VideoFrame to another thread (Send)
+// - Safe: Dropping a VideoFrame on any thread
+// - NOT Safe: Sharing &VideoFrame between threads (no Sync)
+// - For multi-threaded access: Clone the frame data to owned Vec<u8> first
+//
+// ## Verification Status
+//
+// This thread-safety analysis is based on code inspection of the C++ implementation.
+// The ccap C++ library does not provide formal thread-safety documentation.
+// If you encounter issues with cross-thread frame usage, please report them at:
+// https://github.com/wysaid/CameraCapture/issues
 unsafe impl Send for VideoFrame {}
 
 /// High-level video frame information

@@ -31,7 +31,7 @@ If you want the crate name in code to be `ccap` (recommended), set it explicitly
 ccap = { package = "ccap-rs", version = "<latest>" }
 ```
 
-> Tip: Replace `<latest>` with the latest version shown on https://crates.io/crates/ccap-rs
+> Tip: Replace `<latest>` with the latest version shown on <https://crates.io/crates/ccap-rs>
 
 ### Basic Usage
 
@@ -94,12 +94,8 @@ cargo run --example capture_callback
 
 This crate supports two build modes:
 
-- **Distribution mode (default):** `build-source`
-    - Builds the native C/C++ implementation via the `cc` crate.
-    - Intended for crates.io users.
-- **Development mode:** `static-link`
-    - Links against a pre-built native library from a CameraCapture checkout (e.g. `build/Debug/libccap.a`).
-    - Intended for developing this repository.
+- **Distribution mode (default):** `build-source` — Builds the native C/C++ implementation via the `cc` crate (intended for crates.io users).
+- **Development mode:** `static-link` — Links against a pre-built native library from a CameraCapture checkout (e.g. `build/Debug/libccap.a`) (intended for developing this repository).
 
 ### Prerequisites
 
@@ -142,21 +138,16 @@ An ASan-instrumented `libccap.a` requires the ASan runtime at link/run time.
 
 - When using `static-link`, `build.rs` will **only** link the ASan runtime **if it detects** ASan symbols inside the prebuilt `libccap.a`.
 - This does **not** affect the default crates.io build (`build-source`).
-- You can disable the auto-link behavior by setting:
-    - `CCAP_RUST_NO_ASAN_LINK=1`
+- You can disable the auto-link behavior by setting `CCAP_RUST_NO_ASAN_LINK=1`.
 
 ## Feature flags
 
 - `build-source` (default): build the C/C++ ccap sources during `cargo build` (best for crates.io usage).
-- `static-link`: link against a pre-built static library from a CameraCapture checkout (best for development).
-    - If you use this mode, make sure you have built the C/C++ project first, and set `CCAP_SOURCE_DIR` when needed.
+- `static-link`: link against a pre-built static library from a CameraCapture checkout (best for development). If you use this mode, make sure you have built the C/C++ project first, and set `CCAP_SOURCE_DIR` when needed.
 
 ## Platform notes
 
-- Camera capture:
-    - Windows: DirectShow
-    - macOS/iOS: AVFoundation
-    - Linux: V4L2
+- Camera capture: Windows (DirectShow), macOS/iOS (AVFoundation), Linux (V4L2)
 - Video file playback support depends on the underlying C/C++ library backend (currently Windows/macOS only).
 
 ## API Documentation
@@ -193,12 +184,12 @@ match provider.grab_frame(3000) {  // 3 second timeout
 
 ## Platform Support
 
-| Platform | Backend | Status |
-|----------|---------|---------|
-| Windows  | DirectShow | ✅ Supported |
+| Platform | Backend      | Status       |
+| -------- | ------------ | ------------ |
+| Windows  | DirectShow   | ✅ Supported |
 | macOS    | AVFoundation | ✅ Supported |
 | iOS      | AVFoundation | ✅ Supported |
-| Linux    | V4L2 | ✅ Supported |
+| Linux    | V4L2         | ✅ Supported |
 
 ## System Requirements
 
