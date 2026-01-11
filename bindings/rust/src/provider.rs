@@ -3,14 +3,63 @@
 use crate::{error::*, frame::*, sys, types::*};
 use std::ffi::{CStr, CString};
 use std::ptr;
+use std::sync::Mutex;
 
-/// Camera provider for synchronous camera capture operations
+/// A wrapper around a raw pointer that can be safely shared between threads.
+/// This is used for storing callback pointers that we know are safe to share
+/// because the callback itself is `Send + Sync`.
+struct SendSyncPtr(*mut std::ffi::c_void);
+
+// SAFETY: The pointer stored here always points to a `Box<ErrorCallbackBox>`
+// where `ErrorCallbackBox = Box<dyn Fn(i32, &str) + Send + Sync>`.
+// The underlying callback is `Send + Sync`, so the pointer is safe to share.
+unsafe impl Send for SendSyncPtr {}
+unsafe impl Sync for SendSyncPtr {}
+
+// Global error callback storage - must be at module level to be shared between functions
+static GLOBAL_ERROR_CALLBACK: Mutex<Option<SendSyncPtr>> = Mutex::new(None);
+
+/// Type alias for the global error callback
+///
+/// # Thread Safety
+///
+/// `Provider` implements `Send` to allow moving the provider between threads.
+/// However, the underlying C++ implementation is **NOT thread-safe**.
+///
+/// **Important**: You must ensure that:
+/// - Only one thread accesses the `Provider` at a time
+/// - Use `Arc<Mutex<Provider>>` or similar synchronization if sharing between threads
+/// - For async usage, prefer [`AsyncProvider`](crate::r#async::AsyncProvider) which handles this internally
+///
+/// # Example (Safe Multi-threaded Usage)
+///
+/// ```ignore
+/// use std::sync::{Arc, Mutex};
+/// use ccap::Provider;
+///
+/// let provider = Arc::new(Mutex::new(Provider::new()?));
+/// let provider_clone = Arc::clone(&provider);
+///
+/// std::thread::spawn(move || {
+///     let mut guard = provider_clone.lock().unwrap();
+///     // Safe: mutex ensures exclusive access
+///     guard.grab_frame(1000).ok();
+/// });
+/// ```
 pub struct Provider {
     handle: *mut sys::CcapProvider,
     is_opened: bool,
     callback_ptr: Option<*mut std::ffi::c_void>,
 }
 
+// SAFETY: Provider is Send because:
+// 1. The handle is a raw pointer to C++ Provider, which can be safely moved between threads
+// 2. The callback_ptr ownership is properly tracked and cleaned up
+// 3. We document that users MUST synchronize access externally
+//
+// WARNING: The underlying C++ Provider is NOT thread-safe. Moving the Provider
+// to another thread is safe, but concurrent access from multiple threads is NOT.
+// Users must use external synchronization (e.g., Mutex) for multi-threaded access.
 unsafe impl Send for Provider {}
 
 impl Provider {
@@ -331,20 +380,28 @@ impl Provider {
     ///
     /// # Memory Safety
     ///
-    /// This is a **global** callback that persists for the lifetime of the program.
-    /// The callback memory is intentionally leaked as it's meant to be set once
-    /// and used throughout the application lifetime.
+    /// This is a **global** callback that persists until replaced or cleared.
+    /// Calling this function multiple times will properly clean up the previous callback.
     ///
-    /// If you need to change or remove the callback, consider using instance-level
-    /// callbacks via `set_new_frame_callback` instead.
+    /// # Thread Safety
+    ///
+    /// The callback will be invoked from the camera capture thread. Ensure your
+    /// callback is thread-safe (`Send + Sync`).
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// Provider::set_error_callback(|code, desc| {
+    ///     eprintln!("Camera error {}: {}", code, desc);
+    /// });
+    /// ```
     pub fn set_error_callback<F>(callback: F)
     where
         F: Fn(i32, &str) + Send + Sync + 'static,
     {
         use std::os::raw::c_char;
-        use std::sync::{Arc, Mutex};
 
-        let callback = Arc::new(Mutex::new(callback));
+        type ErrorCallbackBox = Box<dyn Fn(i32, &str) + Send + Sync>;
 
         unsafe extern "C" fn error_callback_wrapper(
             error_code: sys::CcapErrorCode,
@@ -355,27 +412,52 @@ impl Provider {
                 return;
             }
 
-            let callback = &*(user_data as *const Arc<Mutex<dyn Fn(i32, &str) + Send + Sync>>);
+            // SAFETY: user_data points to Box<ErrorCallbackBox> created below
+            let callback = &**(user_data as *const ErrorCallbackBox);
             let desc_cstr = std::ffi::CStr::from_ptr(description);
             if let Ok(desc_str) = desc_cstr.to_str() {
-                if let Ok(cb) = callback.lock() {
-                    cb(error_code as i32, desc_str);
-                }
+                callback(error_code as i32, desc_str);
             }
         }
 
-        // Store the callback to prevent it from being dropped
-        let callback_ptr = Box::into_raw(Box::new(callback));
+        // Clean up old callback if exists (use module-level GLOBAL_ERROR_CALLBACK)
+        if let Ok(mut guard) = GLOBAL_ERROR_CALLBACK.lock() {
+            if let Some(SendSyncPtr(old_ptr)) = guard.take() {
+                unsafe {
+                    let _ = Box::from_raw(old_ptr as *mut ErrorCallbackBox);
+                }
+            }
 
-        unsafe {
-            sys::ccap_set_error_callback(
-                Some(error_callback_wrapper),
-                callback_ptr as *mut std::ffi::c_void,
-            );
+            // Store new callback - double box for stable pointer
+            let callback_box: ErrorCallbackBox = Box::new(callback);
+            let callback_ptr = Box::into_raw(Box::new(callback_box));
+
+            unsafe {
+                sys::ccap_set_error_callback(
+                    Some(error_callback_wrapper),
+                    callback_ptr as *mut std::ffi::c_void,
+                );
+            }
+
+            *guard = Some(SendSyncPtr(callback_ptr as *mut std::ffi::c_void));
         }
+    }
 
-        // Note: This leaks memory, but it's acceptable for a global callback
-        // In a production system, you'd want to provide a way to unregister callbacks
+    /// Clear the global error callback
+    ///
+    /// This removes the error callback and frees associated memory.
+    pub fn clear_error_callback() {
+        type ErrorCallbackBox = Box<dyn Fn(i32, &str) + Send + Sync>;
+
+        // Use module-level GLOBAL_ERROR_CALLBACK (same as set_error_callback)
+        if let Ok(mut guard) = GLOBAL_ERROR_CALLBACK.lock() {
+            if let Some(SendSyncPtr(old_ptr)) = guard.take() {
+                unsafe {
+                    let _ = Box::from_raw(old_ptr as *mut ErrorCallbackBox);
+                    sys::ccap_set_error_callback(None, ptr::null_mut());
+                }
+            }
+        }
     }
 
     /// Open device with index and auto start
@@ -409,11 +491,31 @@ impl Provider {
     }
 
     /// Set a callback for new frame notifications
+    ///
+    /// The callback receives a reference to the captured frame and returns `true`
+    /// to continue capturing or `false` to stop.
+    ///
+    /// # Thread Safety
+    ///
+    /// The callback will be invoked from the camera capture thread. Ensure your
+    /// callback is thread-safe (`Send + Sync`).
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// provider.set_new_frame_callback(|frame| {
+    ///     println!("Got frame: {}x{}", frame.width(), frame.height());
+    ///     true // continue capturing
+    /// })?;
+    /// ```
     pub fn set_new_frame_callback<F>(&mut self, callback: F) -> Result<()>
     where
         F: Fn(&VideoFrame) -> bool + Send + Sync + 'static,
     {
         use std::os::raw::c_void;
+
+        // Type alias for the boxed callback to ensure consistency
+        type CallbackBox = Box<dyn Fn(&VideoFrame) -> bool + Send + Sync>;
 
         // Clean up old callback if exists
         self.cleanup_callback();
@@ -426,16 +528,18 @@ impl Provider {
                 return false;
             }
 
-            let callback = &*(user_data as *const Box<dyn Fn(&VideoFrame) -> bool + Send + Sync>);
+            // SAFETY: user_data points to a Box<CallbackBox> that we created below
+            let callback = &**(user_data as *const CallbackBox);
 
             // Create a temporary VideoFrame wrapper that doesn't own the frame
             let video_frame = VideoFrame::from_c_ptr_ref(frame as *mut sys::CcapVideoFrame);
             callback(&video_frame)
         }
 
-        // Store the callback to prevent it from being dropped
-        let callback_box = Box::new(callback);
-        let callback_ptr = Box::into_raw(callback_box);
+        // Box the callback as a trait object, then box again to get a thin pointer
+        // This ensures we can safely convert to/from *mut c_void
+        let callback_box: CallbackBox = Box::new(callback);
+        let callback_ptr = Box::into_raw(Box::new(callback_box));
 
         let success = unsafe {
             sys::ccap_provider_set_new_frame_callback(
@@ -475,11 +579,14 @@ impl Provider {
 
     /// Clean up callback pointer
     fn cleanup_callback(&mut self) {
+        // Type alias must match what we used in set_new_frame_callback
+        type CallbackBox = Box<dyn Fn(&VideoFrame) -> bool + Send + Sync>;
+
         if let Some(callback_ptr) = self.callback_ptr.take() {
             unsafe {
-                let _ = Box::from_raw(
-                    callback_ptr as *mut Box<dyn Fn(&VideoFrame) -> bool + Send + Sync>,
-                );
+                // SAFETY: callback_ptr was created with Box::into_raw(Box::new(callback_box))
+                // where callback_box is a CallbackBox
+                let _ = Box::from_raw(callback_ptr as *mut CallbackBox);
             }
         }
     }

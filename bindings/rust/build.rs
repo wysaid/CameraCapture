@@ -1,31 +1,108 @@
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+fn looks_like_ccap_root(dir: &Path) -> bool {
+    dir.join("include/ccap_c.h").exists() && dir.join("src/ccap_core.cpp").exists()
+}
+
+fn find_ccap_root_from(start: &Path) -> Option<PathBuf> {
+    // Walk up a reasonable number of parents to find the repo root.
+    // This fixes cases like `cargo publish --dry-run` where the manifest dir
+    // becomes: <repo>/bindings/rust/target/package/<crate>-<ver>
+    let mut cur = Some(start);
+    for _ in 0..16 {
+        let dir = cur?;
+        if looks_like_ccap_root(dir) {
+            return Some(dir.to_path_buf());
+        }
+        cur = dir.parent();
+    }
+    None
+}
 
 fn main() {
     // Tell cargo to look for shared libraries in the specified directory
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     let manifest_path = PathBuf::from(&manifest_dir);
 
-    // Locate ccap root:
-    // 1. Check for local "native" directory (Packaged/Crates.io mode)
-    // 2. Fallback to "../../" (Repo/Git mode)
-    let (ccap_root, is_packaged) = if manifest_path.join("native").exists() {
-        (manifest_path.join("native"), true)
+    // Check if we should build from source or link against pre-built library.
+    // NOTE: We treat `build-source` and `static-link` differently regarding source root:
+    // - build-source should prefer vendored ./native for crates.io friendliness.
+    // - static-link should prefer the repo root / CCAP_SOURCE_DIR so it can find build/Debug|Release.
+    let build_from_source = env::var("CARGO_FEATURE_BUILD_SOURCE").is_ok();
+    let static_link = env::var("CARGO_FEATURE_STATIC_LINK").is_ok();
+
+    // Locate ccap root.
+    // build-source path (distribution): prefer ./native for crates.io.
+    // static-link path (development): prefer repo root / CCAP_SOURCE_DIR for build artifacts.
+    let (ccap_root, is_packaged) = if build_from_source {
+        // 1) Vendored sources under ./native (ideal for crates.io)
+        if manifest_path.join("native").exists() {
+            (manifest_path.join("native"), true)
+        } else if let Some(root) = find_ccap_root_from(&manifest_path) {
+            // 2) Search parent dirs for CameraCapture repo root (works for git checkout
+            //    and for `cargo publish --dry-run` which builds from target/package)
+            (root, false)
+        } else if let Ok(root) = env::var("CCAP_SOURCE_DIR") {
+            // 3) Allow override via CCAP_SOURCE_DIR
+            let root = PathBuf::from(root);
+            if looks_like_ccap_root(&root) {
+                (root, false)
+            } else {
+                panic!(
+                    "CCAP_SOURCE_DIR is set but does not look like CameraCapture root: {}",
+                    root.display()
+                );
+            }
+        } else {
+            // Keep a placeholder; if build-source is enabled we'll error with a clear message.
+            (manifest_path.clone(), false)
+        }
     } else {
-        (
-            manifest_path
-                .parent()
-                .and_then(|p| p.parent())
-                .expect("Cargo manifest must be at least 2 directories deep (bindings/rust/)")
-                .to_path_buf(),
-            false,
-        )
+        // Dev/static-link mode: even if ./native exists, we still prefer the repo root so we can
+        // link against pre-built build/Debug|Release artifacts.
+        if let Some(root) = find_ccap_root_from(&manifest_path) {
+            (root, false)
+        } else if let Ok(root) = env::var("CCAP_SOURCE_DIR") {
+            let root = PathBuf::from(root);
+            if looks_like_ccap_root(&root) {
+                (root, false)
+            } else {
+                panic!(
+                    "CCAP_SOURCE_DIR is set but does not look like CameraCapture root: {}",
+                    root.display()
+                );
+            }
+        } else if static_link {
+            panic!(
+                "static-link feature is enabled, but CameraCapture repo root was not found.\n\
+\
+Tried (in order):\n\
+  - searching parent directories for include/ccap_c.h and src/ccap_core.cpp\n\
+  - CCAP_SOURCE_DIR environment variable\n\
+\
+Please set CCAP_SOURCE_DIR to a CameraCapture checkout (with build/Debug|Release built)."
+            );
+        } else {
+            // Fallback placeholder.
+            (manifest_path.clone(), false)
+        }
     };
 
-    // Check if we should build from source or link against pre-built library
-    let build_from_source = env::var("CARGO_FEATURE_BUILD_SOURCE").is_ok();
-
     if build_from_source {
+        if !looks_like_ccap_root(&ccap_root) {
+            panic!(
+                "build-source feature is enabled, but CameraCapture sources were not found.\n\
+\
+Tried (in order):\n\
+  - ./native (vendored) under the crate root\n\
+  - searching parent directories for include/ccap_c.h and src/ccap_core.cpp\n\
+  - CCAP_SOURCE_DIR environment variable\n\
+\
+Please vendor the sources into bindings/rust/native/, or set CCAP_SOURCE_DIR to a CameraCapture checkout." 
+            );
+        }
+
         // Build from source using cc crate
         let mut build = cc::Build::new();
 

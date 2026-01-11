@@ -207,6 +207,6 @@ echo "  cargo run --example capture_callback"
 echo "  cargo run --features async --example capture_callback"
 echo ""
 echo "To use in your project, add to Cargo.toml:"
-echo '  ccap = { path = "'$RUST_DIR'" }'
+echo '  ccap = { package = "ccap-rs", path = "'$RUST_DIR'" }'
 echo '  # or with async support:'
-echo '  ccap = { path = "'$RUST_DIR'", features = ["async"] }'
+echo '  ccap = { package = "ccap-rs", path = "'$RUST_DIR'", features = ["async"] }'
