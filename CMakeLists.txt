@@ -388,14 +388,14 @@ if (CCAP_BUILD_RUST)
         message(STATUS "ccap: Found cargo: ${CARGO_CMD}")
         # Add custom target to build Rust bindings
         add_custom_target(ccap-rust
-                COMMAND ${CARGO_CMD} build --release
+                COMMAND ${CARGO_CMD} build --release --no-default-features --features static-link
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bindings/rust
                 COMMENT "Building Rust bindings"
                 DEPENDS ccap
         )
         # Add custom target to test Rust bindings
         add_custom_target(ccap-rust-test
-                COMMAND ${CARGO_CMD} test
+                COMMAND ${CARGO_CMD} test --no-default-features --features static-link
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bindings/rust
                 COMMENT "Testing Rust bindings"
                 DEPENDS ccap-rust
