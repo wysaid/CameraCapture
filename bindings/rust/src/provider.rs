@@ -89,7 +89,9 @@ impl Provider {
 
         Ok(Provider {
             handle,
-            is_opened: true, // C API likely opens device automatically
+            // ccap C API contract: create_with_index opens the device.
+            // See `include/ccap_c.h`: "Create a camera provider and open device by index".
+            is_opened: true,
             callback_ptr: None,
         })
     }
@@ -107,7 +109,9 @@ impl Provider {
 
         Ok(Provider {
             handle,
-            is_opened: true, // C API likely opens device automatically
+            // ccap C API contract: create_with_device opens the device.
+            // See `include/ccap_c.h`: "Create a camera provider and open specified device".
+            is_opened: true,
             callback_ptr: None,
         })
     }
@@ -212,6 +216,11 @@ impl Provider {
         if let Some(name) = device_name {
             // Recreate provider with specific device
             if !self.handle.is_null() {
+                // If the previous provider was running, stop it and detach callbacks
+                // before destroying the underlying handle.
+                let _ = self.stop_capture();
+                let _ = self.remove_new_frame_callback();
+                self.cleanup_callback();
                 unsafe {
                     sys::ccap_provider_destroy(self.handle);
                 }
@@ -284,8 +293,18 @@ impl Provider {
 
     /// Set camera resolution
     pub fn set_resolution(&mut self, width: u32, height: u32) -> Result<()> {
+        // Avoid leaving the device in a partially-updated state if only one property update
+        // succeeds (e.g. width succeeds but height fails).
+        let (old_w, old_h) = self.resolution()?;
+
         self.set_property(PropertyName::Width, width as f64)?;
-        self.set_property(PropertyName::Height, height as f64)?;
+        if let Err(e) = self.set_property(PropertyName::Height, height as f64) {
+            // Best-effort rollback.
+            let _ = self.set_property(PropertyName::Width, old_w as f64);
+            let _ = self.set_property(PropertyName::Height, old_h as f64);
+            return Err(e);
+        }
+
         Ok(())
     }
 
@@ -383,6 +402,9 @@ impl Provider {
     /// This is a **global** callback that persists until replaced or cleared.
     /// Calling this function multiple times will properly clean up the previous callback.
     ///
+    /// **Important**: this callback is process-global (shared by all `Provider` instances).
+    /// The last one set wins.
+    ///
     /// # Thread Safety
     ///
     /// The callback will be invoked from the camera capture thread. Ensure your
@@ -443,6 +465,16 @@ impl Provider {
         }
     }
 
+    /// Set the **global** error callback.
+    ///
+    /// This is an alias for [`Provider::set_error_callback`] to make the global scope explicit.
+    pub fn set_global_error_callback<F>(callback: F)
+    where
+        F: Fn(i32, &str) + Send + Sync + 'static,
+    {
+        Self::set_error_callback(callback)
+    }
+
     /// Clear the global error callback
     ///
     /// This removes the error callback and frees associated memory.
@@ -451,26 +483,40 @@ impl Provider {
 
         // Use module-level GLOBAL_ERROR_CALLBACK (same as set_error_callback)
         if let Ok(mut guard) = GLOBAL_ERROR_CALLBACK.lock() {
+            // Always clear the C-side callback even if we don't have a stored Rust callback.
+            unsafe {
+                sys::ccap_set_error_callback(None, ptr::null_mut());
+            }
             if let Some(SendSyncPtr(old_ptr)) = guard.take() {
                 unsafe {
                     let _ = Box::from_raw(old_ptr as *mut ErrorCallbackBox);
-                    sys::ccap_set_error_callback(None, ptr::null_mut());
                 }
             }
         }
     }
 
+    /// Clear the **global** error callback.
+    ///
+    /// This is an alias for [`Provider::clear_error_callback`] to make the global scope explicit.
+    pub fn clear_global_error_callback() {
+        Self::clear_error_callback()
+    }
+
     /// Open device with index and auto start
     pub fn open_with_index(&mut self, device_index: i32, auto_start: bool) -> Result<()> {
-        // Destroy old handle if exists
+        // If the previous provider was running, stop it and detach callbacks
+        // before destroying the underlying handle.
         if !self.handle.is_null() {
+            let _ = self.stop_capture();
+            let _ = self.remove_new_frame_callback();
+            self.cleanup_callback();
             unsafe {
                 sys::ccap_provider_destroy(self.handle);
             }
+        } else {
+            // Clean up any stale callback allocation even if handle is null.
+            self.cleanup_callback();
         }
-
-        // Clean up old callback if exists
-        self.cleanup_callback();
 
         // Create a new provider with the specified device index
         self.handle = unsafe { sys::ccap_provider_create_with_index(device_index, ptr::null()) };
@@ -482,8 +528,8 @@ impl Provider {
             )));
         }
 
-        self.is_opened = false;
-        self.open()?;
+        // ccap C API contract: create_with_index opens the device.
+        self.is_opened = true;
         if auto_start {
             self.start_capture()?;
         }

@@ -52,7 +52,8 @@ main() {
     if [[ "${VERSION}" == "latest" ]]; then
         log "Fetching latest version from crates.io..."
         local latest_version
-        latest_version=$(cargo search ccap-rs --limit 1 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?' | head -1 || echo "")
+        # Support SemVer prerelease (-...) and build metadata (+...).
+        latest_version=$(cargo search ccap-rs --limit 1 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?' | head -1 || echo "")
 
         if [[ -n "${latest_version}" ]]; then
             VERSION="${latest_version}"
@@ -117,13 +118,13 @@ PY
 
     # Get the actual version being used
     log "Running cargo update..."
-    if ! cargo update --quiet 2>&1; then
-        warn "cargo update had warnings/errors, continuing..."
+    if ! cargo update --quiet; then
+        warn "cargo update failed (possibly offline or registry issues). Continuing..."
     fi
 
     local actual_version
-    actual_version=$(cargo metadata --format-version=1 --no-deps 2>/dev/null |
-        python3 -c "import sys, json; data = json.load(sys.stdin); pkg = next((p for p in data.get('packages', []) if p.get('name') == 'ccap-rs'), None); print(pkg['version'] if pkg else 'unknown')" 2>/dev/null || echo "unknown")
+    actual_version=$(cargo metadata --format-version=1 2>/dev/null |
+        python3 -c "import sys, json; data = json.load(sys.stdin); pkgs = data.get('packages', []); pkg = next((p for p in pkgs if p.get('name') == 'ccap-rs'), None); print(pkg.get('version') if pkg else 'unknown')" 2>/dev/null || echo "unknown")
 
     log "Testing ccap-rs version: ${actual_version}"
 
@@ -366,8 +367,10 @@ RUST_CODE
 
     # Build the test
     log "Building test project..."
-    if ! cargo build --quiet 2>&1; then
+    local build_output
+    if ! build_output=$(cargo build --quiet 2>&1); then
         error "Build failed"
+        echo "$build_output" >&2
         return 1
     fi
 

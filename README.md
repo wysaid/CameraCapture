@@ -212,8 +212,8 @@ int main() {
 
 Rust bindings are available as a crate on crates.io:
 
-- Crate: https://crates.io/crates/ccap-rs
-- Docs: https://docs.rs/ccap-rs
+- Crate: [ccap-rs on crates.io](https://crates.io/crates/ccap-rs)
+- Docs: [docs.rs/ccap-rs](https://docs.rs/ccap-rs)
 - Source: `bindings/rust/`
 
 Quick install:
@@ -256,6 +256,7 @@ cmake --build .
 ```
 
 **Key Features:**
+
 - 📷 List and select camera devices
 - 🎯 Capture single or multiple images
 - 👁️ Real-time preview window (with GLFW)
@@ -265,12 +266,13 @@ cmake --build .
 - ⏱️ Duration-based or count-based capture modes
 - 🔁 Video looping and playback speed control
 
+
 For complete CLI documentation, see [CLI Tool Guide](./docs/content/cli.md).
 
 ## System Requirements
 
 | Platform | Compiler | System Requirements |
-|----------|----------|---------------------|
+| -------- | -------- | ------------------- |
 | **Windows** | MSVC 2019+ (including 2026) / MinGW-w64 | DirectShow |
 | **macOS** | Xcode 11+ | macOS 10.13+ |
 | **iOS** | Xcode 11+ | iOS 13.0+ |
@@ -290,7 +292,7 @@ For complete CLI documentation, see [CLI Tool Guide](./docs/content/cli.md).
 ## Examples
 
 | Example | Description | Language | Platform |
-|---------|-------------|----------|----------|
+| ------- | ----------- | -------- | -------- |
 | [0-print_camera](./examples/desktop/0-print_camera.cpp) / [0-print_camera_c](./examples/desktop/0-print_camera_c.c) | List available cameras | C++ / C | Desktop |
 | [1-minimal_example](./examples/desktop/1-minimal_example.cpp) / [1-minimal_example_c](./examples/desktop/1-minimal_example_c.c) | Basic frame capture | C++ / C | Desktop |
 | [2-capture_grab](./examples/desktop/2-capture_grab.cpp) / [2-capture_grab_c](./examples/desktop/2-capture_grab_c.c) | Continuous capture | C++ / C | Desktop |

@@ -219,7 +219,8 @@ Please vendor the sources into bindings/rust/native/, or set CCAP_SOURCE_DIR to 
         build.compile("ccap");
 
         // Build SIMD-specific files separately with appropriate flags
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        // Always build AVX2 file for hasAVX2()/canUseAVX2() symbols
+        // On non-x86 architectures, ENABLE_AVX2_IMP will be 0 and functions return false
         {
             let mut avx2_build = cc::Build::new();
             avx2_build
@@ -229,12 +230,16 @@ Please vendor the sources into bindings/rust/native/, or set CCAP_SOURCE_DIR to 
                 .cpp(true)
                 .std("c++17");
 
-            // Only add SIMD flags on non-MSVC compilers
-            if !avx2_build.get_compiler().is_like_msvc() {
-                avx2_build.flag("-mavx2").flag("-mfma");
-            } else {
-                // MSVC uses /arch:AVX2
-                avx2_build.flag("/arch:AVX2");
+            // Only add SIMD flags on x86/x86_64 architectures
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                // Only add SIMD flags on non-MSVC compilers
+                if !avx2_build.get_compiler().is_like_msvc() {
+                    avx2_build.flag("-mavx2").flag("-mfma");
+                } else {
+                    // MSVC uses /arch:AVX2
+                    avx2_build.flag("/arch:AVX2");
+                }
             }
 
             avx2_build.compile("ccap_avx2");
