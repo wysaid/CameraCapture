@@ -5,13 +5,19 @@ edition = "2021"
 rust-version = "1.65"
 authors = ["wysaid <this@wysaid.org>"]
 license = "MIT"
-description = "Rust bindings for ccap - A high-performance, lightweight cross-platform camera capture library"
+description = "Rust bindings for ccap — cross-platform webcam/camera capture with hardware-accelerated pixel format conversion (DirectShow/AVFoundation/V4L2)"
 homepage = "https://ccap.work"
 repository = "https://github.com/wysaid/CameraCapture"
 documentation = "https://docs.rs/ccap-rs"
 readme = "README.md"
-keywords = ["camera", "capture", "v4l2", "directshow", "avfoundation"]
+keywords = ["camera", "capture", "ccap", "webcam", "video"]
 categories = ["multimedia::video", "api-bindings"]
+
+[package.metadata.docs.rs]
+# docs.rs builds on Linux; explicitly build in the crates.io-friendly mode.
+no-default-features = true
+features = ["build-source"]
+targets = ["x86_64-unknown-linux-gnu"]
 
 
 

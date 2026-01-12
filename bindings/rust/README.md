@@ -1,10 +1,12 @@
-# ccap-rs - Rust Bindings for CameraCapture
+# ccap-rs (CameraCapture / ccap Rust Bindings)
 
 [![Crates.io](https://img.shields.io/crates/v/ccap-rs.svg)](https://crates.io/crates/ccap-rs)
 [![Documentation](https://docs.rs/ccap-rs/badge.svg)](https://docs.rs/ccap-rs)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Safe Rust bindings for [ccap](https://github.com/wysaid/CameraCapture) - A high-performance, lightweight cross-platform camera capture library with hardware-accelerated pixel format conversion.
+Safe Rust bindings for [CameraCapture (ccap)](https://github.com/wysaid/CameraCapture) — a high-performance, lightweight, cross-platform **webcam/camera capture** library with **hardware-accelerated pixel format conversion** (Windows DirectShow, macOS/iOS AVFoundation, Linux V4L2).
+
+> Note: The published *package* name on crates.io is `ccap-rs`, but the *crate name in code* is `ccap`.
 
 ## Features
 
@@ -18,13 +20,13 @@ Safe Rust bindings for [ccap](https://github.com/wysaid/CameraCapture) - A high-
 
 ### Add dependency
 
-Recommended (always gets the latest published version):
+Option A (simple):
 
 ```bash
 cargo add ccap-rs
 ```
 
-If you want the crate name in code to be `ccap` (recommended), set it explicitly in your `Cargo.toml`:
+Option B (recommended): keep the crate name as `ccap` in your code:
 
 ```toml
 [dependencies]
