@@ -5,12 +5,12 @@ edition = "2021"
 rust-version = "1.65"
 authors = ["wysaid <this@wysaid.org>"]
 license = "MIT"
-description = "Rust bindings for ccap — cross-platform webcam/camera capture with hardware-accelerated pixel format conversion (DirectShow/AVFoundation/V4L2)"
+description = "Rust bindings for ccap — high-performance, cross-platform webcam/camera capture with hardware-accelerated pixel format conversion (DirectShow/AVFoundation/V4L2), including common RGB/YUV workflows and video file input/playback support"
 homepage = "https://ccap.work"
 repository = "https://github.com/wysaid/CameraCapture"
 documentation = "https://docs.rs/ccap-rs"
 readme = "README.md"
-keywords = ["camera", "capture", "ccap", "webcam", "video"]
+keywords = ["camera", "webcam", "capture", "video", "ccap"]
 categories = ["multimedia::video", "api-bindings"]
 
 [package.metadata.docs.rs]
