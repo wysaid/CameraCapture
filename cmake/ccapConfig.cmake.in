@@ -4,6 +4,12 @@
 
 include(CMakeFindDependencyMacro)
 
+# ccap links to Threads::Threads on Linux. Ensure the imported target exists
+# for consumers using find_package(ccap CONFIG).
+if(UNIX AND NOT APPLE)
+    find_dependency(Threads)
+endif()
+
 # Include the target definitions
 include("${CMAKE_CURRENT_LIST_DIR}/ccapTargets.cmake")
 

@@ -131,6 +131,30 @@ export PKG_CONFIG_PATH=/path/to/install/lib/pkgconfig:$PKG_CONFIG_PATH
 g++ -std=c++17 main.cpp $(pkg-config --cflags --libs ccap) -o my_app
 ```
 
+### Using Conan / ConanCenter (Conan 2)
+
+This upstream repository keeps its ConanCenter-ready recipe under:
+
+- `utils/conan/ccap/`
+
+This is similar to projects that have their ConanCenter recipe maintained out-of-tree.
+
+Notes:
+
+- The recipe is for the **library** only. It intentionally does **not** build examples/tests/CLI by default.
+- `ccap_opencv.h` is a header-only helper that requires OpenCV from the consumer side. The core `ccap` library itself does not depend on OpenCV.
+
+#### Build and test the recipe locally
+
+```bash
+conan profile detect --force
+conan create utils/conan/ccap/all --name ccap --version 1.5.0 -o 'ccap/*:shared=False' -o 'ccap/*:enable_file_playback=True'
+```
+
+#### Submitting to ConanCenter
+
+Copy the folder `utils/conan/ccap` into `conan-center-index/recipes/ccap` and open a PR there.
+
 ### Basic C++ Code Example
 
 ```cpp

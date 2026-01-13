@@ -8,3 +8,8 @@ build_shared/
 _codeql_build_dir/
 _codeql_detected_source_root
 /dev-docs
+.venv-conan/
+
+# ConanCenter-style recipe helper files (generated during local conan create)
+/utils/conan/**/test_package/build/
+/utils/conan/**/test_package/CMakeUserPresets.json

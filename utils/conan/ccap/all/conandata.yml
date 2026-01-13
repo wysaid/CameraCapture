@@ -1,0 +1,4 @@
+sources:
+  "1.5.0":
+    url: "https://github.com/wysaid/CameraCapture/archive/refs/tags/v1.5.0.tar.gz"
+    sha256: "e617fd973c27f6f9a9f5ec831e4440430d5ae5fd2ab3a959b3a2ca7be031162e"
