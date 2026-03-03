@@ -133,12 +133,12 @@ PixelFormtInfo s_pixelInfoList[] = {
     { MEDIASUBTYPE_NV12, "NV12", PixelFormat::NV12 },
     { MEDIASUBTYPE_I420, "I420", PixelFormat::I420 },
     { MEDIASUBTYPE_IYUV, "IYUV (I420)", PixelFormat::I420 },
-    { MEDIASUBTYPE_YUY2, "YUY2", PixelFormat::Unknown },
+    { MEDIASUBTYPE_YUY2, "YUY2", PixelFormat::YUYV },
     { MEDIASUBTYPE_YV12, "YV12", PixelFormat::Unknown },
-    { MEDIASUBTYPE_UYVY, "UYVY", PixelFormat::Unknown },
+    { MEDIASUBTYPE_UYVY, "UYVY", PixelFormat::UYVY },
     { MEDIASUBTYPE_RGB565, "RGB565", PixelFormat::Unknown },
     { MEDIASUBTYPE_RGB555, "RGB555", PixelFormat::Unknown },
-    { MEDIASUBTYPE_YUYV, "YUYV", PixelFormat::Unknown },
+    { MEDIASUBTYPE_YUYV, "YUYV", PixelFormat::YUYV },
     { MEDIASUBTYPE_YVYU, "YVYU", PixelFormat::Unknown },
     { MEDIASUBTYPE_YVU9, "YVU9", PixelFormat::Unknown },
     { MEDIASUBTYPE_Y411, "Y411", PixelFormat::Unknown },
@@ -856,26 +856,41 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     bool zeroCopy = !shouldConvert && !shouldFlip;
 
     if (isInputYUV) {
+        bool isPackedYUV = pixelFormatInclude(m_frameProp.cameraPixelFormat, PixelFormat::YUYV) ||
+                           pixelFormatInclude(m_frameProp.cameraPixelFormat, PixelFormat::UYVY);
+
         // Zero-copy, directly reference sample data
         newFrame->data[0] = sampleData;
-        newFrame->data[1] = sampleData + m_frameProp.width * m_frameProp.height;
 
-        newFrame->stride[0] = m_frameProp.width;
-
-        if (pixelFormatInclude(m_frameProp.cameraPixelFormat, PixelFormat::I420)) {
-            newFrame->stride[1] = m_frameProp.width / 2;
-            newFrame->stride[2] = m_frameProp.width / 2;
-
-            newFrame->data[2] = sampleData + m_frameProp.width * m_frameProp.height * 5 / 4;
-        } else {
-            newFrame->stride[1] = m_frameProp.width;
+        if (isPackedYUV) {
+            // YUYV/UYVY are packed formats: single plane, 2 bytes per pixel
+            newFrame->stride[0] = m_frameProp.width * 2;
+            newFrame->stride[1] = 0;
             newFrame->stride[2] = 0;
+            newFrame->data[1] = nullptr;
             newFrame->data[2] = nullptr;
-        }
 
-        assert(newFrame->stride[0] * newFrame->height + newFrame->stride[1] * newFrame->height / 2 +
-                   newFrame->stride[2] * newFrame->height / 2 <=
-               bufferLen);
+            assert(newFrame->stride[0] * newFrame->height <= bufferLen);
+        } else {
+            // Planar YUV formats (NV12/I420)
+            newFrame->data[1] = sampleData + m_frameProp.width * m_frameProp.height;
+            newFrame->stride[0] = m_frameProp.width;
+
+            if (pixelFormatInclude(m_frameProp.cameraPixelFormat, PixelFormat::I420)) {
+                newFrame->stride[1] = m_frameProp.width / 2;
+                newFrame->stride[2] = m_frameProp.width / 2;
+
+                newFrame->data[2] = sampleData + m_frameProp.width * m_frameProp.height * 5 / 4;
+            } else {
+                newFrame->stride[1] = m_frameProp.width;
+                newFrame->stride[2] = 0;
+                newFrame->data[2] = nullptr;
+            }
+
+            assert(newFrame->stride[0] * newFrame->height + newFrame->stride[1] * newFrame->height / 2 +
+                       newFrame->stride[2] * newFrame->height / 2 <=
+                   bufferLen);
+        }
     } else {
         auto stride = m_frameProp.width * (m_frameProp.cameraPixelFormat & kPixelFormatAlphaColorBit ? 4 : 3);
         newFrame->stride[0] = ((stride + 3) / 4) * 4; // 4-byte aligned
