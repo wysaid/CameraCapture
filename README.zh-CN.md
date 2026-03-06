@@ -1,5 +1,7 @@
 # ccap (CameraCapture)
 
+[![Contributors](https://img.shields.io/github/contributors/wysaid/CameraCapture?style=flat-square)](https://github.com/wysaid/CameraCapture/graphs/contributors)
+[![Pull Requests Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://github.com/wysaid/CameraCapture/pulls)
 [![Windows Build](https://github.com/wysaid/CameraCapture/actions/workflows/windows-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/windows-build.yml)
 [![macOS Build](https://github.com/wysaid/CameraCapture/actions/workflows/macos-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/macos-build.yml)
 [![Linux Build](https://github.com/wysaid/CameraCapture/actions/workflows/linux-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/linux-build.yml)
@@ -24,6 +26,7 @@
 - [API 参考](#api-参考)
 - [测试](#测试)
 - [构建和安装](#构建和安装)
+- [贡献者](#贡献者)
 - [许可证](#许可证)
 
 ## 特性
@@ -614,6 +617,12 @@ git clone https://github.com/wysaid/CameraCapture.git
 cd CameraCapture
 ./scripts/build_and_install.sh
 ```
+
+## 贡献者
+
+本项目在开源社区的帮助下不断完善。欢迎任何形式的贡献，包括代码、文档、测试、问题反馈和代码审查。
+
+[![Contributors](https://contrib.rocks/image?repo=wysaid/CameraCapture)](https://github.com/wysaid/CameraCapture/graphs/contributors)
 
 ## 许可证
 

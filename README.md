@@ -1,5 +1,7 @@
 # ccap (CameraCapture)
 
+[![Contributors](https://img.shields.io/github/contributors/wysaid/CameraCapture?style=flat-square)](https://github.com/wysaid/CameraCapture/graphs/contributors)
+[![Pull Requests Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://github.com/wysaid/CameraCapture/pulls)
 [![Windows Build](https://github.com/wysaid/CameraCapture/actions/workflows/windows-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/windows-build.yml)
 [![macOS Build](https://github.com/wysaid/CameraCapture/actions/workflows/macos-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/macos-build.yml)
 [![Linux Build](https://github.com/wysaid/CameraCapture/actions/workflows/linux-build.yml/badge.svg)](https://github.com/wysaid/CameraCapture/actions/workflows/linux-build.yml)
@@ -24,6 +26,7 @@ A high-performance, lightweight cross-platform camera capture library with hardw
 - [API Reference](#api-reference)
 - [Testing](#testing)
 - [Build and Install](#build-and-install)
+- [Contributors](#contributors)
 - [License](#license)
 
 ## Features
@@ -699,6 +702,12 @@ git clone https://github.com/wysaid/CameraCapture.git
 cd CameraCapture
 ./scripts/build_and_install.sh
 ```
+
+## Contributors
+
+This project is built with help from the open-source community. Contributions of code, documentation, tests, bug reports, and reviews are all welcome.
+
+[![Contributors](https://contrib.rocks/image?repo=wysaid/CameraCapture)](https://github.com/wysaid/CameraCapture/graphs/contributors)
 
 ## License
 
