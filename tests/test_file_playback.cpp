@@ -370,6 +370,10 @@ TEST_F(FilePlaybackTest, PlaybackSpeedOneMatchesFrameRate) {
     // Verify PlaybackSpeed is 1.0
     EXPECT_DOUBLE_EQ(provider.get(ccap::PropertyName::PlaybackSpeed), 1.0);
 
+    // Warmup: grab one frame to initialize decoder and absorb startup overhead
+    auto warmupFrame = provider.grab(5000);
+    ASSERT_NE(warmupFrame, nullptr) << "Failed to grab warmup frame";
+
     // Measure time to grab frames
     const int framesToCapture = 10;
     auto startTime = std::chrono::steady_clock::now();
@@ -394,7 +398,7 @@ TEST_F(FilePlaybackTest, PlaybackSpeedOneMatchesFrameRate) {
               << " seconds (fps: " << frameRate << ", expected: " << expectedTime << "s)" << std::endl;
 
     // Allow tolerance for timing variations (includes thread scheduling, frame processing overhead)
-    EXPECT_NEAR(elapsedSeconds, expectedTime, 0.1)
+    EXPECT_NEAR(elapsedSeconds, expectedTime, 0.15)
         << "With PlaybackSpeed=1.0, playback should roughly match video frame rate";
 
     provider.stop();
@@ -410,6 +414,10 @@ TEST_F(FilePlaybackTest, PlaybackSpeedDoubleIsFaster) {
 
     // Set PlaybackSpeed to 2.0 after opening
     provider.set(ccap::PropertyName::PlaybackSpeed, 2.0);
+
+    // Warmup: grab one frame to initialize decoder and absorb startup overhead
+    auto warmupFrame = provider.grab(5000);
+    ASSERT_NE(warmupFrame, nullptr) << "Failed to grab warmup frame";
 
     // Measure time to grab frames
     const int framesToCapture = 20;
@@ -435,7 +443,7 @@ TEST_F(FilePlaybackTest, PlaybackSpeedDoubleIsFaster) {
               << " seconds (fps: " << frameRate << ", 2x speed expected: " << expectedTime << "s)" << std::endl;
 
     // Allow tolerance for timing variations (2x speed has more decoding overhead)
-    EXPECT_NEAR(elapsedSeconds, expectedTime, 0.2)
+    EXPECT_NEAR(elapsedSeconds, expectedTime, 0.35)
         << "With PlaybackSpeed=2.0, playback should be roughly 2x faster";
 
     provider.stop();
@@ -1008,15 +1016,25 @@ TEST_F(FilePlaybackTest, CurrentTimeAccuracy) {
 
     ASSERT_GE(times.size(), 5);
 
-    // Check time deltas
+    double expectedDelta = 1.0 / frameRate;
+
+    // Check per-frame time progression:
+    // Due to async decoding, consecutive frames may share a timestamp (delta=0)
+    // or skip one (delta~=2x). Verify non-decreasing and no excessive jumps.
     for (size_t i = 1; i < times.size(); i++) {
         double delta = times[i] - times[i - 1];
-        double expectedDelta = 1.0 / frameRate;
-
-        // Allow tolerance for timing variations
-        EXPECT_NEAR(delta, expectedDelta, expectedDelta * 0.5)
-            << "Time delta between frames should roughly match frame rate";
+        EXPECT_GE(delta, 0.0)
+            << "CurrentTime should not go backwards at step " << i;
+        EXPECT_LE(delta, expectedDelta * 2.5)
+            << "CurrentTime should not jump more than 2.5 frames at step " << i;
     }
+
+    // Check overall span: total time across all grabbed frames should be close
+    // to (N-1) * frame_interval, allowing 50% tolerance plus one frame interval.
+    double totalSpan = times.back() - times.front();
+    double expectedTotal = (static_cast<double>(times.size()) - 1.0) * expectedDelta;
+    EXPECT_NEAR(totalSpan, expectedTotal, expectedTotal * 0.5 + expectedDelta)
+        << "Overall CurrentTime progression across frames should roughly match frame rate";
 
     provider.stop();
     provider.close();

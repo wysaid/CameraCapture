@@ -4,12 +4,15 @@
  * @note These tests cover the high-level frame conversion API that uses PixelFormat enums
  */
 
+#include "ccap_convert.h"
 #include "ccap_convert_frame.h"
 #include "ccap_core.h"
 #include "test_utils.h"
 #include "test_backend_manager.h"
 #include <gtest/gtest.h>
+#include <cstring>
 #include <memory>
+#include <string>
 
 using namespace ccap_test;
 
@@ -472,3 +475,373 @@ TEST_P(FrameConversionEdgeCaseTest, Non_Multiple_Of_Patch_Size_Widths) {
 }
 
 INSTANTIATE_BACKEND_TEST(FrameConversionEdgeCaseTest);
+
+// ============ Packed YUV (YUYV/UYVY) Frame Conversion Tests ============
+
+namespace {
+
+int outputChannelCount(ccap::PixelFormat pixelFormat) {
+    return pixelFormat == ccap::PixelFormat::RGBA32 || pixelFormat == ccap::PixelFormat::BGRA32 ? 4 : 3;
+}
+
+/**
+ * @brief Generate packed YUV test pattern data
+ * @param data Output buffer (must be pre-allocated to stride * height)
+ * @param stride Row stride in bytes (should be width * 2)
+ * @param format PixelFormat::YUYV or PixelFormat::UYVY
+ * @param width Image width (must be even)
+ * @param height Image height
+ */
+void generatePackedYUVData(uint8_t* data, int stride, ccap::PixelFormat format, int width, int height) {
+    bool isYUYV = ccap::pixelFormatInclude(format, ccap::PixelFormat::YUYV);
+    for (int y = 0; y < height; ++y) {
+        uint8_t* row = data + y * stride;
+        for (int x = 0; x < width; x += 2) {
+            uint8_t y0 = static_cast<uint8_t>(((x + y * width) * 219 / (width * height)) + 16);
+            uint8_t y1 = static_cast<uint8_t>(((x + 1 + y * width) * 219 / (width * height)) + 16);
+            uint8_t u = static_cast<uint8_t>(((x / 2 + y) * 224 / (width / 2 + height)) + 16);
+            uint8_t v = static_cast<uint8_t>(((x / 2 + y + 100) * 224 / (width / 2 + height)) + 16);
+
+            int base_idx = x * 2;
+            if (isYUYV) {
+                // YUYV: Y0 U Y1 V
+                row[base_idx + 0] = y0;
+                row[base_idx + 1] = u;
+                row[base_idx + 2] = y1;
+                row[base_idx + 3] = v;
+            } else {
+                // UYVY: U Y0 V Y1
+                row[base_idx + 0] = u;
+                row[base_idx + 1] = y0;
+                row[base_idx + 2] = v;
+                row[base_idx + 3] = y1;
+            }
+        }
+    }
+}
+
+void fillPackedYUVDataSolid(uint8_t* data, int stride, ccap::PixelFormat format, int width, int height, uint8_t y, uint8_t u, uint8_t v) {
+    bool isYUYV = ccap::pixelFormatInclude(format, ccap::PixelFormat::YUYV);
+    for (int rowIndex = 0; rowIndex < height; ++rowIndex) {
+        uint8_t* row = data + rowIndex * stride;
+        for (int x = 0; x < width; x += 2) {
+            int baseIndex = x * 2;
+            if (isYUYV) {
+                row[baseIndex + 0] = y;
+                row[baseIndex + 1] = u;
+                row[baseIndex + 2] = y;
+                row[baseIndex + 3] = v;
+            } else {
+                row[baseIndex + 0] = u;
+                row[baseIndex + 1] = y;
+                row[baseIndex + 2] = v;
+                row[baseIndex + 3] = y;
+            }
+        }
+    }
+}
+
+/**
+ * @brief Create a VideoFrame simulating packed YUV camera input (as Windows SampleCB would set up)
+ *
+ * This mimics the exact frame layout that the PR #47 fix produces in SampleCB:
+ * - stride[0] = width * 2
+ * - stride[1] = stride[2] = 0
+ * - data[0] = packed YUV buffer
+ * - data[1] = data[2] = nullptr
+ */
+struct PackedYUVFrameData {
+    std::unique_ptr<ccap::VideoFrame> frame;
+    std::vector<uint8_t> buffer; // External buffer simulating camera memory
+
+    PackedYUVFrameData(int width, int height, ccap::PixelFormat pixelFormat) {
+        int stride = width * 2;
+        buffer.resize(stride * height);
+
+        frame = std::make_unique<ccap::VideoFrame>();
+        frame->width = width;
+        frame->height = height;
+        frame->pixelFormat = pixelFormat;
+        frame->orientation = ccap::FrameOrientation::TopToBottom;
+        frame->allocator = std::make_shared<ccap::DefaultAllocator>();
+
+        // Set up packed YUV layout (single plane, stride = width * 2)
+        frame->data[0] = buffer.data();
+        frame->stride[0] = stride;
+        frame->data[1] = nullptr;
+        frame->stride[1] = 0;
+        frame->data[2] = nullptr;
+        frame->stride[2] = 0;
+
+        generatePackedYUVData(buffer.data(), stride, pixelFormat, width, height);
+    }
+};
+
+void convertPackedYUVReference(const PackedYUVFrameData& frameData, ccap::PixelFormat outputFormat, bool verticalFlip, TestImage& expected) {
+    const uint8_t* src = frameData.buffer.data();
+    int srcStride = frameData.frame->stride[0];
+    int width = frameData.frame->width;
+    int height = verticalFlip ? -static_cast<int>(frameData.frame->height) : static_cast<int>(frameData.frame->height);
+
+    bool isYUYV = frameData.frame->pixelFormat == ccap::PixelFormat::YUYV;
+    if (isYUYV) {
+        switch (outputFormat) {
+        case ccap::PixelFormat::BGR24:
+            ccap::yuyvToBgr24(src, srcStride, expected.data(), expected.stride(), width, height);
+            return;
+        case ccap::PixelFormat::RGB24:
+            ccap::yuyvToRgb24(src, srcStride, expected.data(), expected.stride(), width, height);
+            return;
+        case ccap::PixelFormat::BGRA32:
+            ccap::yuyvToBgra32(src, srcStride, expected.data(), expected.stride(), width, height);
+            return;
+        case ccap::PixelFormat::RGBA32:
+            ccap::yuyvToRgba32(src, srcStride, expected.data(), expected.stride(), width, height);
+            return;
+        default:
+            FAIL() << "Unsupported output format for YUYV reference conversion";
+        }
+    }
+
+    switch (outputFormat) {
+    case ccap::PixelFormat::BGR24:
+        ccap::uyvyToBgr24(src, srcStride, expected.data(), expected.stride(), width, height);
+        return;
+    case ccap::PixelFormat::RGB24:
+        ccap::uyvyToRgb24(src, srcStride, expected.data(), expected.stride(), width, height);
+        return;
+    case ccap::PixelFormat::BGRA32:
+        ccap::uyvyToBgra32(src, srcStride, expected.data(), expected.stride(), width, height);
+        return;
+    case ccap::PixelFormat::RGBA32:
+        ccap::uyvyToRgba32(src, srcStride, expected.data(), expected.stride(), width, height);
+        return;
+    default:
+        FAIL() << "Unsupported output format for UYVY reference conversion";
+    }
+}
+
+void expectPackedYUVFrameMatchesReference(PackedYUVFrameData& frameData, ccap::PixelFormat outputFormat, bool verticalFlip,
+                                          const std::string& caseName, const std::string& backendName) {
+    TestImage expected(frameData.frame->width, frameData.frame->height, outputChannelCount(outputFormat));
+    convertPackedYUVReference(frameData, outputFormat, verticalFlip, expected);
+
+    bool success = ccap::inplaceConvertFrame(frameData.frame.get(), outputFormat, verticalFlip);
+    ASSERT_TRUE(success) << caseName << " failed, backend: " << backendName;
+
+    ASSERT_NE(frameData.frame->allocator, nullptr);
+    ASSERT_NE(frameData.frame->data[0], nullptr);
+    EXPECT_EQ(frameData.frame->pixelFormat, outputFormat);
+    EXPECT_EQ(frameData.frame->data[0], frameData.frame->allocator->data());
+    EXPECT_EQ(frameData.frame->data[1], nullptr);
+    EXPECT_EQ(frameData.frame->data[2], nullptr);
+    EXPECT_EQ(frameData.frame->stride[0], expected.stride());
+    EXPECT_EQ(frameData.frame->stride[1], 0);
+    EXPECT_EQ(frameData.frame->stride[2], 0);
+    EXPECT_EQ(static_cast<size_t>(frameData.frame->sizeInBytes), expected.size());
+
+    bool matches = PixelTestUtils::compareImages(frameData.frame->data[0], expected.data(), frameData.frame->width, frameData.frame->height,
+                                                 expected.channels(), frameData.frame->stride[0], expected.stride(), 0);
+    EXPECT_TRUE(matches) << caseName << " differs from reference conversion, backend: " << backendName
+                         << ", MSE=" << PixelTestUtils::calculateMSE(frameData.frame->data[0], expected.data(), frameData.frame->width,
+                                                                     frameData.frame->height, expected.channels(), frameData.frame->stride[0],
+                                                                     expected.stride());
+}
+
+} // anonymous namespace
+
+// ---- Frame-level YUYV/UYVY → RGB/BGR conversion tests ----
+
+class FrameYUVConversionTest : public BackendParameterizedTest {
+protected:
+    void SetUp() override {
+        BackendParameterizedTest::SetUp();
+    }
+};
+
+TEST_P(FrameYUVConversionTest, YUYV_To_BGR24_InplaceConvertFrame) {
+    auto backend = GetParam();
+    PackedYUVFrameData yuyv(64, 64, ccap::PixelFormat::YUYV);
+    expectPackedYUVFrameMatchesReference(yuyv, ccap::PixelFormat::BGR24, false, "YUYV→BGR24 inplaceConvertFrame",
+                                         BackendTestManager::getBackendName(backend));
+}
+
+TEST_P(FrameYUVConversionTest, YUYV_To_BGRA32_InplaceConvertFrame) {
+    auto backend = GetParam();
+    PackedYUVFrameData yuyv(64, 64, ccap::PixelFormat::YUYV);
+    expectPackedYUVFrameMatchesReference(yuyv, ccap::PixelFormat::BGRA32, false, "YUYV→BGRA32 inplaceConvertFrame",
+                                         BackendTestManager::getBackendName(backend));
+}
+
+TEST_P(FrameYUVConversionTest, UYVY_To_BGR24_InplaceConvertFrame) {
+    auto backend = GetParam();
+    PackedYUVFrameData uyvy(64, 64, ccap::PixelFormat::UYVY);
+    expectPackedYUVFrameMatchesReference(uyvy, ccap::PixelFormat::BGR24, false, "UYVY→BGR24 inplaceConvertFrame",
+                                         BackendTestManager::getBackendName(backend));
+}
+
+TEST_P(FrameYUVConversionTest, UYVY_To_BGRA32_InplaceConvertFrame) {
+    auto backend = GetParam();
+    PackedYUVFrameData uyvy(64, 64, ccap::PixelFormat::UYVY);
+    expectPackedYUVFrameMatchesReference(uyvy, ccap::PixelFormat::BGRA32, false, "UYVY→BGRA32 inplaceConvertFrame",
+                                         BackendTestManager::getBackendName(backend));
+}
+
+TEST_P(FrameYUVConversionTest, YUYV_To_RGB24_InplaceConvertFrame) {
+    auto backend = GetParam();
+    PackedYUVFrameData yuyv(64, 64, ccap::PixelFormat::YUYV);
+    expectPackedYUVFrameMatchesReference(yuyv, ccap::PixelFormat::RGB24, false, "YUYV→RGB24 inplaceConvertFrame",
+                                         BackendTestManager::getBackendName(backend));
+}
+
+TEST_P(FrameYUVConversionTest, UYVY_To_RGBA32_InplaceConvertFrame) {
+    auto backend = GetParam();
+    PackedYUVFrameData uyvy(64, 64, ccap::PixelFormat::UYVY);
+    expectPackedYUVFrameMatchesReference(uyvy, ccap::PixelFormat::RGBA32, false, "UYVY→RGBA32 inplaceConvertFrame",
+                                         BackendTestManager::getBackendName(backend));
+}
+
+INSTANTIATE_BACKEND_TEST(FrameYUVConversionTest);
+
+// ---- Common camera resolution tests for YUYV/UYVY ----
+// Simulates typical camera resolutions a YUY2 camera might use
+
+class FrameYUVResolutionTest : public BackendParameterizedTest {
+protected:
+    void SetUp() override {
+        BackendParameterizedTest::SetUp();
+    }
+};
+
+TEST_P(FrameYUVResolutionTest, YUYV_CommonResolutions_To_BGR24) {
+    auto backend = GetParam();
+    const std::string backendName = BackendTestManager::getBackendName(backend);
+
+    std::vector<std::pair<int, int>> resolutions = {
+        {320, 240},
+        {640, 480},
+        {1280, 720},
+        {1920, 1080},
+        {160, 120},
+        {800, 600},
+    };
+
+    for (const auto& [w, h] : resolutions) {
+        PackedYUVFrameData yuyv(w, h, ccap::PixelFormat::YUYV);
+        expectPackedYUVFrameMatchesReference(yuyv, ccap::PixelFormat::BGR24, false,
+                                             "YUYV→BGR24 " + std::to_string(w) + "x" + std::to_string(h), backendName);
+    }
+}
+
+TEST_P(FrameYUVResolutionTest, UYVY_CommonResolutions_To_BGR24) {
+    auto backend = GetParam();
+    const std::string backendName = BackendTestManager::getBackendName(backend);
+
+    std::vector<std::pair<int, int>> resolutions = {
+        {320, 240},
+        {640, 480},
+        {1280, 720},
+        {1920, 1080},
+    };
+
+    for (const auto& [w, h] : resolutions) {
+        PackedYUVFrameData uyvy(w, h, ccap::PixelFormat::UYVY);
+        expectPackedYUVFrameMatchesReference(uyvy, ccap::PixelFormat::BGR24, false,
+                                             "UYVY→BGR24 " + std::to_string(w) + "x" + std::to_string(h), backendName);
+    }
+}
+
+INSTANTIATE_BACKEND_TEST(FrameYUVResolutionTest);
+
+// ---- Vertical flip test for packed YUV frames ----
+// Tests the verticalFlip parameter which simulates Windows BottomToTop orientation handling
+
+class FrameYUVFlipTest : public BackendParameterizedTest {
+protected:
+    void SetUp() override {
+        BackendParameterizedTest::SetUp();
+    }
+};
+
+TEST_P(FrameYUVFlipTest, YUYV_To_BGR24_WithVerticalFlip) {
+    auto backend = GetParam();
+    PackedYUVFrameData yuyv(64, 64, ccap::PixelFormat::YUYV);
+    expectPackedYUVFrameMatchesReference(yuyv, ccap::PixelFormat::BGR24, true, "YUYV→BGR24 vertical flip",
+                                         BackendTestManager::getBackendName(backend));
+}
+
+TEST_P(FrameYUVFlipTest, UYVY_To_BGRA32_WithVerticalFlip) {
+    auto backend = GetParam();
+    PackedYUVFrameData uyvy(32, 32, ccap::PixelFormat::UYVY);
+    expectPackedYUVFrameMatchesReference(uyvy, ccap::PixelFormat::BGRA32, true, "UYVY→BGRA32 vertical flip",
+                                         BackendTestManager::getBackendName(backend));
+}
+
+INSTANTIATE_BACKEND_TEST(FrameYUVFlipTest);
+
+// ---- Fixed-value packed YUV tests ----
+// These use PixelTestUtils::yuv2rgbReference so they do not depend on the packed conversion helpers.
+
+class FrameYUVReferenceValueTest : public BackendParameterizedTest {
+protected:
+    void SetUp() override {
+        BackendParameterizedTest::SetUp();
+    }
+};
+
+TEST_P(FrameYUVReferenceValueTest, YUYV_SolidColor_To_BGR24_MatchesReferencePixelValues) {
+    auto backend = GetParam();
+    const int width = 8;
+    const int height = 8;
+
+    PackedYUVFrameData yuyv(8, 8, ccap::PixelFormat::YUYV);
+    fillPackedYUVDataSolid(yuyv.buffer.data(), yuyv.frame->stride[0], yuyv.frame->pixelFormat, yuyv.frame->width, yuyv.frame->height, 96, 90,
+                           180);
+
+    bool success = ccap::inplaceConvertFrame(yuyv.frame.get(), ccap::PixelFormat::BGR24, false);
+    ASSERT_TRUE(success) << "YUYV solid-color conversion failed, backend: " << BackendTestManager::getBackendName(backend);
+
+    int r = 0;
+    int g = 0;
+    int b = 0;
+    PixelTestUtils::yuv2rgbReference(96, 90, 180, r, g, b, false, false);
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            int offset = y * yuyv.frame->stride[0] + x * 3;
+            EXPECT_EQ(yuyv.frame->data[0][offset + 0], b);
+            EXPECT_EQ(yuyv.frame->data[0][offset + 1], g);
+            EXPECT_EQ(yuyv.frame->data[0][offset + 2], r);
+        }
+    }
+}
+
+TEST_P(FrameYUVReferenceValueTest, UYVY_SolidColor_To_RGBA32_MatchesReferencePixelValues) {
+    auto backend = GetParam();
+    const int width = 8;
+    const int height = 8;
+
+    PackedYUVFrameData uyvy(width, height, ccap::PixelFormat::UYVY);
+    fillPackedYUVDataSolid(uyvy.buffer.data(), uyvy.frame->stride[0], uyvy.frame->pixelFormat, uyvy.frame->width, uyvy.frame->height, 180, 54,
+                           200);
+
+    bool success = ccap::inplaceConvertFrame(uyvy.frame.get(), ccap::PixelFormat::RGBA32, false);
+    ASSERT_TRUE(success) << "UYVY solid-color conversion failed, backend: " << BackendTestManager::getBackendName(backend);
+
+    int r = 0;
+    int g = 0;
+    int b = 0;
+    PixelTestUtils::yuv2rgbReference(180, 54, 200, r, g, b, false, false);
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            int offset = y * uyvy.frame->stride[0] + x * 4;
+            EXPECT_EQ(uyvy.frame->data[0][offset + 0], r);
+            EXPECT_EQ(uyvy.frame->data[0][offset + 1], g);
+            EXPECT_EQ(uyvy.frame->data[0][offset + 2], b);
+            EXPECT_EQ(uyvy.frame->data[0][offset + 3], 0xFF);
+        }
+    }
+}
+
+INSTANTIATE_BACKEND_TEST(FrameYUVReferenceValueTest);
