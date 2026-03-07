@@ -6,12 +6,20 @@
 
 #if defined(_WIN32)
 
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
+#include <windows.h>
+
 #include "test_utils.h"
 
 #include <ccap.h>
 
 #include <algorithm>
 #include <array>
+#include <cctype>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
@@ -33,22 +41,24 @@ class ScopedEnvVar {
 public:
     ScopedEnvVar(const char* name, const char* value) :
         m_name(name) {
-        char* oldValue = nullptr;
-        size_t length = 0;
-        if (_dupenv_s(&oldValue, &length, name) == 0 && oldValue != nullptr) {
-            m_hadValue = true;
-            m_oldValue.assign(oldValue, length == 0 ? 0 : length - 1);
-            free(oldValue);
+        const DWORD length = GetEnvironmentVariableA(name, nullptr, 0);
+        if (length > 0) {
+            std::string buffer(length, '\0');
+            const DWORD written = GetEnvironmentVariableA(name, buffer.data(), length);
+            if (written > 0 && written < length) {
+                m_hadValue = true;
+                m_oldValue.assign(buffer.data(), written);
+            }
         }
 
-        _putenv_s(name, value);
+        SetEnvironmentVariableA(name, value);
     }
 
     ~ScopedEnvVar() {
         if (m_hadValue) {
-            _putenv_s(m_name.c_str(), m_oldValue.c_str());
+            SetEnvironmentVariableA(m_name.c_str(), m_oldValue.c_str());
         } else {
-            _putenv_s(m_name.c_str(), "");
+            SetEnvironmentVariableA(m_name.c_str(), nullptr);
         }
     }
 
@@ -109,9 +119,14 @@ std::vector<std::string> listCommonDevices() {
     auto dshowDevices = listDevicesForBackend("dshow");
     auto msmfDevices = listDevicesForBackend("msmf");
     std::vector<std::string> common;
+    auto isUniqueInBoth = [&](const std::string& name) {
+        return std::count(dshowDevices.begin(), dshowDevices.end(), name) == 1 &&
+            std::count(msmfDevices.begin(), msmfDevices.end(), name) == 1;
+    };
 
     for (const std::string& device : dshowDevices) {
-        if (std::find(msmfDevices.begin(), msmfDevices.end(), device) != msmfDevices.end()) {
+        if (isUniqueInBoth(device) &&
+            std::find(msmfDevices.begin(), msmfDevices.end(), device) != msmfDevices.end()) {
             common.push_back(device);
         }
     }

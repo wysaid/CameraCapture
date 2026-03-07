@@ -41,8 +41,13 @@ std::string wideToUtf8(const wchar_t* text) {
         return {};
     }
 
-    std::string value(static_cast<size_t>(length - 1), '\0');
-    WideCharToMultiByte(CP_UTF8, 0, text, -1, value.data(), length, nullptr, nullptr);
+    std::string value(static_cast<size_t>(length), '\0');
+    int written = WideCharToMultiByte(CP_UTF8, 0, text, -1, value.data(), length, nullptr, nullptr);
+    if (written <= 0) {
+        return {};
+    }
+
+    value.resize(static_cast<size_t>(written - 1));
     return value;
 }
 
@@ -670,7 +675,6 @@ std::optional<DeviceInfo> ProviderMSMF::getDeviceInfo() const {
 void ProviderMSMF::readLoop() {
     HRESULT comResult = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     bool didInitCom = SUCCEEDED(comResult);
-    m_shouldStop = false;
 
     while (!m_shouldStop && m_sourceReader != nullptr) {
         DWORD streamIndex = 0;
@@ -731,7 +735,7 @@ void ProviderMSMF::readLoop() {
         newFrame->pixelFormat = m_activePixelFormat;
         newFrame->width = m_activeWidth;
         newFrame->height = m_activeHeight;
-        newFrame->nativeHandle = sample;
+        newFrame->nativeHandle = nullptr;
 
         bool isOutputYUV = (m_frameProp.outputPixelFormat & kPixelFormatYUVColorBit) != 0;
         FrameOrientation targetOrientation = isOutputYUV ? FrameOrientation::TopToBottom : m_frameOrientation;
@@ -801,6 +805,7 @@ void ProviderMSMF::readLoop() {
         }
 
         if (zeroCopy) {
+            newFrame->nativeHandle = sample;
             newFrame->sizeInBytes = currentLength;
             sample->AddRef();
             buffer->AddRef();

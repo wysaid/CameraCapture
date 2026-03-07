@@ -96,15 +96,14 @@ impl Provider {
     ///
     /// On Windows, `extra_info` can be used to force backend selection with values like
     /// `"auto"`, `"msmf"`, `"dshow"`, or `"backend=<value>"`.
-    pub fn with_device_and_extra_info(
-        device_index: i32,
-        extra_info: Option<&str>,
-    ) -> Result<Self> {
+    pub fn with_device_and_extra_info(device_index: i32, extra_info: Option<&str>) -> Result<Self> {
         let extra_info = optional_c_string(extra_info, "extra info")?;
         let handle = unsafe {
             sys::ccap_provider_create_with_index(
                 device_index,
-                extra_info.as_ref().map_or(ptr::null(), |value| value.as_ptr()),
+                extra_info
+                    .as_ref()
+                    .map_or(ptr::null(), |value| value.as_ptr()),
             )
         };
         if handle.is_null() {
@@ -144,7 +143,9 @@ impl Provider {
         let handle = unsafe {
             sys::ccap_provider_create_with_device(
                 c_name.as_ptr(),
-                extra_info.as_ref().map_or(ptr::null(), |value| value.as_ptr()),
+                extra_info
+                    .as_ref()
+                    .map_or(ptr::null(), |value| value.as_ptr()),
             )
         };
         if handle.is_null() {
@@ -271,6 +272,11 @@ impl Provider {
         auto_start: bool,
     ) -> Result<()> {
         if let Some(name) = device_name {
+            let c_name = CString::new(name).map_err(|_| {
+                CcapError::InvalidParameter("device name contains null byte".to_string())
+            })?;
+            let extra_info = optional_c_string(extra_info, "extra info")?;
+
             // Recreate provider with specific device
             if !self.handle.is_null() {
                 // If the previous provider was running, stop it and detach callbacks
@@ -281,21 +287,27 @@ impl Provider {
                 unsafe {
                     sys::ccap_provider_destroy(self.handle);
                 }
+                self.handle = ptr::null_mut();
+                self.is_opened = false;
+            } else {
+                self.cleanup_callback();
             }
-            let c_name = CString::new(name).map_err(|_| {
-                CcapError::InvalidParameter("device name contains null byte".to_string())
-            })?;
-            let extra_info = optional_c_string(extra_info, "extra info")?;
+
             self.handle = unsafe {
                 sys::ccap_provider_create_with_device(
                     c_name.as_ptr(),
-                    extra_info.as_ref().map_or(ptr::null(), |value| value.as_ptr()),
+                    extra_info
+                        .as_ref()
+                        .map_or(ptr::null(), |value| value.as_ptr()),
                 )
             };
             if self.handle.is_null() {
                 return Err(CcapError::InvalidDevice(name.to_string()));
             }
             self.is_opened = true;
+            if !auto_start {
+                self.stop_capture()?;
+            }
         } else if extra_info.is_some() {
             return self.open_with_index_and_extra_info(-1, extra_info, auto_start);
         } else {
@@ -581,6 +593,8 @@ impl Provider {
         extra_info: Option<&str>,
         auto_start: bool,
     ) -> Result<()> {
+        let extra_info = optional_c_string(extra_info, "extra info")?;
+
         // If the previous provider was running, stop it and detach callbacks
         // before destroying the underlying handle.
         if !self.handle.is_null() {
@@ -590,18 +604,20 @@ impl Provider {
             unsafe {
                 sys::ccap_provider_destroy(self.handle);
             }
+            self.handle = ptr::null_mut();
+            self.is_opened = false;
         } else {
             // Clean up any stale callback allocation even if handle is null.
             self.cleanup_callback();
         }
 
-        let extra_info = optional_c_string(extra_info, "extra info")?;
-
         // Create a new provider with the specified device index
         self.handle = unsafe {
             sys::ccap_provider_create_with_index(
                 device_index,
-                extra_info.as_ref().map_or(ptr::null(), |value| value.as_ptr()),
+                extra_info
+                    .as_ref()
+                    .map_or(ptr::null(), |value| value.as_ptr()),
             )
         };
 
@@ -614,6 +630,9 @@ impl Provider {
 
         // ccap C API contract: create_with_index opens the device.
         self.is_opened = true;
+        if !auto_start {
+            self.stop_capture()?;
+        }
         if auto_start {
             self.start_capture()?;
         }
