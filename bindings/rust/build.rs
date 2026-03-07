@@ -460,6 +460,10 @@ Please vendor the sources into bindings/rust/native/, or set CCAP_SOURCE_DIR to 
                 ccap_root.display()
             );
             println!(
+                    "cargo:rerun-if-changed={}/src/ccap_imp_windows_msmf.cpp",
+                    ccap_root.display()
+                );
+                println!(
                 "cargo:rerun-if-changed={}/src/ccap_file_reader_windows.cpp",
                 ccap_root.display()
             );

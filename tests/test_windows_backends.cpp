@@ -74,7 +74,11 @@ fs::path findProjectRoot() {
         if (fs::exists(projectRoot / "CMakeLists.txt") && fs::exists(projectRoot / "tests")) {
             return projectRoot;
         }
-        projectRoot = projectRoot.parent_path();
+        fs::path parent = projectRoot.parent_path();
+        if (parent == projectRoot) {
+            break;
+        }
+        projectRoot = std::move(parent);
     }
     return {};
 }
