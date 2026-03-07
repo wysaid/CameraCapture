@@ -323,9 +323,6 @@ void nv12ToRgbaColor_neon_imp(const uint8_t* srcY, int srcYStride,
     // Get coefficients based on color space and range
     int cy, cr, cgu, cgv, cb, y_offset;
     getYuvToRgbCoefficients_neon(is601, isFullRange, cy, cr, cgu, cgv, cb, y_offset);
-    // Full-precision (×256) coefficients for scalar fallback -- matches reference formula exactly
-    int cy_s, cr_s, cgu_s, cgv_s, cb_s, y_offset_unused;
-    getYuvToRgbCoefficients_scalar(is601, isFullRange, cy_s, cr_s, cgu_s, cgv_s, cb_s, y_offset_unused);
 
     for (int y = 0; y < height; ++y) {
         const uint8_t* yRow = srcY + y * srcYStride;
@@ -1005,6 +1002,9 @@ void _yuyvToRgba_neon_imp(const uint8_t* src, int srcStride,
     // Get coefficients based on color space and range
     int cy, cr, cgu, cgv, cb, y_offset;
     getYuvToRgbCoefficients_neon(is601, isFullRange, cy, cr, cgu, cgv, cb, y_offset);
+    // Full-precision (×256) coefficients for scalar fallback -- matches reference formula exactly
+    int cy_s, cr_s, cgu_s, cgv_s, cb_s, y_offset_unused;
+    getYuvToRgbCoefficients_scalar(is601, isFullRange, cy_s, cr_s, cgu_s, cgv_s, cb_s, y_offset_unused);
 
     for (int y = 0; y < height; ++y) {
         const uint8_t* srcRow = src + y * srcStride;
