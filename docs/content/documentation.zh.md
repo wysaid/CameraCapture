@@ -219,7 +219,9 @@ if (provider.open("/path/to/video.mp4", true)) {
 
 ### Windows
 
-使用 DirectShow 访问相机。需要 MSVC 2019 或更高版本。
+在现代 Windows 上默认使用 Media Foundation 访问相机，并在旧系统或不兼容设备上自动回退到 DirectShow。需要 MSVC 2019 或更高版本。
+
+如果你需要在 Windows 上强制选择某个相机后端，可以在支持 `extraInfo` 的构造接口中传入 `auto`、`msmf`、`dshow` 或 `backend=<value>`，也可以为当前进程设置 `CCAP_WINDOWS_BACKEND=auto|msmf|dshow`。
 
 ```shell
 cl your_code.c /I"path\to\ccap\include" ^

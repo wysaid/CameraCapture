@@ -97,6 +97,7 @@ void printUsage(const char* programName) {
               << "  -q, --quiet                quiet mode (only show errors, equivalent to log level Error)\n"
               << "  --timeout seconds          program timeout (auto-exit after N seconds)\n"
               << "  --timeout-exit-code code   exit code when timeout occurs (default: 0)\n"
+              << "  environment: CCAP_WINDOWS_BACKEND=auto|msmf|dshow (Windows backend override)\n"
               << "\n"
               << "Input options:\n"
               << "  -i, --input source         input source: video file, device index, or device name\n"

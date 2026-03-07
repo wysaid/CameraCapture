@@ -198,6 +198,11 @@ cmake --build build
 
 ### Windows
 
+**Media Foundation 后端：**
+- 现代 Windows 上的首选后端
+- 使用 Source Reader 完成取帧与格式协商
+- 当 Media Foundation 不可用或设备打开失败时，会自动回退到 DirectShow
+
 **DirectShow 后端：**
 - 成熟、稳定的 API
 - 良好的驱动兼容性

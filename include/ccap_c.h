@@ -152,7 +152,9 @@ CCAP_EXPORT CcapProvider* ccap_provider_create(void);
 /**
  * @brief Create a camera provider and open specified device
  * @param deviceName Device name to open (NULL for default device)
- * @param extraInfo Extra information (currently unused, can be NULL)
+ * @param extraInfo Extra backend hint (can be NULL).
+ *        On Windows, accepted values include `auto`, `msmf`, `dshow`, and `backend=<value>`.
+ *        Other platforms ignore this parameter.
  * @return Pointer to CcapProvider instance, or NULL on failure
  */
 CCAP_EXPORT CcapProvider* ccap_provider_create_with_device(const char* deviceName, const char* extraInfo);
@@ -160,7 +162,9 @@ CCAP_EXPORT CcapProvider* ccap_provider_create_with_device(const char* deviceNam
 /**
  * @brief Create a camera provider and open device by index
  * @param deviceIndex Device index (negative for default device)
- * @param extraInfo Extra information (currently unused, can be NULL)
+ * @param extraInfo Extra backend hint (can be NULL).
+ *        On Windows, accepted values include `auto`, `msmf`, `dshow`, and `backend=<value>`.
+ *        Other platforms ignore this parameter.
  * @return Pointer to CcapProvider instance, or NULL on failure
  */
 CCAP_EXPORT CcapProvider* ccap_provider_create_with_index(int deviceIndex, const char* extraInfo);

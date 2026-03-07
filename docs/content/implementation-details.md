@@ -215,6 +215,11 @@ Or use the script:
 
 ### Windows
 
+**Media Foundation Backend:**
+- Preferred on modern Windows systems
+- Uses Source Reader for frame delivery and format negotiation
+- Automatically falls back to DirectShow when Media Foundation is unavailable or device open fails
+
 **DirectShow Backend:**
 - Mature, stable API
 - Good driver compatibility

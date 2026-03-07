@@ -76,9 +76,11 @@ If needed, set:
 
 Camera capture backends:
 
-- Windows: DirectShow
+- Windows: Media Foundation with DirectShow fallback
 - macOS/iOS: AVFoundation
 - Linux: V4L2
+
+On Windows, you can force backend selection by setting `CCAP_WINDOWS_BACKEND=auto|msmf|dshow`, or by using the Rust APIs `Provider::with_device_name_and_extra_info`, `Provider::with_device_and_extra_info`, `Provider::open_device_with_extra_info`, and `Provider::open_with_index_and_extra_info`.
 
 Video file playback support depends on the underlying C/C++ backend (currently Windows/macOS only).
 

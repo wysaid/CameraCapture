@@ -62,18 +62,22 @@ public:
     ///        You can use the `open` method to open a camera device later.
     Provider();
 
-    /**
-     * @brief Construct a new Provider object, and open the camera device.
-     * @param deviceName The name of the device to open. @see #open
-     * @param extraInfo Currently unused.
-     */
+     /**
+      * @brief Construct a new Provider object, and open the camera device.
+      * @param deviceName The name of the device to open. @see #open
+      * @param extraInfo Optional backend hint.
+      *        On Windows, accepted values include `auto`, `msmf`, `dshow`, and `backend=<value>`.
+      *        Other platforms ignore this parameter.
+      */
     explicit Provider(std::string_view deviceName, std::string_view extraInfo = "");
 
-    /**
-     * @brief Construct a new Provider object, and open the camera device.
-     * @param deviceIndex The index of the device to open. @see #open
-     * @param extraInfo Currently unused.
-     */
+     /**
+      * @brief Construct a new Provider object, and open the camera device.
+      * @param deviceIndex The index of the device to open. @see #open
+      * @param extraInfo Optional backend hint.
+      *        On Windows, accepted values include `auto`, `msmf`, `dshow`, and `backend=<value>`.
+      *        Other platforms ignore this parameter.
+      */
     explicit Provider(int deviceIndex, std::string_view extraInfo = "");
 
     /**
@@ -230,6 +234,28 @@ public:
     ~Provider();
 
 private:
+    void applyCachedState(ProviderImp* imp) const;
+    bool tryOpenWithImplementation(ProviderImp* imp, std::string_view deviceName, bool autoStart) const;
+
+private:
+    std::string m_extraInfo;
+    std::function<bool(const std::shared_ptr<VideoFrame>&)> m_frameCallback;
+    std::function<std::shared_ptr<Allocator>()> m_allocatorFactory;
+    uint32_t m_maxAvailableFrameSize = DEFAULT_MAX_AVAILABLE_FRAME_SIZE;
+    uint32_t m_maxCacheFrameSize = DEFAULT_MAX_CACHE_FRAME_SIZE;
+    int m_requestedWidth = 640;
+    int m_requestedHeight = 480;
+    double m_requestedFrameRate = 0.0;
+    PixelFormat m_requestedInternalFormat = PixelFormat::Unknown;
+    PixelFormat m_requestedOutputFormat{
+#ifdef __APPLE__
+        PixelFormat::BGRA32
+#else
+        PixelFormat::BGR24
+#endif
+    };
+    bool m_hasFrameOrientationOverride = false;
+    FrameOrientation m_requestedFrameOrientation = FrameOrientation::Default;
     ProviderImp* m_imp;
 };
 

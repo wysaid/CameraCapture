@@ -71,6 +71,8 @@ cmake --build build
 
 **Windows (MSVC)**：CLI 工具使用静态运行时链接（`/MT` 标志）来消除对 VCRUNTIME DLL 的依赖，允许单文件分发而无需用户安装 Visual C++ 运行库。
 
+**Windows 后端覆盖**：如果你希望在排障或验证时强制使用 Media Foundation 或 DirectShow，可以在启动 CLI 前设置 `CCAP_WINDOWS_BACKEND=auto|msmf|dshow`。
+
 **Linux**：当可用时尝试静态链接 libstdc++ 和 libgcc。如果不可用（例如 Fedora 未安装 `libstdc++-static` 包），则回退到动态链接。二进制文件仍然依赖 glibc，可能无法在旧 glibc 版本的系统上运行。
 
 

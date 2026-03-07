@@ -178,6 +178,36 @@ if (WIN32)
                 /D_CRT_SECURE_NO_WARNINGS
         )
     endif ()
+
+    add_executable(
+            ccap_windows_backend_test
+            test_windows_backends.cpp
+    )
+
+    target_link_libraries(
+            ccap_windows_backend_test
+            PRIVATE
+            ccap_test_utils
+            gtest
+            gtest_main
+    )
+
+    set_target_properties(ccap_windows_backend_test PROPERTIES
+            CXX_STANDARD 17
+            CXX_STANDARD_REQUIRED ON
+    )
+
+    if (MSVC)
+        target_compile_options(ccap_windows_backend_test PRIVATE
+                /MP
+                /std:c++17
+                /Zc:__cplusplus
+                /source-charset:utf-8
+                /bigobj
+                /wd4996
+                /D_CRT_SECURE_NO_WARNINGS
+        )
+    endif ()
 endif ()
 
 # Performance test executable - should be compiled in Release mode
@@ -347,6 +377,7 @@ if (NOT CMAKE_CROSSCOMPILING)
     gtest_discover_tests(ccap_performance_test DISCOVERY_MODE PRE_TEST)
     if (WIN32)
         gtest_discover_tests(ccap_guid_test DISCOVERY_MODE PRE_TEST)
+        gtest_discover_tests(ccap_windows_backend_test DISCOVERY_MODE PRE_TEST)
     endif ()
     if (CCAP_BUILD_CLI)
         gtest_discover_tests(ccap_cli_test DISCOVERY_MODE PRE_TEST)
