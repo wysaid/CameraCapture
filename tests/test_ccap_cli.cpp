@@ -315,6 +315,22 @@ TEST_F(CCAPCLITest, VerboseOption) {
     EXPECT_THAT(result.output, ::testing::HasSubstr("usage:"));
 }
 
+#if defined(_WIN32) || defined(_WIN64)
+TEST_F(CCAPCLITest, HelpShowsWindowsBackendOptions) {
+    auto result = runCLI("--help");
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_THAT(result.output, ::testing::HasSubstr("--camera-backend"));
+    EXPECT_THAT(result.output, ::testing::HasSubstr("--msmf"));
+    EXPECT_THAT(result.output, ::testing::HasSubstr("--dshow"));
+}
+
+TEST_F(CCAPCLITest, WindowsBackendOverrideLogsSelection) {
+    auto result = runCLI("--list-devices --msmf");
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_THAT(result.output, ::testing::HasSubstr("Using Windows camera backend override from CLI: msmf"));
+}
+#endif
+
 TEST_F(CCAPCLITest, InvalidYUVConversion_MissingDimensions) {
     // Create a dummy YUV file
     fs::path yuvPath = testOutputDir / "test.yuv";

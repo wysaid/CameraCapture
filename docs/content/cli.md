@@ -71,7 +71,7 @@ The executable will be located in the `build/` directory (or `build/Debug`, `bui
 
 **Windows (MSVC)**: The CLI tool uses static runtime linking (`/MT` flag) to eliminate the dependency on VCRUNTIME DLL, allowing single-file distribution without requiring Visual C++ Redistributables.
 
-**Windows backend override**: set `CCAP_WINDOWS_BACKEND=auto|msmf|dshow` before launching the CLI if you want to force Media Foundation or DirectShow during troubleshooting or validation.
+**Windows backend override**: on Windows, the CLI also accepts `--camera-backend auto|msmf|dshow` and the `--auto`, `--msmf`, `--dshow` aliases. The CLI logs the selected backend override after the option is applied. You can still set `CCAP_WINDOWS_BACKEND=auto|msmf|dshow` before launching the CLI if you prefer a process-wide override.
 
 **Linux**: Attempts to statically link libstdc++ and libgcc when available. Falls back to dynamic linking if not available (e.g., Fedora without `libstdc++-static` package). The binary still depends on glibc and may not work on systems with older glibc versions.
 
@@ -87,6 +87,17 @@ The executable will be located in the `build/` directory (or `build/Debug`, `bui
 | `--verbose` | Enable verbose logging output |
 | `--timeout SECONDS` | Program timeout: auto-exit after N seconds |
 | `--timeout-exit-code CODE` | Exit code when timeout occurs (default: 0) |
+
+### Windows Camera Backend Options
+
+These options are available on Windows only.
+
+| Option | Description |
+|--------|-------------|
+| `--camera-backend auto\|msmf\|dshow` | Select the Windows camera backend explicitly |
+| `--auto` | Alias for `--camera-backend auto` |
+| `--msmf` | Alias for `--camera-backend msmf` |
+| `--dshow` | Alias for `--camera-backend dshow` |
 
 ### Device Enumeration
 
