@@ -33,7 +33,7 @@ A high-performance, lightweight cross-platform camera capture library with hardw
 
 - **High Performance**: Hardware-accelerated pixel format conversion with up to 10x speedup (AVX2, Apple Accelerate, NEON)
 - **Lightweight**: No third-party dependencies - uses only system frameworks
-- **Cross Platform**: Windows (DirectShow), macOS/iOS (AVFoundation), Linux (V4L2)
+- **Cross Platform**: Windows (Media Foundation with DirectShow fallback), macOS/iOS (AVFoundation), Linux (V4L2)
 - **Multiple Formats**: RGB, BGR, YUV (NV12/I420) with automatic conversion
 - **Dual Language APIs**: ✨ **Complete Pure C Interface** - Both modern C++ API and traditional C99 interface for various project integration and language bindings
 - **Video File Playback**: 🎬 Play video files (MP4, AVI, MOV, etc.) using the same API as camera capture - supports Windows and macOS
@@ -211,6 +211,18 @@ int main() {
 }
 ```
 
+### Windows Backend Selection
+
+On Windows, camera capture uses Media Foundation by default and falls back to DirectShow when needed. You can override that choice when debugging device issues or validating backend-specific behavior:
+
+- Pass `extraInfo` as `"auto"`, `"msmf"`, `"dshow"`, or `"backend=<value>"` in the C++/C constructors that accept it.
+- Set the environment variable `CCAP_WINDOWS_BACKEND=auto|msmf|dshow` to affect the whole process, including the CLI and Rust bindings.
+
+```cpp
+ccap::Provider msmfProvider("", "msmf");
+ccap::Provider dshowProvider("", "dshow");
+```
+
 ### Rust Bindings
 
 Rust bindings are available as a crate on crates.io:
@@ -276,7 +288,7 @@ For complete CLI documentation, see [CLI Tool Guide](./docs/content/cli.md).
 
 | Platform | Compiler | System Requirements |
 | -------- | -------- | ------------------- |
-| **Windows** | MSVC 2019+ (including 2026) / MinGW-w64 | DirectShow |
+| **Windows** | MSVC 2019+ (including 2026) / MinGW-w64 | Media Foundation (default) + DirectShow fallback |
 | **macOS** | Xcode 11+ | macOS 10.13+ |
 | **iOS** | Xcode 11+ | iOS 13.0+ |
 | **Linux** | GCC 7+ / Clang 6+ | V4L2 (Linux 2.6+) |

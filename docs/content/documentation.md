@@ -220,7 +220,9 @@ if (provider.open("/path/to/video.mp4", true)) {
 
 ### Windows
 
-Uses DirectShow for camera access. Requires MSVC 2019 or later.
+Uses Media Foundation for camera access on modern Windows systems, with automatic DirectShow fallback for legacy or incompatible devices. Requires MSVC 2019 or later.
+
+To force a specific camera backend on Windows, either pass `extraInfo` as `auto`, `msmf`, `dshow`, or `backend=<value>` to the constructors that accept it, or set `CCAP_WINDOWS_BACKEND=auto|msmf|dshow` for the current process.
 
 ```shell
 cl your_code.c /I"path\to\ccap\include" ^

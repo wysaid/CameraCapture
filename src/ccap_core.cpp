@@ -10,13 +10,20 @@
 
 #include "ccap_imp.h"
 
+#include <algorithm>
 #include <cassert>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 #include <mutex>
+
+#if defined(_WIN32) || defined(_MSC_VER)
+#include <windows.h>
+#endif
 
 #ifdef _MSC_VER
 #include <malloc.h>
@@ -33,12 +40,172 @@
 namespace ccap {
 ProviderImp* createProviderApple();
 ProviderImp* createProviderDirectShow();
+ProviderImp* createProviderMSMF();
 ProviderImp* createProviderV4L2();
 
 // Global error callback storage
 namespace {
 std::mutex g_errorCallbackMutex;
 ErrorCallback g_globalErrorCallback;
+
+#if defined(_WIN32) || defined(_MSC_VER)
+enum class WindowsBackendPreference {
+    Auto,
+    MSMF,
+    DirectShow,
+};
+
+std::string toLowerCopy(std::string_view input) {
+    std::string normalized;
+    normalized.reserve(input.size());
+    for (char ch : input) {
+        if (!std::isspace(static_cast<unsigned char>(ch))) {
+            normalized.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
+        }
+    }
+    return normalized;
+}
+
+std::optional<WindowsBackendPreference> parseWindowsBackendPreferenceValue(std::string_view value) {
+    std::string normalized = toLowerCopy(value);
+    if (normalized.empty()) {
+        return std::nullopt;
+    }
+
+    constexpr const char* kBackendPrefix = "backend=";
+    if (normalized.rfind(kBackendPrefix, 0) == 0) {
+        normalized.erase(0, std::strlen(kBackendPrefix));
+    }
+
+    if (normalized == "auto") {
+        return WindowsBackendPreference::Auto;
+    }
+    if (normalized == "msmf" || normalized == "mediafoundation") {
+        return WindowsBackendPreference::MSMF;
+    }
+    if (normalized == "dshow" || normalized == "directshow") {
+        return WindowsBackendPreference::DirectShow;
+    }
+    return std::nullopt;
+}
+
+WindowsBackendPreference resolveWindowsBackendPreference(std::string_view extraInfo) {
+    if (auto parsed = parseWindowsBackendPreferenceValue(extraInfo)) {
+        return *parsed;
+    }
+
+    std::string envValue;
+#if defined(_MSC_VER)
+    char* rawValue = nullptr;
+    size_t rawLength = 0;
+    if (_dupenv_s(&rawValue, &rawLength, "CCAP_WINDOWS_BACKEND") == 0 && rawValue != nullptr) {
+        envValue.assign(rawValue, rawLength == 0 ? 0 : rawLength - 1);
+        free(rawValue);
+    }
+#else
+    if (const char* rawValue = std::getenv("CCAP_WINDOWS_BACKEND"); rawValue != nullptr) {
+        envValue = rawValue;
+    }
+#endif
+
+    if (!envValue.empty()) {
+        if (auto parsed = parseWindowsBackendPreferenceValue(envValue)) {
+            return *parsed;
+        }
+    }
+
+    return WindowsBackendPreference::Auto;
+}
+
+bool probeLibraryExport(const wchar_t* libraryName, const char* exportName) {
+    HMODULE module = LoadLibraryW(libraryName);
+    if (module == nullptr) {
+        return false;
+    }
+
+    bool ok = GetProcAddress(module, exportName) != nullptr;
+    FreeLibrary(module);
+    return ok;
+}
+
+bool isMediaFoundationCameraBackendAvailable() {
+    static const bool s_available = []() {
+        return probeLibraryExport(L"mf.dll", "MFEnumDeviceSources") && probeLibraryExport(L"mfplat.dll", "MFStartup") &&
+            probeLibraryExport(L"mfreadwrite.dll", "MFCreateSourceReaderFromMediaSource");
+    }();
+    return s_available;
+}
+
+ProviderImp* createWindowsProvider(std::string_view extraInfo) {
+    WindowsBackendPreference preference = resolveWindowsBackendPreference(extraInfo);
+
+    if (preference == WindowsBackendPreference::DirectShow) {
+        return createProviderDirectShow();
+    }
+
+    if (preference == WindowsBackendPreference::MSMF && isMediaFoundationCameraBackendAvailable()) {
+        return createProviderMSMF();
+    }
+
+    if (preference == WindowsBackendPreference::Auto && isMediaFoundationCameraBackendAvailable()) {
+        return createProviderMSMF();
+    }
+
+    return createProviderDirectShow();
+}
+
+ProviderImp* createWindowsProvider(WindowsBackendPreference preference) {
+    switch (preference) {
+    case WindowsBackendPreference::MSMF:
+        return isMediaFoundationCameraBackendAvailable() ? createProviderMSMF() : nullptr;
+    case WindowsBackendPreference::DirectShow:
+        return createProviderDirectShow();
+    case WindowsBackendPreference::Auto:
+        return isMediaFoundationCameraBackendAvailable() ? createProviderMSMF() : createProviderDirectShow();
+    }
+
+    return createProviderDirectShow();
+}
+
+int virtualCameraRank(std::string_view name) {
+    std::string normalized = toLowerCopy(name);
+    constexpr std::string_view keywords[] = {
+        "obs",
+        "virtual",
+        "fake",
+    };
+
+    for (size_t index = 0; index < std::size(keywords); ++index) {
+        if (normalized.find(keywords[index]) != std::string::npos) {
+            return static_cast<int>(index);
+        }
+    }
+
+    return -1;
+}
+
+void sortDeviceNamesForDisplay(std::vector<std::string>& deviceNames) {
+    std::stable_sort(deviceNames.begin(), deviceNames.end(), [](const std::string& lhs, const std::string& rhs) {
+        return virtualCameraRank(lhs) < virtualCameraRank(rhs);
+    });
+}
+
+std::vector<std::string> mergeDeviceNames(std::vector<std::string> preferred, const std::vector<std::string>& fallback) {
+    for (const std::string& name : fallback) {
+        if (std::find(preferred.begin(), preferred.end(), name) == preferred.end()) {
+            preferred.push_back(name);
+        }
+    }
+
+    sortDeviceNamesForDisplay(preferred);
+    return preferred;
+}
+
+std::vector<std::string> collectDeviceNamesFromBackend(WindowsBackendPreference preference) {
+    std::unique_ptr<ProviderImp> provider(createWindowsProvider(preference));
+    return provider ? provider->findDeviceNames() : std::vector<std::string>();
+}
+#endif
 } // namespace
 
 CCAP_EXPORT void setErrorCallback(ErrorCallback callback) {
@@ -112,7 +279,7 @@ ProviderImp* createProvider(std::string_view extraInfo) {
 #if __APPLE__
     return createProviderApple();
 #elif defined(_MSC_VER) || defined(_WIN32)
-    return createProviderDirectShow();
+    return createWindowsProvider(extraInfo);
 #elif defined(__linux__) || defined(__linux) || defined(linux) || defined(__gnu_linux__)
     return createProviderV4L2();
 #else
@@ -128,6 +295,8 @@ Provider::Provider() :
     m_imp(createProvider("")) {
     if (!m_imp) {
         reportError(ErrorCode::InitializationFailed, ErrorMessages::FAILED_TO_CREATE_PROVIDER);
+    } else {
+        applyCachedState(m_imp);
     }
 }
 
@@ -137,8 +306,10 @@ Provider::~Provider() {
 }
 
 Provider::Provider(std::string_view deviceName, std::string_view extraInfo) :
+    m_extraInfo(extraInfo),
     m_imp(createProvider(extraInfo)) {
     if (m_imp) {
+        applyCachedState(m_imp);
         open(deviceName);
     } else {
         reportError(ErrorCode::InitializationFailed, ErrorMessages::FAILED_TO_CREATE_PROVIDER);
@@ -146,22 +317,128 @@ Provider::Provider(std::string_view deviceName, std::string_view extraInfo) :
 }
 
 Provider::Provider(int deviceIndex, std::string_view extraInfo) :
+    m_extraInfo(extraInfo),
     m_imp(createProvider(extraInfo)) {
     if (m_imp) {
+        applyCachedState(m_imp);
         open(deviceIndex);
     } else {
         reportError(ErrorCode::InitializationFailed, ErrorMessages::FAILED_TO_CREATE_PROVIDER);
     }
 }
 
-std::vector<std::string> Provider::findDeviceNames() { return m_imp ? m_imp->findDeviceNames() : std::vector<std::string>(); }
+void Provider::applyCachedState(ProviderImp* imp) const {
+    if (!imp) {
+        return;
+    }
+
+    imp->setMaxAvailableFrameSize(m_maxAvailableFrameSize);
+    imp->setMaxCacheFrameSize(m_maxCacheFrameSize);
+    imp->setNewFrameCallback(m_frameCallback);
+    imp->setFrameAllocator(m_allocatorFactory);
+    imp->set(PropertyName::Width, m_requestedWidth);
+    imp->set(PropertyName::Height, m_requestedHeight);
+    imp->set(PropertyName::FrameRate, m_requestedFrameRate);
+    imp->set(PropertyName::PixelFormatInternal, static_cast<double>(m_requestedInternalFormat));
+    imp->set(PropertyName::PixelFormatOutput, static_cast<double>(m_requestedOutputFormat));
+    if (m_hasFrameOrientationOverride) {
+        imp->set(PropertyName::FrameOrientation, static_cast<double>(m_requestedFrameOrientation));
+    }
+}
+
+bool Provider::tryOpenWithImplementation(ProviderImp* imp, std::string_view deviceName, bool autoStart) const {
+    if (!imp) {
+        return false;
+    }
+
+    applyCachedState(imp);
+    if (!imp->open(deviceName)) {
+        imp->close();
+        return false;
+    }
+
+    if (autoStart && !imp->start()) {
+        imp->close();
+        return false;
+    }
+
+    return true;
+}
+
+std::vector<std::string> Provider::findDeviceNames() {
+    if (!m_imp) {
+        return std::vector<std::string>();
+    }
+
+#if defined(_MSC_VER) || defined(_WIN32)
+    if (m_imp->isOpened()) {
+        return m_imp->findDeviceNames();
+    }
+
+    WindowsBackendPreference preference = resolveWindowsBackendPreference(m_extraInfo);
+    if (preference == WindowsBackendPreference::DirectShow) {
+        return collectDeviceNamesFromBackend(WindowsBackendPreference::DirectShow);
+    }
+
+    if (preference == WindowsBackendPreference::MSMF) {
+        return collectDeviceNamesFromBackend(WindowsBackendPreference::MSMF);
+    }
+
+    std::vector<std::string> preferred = collectDeviceNamesFromBackend(WindowsBackendPreference::MSMF);
+    std::vector<std::string> fallback = collectDeviceNamesFromBackend(WindowsBackendPreference::DirectShow);
+    return mergeDeviceNames(std::move(preferred), fallback);
+#else
+    return m_imp->findDeviceNames();
+#endif
+}
 
 bool Provider::open(std::string_view deviceName, bool autoStart) {
     if (!m_imp) {
         reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
         return false;
     }
+
+#if defined(_MSC_VER) || defined(_WIN32)
+    if (m_imp->isOpened()) {
+        return m_imp->open(deviceName) && (!autoStart || m_imp->start());
+    }
+
+    auto tryBackend = [&](WindowsBackendPreference preference) {
+        std::unique_ptr<ProviderImp> candidate(createWindowsProvider(preference));
+        if (!candidate || !tryOpenWithImplementation(candidate.get(), deviceName, autoStart)) {
+            return false;
+        }
+
+        delete m_imp;
+        m_imp = candidate.release();
+        return true;
+    };
+
+    if (looksLikeFilePath(deviceName)) {
+        return tryBackend(WindowsBackendPreference::DirectShow);
+    }
+
+    WindowsBackendPreference preference = resolveWindowsBackendPreference(m_extraInfo);
+    if (preference == WindowsBackendPreference::DirectShow) {
+        return tryBackend(WindowsBackendPreference::DirectShow);
+    }
+
+    if (preference == WindowsBackendPreference::MSMF) {
+        if (!isMediaFoundationCameraBackendAvailable()) {
+            reportError(ErrorCode::InitializationFailed, "Media Foundation camera backend is unavailable on this system");
+            return false;
+        }
+        return tryBackend(WindowsBackendPreference::MSMF);
+    }
+
+    if (isMediaFoundationCameraBackendAvailable() && tryBackend(WindowsBackendPreference::MSMF)) {
+        return true;
+    }
+
+    return tryBackend(WindowsBackendPreference::DirectShow);
+#else
     return m_imp->open(deviceName) && (!autoStart || m_imp->start());
+#endif
 }
 
 bool Provider::open(int deviceIndex, bool autoStart) {
@@ -181,7 +458,7 @@ bool Provider::open(int deviceIndex, bool autoStart) {
         }
     }
 
-    return open(deviceName) && (!autoStart || m_imp->start());
+    return open(deviceName, autoStart);
 }
 
 bool Provider::isOpened() const { return m_imp && m_imp->isOpened(); }
@@ -215,7 +492,47 @@ bool Provider::set(PropertyName prop, double value) {
         reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
         return false;
     }
-    return m_imp->set(prop, value);
+
+    bool result = m_imp->set(prop, value);
+    if (!result) {
+        return false;
+    }
+
+    switch (prop) {
+    case PropertyName::Width:
+        m_requestedWidth = static_cast<int>(value);
+        break;
+    case PropertyName::Height:
+        m_requestedHeight = static_cast<int>(value);
+        break;
+    case PropertyName::FrameRate:
+        m_requestedFrameRate = value;
+        break;
+    case PropertyName::PixelFormatInternal: {
+        auto intValue = static_cast<int>(value);
+#if defined(_MSC_VER) || defined(_WIN32)
+        intValue &= ~kPixelFormatFullRangeBit;
+#endif
+        m_requestedInternalFormat = static_cast<PixelFormat>(intValue);
+        break;
+    }
+    case PropertyName::PixelFormatOutput: {
+        uint32_t formatValue = static_cast<uint32_t>(value);
+#if defined(_MSC_VER) || defined(_WIN32)
+        formatValue &= ~static_cast<uint32_t>(kPixelFormatFullRangeBit);
+#endif
+        m_requestedOutputFormat = static_cast<PixelFormat>(formatValue);
+        break;
+    }
+    case PropertyName::FrameOrientation:
+        m_requestedFrameOrientation = static_cast<FrameOrientation>(static_cast<int>(value));
+        m_hasFrameOrientationOverride = true;
+        break;
+    default:
+        break;
+    }
+
+    return true;
 }
 
 double Provider::get(PropertyName prop) { return m_imp ? m_imp->get(prop) : NAN; }
@@ -233,6 +550,7 @@ void Provider::setNewFrameCallback(std::function<bool(const std::shared_ptr<Vide
         reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
         return;
     }
+    m_frameCallback = callback;
     m_imp->setNewFrameCallback(std::move(callback));
 }
 
@@ -241,6 +559,7 @@ void Provider::setFrameAllocator(std::function<std::shared_ptr<Allocator>()> all
         reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
         return;
     }
+    m_allocatorFactory = allocatorFactory;
     m_imp->setFrameAllocator(std::move(allocatorFactory));
 }
 
@@ -249,6 +568,7 @@ void Provider::setMaxAvailableFrameSize(uint32_t size) {
         reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
         return;
     }
+    m_maxAvailableFrameSize = size;
     m_imp->setMaxAvailableFrameSize(size);
 }
 
@@ -257,6 +577,7 @@ void Provider::setMaxCacheFrameSize(uint32_t size) {
         reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
         return;
     }
+    m_maxCacheFrameSize = size;
     m_imp->setMaxCacheFrameSize(size);
 }
 

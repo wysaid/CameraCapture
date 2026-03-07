@@ -33,7 +33,7 @@
 
 - **高性能**：硬件加速的像素格式转换，提升高达 10 倍性能（AVX2、Apple Accelerate、NEON）
 - **轻量级**：无第三方库依赖，仅使用系统框架
-- **跨平台**：Windows（DirectShow）、macOS/iOS（AVFoundation）、Linux（V4L2）
+- **跨平台**：Windows（Media Foundation，自动回退到 DirectShow）、macOS/iOS（AVFoundation）、Linux（V4L2）
 - **多种格式**：RGB、BGR、YUV（NV12/I420）及自动转换
 - **双语言接口**：✨ **新增完整纯 C 接口**，同时提供现代化 C++ API 和传统 C99 接口，支持各种项目集成和语言绑定
 - **视频文件播放**：🎬 使用与相机相同的 API 播放视频文件（MP4、AVI、MOV 等）- 支持 Windows 和 macOS
@@ -174,6 +174,18 @@ int main() {
 }
 ```
 
+### Windows 后端选择
+
+Windows 上默认优先使用 Media Foundation，并在需要时自动回退到 DirectShow。如果你要排查设备兼容性问题，或验证某个后端的行为，可以显式指定后端：
+
+- 在支持 `extraInfo` 的 C++ / C 构造接口中传入 `"auto"`、`"msmf"`、`"dshow"` 或 `"backend=<value>"`。
+- 设置环境变量 `CCAP_WINDOWS_BACKEND=auto|msmf|dshow`，对整个进程生效，包括 CLI 和 Rust 绑定。
+
+```cpp
+ccap::Provider msmfProvider("", "msmf");
+ccap::Provider dshowProvider("", "dshow");
+```
+
 ### Rust 绑定
 
 本项目提供 Rust bindings（已发布到 crates.io）：
@@ -237,7 +249,7 @@ cmake --build .
 
 | 平台 | 编译器 | 系统要求 |
 |------|--------|----------|
-| **Windows** | MSVC 2019+（包括 2026）/ MinGW-w64 | DirectShow |
+| **Windows** | MSVC 2019+（包括 2026）/ MinGW-w64 | Media Foundation（默认）+ DirectShow 回退 |
 | **macOS** | Xcode 11+ | macOS 10.13+ |
 | **iOS** | Xcode 11+ | iOS 13.0+ |
 | **Linux** | GCC 7+ / Clang 6+ | V4L2 (Linux 2.6+) - 相机捕获支持，视频播放暂不支持 |

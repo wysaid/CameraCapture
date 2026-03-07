@@ -19,6 +19,16 @@ unsafe impl Sync for SendSyncPtr {}
 // Global error callback storage - must be at module level to be shared between functions
 static GLOBAL_ERROR_CALLBACK: Mutex<Option<SendSyncPtr>> = Mutex::new(None);
 
+fn optional_c_string(value: Option<&str>, parameter_name: &str) -> Result<Option<CString>> {
+    value
+        .map(|text| {
+            CString::new(text).map_err(|_| {
+                CcapError::InvalidParameter(format!("{} contains null byte", parameter_name))
+            })
+        })
+        .transpose()
+}
+
 /// Type alias for the global error callback
 ///
 /// # Thread Safety
@@ -79,7 +89,24 @@ impl Provider {
 
     /// Create a provider with a specific device index
     pub fn with_device(device_index: i32) -> Result<Self> {
-        let handle = unsafe { sys::ccap_provider_create_with_index(device_index, ptr::null()) };
+        Self::with_device_and_extra_info(device_index, None)
+    }
+
+    /// Create a provider with a specific device index and optional extra info.
+    ///
+    /// On Windows, `extra_info` can be used to force backend selection with values like
+    /// `"auto"`, `"msmf"`, `"dshow"`, or `"backend=<value>"`.
+    pub fn with_device_and_extra_info(
+        device_index: i32,
+        extra_info: Option<&str>,
+    ) -> Result<Self> {
+        let extra_info = optional_c_string(extra_info, "extra info")?;
+        let handle = unsafe {
+            sys::ccap_provider_create_with_index(
+                device_index,
+                extra_info.as_ref().map_or(ptr::null(), |value| value.as_ptr()),
+            )
+        };
         if handle.is_null() {
             return Err(CcapError::InvalidDevice(format!(
                 "device index {}",
@@ -98,11 +125,28 @@ impl Provider {
 
     /// Create a provider with a specific device name
     pub fn with_device_name<S: AsRef<str>>(device_name: S) -> Result<Self> {
+        Self::with_device_name_and_extra_info(device_name, None)
+    }
+
+    /// Create a provider with a specific device name and optional extra info.
+    ///
+    /// On Windows, `extra_info` can be used to force backend selection with values like
+    /// `"auto"`, `"msmf"`, `"dshow"`, or `"backend=<value>"`.
+    pub fn with_device_name_and_extra_info<S: AsRef<str>>(
+        device_name: S,
+        extra_info: Option<&str>,
+    ) -> Result<Self> {
         let c_name = CString::new(device_name.as_ref()).map_err(|_| {
             CcapError::InvalidParameter("device name contains null byte".to_string())
         })?;
+        let extra_info = optional_c_string(extra_info, "extra info")?;
 
-        let handle = unsafe { sys::ccap_provider_create_with_device(c_name.as_ptr(), ptr::null()) };
+        let handle = unsafe {
+            sys::ccap_provider_create_with_device(
+                c_name.as_ptr(),
+                extra_info.as_ref().map_or(ptr::null(), |value| value.as_ptr()),
+            )
+        };
         if handle.is_null() {
             return Err(CcapError::InvalidDevice(device_name.as_ref().to_string()));
         }
@@ -213,6 +257,19 @@ impl Provider {
 
     /// Open device with optional device name and auto start
     pub fn open_device(&mut self, device_name: Option<&str>, auto_start: bool) -> Result<()> {
+        self.open_device_with_extra_info(device_name, None, auto_start)
+    }
+
+    /// Open a device with optional device name, optional extra info, and optional auto start.
+    ///
+    /// On Windows, `extra_info` can be used to force backend selection with values like
+    /// `"auto"`, `"msmf"`, `"dshow"`, or `"backend=<value>"`.
+    pub fn open_device_with_extra_info(
+        &mut self,
+        device_name: Option<&str>,
+        extra_info: Option<&str>,
+        auto_start: bool,
+    ) -> Result<()> {
         if let Some(name) = device_name {
             // Recreate provider with specific device
             if !self.handle.is_null() {
@@ -228,12 +285,19 @@ impl Provider {
             let c_name = CString::new(name).map_err(|_| {
                 CcapError::InvalidParameter("device name contains null byte".to_string())
             })?;
-            self.handle =
-                unsafe { sys::ccap_provider_create_with_device(c_name.as_ptr(), ptr::null()) };
+            let extra_info = optional_c_string(extra_info, "extra info")?;
+            self.handle = unsafe {
+                sys::ccap_provider_create_with_device(
+                    c_name.as_ptr(),
+                    extra_info.as_ref().map_or(ptr::null(), |value| value.as_ptr()),
+                )
+            };
             if self.handle.is_null() {
                 return Err(CcapError::InvalidDevice(name.to_string()));
             }
             self.is_opened = true;
+        } else if extra_info.is_some() {
+            return self.open_with_index_and_extra_info(-1, extra_info, auto_start);
         } else {
             self.open()?;
         }
@@ -504,6 +568,19 @@ impl Provider {
 
     /// Open device with index and auto start
     pub fn open_with_index(&mut self, device_index: i32, auto_start: bool) -> Result<()> {
+        self.open_with_index_and_extra_info(device_index, None, auto_start)
+    }
+
+    /// Open device with index, optional extra info, and optional auto start.
+    ///
+    /// On Windows, `extra_info` can be used to force backend selection with values like
+    /// `"auto"`, `"msmf"`, `"dshow"`, or `"backend=<value>"`.
+    pub fn open_with_index_and_extra_info(
+        &mut self,
+        device_index: i32,
+        extra_info: Option<&str>,
+        auto_start: bool,
+    ) -> Result<()> {
         // If the previous provider was running, stop it and detach callbacks
         // before destroying the underlying handle.
         if !self.handle.is_null() {
@@ -518,8 +595,15 @@ impl Provider {
             self.cleanup_callback();
         }
 
+        let extra_info = optional_c_string(extra_info, "extra info")?;
+
         // Create a new provider with the specified device index
-        self.handle = unsafe { sys::ccap_provider_create_with_index(device_index, ptr::null()) };
+        self.handle = unsafe {
+            sys::ccap_provider_create_with_index(
+                device_index,
+                extra_info.as_ref().map_or(ptr::null(), |value| value.as_ptr()),
+            )
+        };
 
         if self.handle.is_null() {
             return Err(CcapError::InvalidDevice(format!(
