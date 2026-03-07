@@ -8,10 +8,6 @@ description: Create or update a GitHub Pull Request — use ONLY when explicitly
 **Only** when the user explicitly asks to create, submit, or open a Pull Request.
 Do NOT invoke this skill for plain commit or push requests.
 
-## Constraints
-
-- Prepend `GH_PAGER=` to every `gh` command (bash/zsh), or set `$env:GH_PAGER=""` in PowerShell — never modify global config
-
 ## Procedure
 
 1. **Verify & clean** — ensure changes are complete, correct, and free of debug artifacts

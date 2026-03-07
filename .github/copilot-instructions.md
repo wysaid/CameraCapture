@@ -16,6 +16,9 @@
 - `.md` files in `docs/` must be English and require review before publishing
 - Treat `dev-docs/` as `/tmp`
 
+## Tool Constraints
+- **`gh` CLI:** Always prepend `$env:GH_PAGER=""` in PowerShell (e.g. `$env:GH_PAGER=""; gh pr list`), or `GH_PAGER=` in bash/zsh — never omit this or the command will hang; never modify global git/gh config
+
 ## Skills
 
 - **Submit PR:** Follow `.github/skills/pr-submit/SKILL.md` to create or update pull requests

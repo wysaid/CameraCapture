@@ -5,7 +5,6 @@ description: Address review comments and CI failures for the current branch's PR
 
 ## Constraints
 
-- Prepend `GH_PAGER=` to every `gh` command (bash/zsh), or set `$env:GH_PAGER=""` in PowerShell — never modify global config
 - Key commands: `gh pr list --head <BRANCH>` · `gh pr view <PR> --comments` · `gh pr checks <PR>` · `gh run view <RUN_ID> --log-failed`
 - Workflow fixes **cannot be verified locally** — the fix is only confirmed once the remote CI re-runs and passes
 
