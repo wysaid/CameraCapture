@@ -196,6 +196,7 @@ Please vendor the sources into bindings/rust/native/, or set CCAP_SOURCE_DIR to 
         {
             build
                 .file(ccap_root.join("src/ccap_imp_windows.cpp"))
+                .file(ccap_root.join("src/ccap_imp_windows_msmf.cpp"))
                 .file(ccap_root.join("src/ccap_file_reader_windows.cpp"));
         }
 
@@ -368,10 +369,11 @@ Please vendor the sources into bindings/rust/native/, or set CCAP_SOURCE_DIR to 
 
     #[cfg(target_os = "windows")]
     {
+        println!("cargo:rustc-link-lib=mf");
         println!("cargo:rustc-link-lib=strmiids");
         println!("cargo:rustc-link-lib=ole32");
         println!("cargo:rustc-link-lib=oleaut32");
-        // Media Foundation libraries for video file playback
+        // Media Foundation libraries for the MSMF camera backend and video file playback
         println!("cargo:rustc-link-lib=mfplat");
         println!("cargo:rustc-link-lib=mfreadwrite");
         println!("cargo:rustc-link-lib=mfuuid");

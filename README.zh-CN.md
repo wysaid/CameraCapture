@@ -182,8 +182,17 @@ Windows 上默认优先使用 Media Foundation，并在需要时自动回退到 
 - 设置环境变量 `CCAP_WINDOWS_BACKEND=auto|msmf|dshow`，对整个进程生效，包括 CLI 和 Rust 绑定。
 
 ```cpp
-ccap::Provider msmfProvider("", "msmf");
-ccap::Provider dshowProvider("", "dshow");
+// 下面两段是互斥示例；同一时刻不要对同一设备同时创建两个 Provider。
+
+// Force MSMF
+{
+    ccap::Provider provider("", "msmf");
+}
+
+// Force DirectShow
+{
+    ccap::Provider provider("", "dshow");
+}
 ```
 
 ### Rust 绑定

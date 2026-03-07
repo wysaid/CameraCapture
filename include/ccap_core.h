@@ -229,8 +229,8 @@ public:
 
 
     // ↓ This part is not relevant to the user ↓
-    Provider(Provider&&) = default;
-    Provider& operator=(Provider&&) = default;
+    Provider(Provider&&) noexcept;
+    Provider& operator=(Provider&&) noexcept;
     ~Provider();
 
 private:
@@ -238,25 +238,7 @@ private:
     bool tryOpenWithImplementation(ProviderImp* imp, std::string_view deviceName, bool autoStart) const;
 
 private:
-    std::string m_extraInfo;
-    std::function<bool(const std::shared_ptr<VideoFrame>&)> m_frameCallback;
-    std::function<std::shared_ptr<Allocator>()> m_allocatorFactory;
-    uint32_t m_maxAvailableFrameSize = DEFAULT_MAX_AVAILABLE_FRAME_SIZE;
-    uint32_t m_maxCacheFrameSize = DEFAULT_MAX_CACHE_FRAME_SIZE;
-    int m_requestedWidth = 640;
-    int m_requestedHeight = 480;
-    double m_requestedFrameRate = 0.0;
-    PixelFormat m_requestedInternalFormat = PixelFormat::Unknown;
-    PixelFormat m_requestedOutputFormat{
-#ifdef __APPLE__
-        PixelFormat::BGRA32
-#else
-        PixelFormat::BGR24
-#endif
-    };
-    bool m_hasFrameOrientationOverride = false;
-    FrameOrientation m_requestedFrameOrientation = FrameOrientation::Default;
-    ProviderImp* m_imp;
+    ProviderImp* m_imp = nullptr;
 };
 
 /**

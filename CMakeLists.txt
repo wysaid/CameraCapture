@@ -253,11 +253,19 @@ elseif (WIN32)
 
     # MSVC: Delay load Media Foundation DLLs to preserve legacy DirectShow-only startup paths.
     if (MSVC)
-        target_link_options(ccap PRIVATE
-            /DELAYLOAD:mf.dll
-            /DELAYLOAD:mfplat.dll
-            /DELAYLOAD:mfreadwrite.dll
-        )
+        if (CCAP_BUILD_SHARED)
+            target_link_options(ccap PRIVATE
+                /DELAYLOAD:mf.dll
+                /DELAYLOAD:mfplat.dll
+                /DELAYLOAD:mfreadwrite.dll
+            )
+        else ()
+            target_link_options(ccap INTERFACE
+                /DELAYLOAD:mf.dll
+                /DELAYLOAD:mfplat.dll
+                /DELAYLOAD:mfreadwrite.dll
+            )
+        endif ()
         target_link_libraries(ccap PUBLIC delayimp.lib)
     endif ()
 else ()

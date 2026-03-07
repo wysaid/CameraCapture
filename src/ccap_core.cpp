@@ -20,6 +20,7 @@
 #include <cstring>
 #include <memory>
 #include <mutex>
+#include <unordered_map>
 
 #if defined(_WIN32) || defined(_MSC_VER)
 #include <windows.h>
@@ -47,6 +48,92 @@ ProviderImp* createProviderV4L2();
 namespace {
 std::mutex g_errorCallbackMutex;
 ErrorCallback g_globalErrorCallback;
+std::mutex g_providerStateMutex;
+
+struct ProviderCachedState {
+    std::string extraInfo;
+    std::function<bool(const std::shared_ptr<VideoFrame>&)> frameCallback;
+    std::function<std::shared_ptr<Allocator>()> allocatorFactory;
+    uint32_t maxAvailableFrameSize = DEFAULT_MAX_AVAILABLE_FRAME_SIZE;
+    uint32_t maxCacheFrameSize = DEFAULT_MAX_CACHE_FRAME_SIZE;
+    int requestedWidth = 640;
+    int requestedHeight = 480;
+    double requestedFrameRate = 0.0;
+    PixelFormat requestedInternalFormat = PixelFormat::Unknown;
+    PixelFormat requestedOutputFormat{
+#ifdef __APPLE__
+        PixelFormat::BGRA32
+#else
+        PixelFormat::BGR24
+#endif
+    };
+    bool hasFrameOrientationOverride = false;
+    FrameOrientation requestedFrameOrientation = FrameOrientation::Default;
+};
+
+std::unordered_map<ProviderImp*, ProviderCachedState> g_providerStates;
+
+ProviderCachedState makeProviderCachedState(std::string_view extraInfo = {}) {
+    ProviderCachedState state;
+    state.extraInfo = std::string(extraInfo);
+    return state;
+}
+
+ProviderCachedState copyProviderState(ProviderImp* imp) {
+    if (imp == nullptr) {
+        return makeProviderCachedState();
+    }
+
+    std::lock_guard<std::mutex> lock(g_providerStateMutex);
+    auto iterator = g_providerStates.find(imp);
+    return iterator != g_providerStates.end() ? iterator->second : makeProviderCachedState();
+}
+
+void storeProviderState(ProviderImp* imp, ProviderCachedState state) {
+    if (imp == nullptr) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(g_providerStateMutex);
+    g_providerStates[imp] = std::move(state);
+}
+
+template <typename Fn>
+void updateProviderState(ProviderImp* imp, Fn&& updater) {
+    if (imp == nullptr) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(g_providerStateMutex);
+    auto [iterator, inserted] = g_providerStates.emplace(imp, makeProviderCachedState());
+    (void)inserted;
+    updater(iterator->second);
+}
+
+void eraseProviderState(ProviderImp* imp) {
+    if (imp == nullptr) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(g_providerStateMutex);
+    g_providerStates.erase(imp);
+}
+
+void transferProviderState(ProviderImp* from, ProviderImp* to) {
+    if (to == nullptr) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(g_providerStateMutex);
+    auto node = g_providerStates.extract(from);
+    if (node.empty()) {
+        g_providerStates.emplace(to, makeProviderCachedState());
+        return;
+    }
+
+    node.key() = to;
+    g_providerStates.insert(std::move(node));
+}
 
 #if defined(_WIN32) || defined(_MSC_VER)
 enum class WindowsBackendPreference {
@@ -296,19 +383,39 @@ Provider::Provider() :
     if (!m_imp) {
         reportError(ErrorCode::InitializationFailed, ErrorMessages::FAILED_TO_CREATE_PROVIDER);
     } else {
+        storeProviderState(m_imp, makeProviderCachedState());
         applyCachedState(m_imp);
     }
 }
 
+Provider::Provider(Provider&& other) noexcept :
+    m_imp(other.m_imp) {
+    other.m_imp = nullptr;
+}
+
+Provider& Provider::operator=(Provider&& other) noexcept {
+    if (this == &other) {
+        return *this;
+    }
+
+    eraseProviderState(m_imp);
+    delete m_imp;
+
+    m_imp = other.m_imp;
+    other.m_imp = nullptr;
+    return *this;
+}
+
 Provider::~Provider() {
     CCAP_LOG_V("ccap: Provider::~Provider() called, this=%p, imp=%p\n", this, m_imp);
+    eraseProviderState(m_imp);
     delete m_imp;
 }
 
 Provider::Provider(std::string_view deviceName, std::string_view extraInfo) :
-    m_extraInfo(extraInfo),
     m_imp(createProvider(extraInfo)) {
     if (m_imp) {
+        storeProviderState(m_imp, makeProviderCachedState(extraInfo));
         applyCachedState(m_imp);
         open(deviceName);
     } else {
@@ -317,9 +424,9 @@ Provider::Provider(std::string_view deviceName, std::string_view extraInfo) :
 }
 
 Provider::Provider(int deviceIndex, std::string_view extraInfo) :
-    m_extraInfo(extraInfo),
     m_imp(createProvider(extraInfo)) {
     if (m_imp) {
+        storeProviderState(m_imp, makeProviderCachedState(extraInfo));
         applyCachedState(m_imp);
         open(deviceIndex);
     } else {
@@ -332,17 +439,19 @@ void Provider::applyCachedState(ProviderImp* imp) const {
         return;
     }
 
-    imp->setMaxAvailableFrameSize(m_maxAvailableFrameSize);
-    imp->setMaxCacheFrameSize(m_maxCacheFrameSize);
-    imp->setNewFrameCallback(m_frameCallback);
-    imp->setFrameAllocator(m_allocatorFactory);
-    imp->set(PropertyName::Width, m_requestedWidth);
-    imp->set(PropertyName::Height, m_requestedHeight);
-    imp->set(PropertyName::FrameRate, m_requestedFrameRate);
-    imp->set(PropertyName::PixelFormatInternal, static_cast<double>(m_requestedInternalFormat));
-    imp->set(PropertyName::PixelFormatOutput, static_cast<double>(m_requestedOutputFormat));
-    if (m_hasFrameOrientationOverride) {
-        imp->set(PropertyName::FrameOrientation, static_cast<double>(m_requestedFrameOrientation));
+    ProviderCachedState state = copyProviderState(m_imp);
+
+    imp->setMaxAvailableFrameSize(state.maxAvailableFrameSize);
+    imp->setMaxCacheFrameSize(state.maxCacheFrameSize);
+    imp->setNewFrameCallback(state.frameCallback);
+    imp->setFrameAllocator(state.allocatorFactory);
+    imp->set(PropertyName::Width, state.requestedWidth);
+    imp->set(PropertyName::Height, state.requestedHeight);
+    imp->set(PropertyName::FrameRate, state.requestedFrameRate);
+    imp->set(PropertyName::PixelFormatInternal, static_cast<double>(state.requestedInternalFormat));
+    imp->set(PropertyName::PixelFormatOutput, static_cast<double>(state.requestedOutputFormat));
+    if (state.hasFrameOrientationOverride) {
+        imp->set(PropertyName::FrameOrientation, static_cast<double>(state.requestedFrameOrientation));
     }
 }
 
@@ -375,7 +484,7 @@ std::vector<std::string> Provider::findDeviceNames() {
         return m_imp->findDeviceNames();
     }
 
-    WindowsBackendPreference preference = resolveWindowsBackendPreference(m_extraInfo);
+    WindowsBackendPreference preference = resolveWindowsBackendPreference(copyProviderState(m_imp).extraInfo);
     if (preference == WindowsBackendPreference::DirectShow) {
         return collectDeviceNamesFromBackend(WindowsBackendPreference::DirectShow);
     }
@@ -409,6 +518,7 @@ bool Provider::open(std::string_view deviceName, bool autoStart) {
             return false;
         }
 
+        transferProviderState(m_imp, candidate.get());
         delete m_imp;
         m_imp = candidate.release();
         return true;
@@ -418,7 +528,7 @@ bool Provider::open(std::string_view deviceName, bool autoStart) {
         return tryBackend(WindowsBackendPreference::DirectShow);
     }
 
-    WindowsBackendPreference preference = resolveWindowsBackendPreference(m_extraInfo);
+    WindowsBackendPreference preference = resolveWindowsBackendPreference(copyProviderState(m_imp).extraInfo);
     if (preference == WindowsBackendPreference::DirectShow) {
         return tryBackend(WindowsBackendPreference::DirectShow);
     }
@@ -498,39 +608,41 @@ bool Provider::set(PropertyName prop, double value) {
         return false;
     }
 
-    switch (prop) {
-    case PropertyName::Width:
-        m_requestedWidth = static_cast<int>(value);
-        break;
-    case PropertyName::Height:
-        m_requestedHeight = static_cast<int>(value);
-        break;
-    case PropertyName::FrameRate:
-        m_requestedFrameRate = value;
-        break;
-    case PropertyName::PixelFormatInternal: {
-        auto intValue = static_cast<int>(value);
+    updateProviderState(m_imp, [&](ProviderCachedState& state) {
+        switch (prop) {
+        case PropertyName::Width:
+            state.requestedWidth = static_cast<int>(value);
+            break;
+        case PropertyName::Height:
+            state.requestedHeight = static_cast<int>(value);
+            break;
+        case PropertyName::FrameRate:
+            state.requestedFrameRate = value;
+            break;
+        case PropertyName::PixelFormatInternal: {
+            auto intValue = static_cast<int>(value);
 #if defined(_MSC_VER) || defined(_WIN32)
-        intValue &= ~kPixelFormatFullRangeBit;
+            intValue &= ~kPixelFormatFullRangeBit;
 #endif
-        m_requestedInternalFormat = static_cast<PixelFormat>(intValue);
-        break;
-    }
-    case PropertyName::PixelFormatOutput: {
-        uint32_t formatValue = static_cast<uint32_t>(value);
+            state.requestedInternalFormat = static_cast<PixelFormat>(intValue);
+            break;
+        }
+        case PropertyName::PixelFormatOutput: {
+            uint32_t formatValue = static_cast<uint32_t>(value);
 #if defined(_MSC_VER) || defined(_WIN32)
-        formatValue &= ~static_cast<uint32_t>(kPixelFormatFullRangeBit);
+            formatValue &= ~static_cast<uint32_t>(kPixelFormatFullRangeBit);
 #endif
-        m_requestedOutputFormat = static_cast<PixelFormat>(formatValue);
-        break;
-    }
-    case PropertyName::FrameOrientation:
-        m_requestedFrameOrientation = static_cast<FrameOrientation>(static_cast<int>(value));
-        m_hasFrameOrientationOverride = true;
-        break;
-    default:
-        break;
-    }
+            state.requestedOutputFormat = static_cast<PixelFormat>(formatValue);
+            break;
+        }
+        case PropertyName::FrameOrientation:
+            state.requestedFrameOrientation = static_cast<FrameOrientation>(static_cast<int>(value));
+            state.hasFrameOrientationOverride = true;
+            break;
+        default:
+            break;
+        }
+    });
 
     return true;
 }
@@ -550,7 +662,9 @@ void Provider::setNewFrameCallback(std::function<bool(const std::shared_ptr<Vide
         reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
         return;
     }
-    m_frameCallback = callback;
+    updateProviderState(m_imp, [&](ProviderCachedState& state) {
+        state.frameCallback = callback;
+    });
     m_imp->setNewFrameCallback(std::move(callback));
 }
 
@@ -559,7 +673,9 @@ void Provider::setFrameAllocator(std::function<std::shared_ptr<Allocator>()> all
         reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
         return;
     }
-    m_allocatorFactory = allocatorFactory;
+    updateProviderState(m_imp, [&](ProviderCachedState& state) {
+        state.allocatorFactory = allocatorFactory;
+    });
     m_imp->setFrameAllocator(std::move(allocatorFactory));
 }
 
@@ -568,7 +684,9 @@ void Provider::setMaxAvailableFrameSize(uint32_t size) {
         reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
         return;
     }
-    m_maxAvailableFrameSize = size;
+    updateProviderState(m_imp, [&](ProviderCachedState& state) {
+        state.maxAvailableFrameSize = size;
+    });
     m_imp->setMaxAvailableFrameSize(size);
 }
 
@@ -577,7 +695,9 @@ void Provider::setMaxCacheFrameSize(uint32_t size) {
         reportError(ErrorCode::InitializationFailed, ErrorMessages::PROVIDER_IMPLEMENTATION_NULL);
         return;
     }
-    m_maxCacheFrameSize = size;
+    updateProviderState(m_imp, [&](ProviderCachedState& state) {
+        state.maxCacheFrameSize = size;
+    });
     m_imp->setMaxCacheFrameSize(size);
 }
 

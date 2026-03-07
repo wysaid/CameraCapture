@@ -218,7 +218,8 @@ Or use the script:
 **Media Foundation Backend:**
 - Preferred on modern Windows systems
 - Uses Source Reader for frame delivery and format negotiation
-- Automatically falls back to DirectShow when Media Foundation is unavailable or device open fails
+- When backend selection is `auto`, `Provider::open()` falls back to DirectShow if Media Foundation is unavailable or device open fails
+- When callers explicitly request `msmf` via `extraInfo` or `CCAP_WINDOWS_BACKEND`, `Provider::open()` returns an error instead of falling back
 
 **DirectShow Backend:**
 - Mature, stable API
