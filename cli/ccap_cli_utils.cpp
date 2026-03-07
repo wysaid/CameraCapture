@@ -13,12 +13,21 @@
 #include <algorithm>
 #include <chrono>
 #include <climits>
+#include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <vector>
+
+#if defined(_WIN32) || defined(_WIN64)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 
 #ifdef CCAP_CLI_WITH_STB_IMAGE
 #if defined(__clang__) || defined(__GNUC__)
@@ -41,11 +50,84 @@
 
 namespace ccap_cli {
 
+namespace {
+
+#if defined(_WIN32) || defined(_WIN64)
+constexpr const char* kWindowsBackendEnvVar = "CCAP_WINDOWS_BACKEND";
+#endif
+
+std::string getEnvironmentValue(const char* name) {
+#if defined(_WIN32) || defined(_WIN64)
+    char* rawValue = nullptr;
+    size_t rawLength = 0;
+    if (_dupenv_s(&rawValue, &rawLength, name) != 0 || rawValue == nullptr) {
+        return {};
+    }
+
+    std::string value(rawValue);
+    std::free(rawValue);
+    return value;
+#else
+    const char* rawValue = std::getenv(name);
+    return rawValue != nullptr ? std::string(rawValue) : std::string();
+#endif
+}
+
+void setEnvironmentValue(const char* name, const char* value) {
+#if defined(_WIN32) || defined(_WIN64)
+    SetEnvironmentVariableA(name, value);
+#else
+    if (value != nullptr && *value != '\0') {
+        setenv(name, value, 1);
+    } else {
+        unsetenv(name);
+    }
+#endif
+}
+
+class ScopedEnvironmentValue {
+public:
+    ScopedEnvironmentValue(const char* name, const char* value) :
+        m_name(name),
+        m_oldValue(getEnvironmentValue(name)),
+        m_hadValue(!m_oldValue.empty()) {
+        setEnvironmentValue(m_name.c_str(), value);
+    }
+
+    ~ScopedEnvironmentValue() {
+        if (m_hadValue) {
+            setEnvironmentValue(m_name.c_str(), m_oldValue.c_str());
+        } else {
+            setEnvironmentValue(m_name.c_str(), nullptr);
+        }
+    }
+
+private:
+    std::string m_name;
+    std::string m_oldValue;
+    bool m_hadValue = false;
+};
+
+std::unique_ptr<ScopedEnvironmentValue> makeWindowsCameraBackendOverride(const CLIOptions& opts, bool isCameraMode) {
+#if defined(_WIN32) || defined(_WIN64)
+    if (isCameraMode && !opts.windowsCameraBackend.empty()) {
+        return std::make_unique<ScopedEnvironmentValue>(kWindowsBackendEnvVar, opts.windowsCameraBackend.c_str());
+    }
+#else
+    (void)opts;
+    (void)isCameraMode;
+#endif
+    return nullptr;
+}
+
+} // namespace
+
 // ============================================================================
 // Device Operations
 // ============================================================================
 
-int listDevices() {
+int listDevices(const CLIOptions& opts) {
+    auto backendOverride = makeWindowsCameraBackendOverride(opts, true);
     ccap::Provider provider;
     auto deviceNames = provider.findDeviceNames();
 
@@ -102,7 +184,8 @@ int listDevices() {
     return 0;
 }
 
-int showDeviceInfo(int deviceIndex) {
+int showDeviceInfo(const CLIOptions& opts, int deviceIndex) {
+    auto backendOverride = makeWindowsCameraBackendOverride(opts, true);
     ccap::Provider provider;
     auto deviceNames = provider.findDeviceNames();
 
@@ -161,6 +244,21 @@ int showDeviceInfo(int deviceIndex) {
     return 0;
 }
 
+int showDeviceInfo(const CLIOptions& opts, const std::string& deviceName) {
+    auto backendOverride = makeWindowsCameraBackendOverride(opts, true);
+    ccap::Provider provider;
+    auto deviceNames = provider.findDeviceNames();
+
+    for (size_t index = 0; index < deviceNames.size(); ++index) {
+        if (deviceNames[index] == deviceName) {
+            return showDeviceInfo(opts, static_cast<int>(index));
+        }
+    }
+
+    std::cerr << "Device not found: " << deviceName << std::endl;
+    return 1;
+}
+
 int printVideoInfo(const std::string& videoPath) {
 #if defined(CCAP_ENABLE_FILE_PLAYBACK)
     ccap::Provider provider;
@@ -191,10 +289,11 @@ int printVideoInfo(const std::string& videoPath) {
 }
 
 int captureFrames(const CLIOptions& opts) {
+    bool isVideoMode = !opts.videoFilePath.empty();
+    auto backendOverride = makeWindowsCameraBackendOverride(opts, !isVideoMode);
     ccap::Provider provider;
 
     // Set capture parameters (only meaningful for camera mode)
-    bool isVideoMode = !opts.videoFilePath.empty();
     if (!isVideoMode) {
         provider.set(ccap::PropertyName::Width, opts.width);
         provider.set(ccap::PropertyName::Height, opts.height);
@@ -766,6 +865,7 @@ void main() {
 )";
 
 int runPreview(const CLIOptions& opts) {
+    auto backendOverride = makeWindowsCameraBackendOverride(opts, opts.videoFilePath.empty());
     ccap::Provider provider;
 
     // Set capture parameters (only meaningful for camera mode)

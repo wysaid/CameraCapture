@@ -35,6 +35,9 @@ struct CLIOptions {
     bool showDeviceInfo = false;
     bool verbose = false;
 
+    // Windows camera backend override
+    std::string windowsCameraBackend;
+
     // Input source
     std::string inputSource;
     int deviceIndex = 0;

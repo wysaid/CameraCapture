@@ -24,6 +24,44 @@ constexpr int DEFAULT_PREVIEW_HEIGHT = 1080;
 constexpr double DEFAULT_FPS = 30.0;
 constexpr int DEFAULT_TIMEOUT_MS = 5000;
 
+std::string normalizeWindowsCameraBackend(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+
+    if (value == "auto") {
+        return "auto";
+    }
+    if (value == "msmf" || value == "mediafoundation") {
+        return "msmf";
+    }
+    if (value == "dshow" || value == "directshow") {
+        return "dshow";
+    }
+    return {};
+}
+
+[[noreturn]] void printWindowsBackendOptionErrorAndExit(const char* programName, const std::string& message) {
+    std::cerr << "Error: " << message << "\n\n";
+    printUsage(programName);
+    std::exit(1);
+}
+
+void setWindowsCameraBackend(CLIOptions& opts, const char* programName, const std::string& rawValue) {
+#if defined(_WIN32) || defined(_WIN64)
+    std::string normalized = normalizeWindowsCameraBackend(rawValue);
+    if (normalized.empty()) {
+        printWindowsBackendOptionErrorAndExit(programName,
+                                              "invalid Windows camera backend '" + rawValue + "'. Use auto, msmf, or dshow.");
+    }
+    opts.windowsCameraBackend = std::move(normalized);
+#else
+    (void)opts;
+    printWindowsBackendOptionErrorAndExit(programName,
+                                          "Windows camera backend options are only supported on Windows.");
+#endif
+}
+
 void printVersion() {
     std::cout << "ccap version " << CCAP_VERSION_STRING << " Copyright (c) 2025 wysaid\n";
 
@@ -99,7 +137,6 @@ void printUsage(const char* programName) {
               << "  -q, --quiet                quiet mode (only show errors, equivalent to log level Error)\n"
               << "  --timeout seconds          program timeout (auto-exit after N seconds)\n"
               << "  --timeout-exit-code code   exit code when timeout occurs (default: 0)\n"
-              << "  environment: CCAP_WINDOWS_BACKEND=auto|msmf|dshow (Windows backend override)\n"
               << "\n"
               << "Input options:\n"
               << "  -i, --input source         input source: video file, device index, or device name\n"
@@ -161,6 +198,16 @@ void printUsage(const char* programName) {
               << "  --convert-output file      output file for conversion\n"
               << "\n";
 
+#if defined(_WIN32) || defined(_WIN64)
+    std::cout << "Windows camera backend options:\n"
+              << "  --camera-backend backend   camera backend: auto, msmf, dshow\n"
+              << "  --auto                     same as --camera-backend auto\n"
+              << "  --msmf                     same as --camera-backend msmf\n"
+              << "  --dshow                    same as --camera-backend dshow\n"
+              << "  environment: CCAP_WINDOWS_BACKEND=auto|msmf|dshow (process-wide override)\n"
+              << "\n";
+#endif
+
     std::cout << "Examples:\n"
               << "  " << programName << " --list-devices\n"
               << "  " << programName << " --device-info 0\n"
@@ -171,6 +218,10 @@ void printUsage(const char* programName) {
               << "  " << programName << " -i /path/to/video.mp4 -c 30 -o ./frames  # extract 30 frames from video\n"
               << "  " << programName << " -i /path/to/video.mp4 --loop         # loop video playback\n"
               << "  " << programName << " --timeout 60 -d 0 --preview          # preview for 60 seconds then exit\n";
+#if defined(_WIN32) || defined(_WIN64)
+    std::cout << "  " << programName << " --list-devices --msmf               # list devices through Media Foundation\n"
+              << "  " << programName << " -d 0 -c 1 --dshow                    # capture with DirectShow explicitly\n";
+#endif
 #ifdef CCAP_CLI_WITH_GLFW
     std::cout << "  " << programName << " -d 0 --preview\n"
               << "  " << programName << " -i /path/to/video.mp4 --preview\n";
@@ -314,6 +365,17 @@ CLIOptions parseArgs(int argc, char* argv[]) {
                     opts.deviceName = val;
                 }
             }
+        } else if (arg == "--camera-backend") {
+            if (i + 1 >= argc) {
+                printWindowsBackendOptionErrorAndExit(argv[0], "--camera-backend requires a value.");
+            }
+            setWindowsCameraBackend(opts, argv[0], argv[++i]);
+        } else if (arg == "--auto") {
+            setWindowsCameraBackend(opts, argv[0], "auto");
+        } else if (arg == "--msmf") {
+            setWindowsCameraBackend(opts, argv[0], "msmf");
+        } else if (arg == "--dshow") {
+            setWindowsCameraBackend(opts, argv[0], "dshow");
         } else if (arg == "--video") {
             if (i + 1 < argc) {
                 opts.videoFilePath = argv[++i];

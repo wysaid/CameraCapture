@@ -44,3 +44,38 @@ TEST(CLIArgsParserTest, CaptureDefaultsStayUnchangedWithoutPreview) {
     EXPECT_EQ(opts.width, 1280);
     EXPECT_EQ(opts.height, 720);
 }
+
+#if defined(_WIN32) || defined(_WIN64)
+TEST(CLIArgsParserTest, ParsesWindowsCameraBackendOption) {
+    char arg0[] = "ccap";
+    char arg1[] = "--camera-backend";
+    char arg2[] = "msmf";
+    char* argv[] = { arg0, arg1, arg2, nullptr };
+
+    const ccap_cli::CLIOptions opts = ccap_cli::parseArgs(3, argv);
+
+    EXPECT_EQ(opts.windowsCameraBackend, "msmf");
+}
+
+TEST(CLIArgsParserTest, ParsesWindowsCameraBackendAlias) {
+    char arg0[] = "ccap";
+    char arg1[] = "--dshow";
+    char* argv[] = { arg0, arg1, nullptr };
+
+    const ccap_cli::CLIOptions opts = ccap_cli::parseArgs(2, argv);
+
+    EXPECT_EQ(opts.windowsCameraBackend, "dshow");
+}
+
+TEST(CLIArgsParserTest, LastWindowsCameraBackendOptionWins) {
+    char arg0[] = "ccap";
+    char arg1[] = "--msmf";
+    char arg2[] = "--camera-backend";
+    char arg3[] = "auto";
+    char* argv[] = { arg0, arg1, arg2, arg3, nullptr };
+
+    const ccap_cli::CLIOptions opts = ccap_cli::parseArgs(4, argv);
+
+    EXPECT_EQ(opts.windowsCameraBackend, "auto");
+}
+#endif
