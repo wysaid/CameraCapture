@@ -466,6 +466,15 @@ bool ProviderMSMF::updateCurrentMediaType() {
         stride = static_cast<LONG>(strideValue);
     }
 
+    if ((info.pixelFormat & kPixelFormatYUVColorBit) != 0) {
+        m_inputOrientation = FrameOrientation::TopToBottom;
+    } else if (stride < 0) {
+        m_inputOrientation = FrameOrientation::BottomToTop;
+        stride = -stride;
+    } else {
+        m_inputOrientation = FrameOrientation::TopToBottom;
+    }
+
     releaseComPtr(currentType);
 
     if (info.pixelFormat == PixelFormat::Unknown) {
@@ -790,7 +799,7 @@ void ProviderMSMF::readLoop() {
             continue;
         }
 
-        bool shouldFlip = !isOutputYUV && targetOrientation != FrameOrientation::TopToBottom;
+        bool shouldFlip = !isOutputYUV && targetOrientation != m_inputOrientation;
         bool shouldConvert = newFrame->pixelFormat != m_frameProp.outputPixelFormat;
         bool zeroCopy = !shouldConvert && !shouldFlip;
 
@@ -905,6 +914,7 @@ void ProviderMSMF::close() {
     m_activeHeight = 0;
     m_activeFps = 0.0;
     m_activeStride0 = 0;
+    m_inputOrientation = FrameOrientation::TopToBottom;
 }
 
 ProviderImp* createProviderMSMF() {

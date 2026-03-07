@@ -89,6 +89,7 @@ private:
     uint32_t m_activeHeight = 0;
     double m_activeFps = 0.0;
     int32_t m_activeStride0 = 0;
+    FrameOrientation m_inputOrientation = FrameOrientation::TopToBottom;
 };
 
 ProviderImp* createProviderMSMF();
