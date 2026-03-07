@@ -1,0 +1,16 @@
+# Normalize text files by default, but only force EOL where tooling is sensitive.
+* text=auto
+
+# Shell scripts must stay LF for bash on Linux/macOS/WSL.
+*.sh text eol=lf
+*.bash text eol=lf
+*.zsh text eol=lf
+
+# CMake files are part of the cross-platform Unix build path.
+CMakeLists.txt text eol=lf
+*.cmake text eol=lf
+
+# Shared CI and package metadata should also stay LF.
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf

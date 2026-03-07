@@ -10,7 +10,7 @@
             "args": [
                 "-l",
                 "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then cmd.exe /c \" ( if not exist build (mkdir build ) ) & cd build & cmake .. \"; else mkdir -p build/Debug && pushd build/Debug && cmake ../.. -DCMAKE_BUILD_TYPE=Debug && popd && mkdir -p build/Release && pushd build/Release && cmake ../.. -DCMAKE_BUILD_TYPE=Release; fi )"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"if (-not (Test-Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null }; Set-Location 'build'; cmake ..\"; else mkdir -p build/Debug && pushd build/Debug && cmake ../.. -DCMAKE_BUILD_TYPE=Debug && popd && mkdir -p build/Release && pushd build/Release && cmake ../.. -DCMAKE_BUILD_TYPE=Release; fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -18,10 +18,13 @@
             "group": "build",
             "problemMatcher": "$gcc",
             "windows": {
-                "command": "cmd.exe",
+                "command": "powershell",
                 "args": [
-                    "/c",
-                    "( if not exist build (mkdir build ) ) & cd build & cmake .. "
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-Command",
+                    "if (-not (Test-Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null }; Set-Location 'build'; cmake .."
                 ],
                 "options": {
                     "cwd": "${workspaceFolder}"
@@ -36,7 +39,7 @@
             "args": [
                 "-l",
                 "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then cmd.exe /c \" ( if not exist build_shared (mkdir build_shared ) ) & cd build_shared & cmake .. -DCCAP_BUILD_SHARED=ON \"; else mkdir -p build_shared/Debug && pushd build_shared/Debug && cmake ../.. -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_SHARED=ON && popd && mkdir -p build_shared/Release && pushd build_shared/Release && cmake ../.. -DCMAKE_BUILD_TYPE=Release -DCCAP_BUILD_SHARED=ON; fi )"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"if (-not (Test-Path 'build_shared')) { New-Item -ItemType Directory -Path 'build_shared' | Out-Null }; Set-Location 'build_shared'; cmake .. -DCCAP_BUILD_SHARED=ON\"; else mkdir -p build_shared/Debug && pushd build_shared/Debug && cmake ../.. -DCMAKE_BUILD_TYPE=Debug -DCCAP_BUILD_SHARED=ON && popd && mkdir -p build_shared/Release && pushd build_shared/Release && cmake ../.. -DCMAKE_BUILD_TYPE=Release -DCCAP_BUILD_SHARED=ON; fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -44,10 +47,13 @@
             "group": "build",
             "problemMatcher": "$gcc",
             "windows": {
-                "command": "cmd.exe",
+                "command": "powershell",
                 "args": [
-                    "/c",
-                    "( if not exist build_shared (mkdir build_shared ) ) & cd build_shared & cmake .. -DCCAP_BUILD_SHARED=ON "
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-Command",
+                    "if (-not (Test-Path 'build_shared')) { New-Item -ItemType Directory -Path 'build_shared' | Out-Null }; Set-Location 'build_shared'; cmake .. -DCCAP_BUILD_SHARED=ON"
                 ],
                 "options": {
                     "cwd": "${workspaceFolder}"
@@ -70,10 +76,13 @@
             "group": "build",
             "problemMatcher": "$gcc",
             "windows": {
-                "command": "cmd",
+                "command": "powershell",
                 "args": [
-                    "/c",
-                    "(git clean -fdx build || rmdir /s /q build) & (git clean -fdx build_shared || rmdir /s /q build_shared)"
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-Command",
+                    "git clean -fdx build; if ($LASTEXITCODE -ne 0 -and (Test-Path 'build')) { Remove-Item -Recurse -Force 'build' }; git clean -fdx build_shared; if ($LASTEXITCODE -ne 0 -and (Test-Path 'build_shared')) { Remove-Item -Recurse -Force 'build_shared' }"
                 ],
                 "options": {
                     "cwd": "${workspaceFolder}"
@@ -156,8 +165,14 @@
             "group": "build",
             "problemMatcher": [],
             "windows": {
-                "command": "cmd",
-                "args": ["/c", "if not exist dev.cmake (copy cmake\\dev.cmake.example dev.cmake && echo dev.cmake created from template) else (echo dev.cmake already exists)"]
+                "command": "powershell",
+                "args": [
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-Command",
+                    "if (-not (Test-Path 'dev.cmake')) { Copy-Item 'cmake/dev.cmake.example' 'dev.cmake'; Write-Output 'dev.cmake created from template' } else { Write-Output 'dev.cmake already exists' }"
+                ]
             }
         },
         {
@@ -174,8 +189,14 @@
             "group": "build",
             "problemMatcher": [],
             "windows": {
-                "command": "cmd",
-                "args": ["/c", "if exist dev.cmake del dev.cmake"]
+                "command": "powershell",
+                "args": [
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-Command",
+                    "if (Test-Path 'dev.cmake') { Remove-Item 'dev.cmake' -Force }"
+                ]
             }
         },
         {
@@ -213,7 +234,7 @@
             "args": [
                 "-l",
                 "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then cmd.exe /c \" cmake --build build --config Debug --parallel %NUMBER_OF_PROCESSORS% \"; else cmake --build build/Debug --config Debug --parallel $(nproc); fi )"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then powershell.exe -NoProfile -ExecutionPolicy Bypass -Command 'cmake --build build --config Debug --parallel $env:NUMBER_OF_PROCESSORS'; else cmake --build build/Debug --config Debug --parallel $(nproc); fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -221,10 +242,13 @@
             "group": "build",
             "problemMatcher": "$gcc",
             "windows": {
-                "command": "cmd",
+                "command": "powershell",
                 "args": [
-                    "/c",
-                    "(if not exist build (mkdir build && cd build && cmake ..) ) & cmake --build build --config Debug --parallel %NUMBER_OF_PROCESSORS%"
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-Command",
+                    "if (-not (Test-Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null; Push-Location 'build'; cmake ..; Pop-Location }; cmake --build build --config Debug --parallel $env:NUMBER_OF_PROCESSORS"
                 ],
                 "options": {
                     "cwd": "${workspaceFolder}"
@@ -239,7 +263,7 @@
             "args": [
                 "-l",
                 "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then cmd.exe /c \" cmake --build build --config Release --parallel %NUMBER_OF_PROCESSORS% \"; else cmake --build build/Release --config Release --parallel $(nproc); fi )"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then powershell.exe -NoProfile -ExecutionPolicy Bypass -Command 'cmake --build build --config Release --parallel $env:NUMBER_OF_PROCESSORS'; else cmake --build build/Release --config Release --parallel $(nproc); fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -247,10 +271,13 @@
             "group": "build",
             "problemMatcher": "$gcc",
             "windows": {
-                "command": "cmd",
+                "command": "powershell",
                 "args": [
-                    "/c",
-                    "(if not exist build (mkdir build && cd build && cmake ..) ) & cmake --build build --config Release --parallel %NUMBER_OF_PROCESSORS%"
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-Command",
+                    "if (-not (Test-Path 'build')) { New-Item -ItemType Directory -Path 'build' | Out-Null; Push-Location 'build'; cmake ..; Pop-Location }; cmake --build build --config Release --parallel $env:NUMBER_OF_PROCESSORS"
                 ],
                 "options": {
                     "cwd": "${workspaceFolder}"
@@ -265,7 +292,7 @@
             "args": [
                 "-l",
                 "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then cmd.exe /c \" cmake --build build_shared --config Debug --parallel %NUMBER_OF_PROCESSORS% \"; else cmake --build build_shared/Debug --config Debug --parallel $(nproc); fi )"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then powershell.exe -NoProfile -ExecutionPolicy Bypass -Command 'cmake --build build_shared --config Debug --parallel $env:NUMBER_OF_PROCESSORS'; else cmake --build build_shared/Debug --config Debug --parallel $(nproc); fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -273,10 +300,13 @@
             "group": "build",
             "problemMatcher": "$gcc",
             "windows": {
-                "command": "cmd",
+                "command": "powershell",
                 "args": [
-                    "/c",
-                    "(if not exist build_shared (mkdir build_shared && cd build_shared && cmake .. -DCCAP_BUILD_SHARED=ON) ) & cmake --build build_shared --config Debug --parallel %NUMBER_OF_PROCESSORS%"
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-Command",
+                    "if (-not (Test-Path 'build_shared')) { New-Item -ItemType Directory -Path 'build_shared' | Out-Null; Push-Location 'build_shared'; cmake .. -DCCAP_BUILD_SHARED=ON; Pop-Location }; cmake --build build_shared --config Debug --parallel $env:NUMBER_OF_PROCESSORS"
                 ],
                 "options": {
                     "cwd": "${workspaceFolder}"
@@ -291,7 +321,7 @@
             "args": [
                 "-l",
                 "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then cmd.exe /c \" cmake --build build_shared --config Release --parallel %NUMBER_OF_PROCESSORS% \"; else cmake --build build_shared/Release --config Release --parallel $(nproc); fi )"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then powershell.exe -NoProfile -ExecutionPolicy Bypass -Command 'cmake --build build_shared --config Release --parallel $env:NUMBER_OF_PROCESSORS'; else cmake --build build_shared/Release --config Release --parallel $(nproc); fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -299,10 +329,13 @@
             "group": "build",
             "problemMatcher": "$gcc",
             "windows": {
-                "command": "cmd",
+                "command": "powershell",
                 "args": [
-                    "/c",
-                    "(if not exist build_shared (mkdir build_shared && cd build_shared && cmake .. -DCCAP_BUILD_SHARED=ON) ) & cmake --build build_shared --config Release --parallel %NUMBER_OF_PROCESSORS%"
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-Command",
+                    "if (-not (Test-Path 'build_shared')) { New-Item -ItemType Directory -Path 'build_shared' | Out-Null; Push-Location 'build_shared'; cmake .. -DCCAP_BUILD_SHARED=ON; Pop-Location }; cmake --build build_shared --config Release --parallel $env:NUMBER_OF_PROCESSORS"
                 ],
                 "options": {
                     "cwd": "${workspaceFolder}"
