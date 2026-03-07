@@ -153,6 +153,59 @@ std::optional<ccap::DeviceInfo> getDeviceInfoForBackend(const char* backend, con
     return info;
 }
 
+class ScopedErrorCallback {
+public:
+    explicit ScopedErrorCallback(ccap::ErrorCallback callback) :
+        m_previous(ccap::getErrorCallback()) {
+        ccap::setErrorCallback(std::move(callback));
+    }
+
+    ~ScopedErrorCallback() {
+        ccap::setErrorCallback(std::move(m_previous));
+    }
+
+private:
+    ccap::ErrorCallback m_previous;
+};
+
+std::optional<std::string> findDirectShowOnlyDevice() {
+    auto dshowDevices = listDevicesForBackend("dshow");
+    auto msmfDevices = listDevicesForBackend("msmf");
+    auto isVisibleInMSMF = [&](const std::string& deviceName) {
+        return std::find(msmfDevices.begin(), msmfDevices.end(), deviceName) != msmfDevices.end();
+    };
+
+    for (const std::string& deviceName : dshowDevices) {
+        if (!isVisibleInMSMF(deviceName) && virtualCameraRank(deviceName) >= 0) {
+            return deviceName;
+        }
+    }
+
+    for (const std::string& deviceName : dshowDevices) {
+        if (!isVisibleInMSMF(deviceName)) {
+            return deviceName;
+        }
+    }
+
+    return std::nullopt;
+}
+
+std::optional<std::string> findMediaFoundationOnlyDevice() {
+    auto dshowDevices = listDevicesForBackend("dshow");
+    auto msmfDevices = listDevicesForBackend("msmf");
+    auto isVisibleInDirectShow = [&](const std::string& deviceName) {
+        return std::find(dshowDevices.begin(), dshowDevices.end(), deviceName) != dshowDevices.end();
+    };
+
+    for (const std::string& deviceName : msmfDevices) {
+        if (!isVisibleInDirectShow(deviceName)) {
+            return deviceName;
+        }
+    }
+
+    return std::nullopt;
+}
+
 std::optional<ccap::DeviceInfo::Resolution> pickCommonResolution(const std::string& deviceName) {
     auto dshowInfo = getDeviceInfoForBackend("dshow", deviceName);
     auto msmfInfo = getDeviceInfoForBackend("msmf", deviceName);
@@ -376,6 +429,54 @@ TEST(WindowsBackendsTest, AutoEnumerationContainsForcedBackendResults) {
     for (const std::string& name : msmfDevices) {
         EXPECT_NE(std::find(autoDevices.begin(), autoDevices.end(), name), autoDevices.end()) << name;
     }
+}
+
+TEST(WindowsBackendsTest, AutoOpenPrefersDirectShowForDirectShowOnlyDevice) {
+    auto dshowOnlyDevice = findDirectShowOnlyDevice();
+    if (!dshowOnlyDevice) {
+        GTEST_SKIP() << "No device is exposed only through DirectShow";
+    }
+
+    std::vector<std::string> errorMessages;
+    ScopedErrorCallback scopedErrorCallback([&](ccap::ErrorCode, std::string_view description) {
+        errorMessages.emplace_back(description);
+    });
+
+    ScopedEnvVar env("CCAP_WINDOWS_BACKEND", "auto");
+    ccap::Provider provider;
+    ASSERT_TRUE(provider.open(*dshowOnlyDevice, false));
+    provider.close();
+
+    const auto msmfDeviceError = std::find_if(errorMessages.begin(), errorMessages.end(), [](const std::string& message) {
+        return message.find("No Media Foundation video capture device") != std::string::npos;
+    });
+
+    EXPECT_EQ(msmfDeviceError, errorMessages.end())
+        << "auto mode should not probe MSMF first for a DirectShow-only device: " << *dshowOnlyDevice;
+}
+
+TEST(WindowsBackendsTest, AutoOpenPrefersMediaFoundationForMediaFoundationOnlyDevice) {
+    auto msmfOnlyDevice = findMediaFoundationOnlyDevice();
+    if (!msmfOnlyDevice) {
+        GTEST_SKIP() << "No device is exposed only through Media Foundation";
+    }
+
+    std::vector<std::string> errorMessages;
+    ScopedErrorCallback scopedErrorCallback([&](ccap::ErrorCode, std::string_view description) {
+        errorMessages.emplace_back(description);
+    });
+
+    ScopedEnvVar env("CCAP_WINDOWS_BACKEND", "auto");
+    ccap::Provider provider;
+    ASSERT_TRUE(provider.open(*msmfOnlyDevice, false));
+    provider.close();
+
+    const auto dshowDeviceError = std::find_if(errorMessages.begin(), errorMessages.end(), [&](const std::string& message) {
+        return message.find("No video capture device: " + *msmfOnlyDevice) != std::string::npos;
+    });
+
+    EXPECT_EQ(dshowDeviceError, errorMessages.end())
+        << "auto mode should not probe DirectShow first for a Media Foundation-only device: " << *msmfOnlyDevice;
 }
 
 TEST(WindowsBackendsTest, FilePlaybackStillWorksWhenMSMFIsForced) {

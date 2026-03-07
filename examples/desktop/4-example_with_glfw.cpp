@@ -70,6 +70,10 @@ void main() {
 // selectCamera moved to utils/helper.{h,cpp}
 
 int main(int argc, char** argv) {
+    ExampleCommandLine commandLine{};
+    initExampleCommandLine(&commandLine, argc, argv);
+    applyExampleCameraBackend(&commandLine);
+
     /// Enable verbose log to see debug information
     ccap::setLogLevel(ccap::LogLevel::Verbose);
 
@@ -95,12 +99,7 @@ int main(int argc, char** argv) {
     cameraProvider.set(ccap::PropertyName::FrameRate, requestedFps);
     cameraProvider.set(ccap::PropertyName::FrameOrientation, ccap::FrameOrientation::BottomToTop);
 
-    int deviceIndex;
-    if (argc > 1 && std::isdigit(argv[1][0])) {
-        deviceIndex = std::stoi(argv[1]);
-    } else {
-        deviceIndex = selectCamera(cameraProvider);
-    }
+    int deviceIndex = selectCamera(cameraProvider, &commandLine);
     cameraProvider.open(deviceIndex, true);
 
     if (!cameraProvider.isStarted()) {

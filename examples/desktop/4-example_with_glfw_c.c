@@ -83,6 +83,10 @@ int main(int argc, char** argv) {
     printf("ccap C Interface GLFW Example\n");
     printf("Version: %s\n\n", ccap_get_version());
 
+    ExampleCommandLine commandLine = { 0 };
+    initExampleCommandLine(&commandLine, argc, argv);
+    applyExampleCameraBackend(&commandLine);
+
     // Enable verbose log to see debug information
     ccap_set_log_level(CCAP_LOG_LEVEL_VERBOSE);
 
@@ -116,12 +120,7 @@ int main(int argc, char** argv) {
     ccap_provider_set_property(provider, CCAP_PROPERTY_FRAME_ORIENTATION, CCAP_FRAME_ORIENTATION_BOTTOM_TO_TOP);
 
     // Select and open camera
-    int deviceIndex;
-    if (argc > 1 && isdigit(argv[1][0])) {
-        deviceIndex = atoi(argv[1]);
-    } else {
-        deviceIndex = selectCamera(provider);
-    }
+    int deviceIndex = selectCamera(provider, &commandLine);
 
     if (!ccap_provider_open_by_index(provider, deviceIndex, true)) {
         printf("Failed to open camera\n");

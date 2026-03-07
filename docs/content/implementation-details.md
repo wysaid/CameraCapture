@@ -216,19 +216,21 @@ Or use the script:
 ### Windows
 
 **Media Foundation Backend:**
-- Preferred on modern Windows systems
+- Opt-in backend on Windows when callers explicitly request `msmf`
 - Uses Source Reader for frame delivery and format negotiation
-- When backend selection is `auto`, `Provider::open()` falls back to DirectShow if Media Foundation is unavailable or device open fails
+- When backend selection is `auto`, `Provider::open()` first checks which backend enumerated the requested device and routes to a compatible backend automatically
+- If a device is visible in both Windows backends, `auto` prefers DirectShow for compatibility and keeps Media Foundation as the secondary fallback
 - When callers explicitly request `msmf` via `extraInfo` or `CCAP_WINDOWS_BACKEND`, `Provider::open()` returns an error instead of falling back
 
 **DirectShow Backend:**
+- Default Windows camera backend because virtual cameras such as OBS Virtual Camera are exposed there more consistently
 - Mature, stable API
 - Good driver compatibility
 - Known issue: Some VR headsets crash during enumeration
   - **Solution:** Use `CCAP_WIN_NO_DEVICE_VERIFY=ON`
 
 **Virtual Cameras:**
-- OBS Virtual Camera: ✅ Supported
+- OBS Virtual Camera: ✅ Supported through DirectShow; typically not enumerated by the MSMF backend
 - ManyCam: ✅ Supported
 - NDI Virtual Input: ✅ Supported
 

@@ -33,13 +33,14 @@
 
 - **高性能**：硬件加速的像素格式转换，提升高达 10 倍性能（AVX2、Apple Accelerate、NEON）
 - **轻量级**：无第三方库依赖，仅使用系统框架
-- **跨平台**：Windows（Media Foundation，自动回退到 DirectShow）、macOS/iOS（AVFoundation）、Linux（V4L2）
+- **跨平台**：Windows（默认 DirectShow，可选 Media Foundation）、macOS/iOS（AVFoundation）、Linux（V4L2）
+- **Windows 双后端**：Windows 默认使用 DirectShow，以更好兼容 OBS Virtual Camera 等虚拟摄像头；如果需要，也可以显式切换到 Media Foundation
 - **多种格式**：RGB、BGR、YUV（NV12/I420）及自动转换
 - **双语言接口**：✨ **新增完整纯 C 接口**，同时提供现代化 C++ API 和传统 C99 接口，支持各种项目集成和语言绑定
 - **视频文件播放**：🎬 使用与相机相同的 API 播放视频文件（MP4、AVI、MOV 等）- 支持 Windows 和 macOS
 - **命令行工具**：开箱即用的命令行工具，快速实现相机操作和视频处理 - 列出设备、捕获图像、实时预览、视频播放（[文档](./docs/content/cli.zh.md)）
 - **生产就绪**：完整测试套件，95%+ 精度验证
-- **虚拟相机支持**：兼容 OBS Virtual Camera 等工具
+- **虚拟相机支持**：在 Windows 上通过默认 DirectShow 路径兼容 OBS Virtual Camera 等工具
 
 ## 快速开始
 
@@ -176,10 +177,18 @@ int main() {
 
 ### Windows 后端选择
 
-Windows 上默认优先使用 Media Foundation，并在需要时自动回退到 DirectShow。如果你要排查设备兼容性问题，或验证某个后端的行为，可以显式指定后端：
+Windows 上现在默认使用 DirectShow。这样做的主要原因是 DirectShow 对 OBS Virtual Camera 等虚拟摄像头的兼容性更好，能够避免用户升级后因为默认后端变化而突然失去虚拟摄像头支持。在 `auto` 模式下，设备枚举会合并 DirectShow 和 Media Foundation 的结果，而 `Provider::open()` 会根据选中的设备自动路由到兼容的后端：仅 DirectShow 可见的设备会直接走 DirectShow，仅 MSMF 可见的设备会直接走 MSMF，同时被两个后端看到的设备优先走 DirectShow，必要时再回退到 MSMF。
+
+对大多数 Windows 应用来说，建议直接使用 `auto` 模式。ccap 会在两个后端之上统一公开的采集 API、帧朝向处理和输出像素格式转换，所以调用方通常不需要编写后端分支逻辑。
 
 - 在支持 `extraInfo` 的 C++ / C 构造接口中传入 `"auto"`、`"msmf"`、`"dshow"` 或 `"backend=<value>"`。
 - 设置环境变量 `CCAP_WINDOWS_BACKEND=auto|msmf|dshow`，对整个进程生效，包括 CLI 和 Rust 绑定。
+
+```powershell
+# PowerShell：为当前进程显式启用 Media Foundation
+$env:CCAP_WINDOWS_BACKEND = "msmf"
+.\ccap --list-devices
+```
 
 ```cpp
 // 下面两段是互斥示例；同一时刻不要对同一设备同时创建两个 Provider。
@@ -258,7 +267,7 @@ cmake --build .
 
 | 平台 | 编译器 | 系统要求 |
 |------|--------|----------|
-| **Windows** | MSVC 2019+（包括 2026）/ MinGW-w64 | Media Foundation（默认）+ DirectShow 回退 |
+| **Windows** | MSVC 2019+（包括 2026）/ MinGW-w64 | DirectShow（默认）+ Media Foundation 可选启用 |
 | **macOS** | Xcode 11+ | macOS 10.13+ |
 | **iOS** | Xcode 11+ | iOS 13.0+ |
 | **Linux** | GCC 7+ / Clang 6+ | V4L2 (Linux 2.6+) - 相机捕获支持，视频播放暂不支持 |

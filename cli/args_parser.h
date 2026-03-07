@@ -45,6 +45,8 @@ struct CLIOptions {
     // Capture parameters
     int width = 1280;
     int height = 720;
+    bool widthSpecified = false;
+    bool heightSpecified = false;
     double fps = 30.0;
     int captureCount = 1;
     bool captureCountSpecified = false;
