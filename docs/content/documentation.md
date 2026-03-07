@@ -220,7 +220,11 @@ if (provider.open("/path/to/video.mp4", true)) {
 
 ### Windows
 
-Uses DirectShow for camera access. Requires MSVC 2019 or later.
+Uses DirectShow for camera access by default on Windows to preserve compatibility with OBS Virtual Camera and other virtual cameras. Media Foundation remains available when you explicitly request `msmf`, or as a secondary path when `auto` needs to recover from a DirectShow open failure. Requires MSVC 2019 or later.
+
+For most Windows applications, `auto` mode is the recommended choice. ccap merges device enumeration across both backends and keeps the public capture API, frame orientation handling, and output pixel-format conversion aligned so callers usually do not need backend-specific branching.
+
+To force a specific camera backend on Windows, either pass `extraInfo` as `auto`, `msmf`, `dshow`, or `backend=<value>` to the constructors that accept it, or set `CCAP_WINDOWS_BACKEND=auto|msmf|dshow` for the current process.
 
 ```shell
 cl your_code.c /I"path\to\ccap\include" ^

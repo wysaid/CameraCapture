@@ -7,14 +7,14 @@ include(FetchContent)
 # MinGW on Windows uses native threading, not pthread
 # Setting this BEFORE FetchContent prevents GoogleTest from searching for Threads package
 if(MINGW)
-    set(gtest_disable_pthreads ON CACHE BOOL "" FORCE)
-    message(STATUS "MinGW detected: Disabling pthread for GoogleTest")
+        set(gtest_disable_pthreads ON CACHE BOOL "" FORCE)
+        message(STATUS "MinGW detected: Disabling pthread for GoogleTest")
 endif()
 
 FetchContent_Declare(
-        googletest
-        GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG release-1.11.0
+                googletest
+                GIT_REPOSITORY https://github.com/google/googletest.git
+                GIT_TAG release-1.11.0
 )
 
 message(STATUS "Fetching Google Test archive...")
@@ -26,30 +26,30 @@ FetchContent_MakeAvailable(googletest)
 # Fix compile definitions for tests on MinGW
 # GoogleTest sets GTEST_HAS_PTHREAD=1 by default on MinGW, which causes AutoHandle errors
 if(MINGW)
-    # Remove GTEST_HAS_PTHREAD=1 from all googletest targets and set it to 0
-    foreach(target gtest gtest_main gmock gmock_main)
-        if(TARGET ${target})
-            # Get current compile definitions
-            get_target_property(compile_defs ${target} INTERFACE_COMPILE_DEFINITIONS)
-            if(compile_defs)
-                # Create a new list without GTEST_HAS_PTHREAD
-                set(new_defs "")
-                foreach(def IN LISTS compile_defs)
-                    if(NOT def MATCHES "GTEST_HAS_PTHREAD")
-                        list(APPEND new_defs ${def})
-                    endif()
-                endforeach()
-                # Add GTEST_HAS_PTHREAD=0
-                list(APPEND new_defs "GTEST_HAS_PTHREAD=0")
-                # Replace the property
-                set_property(TARGET ${target} PROPERTY INTERFACE_COMPILE_DEFINITIONS ${new_defs})
-            else()
-                # If no definitions exist, just set GTEST_HAS_PTHREAD=0
-                set_property(TARGET ${target} PROPERTY INTERFACE_COMPILE_DEFINITIONS "GTEST_HAS_PTHREAD=0")
-            endif()
-        endif()
-    endforeach()
-    message(STATUS "MinGW: Overridden GTEST_HAS_PTHREAD to 0 for test compilation")
+        # Remove GTEST_HAS_PTHREAD=1 from all googletest targets and set it to 0
+        foreach(target gtest gtest_main gmock gmock_main)
+                if(TARGET ${target})
+                        # Get current compile definitions
+                        get_target_property(compile_defs ${target} INTERFACE_COMPILE_DEFINITIONS)
+                        if(compile_defs)
+                                # Create a new list without GTEST_HAS_PTHREAD
+                                set(new_defs "")
+                                foreach(def IN LISTS compile_defs)
+                                        if(NOT def MATCHES "GTEST_HAS_PTHREAD")
+                                                list(APPEND new_defs ${def})
+                                        endif()
+                                endforeach()
+                                # Add GTEST_HAS_PTHREAD=0
+                                list(APPEND new_defs "GTEST_HAS_PTHREAD=0")
+                                # Replace the property
+                                set_property(TARGET ${target} PROPERTY INTERFACE_COMPILE_DEFINITIONS ${new_defs})
+                        else()
+                                # If no definitions exist, just set GTEST_HAS_PTHREAD=0
+                                set_property(TARGET ${target} PROPERTY INTERFACE_COMPILE_DEFINITIONS "GTEST_HAS_PTHREAD=0")
+                        endif()
+                endif()
+        endforeach()
+        message(STATUS "MinGW: Overridden GTEST_HAS_PTHREAD to 0 for test compilation")
 endif()
 
 if (NOT DEFINED LIBYUV_REPO_URL)
@@ -121,6 +121,78 @@ if (MSVC)
     )
 endif ()
 
+add_executable(
+        ccap_example_helper_test
+        test_example_helper.cpp
+        ${CMAKE_SOURCE_DIR}/examples/desktop/utils/helper.cpp
+)
+
+target_link_libraries(
+        ccap_example_helper_test
+        PRIVATE
+        ccap_test_utils
+        gtest_main
+)
+
+target_include_directories(
+        ccap_example_helper_test
+        PRIVATE
+        ${CMAKE_SOURCE_DIR}/examples/desktop/utils
+)
+
+set_target_properties(ccap_example_helper_test PROPERTIES
+        CXX_STANDARD 17
+        CXX_STANDARD_REQUIRED ON
+)
+
+if (MSVC)
+    target_compile_options(ccap_example_helper_test PRIVATE
+            /MP
+            /std:c++17
+            /Zc:__cplusplus
+            /source-charset:utf-8
+            /bigobj
+            /wd4996
+            /D_CRT_SECURE_NO_WARNINGS
+    )
+endif ()
+
+add_executable(
+        ccap_cli_args_parser_test
+        test_cli_args_parser.cpp
+        ${CMAKE_SOURCE_DIR}/cli/args_parser.cpp
+)
+
+target_link_libraries(
+        ccap_cli_args_parser_test
+        PRIVATE
+        ccap_test_utils
+        gtest_main
+)
+
+target_include_directories(
+        ccap_cli_args_parser_test
+        PRIVATE
+        ${CMAKE_SOURCE_DIR}/cli
+)
+
+set_target_properties(ccap_cli_args_parser_test PROPERTIES
+        CXX_STANDARD 17
+        CXX_STANDARD_REQUIRED ON
+)
+
+if (MSVC)
+    target_compile_options(ccap_cli_args_parser_test PRIVATE
+            /MP
+            /std:c++17
+            /Zc:__cplusplus
+            /source-charset:utf-8
+            /bigobj
+            /wd4996
+            /D_CRT_SECURE_NO_WARNINGS
+    )
+endif ()
+
 # Test executables - Refactored and simplified
 add_executable(
         ccap_convert_test
@@ -169,6 +241,36 @@ if (WIN32)
 
     if (MSVC)
         target_compile_options(ccap_guid_test PRIVATE
+                /MP
+                /std:c++17
+                /Zc:__cplusplus
+                /source-charset:utf-8
+                /bigobj
+                /wd4996
+                /D_CRT_SECURE_NO_WARNINGS
+        )
+    endif ()
+
+    add_executable(
+            ccap_windows_backend_test
+            test_windows_backends.cpp
+    )
+
+    target_link_libraries(
+            ccap_windows_backend_test
+            PRIVATE
+            ccap_test_utils
+            gtest
+            gtest_main
+    )
+
+    set_target_properties(ccap_windows_backend_test PROPERTIES
+            CXX_STANDARD 17
+            CXX_STANDARD_REQUIRED ON
+    )
+
+    if (MSVC)
+        target_compile_options(ccap_windows_backend_test PRIVATE
                 /MP
                 /std:c++17
                 /Zc:__cplusplus
@@ -343,10 +445,13 @@ include(GoogleTest)
 # for test listing on the host. We'll run tests explicitly (e.g., via QEMU) in CI.
 if (NOT CMAKE_CROSSCOMPILING)
     # Defer discovery to test time to avoid executing the binary during configure
+        gtest_discover_tests(ccap_example_helper_test DISCOVERY_MODE PRE_TEST)
+        gtest_discover_tests(ccap_cli_args_parser_test DISCOVERY_MODE PRE_TEST)
     gtest_discover_tests(ccap_convert_test DISCOVERY_MODE PRE_TEST)
     gtest_discover_tests(ccap_performance_test DISCOVERY_MODE PRE_TEST)
     if (WIN32)
         gtest_discover_tests(ccap_guid_test DISCOVERY_MODE PRE_TEST)
+        gtest_discover_tests(ccap_windows_backend_test DISCOVERY_MODE PRE_TEST)
     endif ()
     if (CCAP_BUILD_CLI)
         gtest_discover_tests(ccap_cli_test DISCOVERY_MODE PRE_TEST)

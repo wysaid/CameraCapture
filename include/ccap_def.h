@@ -393,14 +393,15 @@ struct CCAP_EXPORT VideoFrame {
      */
     std::shared_ptr<Allocator> allocator;
 
-    /**
-     * @brief Native handle for the frame, used for platform-specific operations.
-     *        This field is optional and may be nullptr if not needed.
-     * @note Currently defined as follows:
-     *     - Windows: When the backend is DirectShow, the actual type of nativeHandle is `IMediaSample*`
-     *     - macOS/iOS: The actual type of nativeHandle is `CMSampleBufferRef`
-     *     - Linux: The actual type is uint32_t, stands for `v4l2_buffer::index`.
-     */
+     /**
+      * @brief Native handle for the frame, used for platform-specific operations.
+      *        This field is optional and may be nullptr if not needed.
+      * @note Currently defined as follows:
+      *     - Windows: When the backend is DirectShow, the actual type of nativeHandle is `IMediaSample*`
+      *     - Windows: When the backend is Media Foundation, the actual type of nativeHandle is `IMFSample*`
+      *     - macOS/iOS: The actual type of nativeHandle is `CMSampleBufferRef`
+      *     - Linux: The actual type is uint32_t, stands for `v4l2_buffer::index`.
+      */
     void* nativeHandle = nullptr; ///< Native handle for the frame, used for platform-specific operations
 
     /**

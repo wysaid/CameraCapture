@@ -18,6 +18,28 @@
 #include <ccap.h>
 #include <iostream>
 
+namespace {
+
+void logWindowsCameraBackendOverride(const ccap_cli::CLIOptions& opts) {
+#if defined(_WIN32) || defined(_WIN64)
+    if (opts.windowsCameraBackend.empty() || !ccap::infoLogEnabled()) {
+        return;
+    }
+
+    if (!opts.videoFilePath.empty() || !opts.convertInput.empty()) {
+        std::cout << "Ignoring Windows camera backend override for non-camera input: "
+                  << opts.windowsCameraBackend << std::endl;
+        return;
+    }
+
+    std::cout << "Using Windows camera backend override from CLI: " << opts.windowsCameraBackend << std::endl;
+#else
+    (void)opts;
+#endif
+}
+
+} // namespace
+
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         ccap_cli::printUsage(argv[0]);
@@ -87,13 +109,15 @@ int main(int argc, char* argv[]) {
                   << ", Description: " << description << std::endl;
     });
 
+    logWindowsCameraBackendOverride(opts);
+
     // Handle different modes
     if (opts.listDevices) {
-        return ccap_cli::listDevices();
+        return ccap_cli::listDevices(opts);
     }
 
     if (opts.showDeviceInfo) {
-        return ccap_cli::showDeviceInfo(opts.deviceInfoIndex);
+        return ccap_cli::showDeviceInfo(opts, opts.deviceInfoIndex);
     }
 
     if (!opts.convertInput.empty()) {
@@ -131,18 +155,9 @@ int main(int argc, char* argv[]) {
         (opts.inputSource.empty() || !opts.deviceName.empty() || opts.deviceIndex >= 0)) {
         // Print camera info (equivalent to --device-info)
         if (!opts.deviceName.empty()) {
-            // Find device index by name
-            ccap::Provider provider;
-            auto deviceNames = provider.findDeviceNames();
-            for (size_t i = 0; i < deviceNames.size(); ++i) {
-                if (deviceNames[i] == opts.deviceName) {
-                    return ccap_cli::showDeviceInfo(static_cast<int>(i));
-                }
-            }
-            std::cerr << "Device not found: " << opts.deviceName << std::endl;
-            return 1;
+            return ccap_cli::showDeviceInfo(opts, opts.deviceName);
         }
-        return ccap_cli::showDeviceInfo(opts.deviceIndex);
+        return ccap_cli::showDeviceInfo(opts, opts.deviceIndex);
     }
 
 #ifdef CCAP_CLI_WITH_GLFW

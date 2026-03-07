@@ -124,7 +124,6 @@ if (CMAKE_SYSTEM_PROCESSOR MATCHES "[Aa][Rr][Mm]64|[Aa][Aa][Rr][Cc]h64" OR
     endif ()
 endif ()
 
-
 file(GLOB LIB_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h)
 
 # Exclude file reader sources if file playback is disabled
@@ -235,31 +234,39 @@ elseif (UNIX AND NOT APPLE AND NOT WIN32)
     # Propagate to pkg-config for consumers
     set(PKG_CONFIG_LIBS_PRIVATE "Libs.private: -lpthread")
 elseif (WIN32)
-    # Windows – link Media Foundation libraries for video file playback (if enabled)
+    # Windows – Media Foundation is used by the MSMF camera backend and optional file playback.
+    target_link_libraries(ccap PUBLIC
+            mf
+            mfplat
+            mfreadwrite
+            mfuuid)
+
     if (CCAP_ENABLE_FILE_PLAYBACK)
         target_link_libraries(ccap PUBLIC
-                mfplat
-                mfreadwrite
-                mfuuid
                 shlwapi
                 propsys)
+        set(PKG_CONFIG_LIBS_PRIVATE "Libs.private: -lmf -lmfplat -lmfreadwrite -lmfuuid -lshlwapi -lpropsys")
+    else ()
+        set(PKG_CONFIG_LIBS_PRIVATE "Libs.private: -lmf -lmfplat -lmfreadwrite -lmfuuid")
+        message(STATUS "ccap: Windows build without file playback extras (shlwapi/propsys not linked)")
+    endif ()
 
-        # MSVC: Delay load Media Foundation DLLs to support Windows XP camera functionality
-        # The program can start on XP and use DirectShow cameras, but will crash if video playback is attempted
-        if (MSVC)
+    # MSVC: Delay load Media Foundation DLLs to preserve legacy DirectShow-only startup paths.
+    if (MSVC)
+        if (CCAP_BUILD_SHARED)
             target_link_options(ccap PRIVATE
+                /DELAYLOAD:mf.dll
                 /DELAYLOAD:mfplat.dll
                 /DELAYLOAD:mfreadwrite.dll
             )
-            target_link_libraries(ccap PUBLIC delayimp.lib)
+        else ()
+            target_link_options(ccap INTERFACE
+                /DELAYLOAD:mf.dll
+                /DELAYLOAD:mfplat.dll
+                /DELAYLOAD:mfreadwrite.dll
+            )
         endif ()
-
-        # Set pkg-config private libs for Windows with Media Foundation
-        set(PKG_CONFIG_LIBS_PRIVATE "Libs.private: -lmfplat -lmfreadwrite -lmfuuid -lshlwapi -lpropsys")
-    else ()
-        # No Media Foundation libraries when file playback is disabled
-        set(PKG_CONFIG_LIBS_PRIVATE "")
-        message(STATUS "ccap: Windows build without Media Foundation libraries (file playback disabled)")
+        target_link_libraries(ccap PUBLIC delayimp.lib)
     endif ()
 else ()
     # Other platforms

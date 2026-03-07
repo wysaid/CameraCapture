@@ -62,18 +62,24 @@ public:
     ///        You can use the `open` method to open a camera device later.
     Provider();
 
-    /**
-     * @brief Construct a new Provider object, and open the camera device.
-     * @param deviceName The name of the device to open. @see #open
-     * @param extraInfo Currently unused.
-     */
+     /**
+      * @brief Construct a new Provider object, and open the camera device.
+      * @param deviceName The name of the device to open. @see #open
+      * @param extraInfo Optional backend hint.
+      *        On Windows, accepted values include `auto`, `msmf`, `dshow`, and `backend=<value>`.
+    *        `auto` enumerates both Windows backends and routes each device to a compatible backend automatically.
+      *        Other platforms ignore this parameter.
+      */
     explicit Provider(std::string_view deviceName, std::string_view extraInfo = "");
 
-    /**
-     * @brief Construct a new Provider object, and open the camera device.
-     * @param deviceIndex The index of the device to open. @see #open
-     * @param extraInfo Currently unused.
-     */
+     /**
+      * @brief Construct a new Provider object, and open the camera device.
+      * @param deviceIndex The index of the device to open. @see #open
+      * @param extraInfo Optional backend hint.
+      *        On Windows, accepted values include `auto`, `msmf`, `dshow`, and `backend=<value>`.
+    *        `auto` enumerates both Windows backends and routes each device to a compatible backend automatically.
+      *        Other platforms ignore this parameter.
+      */
     explicit Provider(int deviceIndex, std::string_view extraInfo = "");
 
     /**
@@ -225,12 +231,16 @@ public:
 
 
     // ↓ This part is not relevant to the user ↓
-    Provider(Provider&&) = default;
-    Provider& operator=(Provider&&) = default;
+    Provider(Provider&&) noexcept;
+    Provider& operator=(Provider&&) noexcept;
     ~Provider();
 
 private:
-    ProviderImp* m_imp;
+    void applyCachedState(ProviderImp* imp) const;
+    bool tryOpenWithImplementation(ProviderImp* imp, std::string_view deviceName, bool autoStart) const;
+
+private:
+    ProviderImp* m_imp = nullptr;
 };
 
 /**
