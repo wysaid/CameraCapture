@@ -648,6 +648,24 @@ void expectPackedYUVFrameMatchesReference(PackedYUVFrameData& frameData, ccap::P
                                                                      expected.stride());
 }
 
+int packedYuvReferenceTolerance(ccap::ConvertBackend backend, int width) {
+    switch (backend) {
+    case ccap::ConvertBackend::NEON:
+        return 2;
+    case ccap::ConvertBackend::AVX2:
+        return width >= 16 ? 2 : 0;
+    default:
+        return 0;
+    }
+}
+
+void expectChannelNearReference(uint8_t actual, int expected, int tolerance, const char* channel, int x, int y,
+                                const std::string& backendName) {
+    EXPECT_NEAR(static_cast<int>(actual), expected, tolerance)
+        << channel << " mismatch at (" << x << ", " << y << "), backend: " << backendName
+        << ", tolerance: " << tolerance;
+}
+
 } // anonymous namespace
 
 // ---- Frame-level YUYV/UYVY → RGB/BGR conversion tests ----
@@ -780,7 +798,8 @@ TEST_P(FrameYUVFlipTest, UYVY_To_BGRA32_WithVerticalFlip) {
 INSTANTIATE_BACKEND_TEST(FrameYUVFlipTest);
 
 // ---- Fixed-value packed YUV tests ----
-// These use PixelTestUtils::yuv2rgbReference so they do not depend on the packed conversion helpers.
+// These validate against PixelTestUtils::yuv2rgbReference.
+// Reduced-precision SIMD math is allowed a tiny tolerance where the active backend actually uses it.
 
 class FrameYUVReferenceValueTest : public BackendParameterizedTest {
 protected:
@@ -789,17 +808,19 @@ protected:
     }
 };
 
-TEST_P(FrameYUVReferenceValueTest, YUYV_SolidColor_To_BGR24_MatchesReferencePixelValues) {
+TEST_P(FrameYUVReferenceValueTest, YUYV_SolidColor_To_BGR24_StaysWithinReferenceTolerance) {
     auto backend = GetParam();
     const int width = 8;
     const int height = 8;
+    const std::string backendName = BackendTestManager::getBackendName(backend);
+    const int tolerance = packedYuvReferenceTolerance(backend, width);
 
     PackedYUVFrameData yuyv(8, 8, ccap::PixelFormat::YUYV);
     fillPackedYUVDataSolid(yuyv.buffer.data(), yuyv.frame->stride[0], yuyv.frame->pixelFormat, yuyv.frame->width, yuyv.frame->height, 96, 90,
                            180);
 
     bool success = ccap::inplaceConvertFrame(yuyv.frame.get(), ccap::PixelFormat::BGR24, false);
-    ASSERT_TRUE(success) << "YUYV solid-color conversion failed, backend: " << BackendTestManager::getBackendName(backend);
+    ASSERT_TRUE(success) << "YUYV solid-color conversion failed, backend: " << backendName;
 
     int r = 0;
     int g = 0;
@@ -809,24 +830,26 @@ TEST_P(FrameYUVReferenceValueTest, YUYV_SolidColor_To_BGR24_MatchesReferencePixe
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             int offset = y * yuyv.frame->stride[0] + x * 3;
-            EXPECT_EQ(yuyv.frame->data[0][offset + 0], b);
-            EXPECT_EQ(yuyv.frame->data[0][offset + 1], g);
-            EXPECT_EQ(yuyv.frame->data[0][offset + 2], r);
+            expectChannelNearReference(yuyv.frame->data[0][offset + 0], b, tolerance, "B", x, y, backendName);
+            expectChannelNearReference(yuyv.frame->data[0][offset + 1], g, tolerance, "G", x, y, backendName);
+            expectChannelNearReference(yuyv.frame->data[0][offset + 2], r, tolerance, "R", x, y, backendName);
         }
     }
 }
 
-TEST_P(FrameYUVReferenceValueTest, YUYV_SolidColor_To_RGBA32_MatchesReferencePixelValues) {
+TEST_P(FrameYUVReferenceValueTest, YUYV_SolidColor_To_RGBA32_StaysWithinReferenceTolerance) {
     auto backend = GetParam();
     const int width = 8;
     const int height = 8;
+    const std::string backendName = BackendTestManager::getBackendName(backend);
+    const int tolerance = packedYuvReferenceTolerance(backend, width);
 
     PackedYUVFrameData yuyv(width, height, ccap::PixelFormat::YUYV);
     fillPackedYUVDataSolid(yuyv.buffer.data(), yuyv.frame->stride[0], yuyv.frame->pixelFormat, yuyv.frame->width, yuyv.frame->height, 96, 90,
                            180);
 
     bool success = ccap::inplaceConvertFrame(yuyv.frame.get(), ccap::PixelFormat::RGBA32, false);
-    ASSERT_TRUE(success) << "YUYV solid-color conversion failed, backend: " << BackendTestManager::getBackendName(backend);
+    ASSERT_TRUE(success) << "YUYV solid-color conversion failed, backend: " << backendName;
 
     int r = 0;
     int g = 0;
@@ -836,25 +859,27 @@ TEST_P(FrameYUVReferenceValueTest, YUYV_SolidColor_To_RGBA32_MatchesReferencePix
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             int offset = y * yuyv.frame->stride[0] + x * 4;
-            EXPECT_EQ(yuyv.frame->data[0][offset + 0], r);
-            EXPECT_EQ(yuyv.frame->data[0][offset + 1], g);
-            EXPECT_EQ(yuyv.frame->data[0][offset + 2], b);
+            expectChannelNearReference(yuyv.frame->data[0][offset + 0], r, tolerance, "R", x, y, backendName);
+            expectChannelNearReference(yuyv.frame->data[0][offset + 1], g, tolerance, "G", x, y, backendName);
+            expectChannelNearReference(yuyv.frame->data[0][offset + 2], b, tolerance, "B", x, y, backendName);
             EXPECT_EQ(yuyv.frame->data[0][offset + 3], 0xFF);
         }
     }
 }
 
-TEST_P(FrameYUVReferenceValueTest, UYVY_SolidColor_To_RGBA32_MatchesReferencePixelValues) {
+TEST_P(FrameYUVReferenceValueTest, UYVY_SolidColor_To_RGBA32_StaysWithinReferenceTolerance) {
     auto backend = GetParam();
     const int width = 8;
     const int height = 8;
+    const std::string backendName = BackendTestManager::getBackendName(backend);
+    const int tolerance = packedYuvReferenceTolerance(backend, width);
 
     PackedYUVFrameData uyvy(width, height, ccap::PixelFormat::UYVY);
     fillPackedYUVDataSolid(uyvy.buffer.data(), uyvy.frame->stride[0], uyvy.frame->pixelFormat, uyvy.frame->width, uyvy.frame->height, 180, 54,
                            200);
 
     bool success = ccap::inplaceConvertFrame(uyvy.frame.get(), ccap::PixelFormat::RGBA32, false);
-    ASSERT_TRUE(success) << "UYVY solid-color conversion failed, backend: " << BackendTestManager::getBackendName(backend);
+    ASSERT_TRUE(success) << "UYVY solid-color conversion failed, backend: " << backendName;
 
     int r = 0;
     int g = 0;
@@ -864,25 +889,27 @@ TEST_P(FrameYUVReferenceValueTest, UYVY_SolidColor_To_RGBA32_MatchesReferencePix
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             int offset = y * uyvy.frame->stride[0] + x * 4;
-            EXPECT_EQ(uyvy.frame->data[0][offset + 0], r);
-            EXPECT_EQ(uyvy.frame->data[0][offset + 1], g);
-            EXPECT_EQ(uyvy.frame->data[0][offset + 2], b);
+            expectChannelNearReference(uyvy.frame->data[0][offset + 0], r, tolerance, "R", x, y, backendName);
+            expectChannelNearReference(uyvy.frame->data[0][offset + 1], g, tolerance, "G", x, y, backendName);
+            expectChannelNearReference(uyvy.frame->data[0][offset + 2], b, tolerance, "B", x, y, backendName);
             EXPECT_EQ(uyvy.frame->data[0][offset + 3], 0xFF);
         }
     }
 }
 
-TEST_P(FrameYUVReferenceValueTest, UYVY_SolidColor_To_BGR24_MatchesReferencePixelValues) {
+TEST_P(FrameYUVReferenceValueTest, UYVY_SolidColor_To_BGR24_StaysWithinReferenceTolerance) {
     auto backend = GetParam();
     const int width = 8;
     const int height = 8;
+    const std::string backendName = BackendTestManager::getBackendName(backend);
+    const int tolerance = packedYuvReferenceTolerance(backend, width);
 
     PackedYUVFrameData uyvy(width, height, ccap::PixelFormat::UYVY);
     fillPackedYUVDataSolid(uyvy.buffer.data(), uyvy.frame->stride[0], uyvy.frame->pixelFormat, uyvy.frame->width, uyvy.frame->height, 180, 54,
                            200);
 
     bool success = ccap::inplaceConvertFrame(uyvy.frame.get(), ccap::PixelFormat::BGR24, false);
-    ASSERT_TRUE(success) << "UYVY solid-color conversion failed, backend: " << BackendTestManager::getBackendName(backend);
+    ASSERT_TRUE(success) << "UYVY solid-color conversion failed, backend: " << backendName;
 
     int r = 0;
     int g = 0;
@@ -892,9 +919,9 @@ TEST_P(FrameYUVReferenceValueTest, UYVY_SolidColor_To_BGR24_MatchesReferencePixe
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             int offset = y * uyvy.frame->stride[0] + x * 3;
-            EXPECT_EQ(uyvy.frame->data[0][offset + 0], b);
-            EXPECT_EQ(uyvy.frame->data[0][offset + 1], g);
-            EXPECT_EQ(uyvy.frame->data[0][offset + 2], r);
+            expectChannelNearReference(uyvy.frame->data[0][offset + 0], b, tolerance, "B", x, y, backendName);
+            expectChannelNearReference(uyvy.frame->data[0][offset + 1], g, tolerance, "G", x, y, backendName);
+            expectChannelNearReference(uyvy.frame->data[0][offset + 2], r, tolerance, "R", x, y, backendName);
         }
     }
 }
