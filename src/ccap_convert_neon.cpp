@@ -291,6 +291,24 @@ inline void getYuvToRgbCoefficients_neon(bool isBT601, bool isFullRange, int& cy
     }
 }
 
+// Full-precision (×256) coefficients for scalar fallback path -- exact match with reference formula
+// Formula: (cy * (y - y_offset) + cr * (v - 128) + 128) >> 8
+inline void getYuvToRgbCoefficients_scalar(bool isBT601, bool isFullRange, int& cy, int& cr, int& cgu, int& cgv, int& cb, int& y_offset) {
+    if (isBT601) {
+        if (isFullRange) { // BT.601 Full Range
+            cy = 256; cr = 351; cgu = 86; cgv = 179; cb = 443; y_offset = 0;
+        } else { // BT.601 Video Range
+            cy = 298; cr = 409; cgu = 100; cgv = 208; cb = 516; y_offset = 16;
+        }
+    } else {
+        if (isFullRange) { // BT.709 Full Range
+            cy = 256; cr = 403; cgu = 48; cgv = 120; cb = 475; y_offset = 0;
+        } else { // BT.709 Video Range
+            cy = 298; cr = 459; cgu = 55; cgv = 136; cb = 541; y_offset = 16;
+        }
+    }
+}
+
 template <bool isBGRA>
 void nv12ToRgbaColor_neon_imp(const uint8_t* srcY, int srcYStride,
                               const uint8_t* srcUV, int srcUVStride,
@@ -1143,6 +1161,9 @@ void _yuyvToRgb_neon_imp(const uint8_t* src, int srcStride,
     const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
     int cy_i, cr_i, cgu_i, cgv_i, cb_i, y_offset;
     getYuvToRgbCoefficients_neon(is601, isFullRange, cy_i, cr_i, cgu_i, cgv_i, cb_i, y_offset);
+    // Full-precision (×256) coefficients for scalar fallback -- matches reference formula exactly
+    int cy_s, cr_s, cgu_s, cgv_s, cb_s, y_offset_unused;
+    getYuvToRgbCoefficients_scalar(is601, isFullRange, cy_s, cr_s, cgu_s, cgv_s, cb_s, y_offset_unused);
 
     for (int y = 0; y < height; ++y) {
         const uint8_t* srcRow = src + y * srcStride;
@@ -1261,13 +1282,14 @@ void _yuyvToRgb_neon_imp(const uint8_t* src, int srcStride,
             int uc = static_cast<int>(u) - 128;
             int vc = static_cast<int>(v) - 128;
 
-            int r0 = (cy_i * y0c + cr_i * vc + 32) >> 6;
-            int g0 = (cy_i * y0c - cgu_i * uc - cgv_i * vc + 32) >> 6;
-            int b0 = (cy_i * y0c + cb_i * uc + 32) >> 6;
+            // Use ×256 coefficients (+128 >> 8) to match reference formula exactly
+            int r0 = (cy_s * y0c + cr_s * vc + 128) >> 8;
+            int g0 = (cy_s * y0c - cgu_s * uc - cgv_s * vc + 128) >> 8;
+            int b0 = (cy_s * y0c + cb_s * uc + 128) >> 8;
 
-            int r1 = (cy_i * y1c + cr_i * vc + 32) >> 6;
-            int g1 = (cy_i * y1c - cgu_i * uc - cgv_i * vc + 32) >> 6;
-            int b1 = (cy_i * y1c + cb_i * uc + 32) >> 6;
+            int r1 = (cy_s * y1c + cr_s * vc + 128) >> 8;
+            int g1 = (cy_s * y1c - cgu_s * uc - cgv_s * vc + 128) >> 8;
+            int b1 = (cy_s * y1c + cb_s * uc + 128) >> 8;
 
             // Clamp to [0, 255] to match NEON saturating behavior
             r0 = r0 < 0 ? 0 : (r0 > 255 ? 255 : r0);
@@ -1311,9 +1333,10 @@ void _yuyvToRgb_neon_imp(const uint8_t* src, int srcStride,
             int uc = static_cast<int>(u) - 128;
             int vc = static_cast<int>(v) - 128;
 
-            int r0 = (cy_i * y0c + cr_i * vc + 32) >> 6;
-            int g0 = (cy_i * y0c - cgu_i * uc - cgv_i * vc + 32) >> 6;
-            int b0 = (cy_i * y0c + cb_i * uc + 32) >> 6;
+            // Use ×256 coefficients (+128 >> 8) to match reference formula exactly
+            int r0 = (cy_s * y0c + cr_s * vc + 128) >> 8;
+            int g0 = (cy_s * y0c - cgu_s * uc - cgv_s * vc + 128) >> 8;
+            int b0 = (cy_s * y0c + cb_s * uc + 128) >> 8;
 
             // Clamp to [0, 255]
             r0 = r0 < 0 ? 0 : (r0 > 255 ? 255 : r0);
@@ -1348,6 +1371,9 @@ void _uyvyToRgba_neon_imp(const uint8_t* src, int srcStride,
     const bool isFullRange = (flag & ConvertFlag::FullRange) != 0;
     int cy_i, cr_i, cgu_i, cgv_i, cb_i, y_offset;
     getYuvToRgbCoefficients_neon(is601, isFullRange, cy_i, cr_i, cgu_i, cgv_i, cb_i, y_offset);
+    // Full-precision (×256) coefficients for scalar fallback -- matches reference formula exactly
+    int cy_s, cr_s, cgu_s, cgv_s, cb_s, y_offset_unused;
+    getYuvToRgbCoefficients_scalar(is601, isFullRange, cy_s, cr_s, cgu_s, cgv_s, cb_s, y_offset_unused);
 
     for (int y = 0; y < height; ++y) {
         const uint8_t* srcRow = src + y * srcStride;
@@ -1461,12 +1487,13 @@ void _uyvyToRgba_neon_imp(const uint8_t* src, int srcStride,
             int c_u = static_cast<int>(u) - 128;
             int c_v = static_cast<int>(v) - 128;
 
-            int r0 = (cy_i * c_y0 + cr_i * c_v + 32) >> 6;
-            int g0 = (cy_i * c_y0 - cgu_i * c_u - cgv_i * c_v + 32) >> 6;
-            int b0 = (cy_i * c_y0 + cb_i * c_u + 32) >> 6;
-            int r1 = (cy_i * c_y1 + cr_i * c_v + 32) >> 6;
-            int g1 = (cy_i * c_y1 - cgu_i * c_u - cgv_i * c_v + 32) >> 6;
-            int b1 = (cy_i * c_y1 + cb_i * c_u + 32) >> 6;
+            // Use ×256 coefficients (+128 >> 8) to match reference formula exactly
+            int r0 = (cy_s * c_y0 + cr_s * c_v + 128) >> 8;
+            int g0 = (cy_s * c_y0 - cgu_s * c_u - cgv_s * c_v + 128) >> 8;
+            int b0 = (cy_s * c_y0 + cb_s * c_u + 128) >> 8;
+            int r1 = (cy_s * c_y1 + cr_s * c_v + 128) >> 8;
+            int g1 = (cy_s * c_y1 - cgu_s * c_u - cgv_s * c_v + 128) >> 8;
+            int b1 = (cy_s * c_y1 + cb_s * c_u + 128) >> 8;
 
             r0 = r0 < 0 ? 0 : (r0 > 255 ? 255 : r0);
             g0 = g0 < 0 ? 0 : (g0 > 255 ? 255 : g0);
@@ -1505,9 +1532,10 @@ void _uyvyToRgba_neon_imp(const uint8_t* src, int srcStride,
             int c_y0 = static_cast<int>(y0) - y_offset;
             int c_u = static_cast<int>(u) - 128;
             int c_v = static_cast<int>(v) - 128;
-            int r0 = (cy_i * c_y0 + cr_i * c_v + 32) >> 6;
-            int g0 = (cy_i * c_y0 - cgu_i * c_u - cgv_i * c_v + 32) >> 6;
-            int b0 = (cy_i * c_y0 + cb_i * c_u + 32) >> 6;
+            // Use ×256 coefficients (+128 >> 8) to match reference formula exactly
+            int r0 = (cy_s * c_y0 + cr_s * c_v + 128) >> 8;
+            int g0 = (cy_s * c_y0 - cgu_s * c_u - cgv_s * c_v + 128) >> 8;
+            int b0 = (cy_s * c_y0 + cb_s * c_u + 128) >> 8;
             r0 = r0 < 0 ? 0 : (r0 > 255 ? 255 : r0);
             g0 = g0 < 0 ? 0 : (g0 > 255 ? 255 : g0);
             b0 = b0 < 0 ? 0 : (b0 > 255 ? 255 : b0);
