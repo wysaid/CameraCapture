@@ -162,7 +162,7 @@
                     assets.forEach(function(asset) {
                         var name = (asset.name || '').toLowerCase();
                         var matched = false;
-                        if (/\b(windows|win32|win64)\b/.test(name)) {
+                        if (/\b(windows|win32|win64|msvc)\b/.test(name)) {
                             platforms.windows.push(asset);
                             matched = true;
                         }

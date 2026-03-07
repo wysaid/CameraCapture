@@ -1088,14 +1088,14 @@ void _yuyvToRgba_neon_imp(const uint8_t* src, int srcStride,
             int c_u = (int)u - 128;
             int c_v = (int)v - 128;
 
-            // Convert using dynamic coefficients
-            int r0 = (cy * c_y0 + cr * c_v) >> 6;
-            int g0 = (cy * c_y0 - cgu * c_u - cgv * c_v) >> 6;
-            int b0 = (cy * c_y0 + cb * c_u) >> 6;
+            // Use the same ×64 coefficients as the SIMD path to keep reduced-precision behavior consistent.
+            int r0 = (cy * c_y0 + cr * c_v + 32) >> 6;
+            int g0 = (cy * c_y0 - cgu * c_u - cgv * c_v + 32) >> 6;
+            int b0 = (cy * c_y0 + cb * c_u + 32) >> 6;
 
-            int r1 = (cy * c_y1 + cr * c_v) >> 6;
-            int g1 = (cy * c_y1 - cgu * c_u - cgv * c_v) >> 6;
-            int b1 = (cy * c_y1 + cb * c_u) >> 6;
+            int r1 = (cy * c_y1 + cr * c_v + 32) >> 6;
+            int g1 = (cy * c_y1 - cgu * c_u - cgv * c_v + 32) >> 6;
+            int b1 = (cy * c_y1 + cb * c_u + 32) >> 6;
 
             // Clamp to [0, 255]
             r0 = r0 < 0 ? 0 : (r0 > 255 ? 255 : r0);

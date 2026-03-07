@@ -15,3 +15,8 @@
 - Store temporary files, development documents, and drafts in `dev-docs/`
 - `.md` files in `docs/` must be English and require review before publishing
 - Treat `dev-docs/` as `/tmp`
+
+## Skills
+
+- **Submit PR:** Follow `.github/skills/pr-submit/SKILL.md` to create or update pull requests
+- **Review PR:** Follow `.github/skills/pr-review/SKILL.md` to review pull requests
