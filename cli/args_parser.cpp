@@ -19,6 +19,8 @@ namespace ccap_cli {
 // Default values
 constexpr int DEFAULT_WIDTH = 1280;
 constexpr int DEFAULT_HEIGHT = 720;
+constexpr int DEFAULT_PREVIEW_WIDTH = 1920;
+constexpr int DEFAULT_PREVIEW_HEIGHT = 1080;
 constexpr double DEFAULT_FPS = 30.0;
 constexpr int DEFAULT_TIMEOUT_MS = 5000;
 
@@ -135,6 +137,7 @@ void printUsage(const char* programName) {
     std::cout << "Preview options:\n"
               << "  -p, --preview              enable window preview\n"
               << "  --preview-only             same as --preview (kept for compatibility)\n"
+              << "                             Camera preview requests 1920x1080 by default when -w/-H are omitted\n"
               << "\n";
 #endif
 
@@ -318,10 +321,12 @@ CLIOptions parseArgs(int argc, char* argv[]) {
         } else if (arg == "-w" || arg == "--width") {
             if (i + 1 < argc) {
                 opts.width = std::atoi(argv[++i]);
+                opts.widthSpecified = true;
             }
         } else if (arg == "-H" || arg == "--height") {
             if (i + 1 < argc) {
                 opts.height = std::atoi(argv[++i]);
+                opts.heightSpecified = true;
             }
         } else if (arg == "-f" || arg == "--fps") {
             if (i + 1 < argc) {
@@ -459,6 +464,11 @@ CLIOptions parseArgs(int argc, char* argv[]) {
     // Post-processing: if -o is specified with save options, enable save
     if (!opts.outputDir.empty() && (opts.saveYuv || opts.saveFramesSpecified)) {
         opts.saveFrames = true;
+    }
+
+    if (opts.enablePreview && opts.videoFilePath.empty() && !opts.widthSpecified && !opts.heightSpecified) {
+        opts.width = DEFAULT_PREVIEW_WIDTH;
+        opts.height = DEFAULT_PREVIEW_HEIGHT;
     }
 
     return opts;

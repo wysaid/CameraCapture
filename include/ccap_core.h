@@ -67,6 +67,7 @@ public:
       * @param deviceName The name of the device to open. @see #open
       * @param extraInfo Optional backend hint.
       *        On Windows, accepted values include `auto`, `msmf`, `dshow`, and `backend=<value>`.
+    *        `auto` enumerates both Windows backends and routes each device to a compatible backend automatically.
       *        Other platforms ignore this parameter.
       */
     explicit Provider(std::string_view deviceName, std::string_view extraInfo = "");
@@ -76,6 +77,7 @@ public:
       * @param deviceIndex The index of the device to open. @see #open
       * @param extraInfo Optional backend hint.
       *        On Windows, accepted values include `auto`, `msmf`, `dshow`, and `backend=<value>`.
+    *        `auto` enumerates both Windows backends and routes each device to a compatible backend automatically.
       *        Other platforms ignore this parameter.
       */
     explicit Provider(int deviceIndex, std::string_view extraInfo = "");

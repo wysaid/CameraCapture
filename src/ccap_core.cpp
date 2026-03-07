@@ -176,24 +176,36 @@ std::optional<WindowsBackendPreference> parseWindowsBackendPreferenceValue(std::
     return std::nullopt;
 }
 
+std::string getEnvironmentValue(std::string_view name) {
+#if defined(_WIN32) || defined(_MSC_VER)
+    if (name.empty()) {
+        return {};
+    }
+
+    std::string envName(name);
+    DWORD required = GetEnvironmentVariableA(envName.c_str(), nullptr, 0);
+    if (required == 0) {
+        return {};
+    }
+
+    std::string value(required > 0 ? required - 1 : 0, '\0');
+    if (GetEnvironmentVariableA(envName.c_str(), value.data(), required) == 0) {
+        return {};
+    }
+
+    return value;
+#else
+    const char* rawValue = std::getenv(std::string(name).c_str());
+    return rawValue != nullptr ? std::string(rawValue) : std::string();
+#endif
+}
+
 WindowsBackendPreference resolveWindowsBackendPreference(std::string_view extraInfo) {
     if (auto parsed = parseWindowsBackendPreferenceValue(extraInfo)) {
         return *parsed;
     }
 
-    std::string envValue;
-#if defined(_MSC_VER)
-    char* rawValue = nullptr;
-    size_t rawLength = 0;
-    if (_dupenv_s(&rawValue, &rawLength, "CCAP_WINDOWS_BACKEND") == 0 && rawValue != nullptr) {
-        envValue.assign(rawValue, rawLength == 0 ? 0 : rawLength - 1);
-        free(rawValue);
-    }
-#else
-    if (const char* rawValue = std::getenv("CCAP_WINDOWS_BACKEND"); rawValue != nullptr) {
-        envValue = rawValue;
-    }
-#endif
+    std::string envValue = getEnvironmentValue("CCAP_WINDOWS_BACKEND");
 
     if (!envValue.empty()) {
         if (auto parsed = parseWindowsBackendPreferenceValue(envValue)) {
@@ -226,15 +238,7 @@ bool isMediaFoundationCameraBackendAvailable() {
 ProviderImp* createWindowsProvider(std::string_view extraInfo) {
     WindowsBackendPreference preference = resolveWindowsBackendPreference(extraInfo);
 
-    if (preference == WindowsBackendPreference::DirectShow) {
-        return createProviderDirectShow();
-    }
-
     if (preference == WindowsBackendPreference::MSMF && isMediaFoundationCameraBackendAvailable()) {
-        return createProviderMSMF();
-    }
-
-    if (preference == WindowsBackendPreference::Auto && isMediaFoundationCameraBackendAvailable()) {
         return createProviderMSMF();
     }
 
@@ -246,9 +250,8 @@ ProviderImp* createWindowsProvider(WindowsBackendPreference preference) {
     case WindowsBackendPreference::MSMF:
         return isMediaFoundationCameraBackendAvailable() ? createProviderMSMF() : nullptr;
     case WindowsBackendPreference::DirectShow:
-        return createProviderDirectShow();
     case WindowsBackendPreference::Auto:
-        return isMediaFoundationCameraBackendAvailable() ? createProviderMSMF() : createProviderDirectShow();
+        return createProviderDirectShow();
     }
 
     return createProviderDirectShow();
@@ -291,6 +294,47 @@ std::vector<std::string> mergeDeviceNames(std::vector<std::string> preferred, co
 std::vector<std::string> collectDeviceNamesFromBackend(WindowsBackendPreference preference) {
     std::unique_ptr<ProviderImp> provider(createWindowsProvider(preference));
     return provider ? provider->findDeviceNames() : std::vector<std::string>();
+}
+
+bool deviceNameExistsInBackend(std::string_view deviceName, WindowsBackendPreference preference) {
+    if (deviceName.empty()) {
+        return false;
+    }
+
+    std::vector<std::string> deviceNames = collectDeviceNamesFromBackend(preference);
+    return std::find(deviceNames.begin(), deviceNames.end(), deviceName) != deviceNames.end();
+}
+
+std::vector<WindowsBackendPreference> getAutoBackendCandidates(std::string_view deviceName) {
+    std::vector<WindowsBackendPreference> candidates;
+
+    if (deviceName.empty()) {
+        candidates.push_back(WindowsBackendPreference::DirectShow);
+        if (isMediaFoundationCameraBackendAvailable()) {
+            candidates.push_back(WindowsBackendPreference::MSMF);
+        }
+        return candidates;
+    }
+
+    const bool inDirectShow = deviceNameExistsInBackend(deviceName, WindowsBackendPreference::DirectShow);
+    const bool inMSMF = deviceNameExistsInBackend(deviceName, WindowsBackendPreference::MSMF);
+
+    if (inDirectShow) {
+        candidates.push_back(WindowsBackendPreference::DirectShow);
+    }
+    if (inMSMF) {
+        candidates.push_back(WindowsBackendPreference::MSMF);
+    }
+
+    if (!candidates.empty()) {
+        return candidates;
+    }
+
+    candidates.push_back(WindowsBackendPreference::DirectShow);
+    if (isMediaFoundationCameraBackendAvailable()) {
+        candidates.push_back(WindowsBackendPreference::MSMF);
+    }
+    return candidates;
 }
 #endif
 } // namespace
@@ -493,8 +537,8 @@ std::vector<std::string> Provider::findDeviceNames() {
         return collectDeviceNamesFromBackend(WindowsBackendPreference::MSMF);
     }
 
-    std::vector<std::string> preferred = collectDeviceNamesFromBackend(WindowsBackendPreference::MSMF);
-    std::vector<std::string> fallback = collectDeviceNamesFromBackend(WindowsBackendPreference::DirectShow);
+    std::vector<std::string> preferred = collectDeviceNamesFromBackend(WindowsBackendPreference::DirectShow);
+    std::vector<std::string> fallback = collectDeviceNamesFromBackend(WindowsBackendPreference::MSMF);
     return mergeDeviceNames(std::move(preferred), fallback);
 #else
     return m_imp->findDeviceNames();
@@ -541,11 +585,16 @@ bool Provider::open(std::string_view deviceName, bool autoStart) {
         return tryBackend(WindowsBackendPreference::MSMF);
     }
 
-    if (isMediaFoundationCameraBackendAvailable() && tryBackend(WindowsBackendPreference::MSMF)) {
-        return true;
+    for (WindowsBackendPreference candidate : getAutoBackendCandidates(deviceName)) {
+        if (candidate == WindowsBackendPreference::MSMF && !isMediaFoundationCameraBackendAvailable()) {
+            continue;
+        }
+        if (tryBackend(candidate)) {
+            return true;
+        }
     }
 
-    return tryBackend(WindowsBackendPreference::DirectShow);
+    return false;
 #else
     return m_imp->open(deviceName) && (!autoStart || m_imp->start());
 #endif

@@ -10,7 +10,6 @@
 #include "utils/helper.h"
 
 #include <stdio.h>
-#include <stdlib.h>
 
 // Error callback function
 void error_callback(CcapErrorCode errorCode, const char* errorDescription, void* userData) {
@@ -25,6 +24,11 @@ int main() {
     // Set error callback to receive error notifications
     ccap_set_error_callback(error_callback, NULL);
 
+#if defined(_WIN32) || defined(_WIN64)
+    // On Windows, you can force a backend while opening the default camera:
+    // CcapProvider* provider = ccap_provider_create_with_index(-1, "msmf");
+    // CcapProvider* provider = ccap_provider_create_with_index(-1, "dshow");
+#endif
     // Create provider
     CcapProvider* provider = ccap_provider_create();
     if (!provider) {
@@ -33,7 +37,7 @@ int main() {
     }
 
     // Select and open camera
-    int deviceIndex = selectCamera(provider);
+    int deviceIndex = selectCamera(provider, NULL);
     if (!ccap_provider_open_by_index(provider, deviceIndex, true)) {
         printf("Failed to open camera\n");
         ccap_provider_destroy(provider);

@@ -154,6 +154,7 @@ CCAP_EXPORT CcapProvider* ccap_provider_create(void);
  * @param deviceName Device name to open (NULL for default device)
  * @param extraInfo Extra backend hint (can be NULL).
  *        On Windows, accepted values include `auto`, `msmf`, `dshow`, and `backend=<value>`.
+ *        `auto` enumerates both Windows backends and routes each device to a compatible backend automatically.
  *        Other platforms ignore this parameter.
  * @return Pointer to CcapProvider instance, or NULL on failure
  */
@@ -164,6 +165,7 @@ CCAP_EXPORT CcapProvider* ccap_provider_create_with_device(const char* deviceNam
  * @param deviceIndex Device index (negative for default device)
  * @param extraInfo Extra backend hint (can be NULL).
  *        On Windows, accepted values include `auto`, `msmf`, `dshow`, and `backend=<value>`.
+ *        `auto` enumerates both Windows backends and routes each device to a compatible backend automatically.
  *        Other platforms ignore this parameter.
  * @return Pointer to CcapProvider instance, or NULL on failure
  */

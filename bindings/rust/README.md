@@ -4,14 +4,14 @@
 [![Documentation](https://docs.rs/ccap-rs/badge.svg)](https://docs.rs/ccap-rs)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Safe Rust bindings for [CameraCapture (ccap)](https://github.com/wysaid/CameraCapture) — a high-performance, lightweight, cross-platform **webcam/camera capture** library with **hardware-accelerated pixel format conversion** (Windows Media Foundation with DirectShow fallback, macOS/iOS AVFoundation, Linux V4L2).
+Safe Rust bindings for [CameraCapture (ccap)](https://github.com/wysaid/CameraCapture) — a high-performance, lightweight, cross-platform **webcam/camera capture** library with **hardware-accelerated pixel format conversion** (Windows DirectShow by default with optional Media Foundation, macOS/iOS AVFoundation, Linux V4L2).
 
 > Note: The published *package* name on crates.io is `ccap-rs`, but the *crate name in code* is `ccap`.
 
 ## Features
 
 - **High Performance**: Hardware-accelerated pixel format conversion with up to 10x speedup (AVX2, Apple Accelerate, NEON)
-- **Cross Platform**: Windows (Media Foundation with DirectShow fallback), macOS/iOS (AVFoundation), Linux (V4L2)
+- **Cross Platform**: Windows (DirectShow by default with optional Media Foundation), macOS/iOS (AVFoundation), Linux (V4L2)
 - **Multiple Formats**: RGB, BGR, YUV (NV12/I420) with automatic conversion
 - **Zero Dependencies**: Uses only system frameworks
 - **Memory Safe**: Safe Rust API with automatic resource management
@@ -149,10 +149,10 @@ An ASan-instrumented `libccap.a` requires the ASan runtime at link/run time.
 
 ## Platform notes
 
-- Camera capture: Windows (Media Foundation with DirectShow fallback), macOS/iOS (AVFoundation), Linux (V4L2)
+- Camera capture: Windows (DirectShow by default with optional Media Foundation), macOS/iOS (AVFoundation), Linux (V4L2)
 - Video file playback support depends on the underlying C/C++ library backend (currently Windows/macOS only).
 
-On Windows, you can force backend selection by setting `CCAP_WINDOWS_BACKEND=auto|msmf|dshow`, or by using `Provider::with_device_name_and_extra_info`, `Provider::with_device_and_extra_info`, `Provider::open_device_with_extra_info`, and `Provider::open_with_index_and_extra_info`.
+On Windows, camera capture defaults to DirectShow because virtual cameras such as OBS Virtual Camera are exposed there more reliably. To opt into Media Foundation, set `CCAP_WINDOWS_BACKEND=msmf`, or use `Provider::with_device_name_and_extra_info`, `Provider::with_device_and_extra_info`, `Provider::open_device_with_extra_info`, and `Provider::open_with_index_and_extra_info` with `"msmf"`.
 
 ## API Documentation
 
@@ -188,12 +188,12 @@ match provider.grab_frame(3000) {  // 3 second timeout
 
 ## Platform Support
 
-| Platform | Backend      | Status       |
-| -------- | ------------ | ------------ |
-| Windows  | Media Foundation + DirectShow fallback | ✅ Supported |
-| macOS    | AVFoundation | ✅ Supported |
-| iOS      | AVFoundation | ✅ Supported |
-| Linux    | V4L2         | ✅ Supported |
+| Platform | Backend | Status |
+| --- | --- | --- |
+| Windows | DirectShow default, Media Foundation opt-in | ✅ Supported |
+| macOS | AVFoundation | ✅ Supported |
+| iOS | AVFoundation | ✅ Supported |
+| Linux | V4L2 | ✅ Supported |
 
 ## System Requirements
 

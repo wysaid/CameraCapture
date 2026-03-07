@@ -13,12 +13,30 @@
 extern "C" {
 #endif
 
+typedef enum ExampleCameraBackend {
+	EXAMPLE_CAMERA_BACKEND_UNSPECIFIED = 0,
+	EXAMPLE_CAMERA_BACKEND_AUTO,
+	EXAMPLE_CAMERA_BACKEND_MSMF,
+	EXAMPLE_CAMERA_BACKEND_DSHOW,
+} ExampleCameraBackend;
+
+typedef struct ExampleCommandLine {
+	int argc;
+	char** argv;
+	ExampleCameraBackend cameraBackend;
+} ExampleCommandLine;
+
+void initExampleCommandLine(ExampleCommandLine* commandLine, int argc, char** argv);
+void applyExampleCameraBackend(const ExampleCommandLine* commandLine);
+int getExampleCameraIndex(const ExampleCommandLine* commandLine);
+const char* getExampleCameraBackendName(ExampleCameraBackend backend);
+
 // Select a camera device index interactively when multiple devices are found.
 // Returns:
 //  - index >= 0: selected device index
 //  - -1: zero or one device available (use default/open first)
 typedef struct CcapProvider CcapProvider; // forward declaration from ccap_c.h
-int selectCamera(CcapProvider* provider);
+int selectCamera(CcapProvider* provider, const ExampleCommandLine* commandLine);
 // Create directory if not exists (portable)
 void createDirectory(const char* path);
 // Get current working directory (portable)
@@ -32,5 +50,5 @@ int getCurrentWorkingDirectory(char* buffer, size_t size);
 namespace ccap {
 class Provider;
 }
-int selectCamera(ccap::Provider& provider);
+int selectCamera(ccap::Provider& provider, const ExampleCommandLine* commandLine = nullptr);
 #endif

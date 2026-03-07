@@ -33,13 +33,14 @@ A high-performance, lightweight cross-platform camera capture library with hardw
 
 - **High Performance**: Hardware-accelerated pixel format conversion with up to 10x speedup (AVX2, Apple Accelerate, NEON)
 - **Lightweight**: No third-party dependencies - uses only system frameworks
-- **Cross Platform**: Windows (Media Foundation with DirectShow fallback), macOS/iOS (AVFoundation), Linux (V4L2)
+- **Cross Platform**: Windows (DirectShow by default with optional Media Foundation), macOS/iOS (AVFoundation), Linux (V4L2)
+- **Windows Dual Backends**: DirectShow is the default on Windows for compatibility with OBS Virtual Camera and other virtual devices, while Media Foundation stays available through explicit opt-in
 - **Multiple Formats**: RGB, BGR, YUV (NV12/I420) with automatic conversion
 - **Dual Language APIs**: ✨ **Complete Pure C Interface** - Both modern C++ API and traditional C99 interface for various project integration and language bindings
 - **Video File Playback**: 🎬 Play video files (MP4, AVI, MOV, etc.) using the same API as camera capture - supports Windows and macOS
 - **CLI Tool**: Ready-to-use command-line tool for quick camera operations and video processing - list devices, capture images, real-time preview, video playback ([Documentation](./docs/content/cli.md))
 - **Production Ready**: Comprehensive test suite with 95%+ accuracy validation
-- **Virtual Camera Support**: Compatible with OBS Virtual Camera and similar tools
+- **Virtual Camera Support**: Compatible with OBS Virtual Camera and similar tools through the default DirectShow path on Windows
 
 ## Quick Start
 
@@ -213,13 +214,24 @@ int main() {
 
 ### Windows Backend Selection
 
-On Windows, camera capture uses Media Foundation by default and falls back to DirectShow when needed. You can override that choice when debugging device issues or validating backend-specific behavior:
+On Windows, camera capture now uses DirectShow by default. This keeps OBS Virtual Camera and other virtual cameras working reliably after upgrades, while Media Foundation remains available when you explicitly request it. In `auto` mode, camera enumeration merges results from both Windows backends and `Provider::open()` routes the selected device to a compatible backend automatically: DirectShow-only devices stay on DirectShow, Media Foundation-only devices go straight to Media Foundation, and devices visible in both backends prefer DirectShow with Media Foundation as the secondary fallback.
+
+For most Windows applications, staying in `auto` mode is recommended. ccap normalizes the public capture API, frame orientation handling, and output pixel-format conversion across both backends so callers usually do not need backend-specific code.
 
 - Pass `extraInfo` as `"auto"`, `"msmf"`, `"dshow"`, or `"backend=<value>"` in the C++/C constructors that accept it.
 - Set the environment variable `CCAP_WINDOWS_BACKEND=auto|msmf|dshow` to affect the whole process, including the CLI and Rust bindings.
 
+```powershell
+# PowerShell: opt into Media Foundation for the current process
+$env:CCAP_WINDOWS_BACKEND = "msmf"
+.\ccap --list-devices
+```
+
 ```cpp
+// Force Media Foundation explicitly on Windows
 ccap::Provider msmfProvider("", "msmf");
+
+// Force DirectShow explicitly on Windows
 ccap::Provider dshowProvider("", "dshow");
 ```
 
@@ -288,7 +300,7 @@ For complete CLI documentation, see [CLI Tool Guide](./docs/content/cli.md).
 
 | Platform | Compiler | System Requirements |
 | -------- | -------- | ------------------- |
-| **Windows** | MSVC 2019+ (including 2026) / MinGW-w64 | Media Foundation (default) + DirectShow fallback |
+| **Windows** | MSVC 2019+ (including 2026) / MinGW-w64 | DirectShow (default) + Media Foundation opt-in |
 | **macOS** | Xcode 11+ | macOS 10.13+ |
 | **iOS** | Xcode 11+ | iOS 13.0+ |
 | **Linux** | GCC 7+ / Clang 6+ | V4L2 (Linux 2.6+) |
