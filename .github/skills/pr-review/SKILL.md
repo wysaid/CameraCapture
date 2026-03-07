@@ -46,7 +46,7 @@ for t in data['data']['repository']['pullRequest']['reviewThreads']['nodes']:
 "
 ```
 
-Also resolve threads that are **outdated** (the underlying code they referenced has since changed), as they are no longer actionable.
+Only resolve threads that are **outdated** after re-checking whether the concern is already addressed or clearly superseded by the new code. GitHub can mark a thread outdated because the diff moved, not only because the issue was fixed.
 
 ### Review Restraint Policy
 
@@ -83,7 +83,7 @@ Before acting on any review comment or suggestion, classify it by importance:
    - **Code issue, breaking change required**: stop and report to developer for a decision
 3. **Address review comments** — apply the Review Restraint Policy to each comment:
    - P1/P2: implement the fix, then **immediately resolve the thread** using the GraphQL mutation above
-   - Outdated threads: resolve them regardless of priority (no action needed, just mark resolved)
+  - Outdated threads: re-check whether the concern is already addressed or clearly superseded; only then resolve the thread
    - P3: apply the two-question test — fix + resolve if both answers are yes; otherwise record in summary and defer to user
    - P4: record rejection reason in summary
 4. **Commit & push** — single commit covering all non-workflow fixes (workflow fixes are pushed incrementally during step 2)

@@ -816,6 +816,34 @@ TEST_P(FrameYUVReferenceValueTest, YUYV_SolidColor_To_BGR24_MatchesReferencePixe
     }
 }
 
+TEST_P(FrameYUVReferenceValueTest, YUYV_SolidColor_To_RGBA32_MatchesReferencePixelValues) {
+    auto backend = GetParam();
+    const int width = 8;
+    const int height = 8;
+
+    PackedYUVFrameData yuyv(width, height, ccap::PixelFormat::YUYV);
+    fillPackedYUVDataSolid(yuyv.buffer.data(), yuyv.frame->stride[0], yuyv.frame->pixelFormat, yuyv.frame->width, yuyv.frame->height, 96, 90,
+                           180);
+
+    bool success = ccap::inplaceConvertFrame(yuyv.frame.get(), ccap::PixelFormat::RGBA32, false);
+    ASSERT_TRUE(success) << "YUYV solid-color conversion failed, backend: " << BackendTestManager::getBackendName(backend);
+
+    int r = 0;
+    int g = 0;
+    int b = 0;
+    PixelTestUtils::yuv2rgbReference(96, 90, 180, r, g, b, false, false);
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            int offset = y * yuyv.frame->stride[0] + x * 4;
+            EXPECT_EQ(yuyv.frame->data[0][offset + 0], r);
+            EXPECT_EQ(yuyv.frame->data[0][offset + 1], g);
+            EXPECT_EQ(yuyv.frame->data[0][offset + 2], b);
+            EXPECT_EQ(yuyv.frame->data[0][offset + 3], 0xFF);
+        }
+    }
+}
+
 TEST_P(FrameYUVReferenceValueTest, UYVY_SolidColor_To_RGBA32_MatchesReferencePixelValues) {
     auto backend = GetParam();
     const int width = 8;
@@ -840,6 +868,33 @@ TEST_P(FrameYUVReferenceValueTest, UYVY_SolidColor_To_RGBA32_MatchesReferencePix
             EXPECT_EQ(uyvy.frame->data[0][offset + 1], g);
             EXPECT_EQ(uyvy.frame->data[0][offset + 2], b);
             EXPECT_EQ(uyvy.frame->data[0][offset + 3], 0xFF);
+        }
+    }
+}
+
+TEST_P(FrameYUVReferenceValueTest, UYVY_SolidColor_To_BGR24_MatchesReferencePixelValues) {
+    auto backend = GetParam();
+    const int width = 8;
+    const int height = 8;
+
+    PackedYUVFrameData uyvy(width, height, ccap::PixelFormat::UYVY);
+    fillPackedYUVDataSolid(uyvy.buffer.data(), uyvy.frame->stride[0], uyvy.frame->pixelFormat, uyvy.frame->width, uyvy.frame->height, 180, 54,
+                           200);
+
+    bool success = ccap::inplaceConvertFrame(uyvy.frame.get(), ccap::PixelFormat::BGR24, false);
+    ASSERT_TRUE(success) << "UYVY solid-color conversion failed, backend: " << BackendTestManager::getBackendName(backend);
+
+    int r = 0;
+    int g = 0;
+    int b = 0;
+    PixelTestUtils::yuv2rgbReference(180, 54, 200, r, g, b, false, false);
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            int offset = y * uyvy.frame->stride[0] + x * 3;
+            EXPECT_EQ(uyvy.frame->data[0][offset + 0], b);
+            EXPECT_EQ(uyvy.frame->data[0][offset + 1], g);
+            EXPECT_EQ(uyvy.frame->data[0][offset + 2], r);
         }
     }
 }

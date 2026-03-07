@@ -15,13 +15,15 @@ Do NOT invoke this skill for plain commit or push requests.
 ## Procedure
 
 1. **Verify & clean** — ensure changes are complete, correct, and free of debug artifacts
+2. **Detect default branch** — determine the repository default branch first, for example:
+   - `DEFAULT_BRANCH=$(GH_PAGER= gh repo view --json defaultBranchRef -q '.defaultBranchRef.name')`
 2. **Commit & push**:
-   - If on `master`, create a new feature branch first (avoid name conflicts)
+   - If on `$DEFAULT_BRANCH`, create a new feature branch first (avoid name conflicts)
    - Commit all changes and push to remote
 3. **Create or update PR**:
-   - Check if current branch already has a PR (`gh pr list --head <BRANCH>`)
+   - Check if current branch already has a PR (`gh pr list --head <BRANCH> --base "$DEFAULT_BRANCH"`)
    - **Exists**: update title/description to reflect new commits
-   - **None**: create PR against `master` with title/description derived from changes
+   - **None**: create PR against `$DEFAULT_BRANCH` with title/description derived from changes
 
 ## Output
 
