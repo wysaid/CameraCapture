@@ -234,7 +234,7 @@
             "args": [
                 "-l",
                 "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then powershell.exe -NoProfile -ExecutionPolicy Bypass -Command 'cmake --build build --config Debug --parallel $env:NUMBER_OF_PROCESSORS'; else cmake --build build/Debug --config Debug --parallel $(nproc); fi )"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"cmake --build build --config Debug --parallel \\$env:NUMBER_OF_PROCESSORS\"; else cmake --build build/Debug --config Debug --parallel $(nproc); fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -263,7 +263,7 @@
             "args": [
                 "-l",
                 "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then powershell.exe -NoProfile -ExecutionPolicy Bypass -Command 'cmake --build build --config Release --parallel $env:NUMBER_OF_PROCESSORS'; else cmake --build build/Release --config Release --parallel $(nproc); fi )"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"cmake --build build --config Release --parallel \\$env:NUMBER_OF_PROCESSORS\"; else cmake --build build/Release --config Release --parallel $(nproc); fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -292,7 +292,7 @@
             "args": [
                 "-l",
                 "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then powershell.exe -NoProfile -ExecutionPolicy Bypass -Command 'cmake --build build_shared --config Debug --parallel $env:NUMBER_OF_PROCESSORS'; else cmake --build build_shared/Debug --config Debug --parallel $(nproc); fi )"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"cmake --build build_shared --config Debug --parallel \\$env:NUMBER_OF_PROCESSORS\"; else cmake --build build_shared/Debug --config Debug --parallel $(nproc); fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -321,7 +321,7 @@
             "args": [
                 "-l",
                 "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then powershell.exe -NoProfile -ExecutionPolicy Bypass -Command 'cmake --build build_shared --config Release --parallel $env:NUMBER_OF_PROCESSORS'; else cmake --build build_shared/Release --config Release --parallel $(nproc); fi )"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"cmake --build build_shared --config Release --parallel \\$env:NUMBER_OF_PROCESSORS\"; else cmake --build build_shared/Release --config Release --parallel $(nproc); fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -475,7 +475,8 @@
             "command": "bash",
             "args": [
                 "-l",
-                "format_all.sh"
+                "-c",
+                "./format_all.sh"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/scripts"
@@ -488,8 +489,8 @@
             "command": "bash",
             "args": [
                 "-l",
-                "run_tests.sh",
-                "--functional"
+                "-c",
+                "./run_tests.sh --functional"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/scripts"
@@ -503,9 +504,8 @@
             "command": "bash",
             "args": [
                 "-l",
-                "run_tests.sh",
-                "--functional",
-                "--exit-when-failed",
+                "-c",
+                "./run_tests.sh --functional --exit-when-failed"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/scripts"
@@ -519,8 +519,8 @@
             "command": "bash",
             "args": [
                 "-l",
-                "run_tests.sh",
-                "--performance"
+                "-c",
+                "./run_tests.sh --performance"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/scripts"
@@ -534,8 +534,8 @@
             "command": "bash",
             "args": [
                 "-l",
-                "run_tests.sh",
-                "--shuffle"
+                "-c",
+                "./run_tests.sh --shuffle"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/scripts"
@@ -549,9 +549,8 @@
             "command": "bash",
             "args": [
                 "-l",
-                "run_tests.sh",
-                "--shuffle",
-                "--exit-when-failed"
+                "-c",
+                "./run_tests.sh --shuffle --exit-when-failed"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/scripts"
@@ -565,8 +564,8 @@
             "command": "bash",
             "args": [
                 "-l",
-                "run_tests.sh",
-                "--video"
+                "-c",
+                "./run_tests.sh --video"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/scripts"
