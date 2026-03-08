@@ -81,8 +81,6 @@ private:
     std::atomic<bool> m_shouldStop{ false };
     std::atomic<bool> m_isRunning{ false };
     bool m_isOpened{ false };
-    bool m_didSetup{ false };
-    bool m_didInitializeCom{ false };
     bool m_mfInitialized{ false };
     PixelFormat m_activePixelFormat = PixelFormat::Unknown;
     uint32_t m_activeWidth = 0;

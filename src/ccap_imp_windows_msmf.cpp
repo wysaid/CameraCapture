@@ -152,10 +152,6 @@ ProviderMSMF::ProviderMSMF() {
 ProviderMSMF::~ProviderMSMF() {
     close();
     uninitMediaFoundation();
-    if (m_didInitializeCom) {
-        CoUninitialize();
-        m_didInitializeCom = false;
-    }
 }
 
 bool ProviderMSMF::setup() {
@@ -163,11 +159,16 @@ bool ProviderMSMF::setup() {
         return true;
     }
 
-    if (!m_didSetup) {
+    // Use static COM initialization (matching DirectShow backend pattern).
+    // COM init/uninit is thread-affine — caching per-instance flags can
+    // mismatch if the destructor runs on a different thread.  A static
+    // flag avoids the issue and is safe because COM reference-counts its
+    // per-thread initialization.
+    static bool s_didSetup = false;
+    if (!s_didSetup) {
         HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-        m_didInitializeCom = SUCCEEDED(hr);
-        m_didSetup = m_didInitializeCom || hr == RPC_E_CHANGED_MODE;
-        if (!m_didSetup) {
+        s_didSetup = SUCCEEDED(hr) || hr == RPC_E_CHANGED_MODE;
+        if (!s_didSetup) {
             reportError(ErrorCode::InitializationFailed, "COM initialization failed for Media Foundation backend");
             return false;
         }
