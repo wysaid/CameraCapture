@@ -857,7 +857,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
 
     if (isInputYUV) {
         bool isPackedYUV = pixelFormatInclude(m_frameProp.cameraPixelFormat, PixelFormat::YUYV) ||
-                           pixelFormatInclude(m_frameProp.cameraPixelFormat, PixelFormat::UYVY);
+            pixelFormatInclude(m_frameProp.cameraPixelFormat, PixelFormat::UYVY);
 
         // Zero-copy, directly reference sample data
         newFrame->data[0] = sampleData;
