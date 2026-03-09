@@ -58,6 +58,11 @@ constexpr const char* kWindowsBackendEnvVar = "CCAP_WINDOWS_BACKEND";
 
 std::string getEnvironmentValue(const char* name) {
 #if defined(_WIN32) || defined(_WIN64)
+#if defined(__MINGW32__) || defined(__MINGW64__)
+    // MinGW doesn't support _dupenv_s, use getenv instead
+    const char* rawValue = std::getenv(name);
+    return rawValue != nullptr ? std::string(rawValue) : std::string();
+#else
     char* rawValue = nullptr;
     size_t rawLength = 0;
     if (_dupenv_s(&rawValue, &rawLength, name) != 0 || rawValue == nullptr) {
@@ -67,6 +72,7 @@ std::string getEnvironmentValue(const char* name) {
     std::string value(rawValue);
     std::free(rawValue);
     return value;
+#endif
 #else
     const char* rawValue = std::getenv(name);
     return rawValue != nullptr ? std::string(rawValue) : std::string();
