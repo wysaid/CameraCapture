@@ -21,14 +21,21 @@ namespace ccap_cli {
  * @brief List all available camera devices
  * @return Exit code (0 on success)
  */
-int listDevices();
+int listDevices(const CLIOptions& opts);
 
 /**
  * @brief Show detailed information about a device
  * @param deviceIndex Device index (-1 for all devices)
  * @return Exit code (0 on success, 1 on error)
  */
-int showDeviceInfo(int deviceIndex);
+int showDeviceInfo(const CLIOptions& opts, int deviceIndex);
+
+/**
+ * @brief Show detailed information about a device selected by name
+ * @param deviceName Device name
+ * @return Exit code (0 on success, 1 on error)
+ */
+int showDeviceInfo(const CLIOptions& opts, const std::string& deviceName);
 
 /**
  * @brief Print video file information

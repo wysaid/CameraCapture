@@ -77,9 +77,11 @@ fn main() -> Result<()> {
 
 相机捕获后端：
 
-- Windows：DirectShow
+- Windows：Media Foundation，必要时回退到 DirectShow
 - macOS/iOS：AVFoundation
 - Linux：V4L2
+
+在 Windows 上，你可以通过设置环境变量 `CCAP_WINDOWS_BACKEND=auto|msmf|dshow` 强制选择后端，也可以使用 Rust API `Provider::with_device_name_and_extra_info`、`Provider::with_device_and_extra_info`、`Provider::open_device_with_extra_info`、`Provider::open_with_index_and_extra_info`。
 
 视频文件播放是否可用取决于底层 C/C++ 后端（目前 Windows/macOS 支持，Linux 暂不支持）。
 

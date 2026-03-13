@@ -17,10 +17,14 @@
 #include <thread>
 
 int main(int argc, char** argv) {
+    ExampleCommandLine commandLine{};
+    initExampleCommandLine(&commandLine, argc, argv);
+    applyExampleCameraBackend(&commandLine);
+
     /// Enable verbose log to see debug information
     ccap::setLogLevel(ccap::LogLevel::Verbose);
 
-    std::string cwd = argv[0];
+    std::string cwd = commandLine.argv[0];
 
     if (auto lastSlashPos = cwd.find_last_of("/\\"); lastSlashPos != std::string::npos && cwd[0] != '.') {
         cwd = cwd.substr(0, lastSlashPos);
@@ -62,12 +66,7 @@ int main(int argc, char** argv) {
 #endif
     cameraProvider.set(ccap::PropertyName::FrameRate, requestedFps);
 
-    int deviceIndex;
-    if (argc > 1 && std::isdigit(argv[1][0])) {
-        deviceIndex = std::stoi(argv[1]);
-    } else {
-        deviceIndex = selectCamera(cameraProvider);
-    }
+    int deviceIndex = selectCamera(cameraProvider, &commandLine);
     cameraProvider.open(deviceIndex, true);
 
     if (!cameraProvider.isStarted()) {

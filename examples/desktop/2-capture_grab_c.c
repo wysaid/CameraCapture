@@ -24,6 +24,10 @@ int main(int argc, char** argv) {
     printf("ccap C Interface Capture Grab Example\n");
     printf("Version: %s\n\n", ccap_get_version());
 
+    ExampleCommandLine commandLine = { 0 };
+    initExampleCommandLine(&commandLine, argc, argv);
+    applyExampleCameraBackend(&commandLine);
+
     // Enable verbose log to see debug information
     ccap_set_log_level(CCAP_LOG_LEVEL_VERBOSE);
 
@@ -32,8 +36,8 @@ int main(int argc, char** argv) {
 
     // Get current working directory and create capture directory
     char cwd[1024];
-    if (argc > 0 && argv[0][0] != '.') {
-        strncpy(cwd, argv[0], sizeof(cwd) - 1);
+    if (commandLine.argc > 0 && commandLine.argv[0][0] != '.') {
+        strncpy(cwd, commandLine.argv[0], sizeof(cwd) - 1);
         cwd[sizeof(cwd) - 1] = '\0';
 
         // Find last slash
@@ -73,12 +77,7 @@ int main(int argc, char** argv) {
     ccap_provider_set_property(provider, CCAP_PROPERTY_FRAME_RATE, requestedFps);
 
     // Select and open camera
-    int deviceIndex;
-    if (argc > 1 && isdigit(argv[1][0])) {
-        deviceIndex = atoi(argv[1]);
-    } else {
-        deviceIndex = selectCamera(provider);
-    }
+    int deviceIndex = selectCamera(provider, &commandLine);
 
     if (!ccap_provider_open_by_index(provider, deviceIndex, true)) {
         printf("Failed to open camera\n");

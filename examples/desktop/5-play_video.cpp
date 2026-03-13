@@ -18,6 +18,9 @@
 #include <string>
 
 int main(int argc, char** argv) {
+    ExampleCommandLine commandLine{};
+    initExampleCommandLine(&commandLine, argc, argv);
+
 #ifdef __linux__
     std::cerr << "\n[WARNING] Video playback is currently not supported on Linux." << std::endl;
     std::cerr << "This feature may be implemented in a future version." << std::endl;
@@ -37,20 +40,20 @@ int main(int argc, char** argv) {
 
     std::string videoPath;
 
-    if (argc < 2) {
+    if (commandLine.argc < 2) {
         // Check if test.mp4 exists in current directory
         std::string defaultVideo = "test.mp4";
         if (std::filesystem::exists(defaultVideo)) {
             std::cout << "No video path provided, using default: " << defaultVideo << std::endl;
             videoPath = defaultVideo;
         } else {
-            std::cerr << "Usage: " << argv[0] << " <video_file_path>" << std::endl;
-            std::cerr << "Example: " << argv[0] << " /path/to/video.mp4" << std::endl;
+            std::cerr << "Usage: " << commandLine.argv[0] << " <video_file_path>" << std::endl;
+            std::cerr << "Example: " << commandLine.argv[0] << " /path/to/video.mp4" << std::endl;
             std::cerr << "\nNote: You can also place a test.mp4 file in the same directory as this executable." << std::endl;
             return -1;
         }
     } else {
-        videoPath = argv[1];
+        videoPath = commandLine.argv[1];
     }
 
     // Check if file exists
@@ -59,7 +62,7 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    std::string cwd = argv[0];
+    std::string cwd = commandLine.argv[0];
     if (auto lastSlashPos = cwd.find_last_of("/\\"); lastSlashPos != std::string::npos && cwd[0] != '.') {
         cwd = cwd.substr(0, lastSlashPos);
     } else {

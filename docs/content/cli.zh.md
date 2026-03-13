@@ -71,6 +71,8 @@ cmake --build build
 
 **Windows (MSVC)**：CLI 工具使用静态运行时链接（`/MT` 标志）来消除对 VCRUNTIME DLL 的依赖，允许单文件分发而无需用户安装 Visual C++ 运行库。
 
+**Windows 后端覆盖**：在 Windows 上，CLI 现在也支持 `--camera-backend auto|msmf|dshow`，以及 `--auto`、`--msmf`、`--dshow` 这几个别名。参数生效后，CLI 会输出当前选中的后端覆盖日志。如果你更希望使用进程级覆盖，也可以在启动前设置 `CCAP_WINDOWS_BACKEND=auto|msmf|dshow`。
+
 **Linux**：当可用时尝试静态链接 libstdc++ 和 libgcc。如果不可用（例如 Fedora 未安装 `libstdc++-static` 包），则回退到动态链接。二进制文件仍然依赖 glibc，可能无法在旧 glibc 版本的系统上运行。
 
 
@@ -83,6 +85,17 @@ cmake --build build
 | `-h, --help` | 显示帮助信息并退出 |
 | `-v, --version` | 显示版本信息 |
 | `--verbose` | 启用详细日志输出 |
+
+### Windows 相机后端选项
+
+这些选项仅在 Windows 上支持。
+
+| 选项 | 描述 |
+|-----|------|
+| `--camera-backend auto\|msmf\|dshow` | 显式选择 Windows 相机后端 |
+| `--auto` | `--camera-backend auto` 的别名 |
+| `--msmf` | `--camera-backend msmf` 的别名 |
+| `--dshow` | `--camera-backend dshow` 的别名 |
 
 ### 设备枚举
 

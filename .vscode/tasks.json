@@ -82,7 +82,7 @@
                     "-ExecutionPolicy",
                     "Bypass",
                     "-Command",
-                    "git clean -fdx build; if ($LASTEXITCODE -ne 0 -and (Test-Path 'build')) { Remove-Item -Recurse -Force 'build' }; git clean -fdx build_shared; if ($LASTEXITCODE -ne 0 -and (Test-Path 'build_shared')) { Remove-Item -Recurse -Force 'build_shared' }; git clean -fdx examples; if ($LASTEXITCODE -ne 0 -and (Test-Path 'examples')) { Remove-Item -Recurse -Force 'examples' }"
+                    "git clean -fdx build; if ($LASTEXITCODE -ne 0 -and (Test-Path 'build')) { Remove-Item -Recurse -Force 'build' }; git clean -fdx build_shared; if ($LASTEXITCODE -ne 0 -and (Test-Path 'build_shared')) { Remove-Item -Recurse -Force 'build_shared' }"
                 ],
                 "options": {
                     "cwd": "${workspaceFolder}"

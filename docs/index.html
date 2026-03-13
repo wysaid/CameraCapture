@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ccap - Cross-Platform Camera Capture Library</title>
     <meta name="description" content="A high-performance, lightweight cross-platform camera capture library with hardware-accelerated pixel format conversion, plus Rust bindings.">
-    <meta name="keywords" content="camera capture, C++, C, Rust, bindings, cross-platform, Windows, macOS, iOS, Linux, DirectShow, AVFoundation, V4L2">
+    <meta name="keywords" content="camera capture, C++, C, Rust, bindings, cross-platform, Windows, Media Foundation, DirectShow, macOS, iOS, Linux, AVFoundation, V4L2">
     <link rel="canonical" href="https://ccap.work/">
     <link rel="stylesheet" href="css/style.css">
     <!-- Highlight.js for syntax highlighting -->
@@ -119,8 +119,8 @@
                     <div class="feature-icon">🌍</div>
                     <h3 class="lang-en">Cross Platform</h3>
                     <h3 class="lang-zh">跨平台</h3>
-                    <p class="lang-en">Native support for Windows (DirectShow), macOS/iOS (AVFoundation), and Linux (V4L2).</p>
-                    <p class="lang-zh">原生支持 Windows (DirectShow)、macOS/iOS (AVFoundation) 和 Linux (V4L2)。</p>
+                    <p class="lang-en">Native support for Windows (Media Foundation with DirectShow fallback), macOS/iOS (AVFoundation), and Linux (V4L2).</p>
+                    <p class="lang-zh">原生支持 Windows（Media Foundation，必要时回退到 DirectShow）、macOS/iOS (AVFoundation) 和 Linux (V4L2)。</p>
                 </div>
                 
                 <div class="feature-card">
@@ -159,7 +159,7 @@
                 <div class="platform-item">
                     <div style="font-size: 3rem;">🪟</div>
                     <h4>Windows</h4>
-                    <p>DirectShow</p>
+                    <p>Media Foundation + DirectShow fallback</p>
                     <p>MSVC 2019+</p>
                 </div>
                 
@@ -350,7 +350,7 @@ target_link_libraries(your_app ccap::ccap)</code></pre>
                     <tr>
                         <td>Windows</td>
                         <td>MSVC 2019+</td>
-                        <td>DirectShow</td>
+                        <td>Media Foundation + DirectShow fallback</td>
                     </tr>
                     <tr>
                         <td>macOS</td>
