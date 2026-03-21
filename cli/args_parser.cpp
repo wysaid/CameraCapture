@@ -347,9 +347,12 @@ CLIOptions parseArgs(int argc, char* argv[]) {
         } else if (arg == "--json") {
             opts.jsonOutput = true;
         } else if (arg == "--schema-version") {
-            if (i + 1 < argc) {
-                opts.schemaVersion = argv[++i];
+            if (i + 1 >= argc || argv[i + 1][0] == '-') {
+                std::cerr << "Error: --schema-version requires a value.\n\n";
+                printUsage(argv[0]);
+                std::exit(1);
             }
+            opts.schemaVersion = argv[++i];
         } else if (arg == "-l" || arg == "--list-devices") {
             opts.listDevices = true;
         } else if (arg == "-I" || arg == "--device-info") {

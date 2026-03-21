@@ -58,6 +58,20 @@ TEST(CLIArgsParserTest, ParsesJsonOutputOptions) {
     EXPECT_EQ(opts.schemaVersion, "1.2");
 }
 
+TEST(CLIArgsParserTest, RejectsMissingSchemaVersionValue) {
+    char arg0[] = "ccap";
+    char arg1[] = "--schema-version";
+    char* argv[] = { arg0, arg1, nullptr };
+
+    EXPECT_EXIT(
+        {
+            (void)ccap_cli::parseArgs(2, argv);
+            std::exit(0);
+        },
+        ::testing::ExitedWithCode(1),
+        "--schema-version requires a value");
+}
+
 #if defined(_WIN32) || defined(_WIN64)
 TEST(CLIArgsParserTest, ParsesWindowsCameraBackendOption) {
     char arg0[] = "ccap";

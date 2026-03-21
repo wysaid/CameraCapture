@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <chrono>
 #include <climits>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -89,6 +90,14 @@ void writeJsonEscapedString(std::ostream& os, std::string_view value) {
         }
     }
     os << '"';
+}
+
+void writeJsonFiniteNumberOrNull(std::ostream& os, double value) {
+    if (std::isfinite(value)) {
+        os << value;
+    } else {
+        os << "null";
+    }
 }
 
 void writeJsonResolutions(std::ostream& os, const std::vector<ccap::DeviceInfo::Resolution>& resolutions) {
@@ -481,9 +490,11 @@ int printVideoInfo(const CLIOptions& opts, const std::string& videoPath) {
         writeJsonEscapedString(os, videoPath);
         os << ",\"width\":" << width
            << ",\"height\":" << height
-           << ",\"frame_rate\":" << frameRate
-           << ",\"duration_seconds\":" << duration
-           << ",\"total_frames\":" << static_cast<int>(frameCount)
+              << ",\"frame_rate\":";
+          writeJsonFiniteNumberOrNull(os, frameRate);
+          os << ",\"duration_seconds\":";
+          writeJsonFiniteNumberOrNull(os, duration);
+          os << ",\"total_frames\":" << static_cast<int>(frameCount)
            << "}}";
         std::cout << os.str() << std::endl;
         return 0;
@@ -504,7 +515,6 @@ int printVideoInfo(const CLIOptions& opts, const std::string& videoPath) {
         return 1;
     }
     std::cerr << "Video file playback is not supported. Rebuild with CCAP_ENABLE_FILE_PLAYBACK=ON" << std::endl;
-    (void)opts;
     (void)videoPath;
     return 1;
 #endif

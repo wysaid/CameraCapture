@@ -230,7 +230,7 @@ Print video metadata as JSON:
 ccap -i /path/to/video.mp4 --json
 ```
 
-JSON output currently covers device enumeration, device info, and video metadata. The payload uses a stable top-level envelope with `schema_version`, `command`, `success`, and either `data` or `error`.
+JSON output currently covers device enumeration, device info, and video metadata. The payload uses a stable top-level envelope with `schema_version`, `command`, and `success`; successful responses include `data`, while error responses include `exit_code` and `error`.
 
 ### Basic Frame Capture
 

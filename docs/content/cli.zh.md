@@ -206,7 +206,7 @@ ccap --device-info 0 --json
 ccap -i /path/to/video.mp4 --json
 ```
 
-当前 JSON 输出先覆盖设备枚举、设备信息和视频元数据。返回体采用稳定的顶层结构，包含 `schema_version`、`command`、`success`，以及 `data` 或 `error`。
+当前 JSON 输出先覆盖设备枚举、设备信息和视频元数据。返回体采用稳定的顶层结构，包含 `schema_version`、`command` 与 `success`；成功时返回 `data`，错误时返回 `exit_code` 和 `error`。
 
 ### 基本帧捕获
 

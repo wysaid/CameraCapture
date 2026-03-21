@@ -28,10 +28,19 @@ Use this when the host is macOS and the task only needs the CLI.
 
 ## Build From Source
 
-Repository install shortcut:
+Repository install shortcut (library-focused):
 
 ```bash
 ./scripts/build_and_install.sh
+```
+
+If the task specifically requires the `ccap` CLI binary, use an explicit CLI build/install flow instead:
+
+```bash
+cmake -B build -DCCAP_BUILD_CLI=ON -DCCAP_INSTALL=ON
+cmake --build build
+cmake --install build
+ccap --version
 ```
 
 CLI-focused build:
