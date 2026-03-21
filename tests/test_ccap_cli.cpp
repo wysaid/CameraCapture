@@ -765,6 +765,7 @@ TEST_F(CCAPCLITest, VideoInfoJson) {
     EXPECT_THAT(result.output, testing::HasSubstr("\"video_path\":"));
     EXPECT_THAT(result.output, testing::HasSubstr("\"frame_rate\":"));
     EXPECT_THAT(result.output, testing::HasSubstr("\"duration_seconds\":"));
+    EXPECT_THAT(result.output, testing::HasSubstr("\"total_frames\":"));
 }
 
 TEST_F(CCAPCLITest, VideoPlayback_WithPixelFormat) {

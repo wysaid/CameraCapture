@@ -20,6 +20,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <vector>
@@ -95,6 +96,15 @@ void writeJsonEscapedString(std::ostream& os, std::string_view value) {
 void writeJsonFiniteNumberOrNull(std::ostream& os, double value) {
     if (std::isfinite(value)) {
         os << value;
+    } else {
+        os << "null";
+    }
+}
+
+void writeJsonFiniteIntOrNull(std::ostream& os, double value) {
+    if (std::isfinite(value) && value >= static_cast<double>(std::numeric_limits<int>::min())
+        && value <= static_cast<double>(std::numeric_limits<int>::max())) {
+        os << static_cast<int>(value);
     } else {
         os << "null";
     }
@@ -490,11 +500,13 @@ int printVideoInfo(const CLIOptions& opts, const std::string& videoPath) {
         writeJsonEscapedString(os, videoPath);
         os << ",\"width\":" << width
            << ",\"height\":" << height
-              << ",\"frame_rate\":";
-          writeJsonFiniteNumberOrNull(os, frameRate);
-          os << ",\"duration_seconds\":";
-          writeJsonFiniteNumberOrNull(os, duration);
-          os << ",\"total_frames\":" << static_cast<int>(frameCount)
+           << ",\"frame_rate\":";
+        writeJsonFiniteNumberOrNull(os, frameRate);
+        os << ",\"duration_seconds\":";
+        writeJsonFiniteNumberOrNull(os, duration);
+        os << ",\"total_frames\":";
+        writeJsonFiniteIntOrNull(os, frameCount);
+        os
            << "}}";
         std::cout << os.str() << std::endl;
         return 0;
@@ -505,7 +517,14 @@ int printVideoInfo(const CLIOptions& opts, const std::string& videoPath) {
     std::cout << "  Resolution: " << width << "x" << height << std::endl;
     std::cout << "  Frame rate: " << frameRate << " fps" << std::endl;
     std::cout << "  Duration: " << duration << " seconds" << std::endl;
-    std::cout << "  Total frames: " << static_cast<int>(frameCount) << std::endl;
+    std::cout << "  Total frames: ";
+    if (std::isfinite(frameCount) && frameCount >= static_cast<double>(std::numeric_limits<int>::min())
+        && frameCount <= static_cast<double>(std::numeric_limits<int>::max())) {
+        std::cout << static_cast<int>(frameCount);
+    } else {
+        std::cout << "unknown";
+    }
+    std::cout << std::endl;
     std::cout << "===================================" << std::endl;
     return 0;
 #else
