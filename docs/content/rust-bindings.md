@@ -76,11 +76,11 @@ If needed, set:
 
 Camera capture backends:
 
-- Windows: DirectShow by default with optional Media Foundation
+- Windows: dual backends, with DirectShow by default and Media Foundation fully supported
 - macOS/iOS: AVFoundation
 - Linux: V4L2
 
-On Windows, camera capture defaults to DirectShow because virtual cameras such as OBS Virtual Camera are exposed there more reliably. You can opt into Media Foundation by setting `CCAP_WINDOWS_BACKEND=msmf`, or by using the Rust APIs `Provider::with_device_name_and_extra_info`, `Provider::with_device_and_extra_info`, `Provider::open_device_with_extra_info`, and `Provider::open_with_index_and_extra_info` with `msmf`.
+On Windows, camera capture defaults to DirectShow because virtual cameras such as OBS Virtual Camera are exposed there more reliably. Media Foundation is also a first-class supported backend. You can select `auto`, `msmf`, or `dshow` via `CCAP_WINDOWS_BACKEND`, or pass the same values into the Rust APIs `Provider::with_device_name_and_extra_info`, `Provider::with_device_and_extra_info`, `Provider::open_device_with_extra_info`, and `Provider::open_with_index_and_extra_info`.
 
 Video file playback support depends on the underlying C/C++ backend (currently Windows/macOS only).
 

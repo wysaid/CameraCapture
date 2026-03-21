@@ -13,7 +13,7 @@
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
-高性能、轻量级的跨平台相机捕获库，支持硬件加速的像素格式转换，同时支持相机捕获和视频文件播放（Windows/macOS），提供完整的 C++ / 纯 C 语言接口，并提供 Rust bindings。
+高性能、轻量级的跨平台相机捕获库，支持硬件加速的像素格式转换，同时支持相机捕获和视频文件播放（Windows/macOS）。在 Windows 上，ccap 现在完整支持 DirectShow 与 Media Foundation 双后端，其中 DirectShow 继续作为默认路径以保证虚拟摄像头兼容性。项目同时提供完整的 C++ / 纯 C 语言接口，并提供 Rust bindings。
 
 > 🌐 **官方网站：** [ccap.work](https://ccap.work)
 
@@ -33,8 +33,8 @@
 
 - **高性能**：硬件加速的像素格式转换，提升高达 10 倍性能（AVX2、Apple Accelerate、NEON）
 - **轻量级**：无第三方库依赖，仅使用系统框架
-- **跨平台**：Windows（默认 DirectShow，可选 Media Foundation）、macOS/iOS（AVFoundation）、Linux（V4L2）
-- **Windows 双后端**：Windows 默认使用 DirectShow，以更好兼容 OBS Virtual Camera 等虚拟摄像头；如果需要，也可以显式切换到 Media Foundation
+- **跨平台**：Windows（双后端：默认 DirectShow，完整支持 Media Foundation）、macOS/iOS（AVFoundation）、Linux（V4L2）
+- **Windows 双后端**：Windows 默认使用 DirectShow，以更好兼容 OBS Virtual Camera 等虚拟摄像头；同时也完整支持 Media Foundation，可通过 `auto`、环境变量覆盖或显式后端选择启用
 - **多种格式**：RGB、BGR、YUV（NV12/I420）及自动转换
 - **双语言接口**：✨ **新增完整纯 C 接口**，同时提供现代化 C++ API 和传统 C99 接口，支持各种项目集成和语言绑定
 - **视频文件播放**：🎬 使用与相机相同的 API 播放视频文件（MP4、AVI、MOV 等）- 支持 Windows 和 macOS
@@ -267,7 +267,7 @@ cmake --build .
 
 | 平台 | 编译器 | 系统要求 |
 |------|--------|----------|
-| **Windows** | MSVC 2019+（包括 2026）/ MinGW-w64 | DirectShow（默认）+ Media Foundation 可选启用 |
+| **Windows** | MSVC 2019+（包括 2026）/ MinGW-w64 | DirectShow（默认）+ Media Foundation 支持 |
 | **macOS** | Xcode 11+ | macOS 10.13+ |
 | **iOS** | Xcode 11+ | iOS 13.0+ |
 | **Linux** | GCC 7+ / Clang 6+ | V4L2 (Linux 2.6+) - 相机捕获支持，视频播放暂不支持 |

@@ -199,11 +199,12 @@ cmake --build build
 ### Windows
 
 **Media Foundation 后端：**
-- 现代 Windows 上的首选后端
+- Windows 上完整支持的相机后端之一，可通过 `msmf` 显式选择
 - 使用 Source Reader 完成取帧与格式协商
-- 当 Media Foundation 不可用或设备打开失败时，会自动回退到 DirectShow
+- 在 `auto` 模式下，遇到仅 MSMF 可见的设备时会直接走该后端
 
 **DirectShow 后端：**
+- Windows 默认相机后端
 - 成熟、稳定的 API
 - 良好的驱动兼容性
 - 已知问题：某些 VR 头盔在枚举时崩溃

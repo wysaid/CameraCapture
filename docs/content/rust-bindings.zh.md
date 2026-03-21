@@ -77,11 +77,11 @@ fn main() -> Result<()> {
 
 相机捕获后端：
 
-- Windows：Media Foundation，必要时回退到 DirectShow
+- Windows：双后端，默认 DirectShow，同时完整支持 Media Foundation
 - macOS/iOS：AVFoundation
 - Linux：V4L2
 
-在 Windows 上，你可以通过设置环境变量 `CCAP_WINDOWS_BACKEND=auto|msmf|dshow` 强制选择后端，也可以使用 Rust API `Provider::with_device_name_and_extra_info`、`Provider::with_device_and_extra_info`、`Provider::open_device_with_extra_info`、`Provider::open_with_index_and_extra_info`。
+在 Windows 上，DirectShow 仍然是默认后端，以更好兼容 OBS Virtual Camera 等虚拟摄像头；Media Foundation 也已经是正式支持的后端。你可以通过设置环境变量 `CCAP_WINDOWS_BACKEND=auto|msmf|dshow` 选择后端，也可以使用 Rust API `Provider::with_device_name_and_extra_info`、`Provider::with_device_and_extra_info`、`Provider::open_device_with_extra_info`、`Provider::open_with_index_and_extra_info` 并传入相同的后端字符串。
 
 视频文件播放是否可用取决于底层 C/C++ 后端（目前 Windows/macOS 支持，Linux 暂不支持）。
 

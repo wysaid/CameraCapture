@@ -119,8 +119,8 @@
                     <div class="feature-icon">🌍</div>
                     <h3 class="lang-en">Cross Platform</h3>
                     <h3 class="lang-zh">跨平台</h3>
-                    <p class="lang-en">Native support for Windows (Media Foundation with DirectShow fallback), macOS/iOS (AVFoundation), and Linux (V4L2).</p>
-                    <p class="lang-zh">原生支持 Windows（Media Foundation，必要时回退到 DirectShow）、macOS/iOS (AVFoundation) 和 Linux (V4L2)。</p>
+                    <p class="lang-en">Native support for Windows dual backends (DirectShow by default, Media Foundation also supported), macOS/iOS (AVFoundation), and Linux (V4L2).</p>
+                    <p class="lang-zh">原生支持 Windows 双后端（默认 DirectShow，同时支持 Media Foundation）、macOS/iOS (AVFoundation) 和 Linux (V4L2)。</p>
                 </div>
                 
                 <div class="feature-card">
@@ -159,7 +159,7 @@
                 <div class="platform-item">
                     <div style="font-size: 3rem;">🪟</div>
                     <h4>Windows</h4>
-                    <p>Media Foundation + DirectShow fallback</p>
+                    <p>DirectShow default + Media Foundation support</p>
                     <p>MSVC 2019+</p>
                 </div>
                 
@@ -350,7 +350,7 @@ target_link_libraries(your_app ccap::ccap)</code></pre>
                     <tr>
                         <td>Windows</td>
                         <td>MSVC 2019+</td>
-                        <td>Media Foundation + DirectShow fallback</td>
+                        <td>DirectShow default + Media Foundation support</td>
                     </tr>
                     <tr>
                         <td>macOS</td>

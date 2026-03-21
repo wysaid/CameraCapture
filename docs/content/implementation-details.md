@@ -216,7 +216,7 @@ Or use the script:
 ### Windows
 
 **Media Foundation Backend:**
-- Opt-in backend on Windows when callers explicitly request `msmf`
+- Fully supported Windows camera backend that can be selected explicitly with `msmf`
 - Uses Source Reader for frame delivery and format negotiation
 - When backend selection is `auto`, `Provider::open()` first checks which backend enumerated the requested device and routes to a compatible backend automatically
 - If a device is visible in both Windows backends, `auto` prefers DirectShow for compatibility and keeps Media Foundation as the secondary fallback

@@ -13,7 +13,7 @@
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
-A high-performance, lightweight cross-platform camera capture library with hardware-accelerated pixel format conversion, supporting both camera capture and video file playback (Windows/macOS). Provides complete C++ and pure C interfaces, plus Rust bindings.
+A high-performance, lightweight cross-platform camera capture library with hardware-accelerated pixel format conversion, supporting both camera capture and video file playback (Windows/macOS). On Windows, ccap now fully supports both DirectShow and Media Foundation, with DirectShow remaining the default for strong virtual-camera compatibility. Provides complete C++ and pure C interfaces, plus Rust bindings.
 
 > 🌐 **Official Website:** [ccap.work](https://ccap.work)
 
@@ -33,8 +33,8 @@ A high-performance, lightweight cross-platform camera capture library with hardw
 
 - **High Performance**: Hardware-accelerated pixel format conversion with up to 10x speedup (AVX2, Apple Accelerate, NEON)
 - **Lightweight**: No third-party dependencies - uses only system frameworks
-- **Cross Platform**: Windows (DirectShow by default with optional Media Foundation), macOS/iOS (AVFoundation), Linux (V4L2)
-- **Windows Dual Backends**: DirectShow is the default on Windows for compatibility with OBS Virtual Camera and other virtual devices, while Media Foundation stays available through explicit opt-in
+- **Cross Platform**: Windows (dual backends: DirectShow by default, Media Foundation fully supported), macOS/iOS (AVFoundation), Linux (V4L2)
+- **Windows Dual Backends**: DirectShow stays the default on Windows for compatibility with OBS Virtual Camera and other virtual devices, while Media Foundation is also fully supported through `auto`, environment overrides, and explicit backend selection
 - **Multiple Formats**: RGB, BGR, YUV (NV12/I420) with automatic conversion
 - **Dual Language APIs**: ✨ **Complete Pure C Interface** - Both modern C++ API and traditional C99 interface for various project integration and language bindings
 - **Video File Playback**: 🎬 Play video files (MP4, AVI, MOV, etc.) using the same API as camera capture - supports Windows and macOS
@@ -300,7 +300,7 @@ For complete CLI documentation, see [CLI Tool Guide](./docs/content/cli.md).
 
 | Platform | Compiler | System Requirements |
 | -------- | -------- | ------------------- |
-| **Windows** | MSVC 2019+ (including 2026) / MinGW-w64 | DirectShow (default) + Media Foundation opt-in |
+| **Windows** | MSVC 2019+ (including 2026) / MinGW-w64 | DirectShow (default) + Media Foundation support |
 | **macOS** | Xcode 11+ | macOS 10.13+ |
 | **iOS** | Xcode 11+ | iOS 13.0+ |
 | **Linux** | GCC 7+ / Clang 6+ | V4L2 (Linux 2.6+) |
