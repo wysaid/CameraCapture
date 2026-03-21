@@ -111,7 +111,8 @@ patterns = [
 new_text = text
 count = 0
 for pattern in patterns:
-    new_text, n = re.subn(pattern, rf"\1{new_ver}\2", new_text, count=1)
+    replacement = lambda match: f"{match.group(1)}{new_ver}{match.group(2)}"
+    new_text, n = re.subn(pattern, replacement, new_text, count=1)
     if n:
         count += n
         break

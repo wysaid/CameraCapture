@@ -536,7 +536,7 @@ bool ProviderMSMF::configureMediaType() {
     }
 
     PixelFormat preferredPixelFormat = m_frameProp.cameraPixelFormat != PixelFormat::Unknown ? m_frameProp.cameraPixelFormat :
-                                                                                        m_frameProp.outputPixelFormat;
+                                                                                               m_frameProp.outputPixelFormat;
 
     const MediaTypeInfo* selected = nullptr;
     for (size_t index : bestIndexes) {

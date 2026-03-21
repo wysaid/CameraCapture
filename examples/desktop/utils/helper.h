@@ -14,16 +14,16 @@ extern "C" {
 #endif
 
 typedef enum ExampleCameraBackend {
-	EXAMPLE_CAMERA_BACKEND_UNSPECIFIED = 0,
-	EXAMPLE_CAMERA_BACKEND_AUTO,
-	EXAMPLE_CAMERA_BACKEND_MSMF,
-	EXAMPLE_CAMERA_BACKEND_DSHOW,
+    EXAMPLE_CAMERA_BACKEND_UNSPECIFIED = 0,
+    EXAMPLE_CAMERA_BACKEND_AUTO,
+    EXAMPLE_CAMERA_BACKEND_MSMF,
+    EXAMPLE_CAMERA_BACKEND_DSHOW,
 } ExampleCameraBackend;
 
 typedef struct ExampleCommandLine {
-	int argc;
-	char** argv;
-	ExampleCameraBackend cameraBackend;
+    int argc;
+    char** argv;
+    ExampleCameraBackend cameraBackend;
 } ExampleCommandLine;
 
 void initExampleCommandLine(ExampleCommandLine* commandLine, int argc, char** argv);
