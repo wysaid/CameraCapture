@@ -44,6 +44,22 @@ A high-performance, lightweight cross-platform camera capture library with hardw
 
 ## Quick Start
 
+### AI Agent Skill
+
+This repository also includes a publish-ready skill bundle for ClawHub/OpenClaw.
+
+- Agent entry: [AGENTS.md](./AGENTS.md)
+- Publishable skill folder: [skills/ccap](./skills/ccap)
+- Skill definition: [skills/ccap/SKILL.md](./skills/ccap/SKILL.md)
+
+The skill is structured as a standalone skill folder with a top-level `SKILL.md`, optional supporting text files, and instructions that guide agents to choose among an existing installation, Homebrew on macOS, source builds, and release-binary fallback, then prefer the `ccap` CLI with `--json` where supported.
+
+If you want to publish the skill to ClawHub, publish the skill folder itself rather than the repository root:
+
+```bash
+clawhub publish ./skills/ccap --slug ccap --name "ccap" --version 0.1.0 --tags latest --changelog "Initial ClawHub release"
+```
+
 ### Installation
 
 1. Build and install from source (on Windows, use git-bash):

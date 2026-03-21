@@ -147,7 +147,7 @@ int main(int argc, char* argv[]) {
 
     // If video file specified without action, print video info
     if (!opts.videoFilePath.empty() && !hasAction) {
-        return ccap_cli::printVideoInfo(opts.videoFilePath);
+        return ccap_cli::printVideoInfo(opts, opts.videoFilePath);
     }
 
     // If camera device specified without action, print camera info

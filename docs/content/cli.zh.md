@@ -85,6 +85,8 @@ cmake --build build
 | `-h, --help` | 显示帮助信息并退出 |
 | `-v, --version` | 显示版本信息 |
 | `--verbose` | 启用详细日志输出 |
+| `--json` | 对已支持的命令输出结构化 JSON |
+| `--schema-version VERSION` | 设置 JSON 输出中的 schema_version 字段（默认：`1.0`） |
 
 ### Windows 相机后端选项
 
@@ -188,6 +190,23 @@ ccap --device-info 0
 ```bash
 ccap --device-info
 ```
+
+以 JSON 形式列出设备，便于脚本或 Agent 消费:
+```bash
+ccap --list-devices --json
+```
+
+以 JSON 形式查看单个设备的能力信息:
+```bash
+ccap --device-info 0 --json
+```
+
+以 JSON 形式输出视频元数据:
+```bash
+ccap -i /path/to/video.mp4 --json
+```
+
+当前 JSON 输出先覆盖设备枚举、设备信息和视频元数据。返回体采用稳定的顶层结构，包含 `schema_version`、`command`、`success`，以及 `data` 或 `error`。
 
 ### 基本帧捕获
 

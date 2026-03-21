@@ -385,11 +385,35 @@ TEST_F(CCAPCLIDeviceTest, ListDevices) {
     EXPECT_THAT(result.output, ::testing::HasSubstr("camera device"));
 }
 
+TEST_F(CCAPCLIDeviceTest, ListDevicesJson) {
+    auto result = runCLI("--list-devices --json");
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_THAT(result.output, ::testing::HasSubstr("\"schema_version\":\"1.0\""));
+    EXPECT_THAT(result.output, ::testing::HasSubstr("\"command\":\"list-devices\""));
+    EXPECT_THAT(result.output, ::testing::HasSubstr("\"success\":true"));
+    EXPECT_THAT(result.output, ::testing::HasSubstr("\"devices\":"));
+}
+
 TEST_F(CCAPCLIDeviceTest, ShowDeviceInfo) {
     auto result = runCLI("--device-info 0");
     EXPECT_EQ(result.exitCode, 0);
     // Device info shows device details including "Device [N]: <name>"
     EXPECT_THAT(result.output, ::testing::HasSubstr("Device ["));
+}
+
+TEST_F(CCAPCLIDeviceTest, ShowDeviceInfoJson) {
+    auto result = runCLI("--device-info 0 --json");
+    EXPECT_THAT(result.output, ::testing::HasSubstr("\"command\":\"device-info\""));
+    if (result.exitCode == 0) {
+        EXPECT_THAT(result.output, ::testing::HasSubstr("\"success\":true"));
+        EXPECT_THAT(result.output, ::testing::HasSubstr("\"device_count\":1"));
+        EXPECT_THAT(result.output, ::testing::HasSubstr("\"supported_resolutions\":"));
+        EXPECT_THAT(result.output, ::testing::HasSubstr("\"supported_pixel_formats\":"));
+    } else {
+        EXPECT_THAT(result.output, ::testing::HasSubstr("\"success\":false"));
+        EXPECT_THAT(result.output, ::testing::HasSubstr("\"error\":"));
+        EXPECT_THAT(result.output, ::testing::HasSubstr("\"code\":"));
+    }
 }
 
 TEST_F(CCAPCLIDeviceTest, CaptureOneFrame) {
@@ -724,6 +748,23 @@ TEST_F(CCAPCLITest, VideoPlayback_InvalidFile) {
     // Should fail with non-zero exit code
     EXPECT_NE(result.exitCode, 0) << "Should fail with invalid video file";
     EXPECT_THAT(result.output, testing::HasSubstr("Failed to open video file"));
+}
+
+TEST_F(CCAPCLITest, VideoInfoJson) {
+    std::string videoPath = getTestVideoPath();
+    if (videoPath.empty()) {
+        GTEST_SKIP() << "Test video not available";
+    }
+
+    std::string cmd = "--video \"" + videoPath + "\" --json";
+    auto result = runCLI(cmd);
+
+    ASSERT_EQ(result.exitCode, 0) << "Video info JSON failed: " << result.output;
+    EXPECT_THAT(result.output, testing::HasSubstr("\"command\":\"video-info\""));
+    EXPECT_THAT(result.output, testing::HasSubstr("\"success\":true"));
+    EXPECT_THAT(result.output, testing::HasSubstr("\"video_path\":"));
+    EXPECT_THAT(result.output, testing::HasSubstr("\"frame_rate\":"));
+    EXPECT_THAT(result.output, testing::HasSubstr("\"duration_seconds\":"));
 }
 
 TEST_F(CCAPCLITest, VideoPlayback_WithPixelFormat) {
