@@ -14,13 +14,17 @@
 #include <ccap.h>
 
 #include <array>
+#include <cctype>
 #include <cstdio>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <memory>
+#include <stdexcept>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 // Platform-specific popen/pclose macros
@@ -96,6 +100,360 @@ CommandResult executeCommand(const std::string& command) {
 #endif
     
     return result;
+}
+
+CommandResult executeCommandCapturingStdoutOnly(const std::string& command, const fs::path& stderrPath) {
+    CommandResult result;
+
+    std::string fullCmd = command + " 2>\"" + stderrPath.string() + "\"";
+    std::array<char, 128> buffer;
+
+    auto pipeDeleter = [](FILE* fp) { if (fp) MY_PCLOSE(fp); };
+    std::unique_ptr<FILE, decltype(pipeDeleter)> pipe(MY_POPEN(fullCmd.c_str(), "r"), pipeDeleter);
+
+    if (!pipe) {
+        result.exitCode = -1;
+        result.error = "Failed to execute command";
+        return result;
+    }
+
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+        result.output += buffer.data();
+    }
+
+    int status = MY_PCLOSE(pipe.release());
+#ifdef _WIN32
+    result.exitCode = status;
+#else
+    result.exitCode = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+#endif
+
+    if (fs::exists(stderrPath)) {
+        std::ifstream stderrFile(stderrPath, std::ios::binary);
+        std::ostringstream stderrStream;
+        stderrStream << stderrFile.rdbuf();
+        result.error = stderrStream.str();
+        fs::remove(stderrPath);
+    }
+
+    return result;
+}
+
+struct JsonValue {
+    enum class Type {
+        Null,
+        Bool,
+        Number,
+        String,
+        Array,
+        Object,
+    };
+
+    using Array = std::vector<JsonValue>;
+    using Object = std::map<std::string, JsonValue>;
+
+    Type type = Type::Null;
+    bool boolValue = false;
+    double numberValue = 0.0;
+    std::string stringValue;
+    Array arrayValue;
+    Object objectValue;
+
+    bool isNull() const { return type == Type::Null; }
+    bool isBool() const { return type == Type::Bool; }
+    bool isNumber() const { return type == Type::Number; }
+    bool isString() const { return type == Type::String; }
+    bool isArray() const { return type == Type::Array; }
+    bool isObject() const { return type == Type::Object; }
+
+    const JsonValue& operator[](const std::string& key) const {
+        auto iterator = objectValue.find(key);
+        if (iterator == objectValue.end()) {
+            throw std::runtime_error("Missing JSON key: " + key);
+        }
+        return iterator->second;
+    }
+};
+
+class JsonParser {
+public:
+    explicit JsonParser(std::string_view input) : m_input(input) {}
+
+    JsonValue parse() {
+        JsonValue value = parseValue();
+        skipWhitespace();
+        if (!isAtEnd()) {
+            throw std::runtime_error("Unexpected trailing JSON content");
+        }
+        return value;
+    }
+
+private:
+    JsonValue parseValue() {
+        skipWhitespace();
+        if (isAtEnd()) {
+            throw std::runtime_error("Unexpected end of JSON input");
+        }
+
+        switch (peek()) {
+            case '{':
+                return parseObject();
+            case '[':
+                return parseArray();
+            case '"':
+                return makeString(parseString());
+            case 't':
+                consumeLiteral("true");
+                return makeBool(true);
+            case 'f':
+                consumeLiteral("false");
+                return makeBool(false);
+            case 'n':
+                consumeLiteral("null");
+                return JsonValue{};
+            default:
+                if (peek() == '-' || std::isdigit(static_cast<unsigned char>(peek()))) {
+                    return makeNumber(parseNumber());
+                }
+                throw std::runtime_error("Unexpected JSON token");
+        }
+    }
+
+    JsonValue parseObject() {
+        JsonValue value;
+        value.type = JsonValue::Type::Object;
+        expect('{');
+        skipWhitespace();
+
+        if (tryConsume('}')) {
+            return value;
+        }
+
+        while (true) {
+            skipWhitespace();
+            std::string key = parseString();
+            skipWhitespace();
+            expect(':');
+            value.objectValue.emplace(std::move(key), parseValue());
+            skipWhitespace();
+            if (tryConsume('}')) {
+                break;
+            }
+            expect(',');
+        }
+
+        return value;
+    }
+
+    JsonValue parseArray() {
+        JsonValue value;
+        value.type = JsonValue::Type::Array;
+        expect('[');
+        skipWhitespace();
+
+        if (tryConsume(']')) {
+            return value;
+        }
+
+        while (true) {
+            value.arrayValue.push_back(parseValue());
+            skipWhitespace();
+            if (tryConsume(']')) {
+                break;
+            }
+            expect(',');
+        }
+
+        return value;
+    }
+
+    std::string parseString() {
+        expect('"');
+        std::string result;
+
+        while (!isAtEnd()) {
+            char ch = get();
+            if (ch == '"') {
+                return result;
+            }
+            if (ch == '\\') {
+                if (isAtEnd()) {
+                    throw std::runtime_error("Invalid JSON escape");
+                }
+
+                char escaped = get();
+                switch (escaped) {
+                    case '"': result.push_back('"'); break;
+                    case '\\': result.push_back('\\'); break;
+                    case '/': result.push_back('/'); break;
+                    case 'b': result.push_back('\b'); break;
+                    case 'f': result.push_back('\f'); break;
+                    case 'n': result.push_back('\n'); break;
+                    case 'r': result.push_back('\r'); break;
+                    case 't': result.push_back('\t'); break;
+                    case 'u': {
+                        if (m_position + 4 > m_input.size()) {
+                            throw std::runtime_error("Invalid JSON unicode escape");
+                        }
+                        unsigned int codePoint = 0;
+                        for (int index = 0; index < 4; ++index) {
+                            codePoint <<= 4;
+                            codePoint |= parseHexDigit(get());
+                        }
+                        if (codePoint <= 0x7f) {
+                            result.push_back(static_cast<char>(codePoint));
+                        } else {
+                            result.push_back('?');
+                        }
+                        break;
+                    }
+                    default:
+                        throw std::runtime_error("Unsupported JSON escape sequence");
+                }
+                continue;
+            }
+            result.push_back(ch);
+        }
+
+        throw std::runtime_error("Unterminated JSON string");
+    }
+
+    double parseNumber() {
+        size_t start = m_position;
+        if (peek() == '-') {
+            ++m_position;
+        }
+
+        consumeDigits();
+
+        if (!isAtEnd() && peek() == '.') {
+            ++m_position;
+            consumeDigits();
+        }
+
+        if (!isAtEnd() && (peek() == 'e' || peek() == 'E')) {
+            ++m_position;
+            if (!isAtEnd() && (peek() == '+' || peek() == '-')) {
+                ++m_position;
+            }
+            consumeDigits();
+        }
+
+        return std::stod(std::string(m_input.substr(start, m_position - start)));
+    }
+
+    void consumeDigits() {
+        if (isAtEnd() || !std::isdigit(static_cast<unsigned char>(peek()))) {
+            throw std::runtime_error("Invalid JSON number");
+        }
+        while (!isAtEnd() && std::isdigit(static_cast<unsigned char>(peek()))) {
+            ++m_position;
+        }
+    }
+
+    void consumeLiteral(std::string_view literal) {
+        for (char expected : literal) {
+            if (isAtEnd() || get() != expected) {
+                throw std::runtime_error("Invalid JSON literal");
+            }
+        }
+    }
+
+    void skipWhitespace() {
+        while (!isAtEnd() && std::isspace(static_cast<unsigned char>(peek()))) {
+            ++m_position;
+        }
+    }
+
+    bool tryConsume(char expected) {
+        if (!isAtEnd() && peek() == expected) {
+            ++m_position;
+            return true;
+        }
+        return false;
+    }
+
+    void expect(char expected) {
+        if (isAtEnd() || get() != expected) {
+            throw std::runtime_error("Unexpected JSON character");
+        }
+    }
+
+    char peek() const { return m_input[m_position]; }
+
+    char get() { return m_input[m_position++]; }
+
+    bool isAtEnd() const { return m_position >= m_input.size(); }
+
+    static unsigned int parseHexDigit(char ch) {
+        if (ch >= '0' && ch <= '9') {
+            return static_cast<unsigned int>(ch - '0');
+        }
+        if (ch >= 'a' && ch <= 'f') {
+            return static_cast<unsigned int>(ch - 'a' + 10);
+        }
+        if (ch >= 'A' && ch <= 'F') {
+            return static_cast<unsigned int>(ch - 'A' + 10);
+        }
+        throw std::runtime_error("Invalid JSON hex digit");
+    }
+
+    static JsonValue makeBool(bool value) {
+        JsonValue json;
+        json.type = JsonValue::Type::Bool;
+        json.boolValue = value;
+        return json;
+    }
+
+    static JsonValue makeNumber(double value) {
+        JsonValue json;
+        json.type = JsonValue::Type::Number;
+        json.numberValue = value;
+        return json;
+    }
+
+    static JsonValue makeString(std::string value) {
+        JsonValue json;
+        json.type = JsonValue::Type::String;
+        json.stringValue = std::move(value);
+        return json;
+    }
+
+    std::string_view m_input;
+    size_t m_position = 0;
+};
+
+JsonValue parseJson(std::string_view input) {
+    return JsonParser(input).parse();
+}
+
+const JsonValue& expectJsonEnvelope(const JsonValue& root, std::string_view command, bool success) {
+    if (!root.isObject()) {
+        throw std::runtime_error("JSON root is not an object");
+    }
+    if (root.objectValue.count("schema_version") == 0 || root.objectValue.count("command") == 0
+        || root.objectValue.count("success") == 0) {
+        throw std::runtime_error("JSON envelope is missing required keys");
+    }
+
+    const JsonValue& schemaVersion = root["schema_version"];
+    const JsonValue& commandValue = root["command"];
+    const JsonValue& successValue = root["success"];
+
+    if (!schemaVersion.isString() || !commandValue.isString() || !successValue.isBool()) {
+        throw std::runtime_error("JSON envelope has invalid field types");
+    }
+    if (schemaVersion.stringValue != "1.0") {
+        throw std::runtime_error("Unexpected schema_version value");
+    }
+    if (commandValue.stringValue != command) {
+        throw std::runtime_error("Unexpected command value");
+    }
+    if (successValue.boolValue != success) {
+        throw std::runtime_error("Unexpected success value");
+    }
+
+    return root;
 }
 
 // Get path to ccap CLI executable
@@ -262,6 +620,12 @@ protected:
         std::string fullCmd = cliPath + " " + args;
         return executeCommand(fullCmd);
     }
+
+    CommandResult runCLIJson(const std::string& args) {
+        fs::path stderrPath = testOutputDir / ("stderr_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".log");
+        std::string fullCmd = cliPath + " " + args;
+        return executeCommandCapturingStdoutOnly(fullCmd, stderrPath);
+    }
 };
 
 // Test fixture for device-dependent tests (requires camera)
@@ -386,12 +750,17 @@ TEST_F(CCAPCLIDeviceTest, ListDevices) {
 }
 
 TEST_F(CCAPCLIDeviceTest, ListDevicesJson) {
-    auto result = runCLI("--list-devices --json");
+    auto result = runCLIJson("--list-devices --json");
     EXPECT_EQ(result.exitCode, 0);
-    EXPECT_THAT(result.output, ::testing::HasSubstr("\"schema_version\":\"1.0\""));
-    EXPECT_THAT(result.output, ::testing::HasSubstr("\"command\":\"list-devices\""));
-    EXPECT_THAT(result.output, ::testing::HasSubstr("\"success\":true"));
-    EXPECT_THAT(result.output, ::testing::HasSubstr("\"devices\":"));
+    const JsonValue root = parseJson(result.output);
+    const JsonValue& envelope = expectJsonEnvelope(root, "list-devices", true);
+    ASSERT_TRUE(envelope.objectValue.count("data") > 0);
+    const JsonValue& data = envelope["data"];
+    ASSERT_TRUE(data.isObject());
+    ASSERT_TRUE(data.objectValue.count("device_count") > 0);
+    ASSERT_TRUE(data.objectValue.count("devices") > 0);
+    EXPECT_TRUE(data["device_count"].isNumber());
+    ASSERT_TRUE(data["devices"].isArray());
 }
 
 TEST_F(CCAPCLIDeviceTest, ShowDeviceInfo) {
@@ -402,18 +771,43 @@ TEST_F(CCAPCLIDeviceTest, ShowDeviceInfo) {
 }
 
 TEST_F(CCAPCLIDeviceTest, ShowDeviceInfoJson) {
-    auto result = runCLI("--device-info 0 --json");
-    EXPECT_THAT(result.output, ::testing::HasSubstr("\"command\":\"device-info\""));
-    if (result.exitCode == 0) {
-        EXPECT_THAT(result.output, ::testing::HasSubstr("\"success\":true"));
-        EXPECT_THAT(result.output, ::testing::HasSubstr("\"device_count\":1"));
-        EXPECT_THAT(result.output, ::testing::HasSubstr("\"supported_resolutions\":"));
-        EXPECT_THAT(result.output, ::testing::HasSubstr("\"supported_pixel_formats\":"));
-    } else {
-        EXPECT_THAT(result.output, ::testing::HasSubstr("\"success\":false"));
-        EXPECT_THAT(result.output, ::testing::HasSubstr("\"error\":"));
-        EXPECT_THAT(result.output, ::testing::HasSubstr("\"code\":"));
+    auto result = runCLIJson("--device-info 0 --json");
+    if (result.exitCode != 0) {
+        const JsonValue blockedRoot = parseJson(result.output);
+        const JsonValue& blockedEnvelope = expectJsonEnvelope(blockedRoot, "device-info", false);
+        if (blockedEnvelope["error"]["code"].isString()
+            && blockedEnvelope["error"]["code"].stringValue == "device_open_failed") {
+            GTEST_SKIP() << "Camera device exists but is not accessible in this environment: " << result.error;
+        }
     }
+    ASSERT_EQ(result.exitCode, 0) << "Device info JSON failed: " << result.output << "\n" << result.error;
+    const JsonValue root = parseJson(result.output);
+    const JsonValue& envelope = expectJsonEnvelope(root, "device-info", true);
+    ASSERT_TRUE(envelope.objectValue.count("data") > 0);
+    const JsonValue& data = envelope["data"];
+    ASSERT_TRUE(data.isObject());
+    EXPECT_TRUE(data["device_count"].isNumber());
+    ASSERT_TRUE(data["devices"].isArray());
+    ASSERT_EQ(data["devices"].arrayValue.size(), 1u);
+    const JsonValue& device = data["devices"].arrayValue.front();
+    ASSERT_TRUE(device.isObject());
+    EXPECT_TRUE(device["index"].isNumber());
+    EXPECT_TRUE(device["name"].isString());
+    EXPECT_TRUE(device["supported_resolutions"].isArray());
+    EXPECT_TRUE(device["supported_pixel_formats"].isArray());
+}
+
+TEST_F(CCAPCLIDeviceTest, ShowDeviceInfoJsonErrorPath) {
+    auto result = runCLIJson("--device-info 99999 --json");
+    ASSERT_NE(result.exitCode, 0) << "Expected failure for invalid device index";
+    const JsonValue root = parseJson(result.output);
+    const JsonValue& envelope = expectJsonEnvelope(root, "device-info", false);
+    ASSERT_TRUE(envelope.objectValue.count("exit_code") > 0);
+    ASSERT_TRUE(envelope.objectValue.count("error") > 0);
+    EXPECT_TRUE(envelope["exit_code"].isNumber());
+    ASSERT_TRUE(envelope["error"].isObject());
+    EXPECT_TRUE(envelope["error"]["code"].isString());
+    EXPECT_TRUE(envelope["error"]["message"].isString());
 }
 
 TEST_F(CCAPCLIDeviceTest, CaptureOneFrame) {
@@ -757,15 +1151,20 @@ TEST_F(CCAPCLITest, VideoInfoJson) {
     }
 
     std::string cmd = "--video \"" + videoPath + "\" --json";
-    auto result = runCLI(cmd);
+    auto result = runCLIJson(cmd);
 
     ASSERT_EQ(result.exitCode, 0) << "Video info JSON failed: " << result.output;
-    EXPECT_THAT(result.output, testing::HasSubstr("\"command\":\"video-info\""));
-    EXPECT_THAT(result.output, testing::HasSubstr("\"success\":true"));
-    EXPECT_THAT(result.output, testing::HasSubstr("\"video_path\":"));
-    EXPECT_THAT(result.output, testing::HasSubstr("\"frame_rate\":"));
-    EXPECT_THAT(result.output, testing::HasSubstr("\"duration_seconds\":"));
-    EXPECT_THAT(result.output, testing::HasSubstr("\"total_frames\":"));
+    const JsonValue root = parseJson(result.output);
+    const JsonValue& envelope = expectJsonEnvelope(root, "video-info", true);
+    ASSERT_TRUE(envelope.objectValue.count("data") > 0);
+    const JsonValue& data = envelope["data"];
+    ASSERT_TRUE(data.isObject());
+    EXPECT_TRUE(data["video_path"].isString());
+    EXPECT_TRUE(data["width"].isNumber());
+    EXPECT_TRUE(data["height"].isNumber());
+    EXPECT_TRUE(data["frame_rate"].isNumber() || data["frame_rate"].isNull());
+    EXPECT_TRUE(data["duration_seconds"].isNumber() || data["duration_seconds"].isNull());
+    EXPECT_TRUE(data["total_frames"].isNumber() || data["total_frames"].isNull());
 }
 
 TEST_F(CCAPCLITest, VideoPlayback_WithPixelFormat) {

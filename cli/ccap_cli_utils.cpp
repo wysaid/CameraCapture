@@ -14,13 +14,16 @@
 #include <chrono>
 #include <climits>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <limits>
+#include <locale>
 #include <memory>
 #include <sstream>
 #include <vector>
@@ -95,16 +98,20 @@ void writeJsonEscapedString(std::ostream& os, std::string_view value) {
 
 void writeJsonFiniteNumberOrNull(std::ostream& os, double value) {
     if (std::isfinite(value)) {
-        os << value;
+        std::ostringstream number;
+        number.imbue(std::locale::classic());
+        number << std::setprecision(std::numeric_limits<double>::max_digits10) << value;
+        os << number.str();
     } else {
         os << "null";
     }
 }
 
 void writeJsonFiniteIntOrNull(std::ostream& os, double value) {
-    if (std::isfinite(value) && value >= static_cast<double>(std::numeric_limits<int>::min())
-        && value <= static_cast<double>(std::numeric_limits<int>::max())) {
-        os << static_cast<int>(value);
+    if (std::isfinite(value) && std::trunc(value) == value
+        && value >= static_cast<double>(std::numeric_limits<std::int64_t>::min())
+        && value <= static_cast<double>(std::numeric_limits<std::int64_t>::max())) {
+        os << static_cast<std::int64_t>(value);
     } else {
         os << "null";
     }
@@ -484,6 +491,16 @@ int printVideoInfo(const CLIOptions& opts, const std::string& videoPath) {
         return 1;
     }
 
+    if (!provider.isFileMode()) {
+        if (opts.jsonOutput) {
+            printJsonError(opts.schemaVersion, "video-info", "file_playback_unsupported",
+                           "Video file playback is not supported on this platform/build.", 1);
+            return 1;
+        }
+        std::cerr << "Video file playback is not supported on this platform/build." << std::endl;
+        return 1;
+    }
+
     double duration = provider.get(ccap::PropertyName::Duration);
     double frameCount = provider.get(ccap::PropertyName::FrameCount);
     double frameRate = provider.get(ccap::PropertyName::FrameRate);
@@ -518,9 +535,10 @@ int printVideoInfo(const CLIOptions& opts, const std::string& videoPath) {
     std::cout << "  Frame rate: " << frameRate << " fps" << std::endl;
     std::cout << "  Duration: " << duration << " seconds" << std::endl;
     std::cout << "  Total frames: ";
-    if (std::isfinite(frameCount) && frameCount >= static_cast<double>(std::numeric_limits<int>::min())
-        && frameCount <= static_cast<double>(std::numeric_limits<int>::max())) {
-        std::cout << static_cast<int>(frameCount);
+    if (std::isfinite(frameCount) && std::trunc(frameCount) == frameCount
+        && frameCount >= static_cast<double>(std::numeric_limits<std::int64_t>::min())
+        && frameCount <= static_cast<double>(std::numeric_limits<std::int64_t>::max())) {
+        std::cout << static_cast<std::int64_t>(frameCount);
     } else {
         std::cout << "unknown";
     }
