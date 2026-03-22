@@ -133,6 +133,9 @@ int main(int argc, char* argv[]) {
         if (!hasAction) {
             return ccap_cli::printVideoInfo(opts, opts.videoFilePath);
         }
+        if (opts.jsonOutput) {
+            return ccap_cli::printVideoInfo(opts, opts.videoFilePath);
+        }
         std::cerr << "Error: Video file playback is not supported on Linux.\n"
                   << "\n"
                   << "Video file playback is currently only available on:\n"

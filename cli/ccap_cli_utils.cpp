@@ -432,9 +432,13 @@ int showDeviceInfo(const CLIOptions& opts, int deviceIndex) {
         }
 
         // Show info for all devices
+        int exitCode = 0;
         for (size_t i = 0; i < deviceNames.size(); ++i) {
-            showInfo(i, nullptr);
+            if (!showInfo(i, nullptr)) {
+                exitCode = 1;
+            }
         }
+        return exitCode;
     } else {
         if (opts.jsonOutput) {
             std::ostringstream os;

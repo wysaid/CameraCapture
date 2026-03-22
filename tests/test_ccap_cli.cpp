@@ -312,6 +312,9 @@ private:
                 }
                 continue;
             }
+            if (static_cast<unsigned char>(ch) <= 0x1F) {
+                throw std::runtime_error("Invalid JSON control character");
+            }
             result.push_back(ch);
         }
 
@@ -339,7 +342,15 @@ private:
             consumeDigits();
         }
 
-        return std::stod(std::string(m_input.substr(start, m_position - start)));
+        auto numStr = std::string(m_input.substr(start, m_position - start));
+        std::istringstream iss(numStr);
+        iss.imbue(std::locale::classic());
+        double value;
+        iss >> value;
+        if (iss.fail()) {
+            throw std::runtime_error("Invalid JSON number");
+        }
+        return value;
     }
 
     void consumeDigits() {
