@@ -48,7 +48,6 @@ A high-performance, lightweight cross-platform camera capture library with hardw
 
 This repository also includes a publish-ready skill bundle for ClawHub/OpenClaw.
 
-- Agent entry: [AGENTS.md](./AGENTS.md)
 - Publishable skill folder: [skills/ccap](./skills/ccap)
 - Skill definition: [skills/ccap/SKILL.md](./skills/ccap/SKILL.md)
 

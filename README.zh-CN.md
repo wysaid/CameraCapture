@@ -48,7 +48,6 @@
 
 本仓库现在也包含了一个可发布到 ClawHub/OpenClaw 的独立技能包，可将 `ccap` 当作实际可用的相机与视频输入工具来使用。
 
-- Agent 入口: [AGENTS.md](./AGENTS.md)
 - 可发布技能目录: [skills/ccap](./skills/ccap)
 - 技能定义: [skills/ccap/SKILL.md](./skills/ccap/SKILL.md)
 
