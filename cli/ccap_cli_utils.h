@@ -39,10 +39,11 @@ int showDeviceInfo(const CLIOptions& opts, const std::string& deviceName);
 
 /**
  * @brief Print video file information
+ * @param opts CLI options controlling output mode, including JSON formatting
  * @param videoPath Path to video file
  * @return Exit code (0 on success, 1 on error)
  */
-int printVideoInfo(const std::string& videoPath);
+int printVideoInfo(const CLIOptions& opts, const std::string& videoPath);
 
 /**
  * @brief Capture frames from camera or video file

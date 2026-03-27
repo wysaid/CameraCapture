@@ -124,9 +124,18 @@ int main(int argc, char* argv[]) {
         return ccap_cli::convertYuvToImage(opts);
     }
 
+    // Check if we should just print info (no action specified)
+    bool hasAction = opts.enablePreview || opts.saveFrames || opts.captureCountSpecified || !opts.outputDir.empty();
+
     // Check if video file playback is requested but not supported on Linux
 #if defined(__linux__) || defined(__linux) || defined(linux) || defined(__gnu_linux__)
     if (!opts.videoFilePath.empty()) {
+        if (!hasAction) {
+            return ccap_cli::printVideoInfo(opts, opts.videoFilePath);
+        }
+        if (opts.jsonOutput) {
+            return ccap_cli::printVideoInfo(opts, opts.videoFilePath);
+        }
         std::cerr << "Error: Video file playback is not supported on Linux.\n"
                   << "\n"
                   << "Video file playback is currently only available on:\n"
@@ -142,12 +151,9 @@ int main(int argc, char* argv[]) {
     }
 #endif
 
-    // Check if we should just print info (no action specified)
-    bool hasAction = opts.enablePreview || opts.saveFrames || opts.captureCountSpecified || !opts.outputDir.empty();
-
     // If video file specified without action, print video info
     if (!opts.videoFilePath.empty() && !hasAction) {
-        return ccap_cli::printVideoInfo(opts.videoFilePath);
+        return ccap_cli::printVideoInfo(opts, opts.videoFilePath);
     }
 
     // If camera device specified without action, print camera info

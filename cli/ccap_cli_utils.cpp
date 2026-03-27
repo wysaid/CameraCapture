@@ -13,13 +13,19 @@
 #include <algorithm>
 #include <chrono>
 #include <climits>
+#include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
+#include <limits>
+#include <locale>
 #include <memory>
+#include <sstream>
 #include <vector>
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -51,6 +57,122 @@
 namespace ccap_cli {
 
 namespace {
+
+void writeJsonEscapedString(std::ostream& os, std::string_view value) {
+    os << '"';
+    for (unsigned char ch : value) {
+        switch (ch) {
+            case '"':
+                os << "\\\"";
+                break;
+            case '\\':
+                os << "\\\\";
+                break;
+            case '\b':
+                os << "\\b";
+                break;
+            case '\f':
+                os << "\\f";
+                break;
+            case '\n':
+                os << "\\n";
+                break;
+            case '\r':
+                os << "\\r";
+                break;
+            case '\t':
+                os << "\\t";
+                break;
+            default:
+                if (ch < 0x20) {
+                    constexpr char hexDigits[] = "0123456789abcdef";
+                    os << "\\u00" << hexDigits[ch >> 4] << hexDigits[ch & 0x0f];
+                } else {
+                    os << static_cast<char>(ch);
+                }
+                break;
+        }
+    }
+    os << '"';
+}
+
+void writeJsonFiniteNumberOrNull(std::ostream& os, double value) {
+    if (std::isfinite(value)) {
+        std::ostringstream number;
+        number.imbue(std::locale::classic());
+        number << std::setprecision(std::numeric_limits<double>::max_digits10) << value;
+        os << number.str();
+    } else {
+        os << "null";
+    }
+}
+
+void writeJsonFiniteIntOrNull(std::ostream& os, double value) {
+    if (std::isfinite(value) && std::trunc(value) == value
+        && value >= static_cast<double>(std::numeric_limits<std::int64_t>::min())
+        && value <= static_cast<double>(std::numeric_limits<std::int64_t>::max())) {
+        os << static_cast<std::int64_t>(value);
+    } else {
+        os << "null";
+    }
+}
+
+void writeJsonResolutions(std::ostream& os, const std::vector<ccap::DeviceInfo::Resolution>& resolutions) {
+    os << '[';
+    for (size_t index = 0; index < resolutions.size(); ++index) {
+        if (index > 0) {
+            os << ',';
+        }
+        os << "{\"width\":" << resolutions[index].width << ",\"height\":" << resolutions[index].height << '}';
+    }
+    os << ']';
+}
+
+void writeJsonPixelFormats(std::ostream& os, const std::vector<ccap::PixelFormat>& pixelFormats) {
+    os << '[';
+    for (size_t index = 0; index < pixelFormats.size(); ++index) {
+        if (index > 0) {
+            os << ',';
+        }
+        writeJsonEscapedString(os, ccap::pixelFormatToString(pixelFormats[index]));
+    }
+    os << ']';
+}
+
+void writeJsonDevice(std::ostream& os, size_t deviceIndex, const std::string& deviceName,
+                     const std::optional<ccap::DeviceInfo>& info) {
+    os << "{\"index\":" << deviceIndex << ",\"name\":";
+    writeJsonEscapedString(os, deviceName);
+    os << ",\"info_available\":" << (info.has_value() ? "true" : "false")
+       << ",\"supported_resolutions\":";
+    if (info.has_value()) {
+        writeJsonResolutions(os, info->supportedResolutions);
+    } else {
+        os << "[]";
+    }
+    os << ",\"supported_pixel_formats\":";
+    if (info.has_value()) {
+        writeJsonPixelFormats(os, info->supportedPixelFormats);
+    } else {
+        os << "[]";
+    }
+    os << '}';
+}
+
+void printJsonError(std::string_view schemaVersion, std::string_view command, std::string_view code,
+                    std::string_view message, int exitCode) {
+    std::ostringstream os;
+    os << "{\"schema_version\":";
+    writeJsonEscapedString(os, schemaVersion);
+    os << ",\"command\":";
+    writeJsonEscapedString(os, command);
+    os << ",\"success\":false,\"exit_code\":" << exitCode << ",\"error\":{\"code\":";
+    writeJsonEscapedString(os, code);
+    os << ",\"message\":";
+    writeJsonEscapedString(os, message);
+    os << "}}";
+    std::cout << os.str() << std::endl;
+}
 
 #if defined(_WIN32) || defined(_WIN64)
 constexpr const char* kWindowsBackendEnvVar = "CCAP_WINDOWS_BACKEND";
@@ -137,6 +259,33 @@ int listDevices(const CLIOptions& opts) {
     ccap::Provider provider;
     auto deviceNames = provider.findDeviceNames();
 
+    if (opts.jsonOutput) {
+        std::ostringstream os;
+        os << "{\"schema_version\":";
+        writeJsonEscapedString(os, opts.schemaVersion);
+        os << ",\"command\":";
+        writeJsonEscapedString(os, "list-devices");
+        os << ",\"success\":true,\"data\":{\"device_count\":" << deviceNames.size() << ",\"devices\":[";
+
+        for (size_t index = 0; index < deviceNames.size(); ++index) {
+            if (index > 0) {
+                os << ',';
+            }
+
+            ccap::Provider devProvider(deviceNames[index]);
+            std::optional<ccap::DeviceInfo> info;
+            if (devProvider.isOpened()) {
+                info = devProvider.getDeviceInfo();
+            }
+
+            writeJsonDevice(os, index, deviceNames[index], info);
+        }
+
+        os << "]}}";
+        std::cout << os.str() << std::endl;
+        return 0;
+    }
+
     if (deviceNames.empty()) {
         std::cout << "No camera devices found." << std::endl;
         return 0;
@@ -196,13 +345,22 @@ int showDeviceInfo(const CLIOptions& opts, int deviceIndex) {
     auto deviceNames = provider.findDeviceNames();
 
     if (deviceNames.empty()) {
+        if (opts.jsonOutput) {
+            printJsonError(opts.schemaVersion, "device-info", "no_devices_found", "No camera devices found.", 1);
+            return 1;
+        }
         std::cerr << "No camera devices found." << std::endl;
         return 1;
     }
 
-    auto showInfo = [&](size_t idx) {
+    auto showInfo = [&](size_t idx, std::ostream* jsonStream) {
         if (idx >= deviceNames.size()) {
-            std::cerr << "Device index " << idx << " out of range." << std::endl;
+            if (opts.jsonOutput) {
+                printJsonError(opts.schemaVersion, "device-info", "device_index_out_of_range",
+                               "Device index " + std::to_string(idx) + " out of range.", 1);
+            } else {
+                std::cerr << "Device index " << idx << " out of range." << std::endl;
+            }
             return false;
         }
 
@@ -210,14 +368,28 @@ int showDeviceInfo(const CLIOptions& opts, int deviceIndex) {
         ccap::Provider devProvider(name);
 
         if (!devProvider.isOpened()) {
-            std::cerr << "Failed to open device: " << name << std::endl;
+            if (opts.jsonOutput) {
+                printJsonError(opts.schemaVersion, "device-info", "device_open_failed", "Failed to open device: " + name, 1);
+            } else {
+                std::cerr << "Failed to open device: " << name << std::endl;
+            }
             return false;
         }
 
         auto info = devProvider.getDeviceInfo();
         if (!info) {
-            std::cerr << "Failed to get info for device: " << name << std::endl;
+            if (opts.jsonOutput) {
+                printJsonError(opts.schemaVersion, "device-info", "device_info_unavailable",
+                               "Failed to get info for device: " + name, 1);
+            } else {
+                std::cerr << "Failed to get info for device: " << name << std::endl;
+            }
             return false;
+        }
+
+        if (jsonStream != nullptr) {
+            writeJsonDevice(*jsonStream, idx, name, info);
+            return true;
         }
 
         std::cout << "\n===== Device [" << idx << "]: " << name << " =====" << std::endl;
@@ -237,12 +409,53 @@ int showDeviceInfo(const CLIOptions& opts, int deviceIndex) {
     };
 
     if (deviceIndex < 0) {
-        // Show info for all devices
-        for (size_t i = 0; i < deviceNames.size(); ++i) {
-            showInfo(i);
+        if (opts.jsonOutput) {
+            std::ostringstream os;
+            os << "{\"schema_version\":";
+            writeJsonEscapedString(os, opts.schemaVersion);
+            os << ",\"command\":";
+            writeJsonEscapedString(os, "device-info");
+            os << ",\"success\":true,\"data\":{\"device_count\":" << deviceNames.size() << ",\"devices\":[";
+
+            for (size_t index = 0; index < deviceNames.size(); ++index) {
+                if (index > 0) {
+                    os << ',';
+                }
+                if (!showInfo(index, &os)) {
+                    return 1;
+                }
+            }
+
+            os << "]}}";
+            std::cout << os.str() << std::endl;
+            return 0;
         }
+
+        // Show info for all devices
+        int exitCode = 0;
+        for (size_t i = 0; i < deviceNames.size(); ++i) {
+            if (!showInfo(i, nullptr)) {
+                exitCode = 1;
+            }
+        }
+        return exitCode;
     } else {
-        if (!showInfo(static_cast<size_t>(deviceIndex))) {
+        if (opts.jsonOutput) {
+            std::ostringstream os;
+            os << "{\"schema_version\":";
+            writeJsonEscapedString(os, opts.schemaVersion);
+            os << ",\"command\":";
+            writeJsonEscapedString(os, "device-info");
+            os << ",\"success\":true,\"data\":{\"device_count\":1,\"devices\":[";
+            if (!showInfo(static_cast<size_t>(deviceIndex), &os)) {
+                return 1;
+            }
+            os << "]}}";
+            std::cout << os.str() << std::endl;
+            return 0;
+        }
+
+        if (!showInfo(static_cast<size_t>(deviceIndex), nullptr)) {
             return 1;
         }
     }
@@ -261,15 +474,34 @@ int showDeviceInfo(const CLIOptions& opts, const std::string& deviceName) {
         }
     }
 
+    if (opts.jsonOutput) {
+        printJsonError(opts.schemaVersion, "device-info", "device_not_found", "Device not found: " + deviceName, 1);
+        return 1;
+    }
+
     std::cerr << "Device not found: " << deviceName << std::endl;
     return 1;
 }
 
-int printVideoInfo(const std::string& videoPath) {
+int printVideoInfo(const CLIOptions& opts, const std::string& videoPath) {
 #if defined(CCAP_ENABLE_FILE_PLAYBACK)
     ccap::Provider provider;
     if (!provider.open(videoPath, false)) { // Don't start capture, just get info
+        if (opts.jsonOutput) {
+            printJsonError(opts.schemaVersion, "video-info", "video_open_failed", "Failed to open video file: " + videoPath, 1);
+            return 1;
+        }
         std::cerr << "Failed to open video file: " << videoPath << std::endl;
+        return 1;
+    }
+
+    if (!provider.isFileMode()) {
+        if (opts.jsonOutput) {
+            printJsonError(opts.schemaVersion, "video-info", "file_playback_unsupported",
+                           "Video file playback is not supported on this platform/build.", 1);
+            return 1;
+        }
+        std::cerr << "Video file playback is not supported on this platform/build." << std::endl;
         return 1;
     }
 
@@ -279,15 +511,50 @@ int printVideoInfo(const std::string& videoPath) {
     int width = static_cast<int>(provider.get(ccap::PropertyName::Width));
     int height = static_cast<int>(provider.get(ccap::PropertyName::Height));
 
+    if (opts.jsonOutput) {
+        std::ostringstream os;
+        os << "{\"schema_version\":";
+        writeJsonEscapedString(os, opts.schemaVersion);
+        os << ",\"command\":";
+        writeJsonEscapedString(os, "video-info");
+        os << ",\"success\":true,\"data\":{\"video_path\":";
+        writeJsonEscapedString(os, videoPath);
+        os << ",\"width\":" << width
+           << ",\"height\":" << height
+           << ",\"frame_rate\":";
+        writeJsonFiniteNumberOrNull(os, frameRate);
+        os << ",\"duration_seconds\":";
+        writeJsonFiniteNumberOrNull(os, duration);
+        os << ",\"total_frames\":";
+        writeJsonFiniteIntOrNull(os, frameCount);
+        os
+           << "}}";
+        std::cout << os.str() << std::endl;
+        return 0;
+    }
+
     std::cout << "\n===== Video File Information =====" << std::endl;
     std::cout << "  File: " << videoPath << std::endl;
     std::cout << "  Resolution: " << width << "x" << height << std::endl;
     std::cout << "  Frame rate: " << frameRate << " fps" << std::endl;
     std::cout << "  Duration: " << duration << " seconds" << std::endl;
-    std::cout << "  Total frames: " << static_cast<int>(frameCount) << std::endl;
+    std::cout << "  Total frames: ";
+    if (std::isfinite(frameCount) && std::trunc(frameCount) == frameCount
+        && frameCount >= static_cast<double>(std::numeric_limits<std::int64_t>::min())
+        && frameCount <= static_cast<double>(std::numeric_limits<std::int64_t>::max())) {
+        std::cout << static_cast<std::int64_t>(frameCount);
+    } else {
+        std::cout << "unknown";
+    }
+    std::cout << std::endl;
     std::cout << "===================================" << std::endl;
     return 0;
 #else
+    if (opts.jsonOutput) {
+        printJsonError(opts.schemaVersion, "video-info", "file_playback_unsupported",
+                       "Video file playback is not supported. Rebuild with CCAP_ENABLE_FILE_PLAYBACK=ON", 1);
+        return 1;
+    }
     std::cerr << "Video file playback is not supported. Rebuild with CCAP_ENABLE_FILE_PLAYBACK=ON" << std::endl;
     (void)videoPath;
     return 1;

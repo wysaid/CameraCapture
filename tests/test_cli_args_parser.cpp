@@ -45,6 +45,33 @@ TEST(CLIArgsParserTest, CaptureDefaultsStayUnchangedWithoutPreview) {
     EXPECT_EQ(opts.height, 720);
 }
 
+TEST(CLIArgsParserTest, ParsesJsonOutputOptions) {
+    char arg0[] = "ccap";
+    char arg1[] = "--json";
+    char arg2[] = "--schema-version";
+    char arg3[] = "1.2";
+    char* argv[] = { arg0, arg1, arg2, arg3, nullptr };
+
+    const ccap_cli::CLIOptions opts = ccap_cli::parseArgs(4, argv);
+
+    EXPECT_TRUE(opts.jsonOutput);
+    EXPECT_EQ(opts.schemaVersion, "1.2");
+}
+
+TEST(CLIArgsParserTest, RejectsMissingSchemaVersionValue) {
+    char arg0[] = "ccap";
+    char arg1[] = "--schema-version";
+    char* argv[] = { arg0, arg1, nullptr };
+
+    EXPECT_EXIT(
+        {
+            (void)ccap_cli::parseArgs(2, argv);
+            std::exit(0);
+        },
+        ::testing::ExitedWithCode(1),
+        "--schema-version requires a value");
+}
+
 #if defined(_WIN32) || defined(_WIN64)
 TEST(CLIArgsParserTest, ParsesWindowsCameraBackendOption) {
     char arg0[] = "ccap";

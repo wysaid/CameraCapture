@@ -85,6 +85,8 @@ The executable will be located in the `build/` directory (or `build/Debug`, `bui
 | `-h, --help` | Show help message and exit |
 | `-v, --version` | Show version information |
 | `--verbose` | Enable verbose logging output |
+| `--json` | Emit structured JSON output for supported commands |
+| `--schema-version VERSION` | Set the schema version field in JSON output (default: `1.0`) |
 | `--timeout SECONDS` | Program timeout: auto-exit after N seconds |
 | `--timeout-exit-code CODE` | Exit code when timeout occurs (default: 0) |
 
@@ -212,6 +214,23 @@ Print video file information:
 ```bash
 ccap -i /path/to/video.mp4
 ```
+
+List devices as JSON for automation:
+```bash
+ccap --list-devices --json
+```
+
+Inspect a single device as JSON:
+```bash
+ccap --device-info 0 --json
+```
+
+Print video metadata as JSON:
+```bash
+ccap -i /path/to/video.mp4 --json
+```
+
+JSON output currently covers device enumeration, device info, and video metadata. The payload uses a stable top-level envelope with `schema_version`, `command`, and `success`; successful responses include `data`, while error responses include `exit_code` and `error`.
 
 ### Basic Frame Capture
 

@@ -34,6 +34,8 @@ struct CLIOptions {
     bool listDevices = false;
     bool showDeviceInfo = false;
     bool verbose = false;
+    bool jsonOutput = false;
+    std::string schemaVersion = "1.0";
 
     // Windows camera backend override
     std::string windowsCameraBackend;

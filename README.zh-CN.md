@@ -44,6 +44,22 @@
 
 ## 快速开始
 
+### AI Agent 技能入口
+
+本仓库现在也包含了一个可发布到 ClawHub/OpenClaw 的独立技能包，可将 `ccap` 当作实际可用的相机与视频输入工具来使用。
+
+- Agent 入口: [AGENTS.md](./AGENTS.md)
+- 可发布技能目录: [skills/ccap](./skills/ccap)
+- 技能定义: [skills/ccap/SKILL.md](./skills/ccap/SKILL.md)
+
+该技能按照可发布的独立 skill folder 组织：顶层 `SKILL.md` 加可选辅助文本文件。它会指导 Agent 在已有安装、macOS Homebrew、源码构建和 release 二进制回退之间做选择，并在支持时优先使用带 `--json` 的 `ccap` CLI。
+
+如果要发布到 ClawHub，应发布技能目录本身，而不是整个仓库根目录：
+
+```bash
+clawhub publish ./skills/ccap --slug ccap --name "ccap" --version 0.1.0 --tags latest --changelog "Initial ClawHub release"
+```
+
 ### 安装
 
 1. 从源码编译并安装 (在 Windows 下需要 git-bash 执行)
