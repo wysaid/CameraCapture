@@ -398,7 +398,10 @@ using namespace ccap;
         }
         
         zeroCopy = !inplaceConvertFrame(newFrame.get(), prop.outputPixelFormat, shouldFlip);
-        CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+        if (!zeroCopy) {
+            CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+            newFrame->nativeHandle = nullptr;
+        }
     }
     
     if (zeroCopy) {

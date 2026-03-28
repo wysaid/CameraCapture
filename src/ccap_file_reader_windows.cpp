@@ -462,7 +462,7 @@ void FileReaderWindows::readLoop() {
                         auto&& f = m_provider->getAllocatorFactory();
                         newFrame->allocator = f ? f() : std::make_shared<DefaultAllocator>();
                     }
-                    inplaceConvertFrame(newFrame.get(), prop.outputPixelFormat, shouldFlip);
+                    zeroCopy = !inplaceConvertFrame(newFrame.get(), prop.outputPixelFormat, shouldFlip);
                 }
 
                 newFrame->frameIndex = m_currentFrameIndex;

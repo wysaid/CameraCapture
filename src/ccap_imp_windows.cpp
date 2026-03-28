@@ -849,10 +849,11 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     newFrame->width = m_frameProp.width;
     newFrame->height = m_frameProp.height;
     newFrame->orientation = isOutputYUV ? FrameOrientation::TopToBottom : m_frameOrientation;
-    newFrame->nativeHandle = mediaSample;
+    newFrame->nativeHandle = nullptr;
 
     bool shouldFlip = newFrame->orientation != m_inputOrientation && !isOutputYUV;
-    bool shouldConvert = m_frameProp.cameraPixelFormat != m_frameProp.outputPixelFormat;
+    bool shouldConvert = m_frameProp.outputPixelFormat != PixelFormat::Unknown &&
+        m_frameProp.cameraPixelFormat != m_frameProp.outputPixelFormat;
     bool zeroCopy = !shouldConvert && !shouldFlip;
 
     if (isInputYUV) {
@@ -949,6 +950,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
         // Conversion may fail. If conversion fails, fall back to zero-copy mode.
         // In this case, the returned format is the original camera input format.
         newFrame->sizeInBytes = bufferLen;
+        newFrame->nativeHandle = mediaSample;
 
         mediaSample->AddRef(); // Ensure data lifecycle
         auto manager = std::make_shared<FakeFrame>([newFrame, mediaSample]() mutable {
@@ -1001,7 +1003,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::BufferCB(double SampleTime, BYTE* 
     return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE ProviderDirectShow::QueryInterface(REFIID riid, _COM_Outptr_ void __RPC_FAR * __RPC_FAR * ppvObject) {
+HRESULT STDMETHODCALLTYPE ProviderDirectShow::QueryInterface(REFIID riid, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject) {
     static constexpr const IID IID_ISampleGrabberCB = { 0x0579154A, 0x2B53, 0x4994, { 0xB0, 0xD0, 0xE7, 0x73, 0x14, 0x8E, 0xFF, 0x85 } };
 
     if (riid == IID_IUnknown) {

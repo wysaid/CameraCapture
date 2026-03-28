@@ -10,6 +10,7 @@
 
 #include "ccap_convert.h"
 #include "ccap_imp.h"
+#include "ccap_utils.h"
 
 #include <cassert>
 #include <cstring>
@@ -229,8 +230,15 @@ inline bool inplaceConvertFrameImp(VideoFrame* frame, PixelFormat toFormat, bool
             return inplaceConvertFrameYUV2YUV(frame, toFormat, verticalFlip);
 #endif
 
+        if (isInputYUV && isOutputYUV) {
+            CCAP_LOG_W("ccap: YUV to different YUV subtype conversion is not supported without libyuv, skipping conversion\n");
+            return false;
+        }
+
         if (isInputYUV) // yuv -> BGR
             return inplaceConvertFrameYUV2RGBColor(frame, toFormat, verticalFlip);
+
+        CCAP_LOG_W("ccap: RGB to YUV conversion is not supported, skipping conversion\n");
         return false; // no rgb -> yuv
     }
 

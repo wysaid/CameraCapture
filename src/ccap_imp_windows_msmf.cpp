@@ -801,7 +801,8 @@ void ProviderMSMF::readLoop() {
         }
 
         bool shouldFlip = !isOutputYUV && targetOrientation != m_inputOrientation;
-        bool shouldConvert = newFrame->pixelFormat != m_frameProp.outputPixelFormat;
+        bool shouldConvert = m_frameProp.outputPixelFormat != PixelFormat::Unknown &&
+            newFrame->pixelFormat != m_frameProp.outputPixelFormat;
         bool zeroCopy = !shouldConvert && !shouldFlip;
 
         if (!zeroCopy) {

@@ -905,6 +905,8 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
     }
 
     /// iOS/macOS does not support i420, and we do not intend to support nv12 to i420 conversion here.
+    /// When both internal and output formats are YUV, zeroCopy is used regardless of subtype differences
+    /// (e.g., NV12 vs I420). The frame will carry the actual camera format, not the requested output format.
     bool zeroCopy = ((internalFormat & kPixelFormatYUVColorBit) && (outputFormat & kPixelFormatYUVColorBit)) ||
         (internalFormat == outputFormat && _provider->frameOrientation() == kDefaultFrameOrientation);
 
@@ -924,7 +926,10 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
 
         zeroCopy = !inplaceConvertFrame(newFrame.get(), outputFormat, (int)(newFrame->orientation != kDefaultFrameOrientation));
 
-        CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+        if (!zeroCopy) {
+            CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+            newFrame->nativeHandle = nullptr;
+        }
 
         if (verboseLogEnabled()) {
 #ifdef DEBUG
