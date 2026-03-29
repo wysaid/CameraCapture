@@ -873,6 +873,9 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
     CMTime timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer);
     auto internalFormat = _provider->getFrameProperty().cameraPixelFormat;
     auto outputFormat = _provider->getFrameProperty().outputPixelFormat;
+    if (outputFormat == PixelFormat::Unknown) {
+        outputFormat = internalFormat;
+    }
 
     newFrame->timestamp = (uint64_t)(CMTimeGetSeconds(timestamp) * 1e9);
     newFrame->width = (uint32_t)CVPixelBufferGetWidth(imageBuffer);

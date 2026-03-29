@@ -448,10 +448,11 @@ void FileReaderWindows::readLoop() {
 
                 // Check if conversion or flip is needed
                 auto& prop = m_provider->getFrameProperty();
-                bool isOutputYUV = (prop.outputPixelFormat & kPixelFormatYUVColorBit) != 0;
+                PixelFormat effectiveOutputFormat = (prop.outputPixelFormat == PixelFormat::Unknown) ? newFrame->pixelFormat : prop.outputPixelFormat;
+                bool isOutputYUV = (effectiveOutputFormat & kPixelFormatYUVColorBit) != 0;
                 FrameOrientation targetOrientation = isOutputYUV ? FrameOrientation::TopToBottom : m_provider->frameOrientation();
                 bool shouldFlip = !isOutputYUV && (inputOrientation != targetOrientation);
-                bool shouldConvert = newFrame->pixelFormat != prop.outputPixelFormat;
+                bool shouldConvert = newFrame->pixelFormat != effectiveOutputFormat;
 
                 newFrame->orientation = targetOrientation;
 
@@ -462,7 +463,7 @@ void FileReaderWindows::readLoop() {
                         auto&& f = m_provider->getAllocatorFactory();
                         newFrame->allocator = f ? f() : std::make_shared<DefaultAllocator>();
                     }
-                    zeroCopy = !inplaceConvertFrame(newFrame.get(), prop.outputPixelFormat, shouldFlip);
+                    zeroCopy = !inplaceConvertFrame(newFrame.get(), effectiveOutputFormat, shouldFlip);
                 }
 
                 newFrame->frameIndex = m_currentFrameIndex;

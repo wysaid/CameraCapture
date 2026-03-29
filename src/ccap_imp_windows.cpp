@@ -843,7 +843,8 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
 
     uint32_t bufferLen = mediaSample->GetActualDataLength();
     bool isInputYUV = (m_frameProp.cameraPixelFormat & kPixelFormatYUVColorBit);
-    bool isOutputYUV = (m_frameProp.outputPixelFormat & kPixelFormatYUVColorBit);
+    PixelFormat effectiveOutputFormat = (m_frameProp.outputPixelFormat == PixelFormat::Unknown) ? m_frameProp.cameraPixelFormat : m_frameProp.outputPixelFormat;
+    bool isOutputYUV = (effectiveOutputFormat & kPixelFormatYUVColorBit);
 
     newFrame->pixelFormat = m_frameProp.cameraPixelFormat;
     newFrame->width = m_frameProp.width;
@@ -852,8 +853,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
     newFrame->nativeHandle = nullptr;
 
     bool shouldFlip = newFrame->orientation != m_inputOrientation && !isOutputYUV;
-    bool shouldConvert = m_frameProp.outputPixelFormat != PixelFormat::Unknown &&
-        m_frameProp.cameraPixelFormat != m_frameProp.outputPixelFormat;
+    bool shouldConvert = m_frameProp.cameraPixelFormat != effectiveOutputFormat;
     bool zeroCopy = !shouldConvert && !shouldFlip;
 
     if (isInputYUV) {
@@ -921,7 +921,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
 
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 
-            zeroCopy = !inplaceConvertFrame(newFrame.get(), m_frameProp.outputPixelFormat, shouldFlip);
+            zeroCopy = !inplaceConvertFrame(newFrame.get(), effectiveOutputFormat, shouldFlip);
 
             double durInMs = (std::chrono::steady_clock::now() - startTime).count() / 1.e6;
             static double s_allCostTime = 0;
@@ -937,10 +937,10 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
 
             CCAP_LOG_V(
                 "ccap: inplaceConvertFrame requested pixel format: %s, actual pixel format: %s, flip: %s, cost time %s: (cur %g ms, avg %g ms)\n",
-                pixelFormatToString(m_frameProp.outputPixelFormat).data(), pixelFormatToString(m_frameProp.cameraPixelFormat).data(),
+                pixelFormatToString(effectiveOutputFormat).data(), pixelFormatToString(m_frameProp.cameraPixelFormat).data(),
                 shouldFlip ? "YES" : "NO", mode, durInMs, s_allCostTime / s_frames);
         } else {
-            zeroCopy = !inplaceConvertFrame(newFrame.get(), m_frameProp.outputPixelFormat, shouldFlip);
+            zeroCopy = !inplaceConvertFrame(newFrame.get(), effectiveOutputFormat, shouldFlip);
         }
 
         newFrame->sizeInBytes = newFrame->stride[0] * newFrame->height + (newFrame->stride[1] + newFrame->stride[2]) * newFrame->height / 2;
@@ -1168,7 +1168,7 @@ void ProviderDirectShow::close() {
 bool ProviderDirectShow::start() {
     if (!m_isOpened) return false;
 
-    // File mode
+        // File mode
 #ifdef CCAP_ENABLE_FILE_PLAYBACK
     if (m_isFileMode && m_fileReader) {
         return m_fileReader->start();

@@ -747,7 +747,8 @@ void ProviderMSMF::readLoop() {
         newFrame->height = m_activeHeight;
         newFrame->nativeHandle = nullptr;
 
-        bool isOutputYUV = (m_frameProp.outputPixelFormat & kPixelFormatYUVColorBit) != 0;
+        PixelFormat effectiveOutputFormat = (m_frameProp.outputPixelFormat == PixelFormat::Unknown) ? m_activePixelFormat : m_frameProp.outputPixelFormat;
+        bool isOutputYUV = (effectiveOutputFormat & kPixelFormatYUVColorBit) != 0;
         FrameOrientation targetOrientation = isOutputYUV ? FrameOrientation::TopToBottom : m_frameOrientation;
         newFrame->orientation = targetOrientation;
 
@@ -801,8 +802,7 @@ void ProviderMSMF::readLoop() {
         }
 
         bool shouldFlip = !isOutputYUV && targetOrientation != m_inputOrientation;
-        bool shouldConvert = m_frameProp.outputPixelFormat != PixelFormat::Unknown &&
-            newFrame->pixelFormat != m_frameProp.outputPixelFormat;
+        bool shouldConvert = newFrame->pixelFormat != effectiveOutputFormat;
         bool zeroCopy = !shouldConvert && !shouldFlip;
 
         if (!zeroCopy) {
@@ -810,7 +810,7 @@ void ProviderMSMF::readLoop() {
                 newFrame->allocator = m_allocatorFactory ? m_allocatorFactory() : std::make_shared<DefaultAllocator>();
             }
 
-            zeroCopy = !inplaceConvertFrame(newFrame.get(), m_frameProp.outputPixelFormat, shouldFlip);
+            zeroCopy = !inplaceConvertFrame(newFrame.get(), effectiveOutputFormat, shouldFlip);
             newFrame->sizeInBytes = newFrame->stride[0] * newFrame->height +
                 (newFrame->stride[1] + newFrame->stride[2]) * newFrame->height / 2;
         }

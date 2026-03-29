@@ -231,14 +231,22 @@ inline bool inplaceConvertFrameImp(VideoFrame* frame, PixelFormat toFormat, bool
 #endif
 
         if (isInputYUV && isOutputYUV) {
-            CCAP_LOG_W("ccap: YUV to different YUV subtype conversion is not supported without libyuv, skipping conversion\n");
+            static bool sLoggedYuv2YuvUnsupported = false;
+            if (!sLoggedYuv2YuvUnsupported) {
+                CCAP_LOG_W("ccap: YUV to different YUV subtype conversion is not supported without libyuv, skipping conversion\n");
+                sLoggedYuv2YuvUnsupported = true;
+            }
             return false;
         }
 
         if (isInputYUV) // yuv -> BGR
             return inplaceConvertFrameYUV2RGBColor(frame, toFormat, verticalFlip);
 
-        CCAP_LOG_W("ccap: RGB to YUV conversion is not supported, skipping conversion\n");
+        static bool sLoggedRgbToYuvUnsupported = false;
+        if (!sLoggedRgbToYuvUnsupported) {
+            CCAP_LOG_W("ccap: RGB to YUV conversion is not supported, skipping conversion\n");
+            sLoggedRgbToYuvUnsupported = true;
+        }
         return false; // no rgb -> yuv
     }
 
