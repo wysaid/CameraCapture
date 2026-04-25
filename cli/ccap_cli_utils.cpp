@@ -823,10 +823,7 @@ bool saveFrameAsImage(ccap::VideoFrame* frame, const std::string& outputPath,
         }
 
         // PNG/JPG formats expect top-to-bottom scan line order (first row at memory start).
-        // On Windows, video frames from Media Foundation have inverted orientation metadata:
-        //   - When orientation reports BottomToTop, actual data is TopToBottom (no flip needed)
-        //   - When orientation reports TopToBottom, actual data is BottomToTop (flip needed)
-        if (isTopToBottom) {
+        if (!isTopToBottom) {
             if (tempBuffer.empty()) {
                 tempBuffer.resize(width * height * comp);
                 // Copy with proper stride handling
@@ -855,23 +852,12 @@ bool saveFrameAsImage(ccap::VideoFrame* frame, const std::string& outputPath,
             // We should convert BGR to RGB if needed
             if (isBGR && comp >= 3) {
                 std::vector<uint8_t> rgbBuffer(width * height * comp);
-                if (tempBuffer.empty()) {
-                    for (int i = 0; i < width * height; ++i) {
-                        rgbBuffer[i * comp + 0] = imageData[i * comp + 2]; // R from B
-                        rgbBuffer[i * comp + 1] = imageData[i * comp + 1]; // G
-                        rgbBuffer[i * comp + 2] = imageData[i * comp + 0]; // B from R
-                        if (comp == 4) {
-                            rgbBuffer[i * comp + 3] = imageData[i * comp + 3]; // A
-                        }
-                    }
-                } else {
-                    for (int i = 0; i < width * height; ++i) {
-                        rgbBuffer[i * comp + 0] = imageData[i * comp + 2];
-                        rgbBuffer[i * comp + 1] = imageData[i * comp + 1];
-                        rgbBuffer[i * comp + 2] = imageData[i * comp + 0];
-                        if (comp == 4) {
-                            rgbBuffer[i * comp + 3] = imageData[i * comp + 3];
-                        }
+                for (int i = 0; i < width * height; ++i) {
+                    rgbBuffer[i * comp + 0] = imageData[i * comp + 2]; // R from B
+                    rgbBuffer[i * comp + 1] = imageData[i * comp + 1]; // G
+                    rgbBuffer[i * comp + 2] = imageData[i * comp + 0]; // B from R
+                    if (comp == 4) {
+                        rgbBuffer[i * comp + 3] = imageData[i * comp + 3]; // A
                     }
                 }
                 result = stbi_write_jpg(filePath.c_str(), width, height, comp, rgbBuffer.data(), jpegQuality);
