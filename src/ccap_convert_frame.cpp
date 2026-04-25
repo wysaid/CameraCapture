@@ -231,6 +231,7 @@ inline bool inplaceConvertFrameImp(VideoFrame* frame, PixelFormat toFormat, bool
 #endif
 
         if (isInputYUV && isOutputYUV) {
+            // Best-effort log suppression only; occasional duplicate warnings are acceptable.
             static bool sLoggedYuv2YuvUnsupported = false;
             if (!sLoggedYuv2YuvUnsupported) {
                 CCAP_LOG_W("ccap: YUV to different YUV subtype conversion is not supported without libyuv, skipping conversion\n");
@@ -242,6 +243,7 @@ inline bool inplaceConvertFrameImp(VideoFrame* frame, PixelFormat toFormat, bool
         if (isInputYUV) // yuv -> BGR
             return inplaceConvertFrameYUV2RGBColor(frame, toFormat, verticalFlip);
 
+        // Best-effort log suppression only; occasional duplicate warnings are acceptable.
         static bool sLoggedRgbToYuvUnsupported = false;
         if (!sLoggedRgbToYuvUnsupported) {
             CCAP_LOG_W("ccap: RGB to YUV conversion is not supported, skipping conversion\n");
