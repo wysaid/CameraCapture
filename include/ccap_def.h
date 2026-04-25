@@ -35,7 +35,7 @@ namespace ccap {
 enum PixelFormatConstants : uint32_t {
     /// `kPixelFormatRGBBit` indicates that the pixel format is RGB or RGBA.
     kPixelFormatRGBBit = 1 << 3,
-    /// `kPixelFormatRGBBit` indicates that the pixel format is BGR or BGRA.
+    /// `kPixelFormatBGRBit` indicates that the pixel format is BGR or BGRA.
     kPixelFormatBGRBit = 1 << 4,
 
     /// Color Bit Mask
@@ -82,7 +82,6 @@ enum class PixelFormat : uint32_t {
      *    In software design, you can implement a toggle option to allow users to choose whether
      *    the received Frame is FullRange or VideoRange based on what they observe.
      * @note This format is also known by other names, such as YUV420P or IYUV.
-     * @refitem #NV12
      */
     I420 = 1 << 2 | kPixelFormatYUVColorBit,
 
@@ -191,10 +190,14 @@ enum class PropertyName {
 
     /**
      * @brief The output pixel format of ccap. Can be different from PixelFormatInternal.
-     * @note If PixelFormatInternal is RGB(A), PixelFormatOutput cannot be set to a YUV format.
+     * @note If PixelFormatInternal is RGB(A), PixelFormatOutput cannot be set to a YUV format (RGB->YUV conversion is not supported).
+     *       If PixelFormatInternal is YUV and PixelFormatOutput is a different YUV subtype, conversion requires libyuv;
+     *       without it the frame will keep the camera format and no conversion is performed.
      *       If PixelFormatInternal is YUV and PixelFormatOutput is RGB(A), BT.601 will be used for conversion.
-     *       For other cases, there are no issues.
-     *       If PixelFormatInternal and PixelFormatOutput are the same format, data conversion will be skipped and the original data will be used directly.
+     *       If PixelFormatOutput is set to PixelFormat::Unknown (or not set), the camera's native format is used as-is
+     *       and no conversion is performed.
+     *       If PixelFormatInternal and PixelFormatOutput are the same format AND the camera natively supports
+     *       PixelFormatInternal, data conversion will be skipped and the original data will be used directly.
      *       In general, setting both PixelFormatInternal and PixelFormatOutput to YUV formats can achieve better performance.
      */
     PixelFormatOutput = 0x30002,

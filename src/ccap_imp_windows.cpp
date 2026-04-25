@@ -843,16 +843,17 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
 
     uint32_t bufferLen = mediaSample->GetActualDataLength();
     bool isInputYUV = (m_frameProp.cameraPixelFormat & kPixelFormatYUVColorBit);
-    bool isOutputYUV = (m_frameProp.outputPixelFormat & kPixelFormatYUVColorBit);
+    PixelFormat effectiveOutputFormat = (m_frameProp.outputPixelFormat == PixelFormat::Unknown) ? m_frameProp.cameraPixelFormat : m_frameProp.outputPixelFormat;
+    bool isOutputYUV = (effectiveOutputFormat & kPixelFormatYUVColorBit);
 
     newFrame->pixelFormat = m_frameProp.cameraPixelFormat;
     newFrame->width = m_frameProp.width;
     newFrame->height = m_frameProp.height;
     newFrame->orientation = isOutputYUV ? FrameOrientation::TopToBottom : m_frameOrientation;
-    newFrame->nativeHandle = mediaSample;
+    newFrame->nativeHandle = nullptr;
 
     bool shouldFlip = newFrame->orientation != m_inputOrientation && !isOutputYUV;
-    bool shouldConvert = m_frameProp.cameraPixelFormat != m_frameProp.outputPixelFormat;
+    bool shouldConvert = m_frameProp.cameraPixelFormat != effectiveOutputFormat;
     bool zeroCopy = !shouldConvert && !shouldFlip;
 
     if (isInputYUV) {
@@ -920,7 +921,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
 
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 
-            zeroCopy = !inplaceConvertFrame(newFrame.get(), m_frameProp.outputPixelFormat, shouldFlip);
+            zeroCopy = !inplaceConvertFrame(newFrame.get(), effectiveOutputFormat, shouldFlip);
 
             double durInMs = (std::chrono::steady_clock::now() - startTime).count() / 1.e6;
             static double s_allCostTime = 0;
@@ -936,10 +937,10 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
 
             CCAP_LOG_V(
                 "ccap: inplaceConvertFrame requested pixel format: %s, actual pixel format: %s, flip: %s, cost time %s: (cur %g ms, avg %g ms)\n",
-                pixelFormatToString(m_frameProp.outputPixelFormat).data(), pixelFormatToString(m_frameProp.cameraPixelFormat).data(),
+                pixelFormatToString(effectiveOutputFormat).data(), pixelFormatToString(m_frameProp.cameraPixelFormat).data(),
                 shouldFlip ? "YES" : "NO", mode, durInMs, s_allCostTime / s_frames);
         } else {
-            zeroCopy = !inplaceConvertFrame(newFrame.get(), m_frameProp.outputPixelFormat, shouldFlip);
+            zeroCopy = !inplaceConvertFrame(newFrame.get(), effectiveOutputFormat, shouldFlip);
         }
 
         newFrame->sizeInBytes = newFrame->stride[0] * newFrame->height + (newFrame->stride[1] + newFrame->stride[2]) * newFrame->height / 2;
@@ -949,6 +950,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::SampleCB(double sampleTime, IMedia
         // Conversion may fail. If conversion fails, fall back to zero-copy mode.
         // In this case, the returned format is the original camera input format.
         newFrame->sizeInBytes = bufferLen;
+        newFrame->nativeHandle = mediaSample;
 
         mediaSample->AddRef(); // Ensure data lifecycle
         auto manager = std::make_shared<FakeFrame>([newFrame, mediaSample]() mutable {
@@ -1001,7 +1003,7 @@ HRESULT STDMETHODCALLTYPE ProviderDirectShow::BufferCB(double SampleTime, BYTE* 
     return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE ProviderDirectShow::QueryInterface(REFIID riid, _COM_Outptr_ void __RPC_FAR * __RPC_FAR * ppvObject) {
+HRESULT STDMETHODCALLTYPE ProviderDirectShow::QueryInterface(REFIID riid, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject) {
     static constexpr const IID IID_ISampleGrabberCB = { 0x0579154A, 0x2B53, 0x4994, { 0xB0, 0xD0, 0xE7, 0x73, 0x14, 0x8E, 0xFF, 0x85 } };
 
     if (riid == IID_IUnknown) {
@@ -1166,7 +1168,7 @@ void ProviderDirectShow::close() {
 bool ProviderDirectShow::start() {
     if (!m_isOpened) return false;
 
-    // File mode
+        // File mode
 #ifdef CCAP_ENABLE_FILE_PLAYBACK
     if (m_isFileMode && m_fileReader) {
         return m_fileReader->start();

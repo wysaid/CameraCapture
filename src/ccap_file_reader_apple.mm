@@ -382,10 +382,11 @@ using namespace ccap;
     
     // Check if conversion or flip is needed
     auto& prop = _provider->getFrameProperty();
-    bool isOutputYUV = (newFrame->pixelFormat & kPixelFormatYUVColorBit) != 0;
+    PixelFormat effectiveOutputFormat = (prop.outputPixelFormat == PixelFormat::Unknown) ? newFrame->pixelFormat : prop.outputPixelFormat;
+    bool isOutputYUV = (effectiveOutputFormat & kPixelFormatYUVColorBit) != 0;
     FrameOrientation targetOrientation = isOutputYUV ? FrameOrientation::TopToBottom : _provider->frameOrientation();
     bool shouldFlip = !isOutputYUV && (inputOrientation != targetOrientation);
-    bool shouldConvert = newFrame->pixelFormat != prop.outputPixelFormat;
+    bool shouldConvert = newFrame->pixelFormat != effectiveOutputFormat;
     
     newFrame->orientation = targetOrientation;
     
@@ -397,8 +398,11 @@ using namespace ccap;
             newFrame->allocator = f ? f() : std::make_shared<DefaultAllocator>();
         }
         
-        zeroCopy = !inplaceConvertFrame(newFrame.get(), prop.outputPixelFormat, shouldFlip);
-        CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+        zeroCopy = !inplaceConvertFrame(newFrame.get(), effectiveOutputFormat, shouldFlip);
+        if (!zeroCopy) {
+            CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+            newFrame->nativeHandle = nullptr;
+        }
     }
     
     if (zeroCopy) {

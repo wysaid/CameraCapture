@@ -549,7 +549,8 @@ bool ProviderV4L2::readFrame() {
 
     // Check input/output format types and orientations
     bool isInputYUV = (frame->pixelFormat & kPixelFormatYUVColorBit) != 0;
-    bool isOutputYUV = (m_frameProp.outputPixelFormat & kPixelFormatYUVColorBit) != 0;
+    PixelFormat effectiveOutputFormat = (m_frameProp.outputPixelFormat == PixelFormat::Unknown) ? frame->pixelFormat : m_frameProp.outputPixelFormat;
+    bool isOutputYUV = (effectiveOutputFormat & kPixelFormatYUVColorBit) != 0;
     auto inputOrientation = FrameOrientation::TopToBottom; // V4L2 always provides TopToBottom
 
     // Set output orientation based on format type
@@ -557,8 +558,7 @@ bool ProviderV4L2::readFrame() {
 
     // Check if we need conversion or flipping
     bool shouldFlip = frame->orientation != inputOrientation && !isOutputYUV;
-    bool shouldConvert = (m_frameProp.outputPixelFormat != PixelFormat::Unknown &&
-                          m_frameProp.outputPixelFormat != frame->pixelFormat);
+    bool shouldConvert = (effectiveOutputFormat != frame->pixelFormat);
     bool zeroCopy = !shouldConvert && !shouldFlip;
 
     uint8_t* bufferData = static_cast<uint8_t*>(m_buffers[buf.index].start);
@@ -614,7 +614,7 @@ bool ProviderV4L2::readFrame() {
 
             std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 
-            zeroCopy = !inplaceConvertFrame(frame.get(), m_frameProp.outputPixelFormat, shouldFlip);
+            zeroCopy = !inplaceConvertFrame(frame.get(), effectiveOutputFormat, shouldFlip);
 
             double durInMs = (std::chrono::steady_clock::now() - startTime).count() / 1.e6;
             static double s_allCostTime = 0;
@@ -630,10 +630,10 @@ bool ProviderV4L2::readFrame() {
 
             CCAP_LOG_V(
                 "ccap: inplaceConvertFrame requested pixel format: %s, actual pixel format: %s, flip: %s, cost time %s: (cur %g ms, avg %g ms)\n",
-                pixelFormatToString(m_frameProp.outputPixelFormat).data(), pixelFormatToString(m_frameProp.cameraPixelFormat).data(),
+                pixelFormatToString(effectiveOutputFormat).data(), pixelFormatToString(m_frameProp.cameraPixelFormat).data(),
                 shouldFlip ? "YES" : "NO", mode, durInMs, s_allCostTime / s_frames);
         } else {
-            zeroCopy = !inplaceConvertFrame(frame.get(), m_frameProp.outputPixelFormat, shouldFlip);
+            zeroCopy = !inplaceConvertFrame(frame.get(), effectiveOutputFormat, shouldFlip);
         }
     }
 
