@@ -823,6 +823,18 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
 
             [_videoOutput setSampleBufferDelegate:nil queue:dispatch_get_main_queue()];
 
+            // setSampleBufferDelegate:queue: does not guarantee that captureOutput:
+            // blocks already enqueued on the previous capture queue have finished by
+            // the time it returns, especially when the new queue differs from the
+            // old one. Drain the original queue explicitly so ProviderImp (and its
+            // mutexes) cannot be torn down under an in-flight callback. Observed as
+            // crashes inside std::mutex::lock() in getFreeFrame() on macOS 26's
+            // AVCaptureVideoDataOutput_Tundra pipeline.
+            if (_captureQueue) {
+                dispatch_sync(_captureQueue, ^{
+                });
+            }
+
             [_session beginConfiguration];
 
             if (_videoInput) {
