@@ -237,6 +237,10 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
 
 @end
 
+// Identity key for tagging _captureQueue so destroy can detect re-entrant calls
+// arriving from the capture callback itself (the address is the key, not the value).
+static const void* const kCcapCaptureQueueKey = &kCcapCaptureQueueKey;
+
 @implementation CameraCaptureObjc
 
 - (instancetype)initWithProvider:(ProviderApple*)provider {
@@ -464,6 +468,7 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
 
     // Set output queue
     _captureQueue = dispatch_queue_create("ccap.queue", DISPATCH_QUEUE_SERIAL);
+    dispatch_queue_set_specific(_captureQueue, kCcapCaptureQueueKey, (__bridge void*)_captureQueue, NULL);
     [_videoOutput setSampleBufferDelegate:self queue:_captureQueue];
 
     // Add output device to session
@@ -830,7 +835,13 @@ NSArray<AVCaptureDevice*>* findAllDeviceName() {
             // mutexes) cannot be torn down under an in-flight callback. Observed as
             // crashes inside std::mutex::lock() in getFreeFrame() on macOS 26's
             // AVCaptureVideoDataOutput_Tundra pipeline.
-            if (_captureQueue) {
+            //
+            // Skip the drain if we're already executing on _captureQueue (e.g. user
+            // code called close() from inside the new-frame callback). dispatch_sync
+            // onto the current serial queue would deadlock, and the drain isn't
+            // needed: the in-flight callback that re-entered us is the only one that
+            // could touch the provider, and it's about to return.
+            if (_captureQueue && dispatch_get_specific(kCcapCaptureQueueKey) != (__bridge void*)_captureQueue) {
                 dispatch_sync(_captureQueue, ^{
                 });
             }
