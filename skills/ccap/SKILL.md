@@ -9,7 +9,7 @@ metadata: { "openclaw": { "emoji": "📷", "homepage": "https://github.com/wysai
 
 Use this skill when an agent needs to install or operate `ccap` as a practical vision-input CLI.
 
-This skill is designed for ClawHub/OpenClaw publication as a standalone skill folder.
+This skill is packaged as a standalone skill folder so it can be reused as a standard agent skill entry.
 
 ## Typical Triggers
 
@@ -36,7 +36,6 @@ Use this skill when the user asks for things like:
 ## What This Skill Is Not For
 
 - Editing CameraCapture library internals
-- Explaining or modifying OpenClaw internals
 - Assuming camera access permission is already granted
 - Assuming preview is safe in CI, SSH, or headless environments
 - Assuming all platforms support video-file playback equally
