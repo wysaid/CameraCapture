@@ -132,8 +132,27 @@ if (NOT CCAP_ENABLE_FILE_PLAYBACK)
     message(STATUS "ccap: Video file playback support disabled")
 endif ()
 
+# Video writer sources (Windows and macOS only)
+option(CCAP_ENABLE_VIDEO_WRITER "Enable video file writing support (Windows/macOS)" ON)
+if (CCAP_ENABLE_VIDEO_WRITER AND (APPLE OR WIN32))
+    # Exclude writer sources from main glob to avoid double-compilation (platform impl included via #include)
+    list(FILTER LIB_SOURCE EXCLUDE REGEX ".*ccap_writer_apple.*")
+    list(FILTER LIB_SOURCE EXCLUDE REGEX ".*ccap_writer_windows.*")
+    list(FILTER LIB_SOURCE EXCLUDE REGEX ".*ccap_writer_c\..*$")
+    list(FILTER LIB_SOURCE EXCLUDE REGEX ".*ccap_writer\..*$")
+    list(APPEND LIB_SOURCE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/ccap_writer.mm
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/ccap_writer_c.cpp
+    )
+    message(STATUS "ccap: Video file writing support enabled")
+else ()
+    message(STATUS "ccap: Video file writing support disabled (unsupported platform or disabled)")
+endif ()
+
 if (APPLE)
     file(GLOB LIB_SOURCE_MAC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.mm)
+    list(FILTER LIB_SOURCE_MAC EXCLUDE REGEX ".*ccap_writer_apple.*")
+    list(FILTER LIB_SOURCE_MAC EXCLUDE REGEX ".*ccap_writer\.mm$")
     message(STATUS "ccap: Using Objective-C++ for macOS: ${LIB_SOURCE_MAC}")
     list(APPEND LIB_SOURCE ${LIB_SOURCE_MAC})
 endif ()
@@ -205,6 +224,10 @@ if (CCAP_ENABLE_FILE_PLAYBACK)
     message(STATUS "ccap: Video file playback support enabled")
 else ()
     message(STATUS "ccap: Video file playback support disabled")
+endif ()
+
+if (CCAP_ENABLE_VIDEO_WRITER AND (APPLE OR WIN32))
+    target_compile_definitions(ccap PUBLIC CCAP_ENABLE_VIDEO_WRITER=1)
 endif ()
 
 # Configure shared library export definitions

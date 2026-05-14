@@ -93,6 +93,12 @@ typedef enum {
     CCAP_ERROR_FILE_OPEN_FAILED = 0x5001,      /**< Failed to open video file */
     CCAP_ERROR_UNSUPPORTED_VIDEO_FORMAT = 0x5002, /**< Video format is not supported */
     CCAP_ERROR_SEEK_FAILED = 0x5003,           /**< Seek operation failed */
+    /* Video writer error codes */
+    CCAP_ERROR_WRITER_OPEN_FAILED = 0x6001,    /**< Failed to open video writer */
+    CCAP_ERROR_WRITER_WRITE_FAILED = 0x6002,   /**< Failed to write frame */
+    CCAP_ERROR_WRITER_CLOSE_FAILED = 0x6003,   /**< Failed to finalize file */
+    CCAP_ERROR_WRITER_NOT_OPENED = 0x6004,     /**< Writer not opened */
+    CCAP_ERROR_UNSUPPORTED_CODEC = 0x6005,     /**< Codec not supported on this platform */
     CCAP_ERROR_INTERNAL_ERROR = 0x9999,        /**< Unknown or internal error */
 } CcapErrorCode;
 

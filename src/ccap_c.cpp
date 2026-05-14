@@ -520,6 +520,17 @@ static_assert(static_cast<uint32_t>(CCAP_ERROR_SEEK_FAILED) == static_cast<uint3
               "C and C++ ErrorCode::SeekFailed values must match");
 static_assert(static_cast<uint32_t>(CCAP_ERROR_INTERNAL_ERROR) == static_cast<uint32_t>(ccap::ErrorCode::InternalError),
               "C and C++ ErrorCode::InternalError values must match");
+// Video writer error code consistency checks
+static_assert(static_cast<uint32_t>(CCAP_ERROR_WRITER_OPEN_FAILED) == static_cast<uint32_t>(ccap::ErrorCode::WriterOpenFailed),
+              "C and C++ ErrorCode::WriterOpenFailed values must match");
+static_assert(static_cast<uint32_t>(CCAP_ERROR_WRITER_WRITE_FAILED) == static_cast<uint32_t>(ccap::ErrorCode::WriterWriteFailed),
+              "C and C++ ErrorCode::WriterWriteFailed values must match");
+static_assert(static_cast<uint32_t>(CCAP_ERROR_WRITER_CLOSE_FAILED) == static_cast<uint32_t>(ccap::ErrorCode::WriterCloseFailed),
+              "C and C++ ErrorCode::WriterCloseFailed values must match");
+static_assert(static_cast<uint32_t>(CCAP_ERROR_WRITER_NOT_OPENED) == static_cast<uint32_t>(ccap::ErrorCode::WriterNotOpened),
+              "C and C++ ErrorCode::WriterNotOpened values must match");
+static_assert(static_cast<uint32_t>(CCAP_ERROR_UNSUPPORTED_CODEC) == static_cast<uint32_t>(ccap::ErrorCode::UnsupportedCodec),
+              "C and C++ ErrorCode::UnsupportedCodec values must match");
 
 // LogLevel enum consistency checks
 static_assert(static_cast<uint32_t>(CCAP_LOG_LEVEL_NONE) == static_cast<uint32_t>(ccap::LogLevel::None),

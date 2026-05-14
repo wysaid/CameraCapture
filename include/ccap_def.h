@@ -309,6 +309,23 @@ enum class ErrorCode {
     /// Seek operation failed
     SeekFailed = 0x5003,
 
+    // ============== Video Writer Errors ==============
+
+    /// Failed to open video writer
+    WriterOpenFailed = 0x6001,
+
+    /// Failed to write frame
+    WriterWriteFailed = 0x6002,
+
+    /// Failed to finalize file
+    WriterCloseFailed = 0x6003,
+
+    /// Writer not opened
+    WriterNotOpened = 0x6004,
+
+    /// Codec not supported on this platform
+    UnsupportedCodec = 0x6005,
+
     /// Unknown or internal error
     InternalError = 0x9999,
 };

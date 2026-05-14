@@ -283,6 +283,16 @@ std::string_view errorCodeToString(ErrorCode errorCode) {
         return "Video format is not supported";
     case ErrorCode::SeekFailed:
         return "Seek operation failed";
+    case ErrorCode::WriterOpenFailed:
+        return "Failed to open video writer";
+    case ErrorCode::WriterWriteFailed:
+        return "Failed to write frame";
+    case ErrorCode::WriterCloseFailed:
+        return "Failed to finalize file";
+    case ErrorCode::WriterNotOpened:
+        return "Writer not opened";
+    case ErrorCode::UnsupportedCodec:
+        return "Codec not supported on this platform";
     case ErrorCode::InternalError:
         return "Unknown or internal error";
     default:
