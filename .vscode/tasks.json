@@ -1137,6 +1137,58 @@
             }
         },
         {
+            "label": "Run 6-record_video (Debug)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./6-record_video.exe; else ./6-record_video; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Debug"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Debug)"
+            ],
+            "windows": {
+                "command": ".\\6-record_video.exe",
+                "args": [],
+                "options": {
+                    "cwd": "${workspaceFolder}/build/Debug"
+                },
+                "problemMatcher": "$msCompile"
+            }
+        },
+        {
+            "label": "Run 6-record_video (Release)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-l",
+                "-c",
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./6-record_video.exe; else ./6-record_video; fi )"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/Release"
+            },
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "dependsOn": [
+                "Build Project (Release)"
+            ],
+            "windows": {
+                "command": ".\\6-record_video.exe",
+                "args": [],
+                "options": {
+                    "cwd": "${workspaceFolder}/build/Release"
+                },
+                "problemMatcher": "$msCompile"
+            }
+        },
+        {
             "label": "Run ccap CLI --help (Debug)",
             "type": "shell",
             "command": "bash",
