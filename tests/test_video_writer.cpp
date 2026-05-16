@@ -17,6 +17,7 @@
 #include <gtest/gtest.h>
 #include <random>
 #include <string_view>
+#include <system_error>
 #include <thread>
 
 namespace fs = std::filesystem;
@@ -56,11 +57,12 @@ protected:
     }
 
     void TearDown() override {
-        // Clean up any test output files
-        for (const auto& entry : fs::directory_iterator(fs::temp_directory_path())) {
+        // Clean up any test output files (best-effort, ignore errors)
+        std::error_code ec;
+        for (const auto& entry : fs::directory_iterator(fs::temp_directory_path(), ec)) {
             std::string filename = entry.path().filename().string();
             if (filename.find("ccap_writer_test_") == 0) {
-                fs::remove(entry.path());
+                fs::remove(entry.path(), ec);
             }
         }
     }
@@ -76,10 +78,11 @@ protected:
     }
 
     void TearDown() override {
-        for (const auto& entry : fs::directory_iterator(fs::temp_directory_path())) {
+        std::error_code ec;
+        for (const auto& entry : fs::directory_iterator(fs::temp_directory_path(), ec)) {
             std::string filename = entry.path().filename().string();
             if (filename.find("ccap_writer_test_") == 0) {
-                fs::remove(entry.path());
+                fs::remove(entry.path(), ec);
             }
         }
     }
@@ -199,6 +202,7 @@ TEST_F(VideoWriterTest, WriteFramesAndValidateFile) {
     EXPECT_LT(fileSize, 50 * 1024 * 1024); // less than 50MB
 
     // Verify file can be opened for playback
+#ifdef CCAP_ENABLE_FILE_PLAYBACK
     ccap::Provider provider;
     EXPECT_TRUE(provider.open(outputPath.string()));
     auto framePtr = provider.grab(5000);
@@ -208,6 +212,7 @@ TEST_F(VideoWriterTest, WriteFramesAndValidateFile) {
         EXPECT_EQ(framePtr->height, 240);
     }
     provider.close();
+#endif
 }
 
 TEST_F(VideoWriterTest, WriteFramesWithMovContainer) {
@@ -229,15 +234,13 @@ TEST_F(VideoWriterTest, WriteFramesWithMovContainer) {
     int stride = w * 3;
     std::vector<uint8_t> frameData = createBgrFrame(w, h, stride);
 
-    ccap::VideoFrame frame;
+    ccap::VideoFrame frame{};
     frame.data[0] = frameData.data();
     frame.stride[0] = static_cast<uint32_t>(stride);
     frame.pixelFormat = ccap::PixelFormat::BGR24;
     frame.width = static_cast<uint32_t>(w);
     frame.height = static_cast<uint32_t>(h);
     frame.sizeInBytes = static_cast<uint32_t>(stride * h);
-    frame.timestamp = 0;
-    frame.frameIndex = 0;
     frame.orientation = ccap::FrameOrientation::Default;
 
     // Write 10 frames
@@ -283,7 +286,7 @@ TEST_F(VideoWriterTest, WriteAfterCloseFails) {
     writer.close();
 
     // Writing after close should fail
-    ccap::VideoFrame frame;
+    ccap::VideoFrame frame{};
     frame.data[0] = nullptr;
     frame.pixelFormat = ccap::PixelFormat::BGR24;
     frame.width = 320;
@@ -357,19 +360,13 @@ TEST_F(VideoWriterCTest, OpenAndWriteFrames) {
     int stride = w * 3;
     std::vector<uint8_t> frameData = createBgrFrame(w, h, stride);
 
-    CcapVideoFrameInfo frameInfo;
+    CcapVideoFrameInfo frameInfo{};
     frameInfo.data[0] = frameData.data();
     frameInfo.stride[0] = static_cast<uint32_t>(stride);
-    frameInfo.data[1] = nullptr;
-    frameInfo.stride[1] = 0;
-    frameInfo.data[2] = nullptr;
-    frameInfo.stride[2] = 0;
     frameInfo.pixelFormat = CCAP_PIXEL_FORMAT_BGR24;
     frameInfo.width = static_cast<uint32_t>(w);
     frameInfo.height = static_cast<uint32_t>(h);
     frameInfo.sizeInBytes = static_cast<uint32_t>(stride * h);
-    frameInfo.timestamp = 0;
-    frameInfo.frameIndex = 0;
     frameInfo.orientation = CCAP_FRAME_ORIENTATION_TOP_TO_BOTTOM;
 
     // Write 15 frames

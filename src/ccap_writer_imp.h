@@ -8,12 +8,16 @@
 #ifndef CCAP_WRITER_IMP_H
 #define CCAP_WRITER_IMP_H
 
-#include "ccap_writer.h"
 #include "ccap_def.h"
+#include "ccap_writer.h"
 
+#include <cstring>
 #include <string_view>
+#include <vector>
 
 namespace ccap {
+
+void reportError(ErrorCode errorCode, std::string_view description);
 
 struct VideoWriter::Impl {
     Impl() : m_actualCodec(VideoCodec::H264) {}
@@ -27,6 +31,91 @@ struct VideoWriter::Impl {
     VideoCodec m_actualCodec;
     WriterConfig m_config;
 };
+
+/// Factory function implemented per platform (Apple / Windows).
+/// Returns nullptr on unsupported platforms.
+VideoWriter::Impl* createVideoWriterImpl();
+
+// ---- Shared NV12 conversion helpers (used by both platform implementations) ----
+
+inline void bgrToNv12(const uint8_t* src, int srcStride,
+                      uint8_t* dstY, int dstYStride,
+                      uint8_t* dstUV, int dstUVStride,
+                      int width, int height, int bytesPerPixel) {
+    // bytesPerPixel: 3 for BGR24, 4 for BGRA32
+    const int w2 = width / 2;
+    for (int y = 0; y < height; y += 2) {
+        const uint8_t* line0 = src + y * srcStride;
+        const uint8_t* line1 = (y + 1 < height) ? src + (y + 1) * srcStride : line0;
+        for (int x = 0; x < w2; x++) {
+            const int off = x * 2 * bytesPerPixel;
+            int b0 = line0[off], g0 = line0[off + 1], r0 = line0[off + 2];
+            int b1 = line0[off + bytesPerPixel], g1 = line0[off + bytesPerPixel + 1], r1 = line0[off + bytesPerPixel + 2];
+            int b2 = line1[off], g2 = line1[off + 1], r2 = line1[off + 2];
+            int b3 = line1[off + bytesPerPixel], g3 = line1[off + bytesPerPixel + 1], r3 = line1[off + bytesPerPixel + 2];
+            dstY[y * dstYStride + x * 2] = static_cast<uint8_t>(((66 * r0 + 129 * g0 + 25 * b0 + 128) >> 8) + 16);
+            dstY[y * dstYStride + x * 2 + 1] = static_cast<uint8_t>(((66 * r1 + 129 * g1 + 25 * b1 + 128) >> 8) + 16);
+            dstY[(y + 1) * dstYStride + x * 2] = static_cast<uint8_t>(((66 * r2 + 129 * g2 + 25 * b2 + 128) >> 8) + 16);
+            dstY[(y + 1) * dstYStride + x * 2 + 1] = static_cast<uint8_t>(((66 * r3 + 129 * g3 + 25 * b3 + 128) >> 8) + 16);
+            int bAvg = (b0 + b1 + b2 + b3) / 4, rAvg = (r0 + r1 + r2 + r3) / 4, gAvg = (g0 + g1 + g2 + g3) / 4;
+            dstUV[(y / 2) * dstUVStride + x * 2] = static_cast<uint8_t>(((-38 * rAvg - 74 * gAvg + 112 * bAvg + 128) >> 8) + 128);
+            dstUV[(y / 2) * dstUVStride + x * 2 + 1] = static_cast<uint8_t>(((112 * rAvg - 94 * gAvg - 18 * bAvg + 128) >> 8) + 128);
+        }
+    }
+}
+
+/// Convert any supported pixel format to NV12 Y and UV planes.
+/// Returns false on unsupported format. Requires even width/height.
+inline bool convertFrameToNv12(const VideoFrame& frame,
+                               std::vector<uint8_t>& yBuf, std::vector<uint8_t>& uvBuf,
+                               uint32_t& yStride, uint32_t& uvStride) {
+    const int w = static_cast<int>(frame.width);
+    const int h = static_cast<int>(frame.height);
+    const int w2 = w / 2;
+    const int h2 = h / 2;
+
+    yStride = static_cast<uint32_t>(w);
+    uvStride = static_cast<uint32_t>(w2 * 2);
+    yBuf.resize(static_cast<size_t>(yStride) * h);
+    uvBuf.resize(static_cast<size_t>(uvStride) * h2);
+
+    switch (frame.pixelFormat) {
+    case PixelFormat::NV12:
+    case PixelFormat::NV12f:
+        for (int y = 0; y < h; y++)
+            std::memcpy(yBuf.data() + y * yStride, frame.data[0] + y * frame.stride[0], static_cast<size_t>(w));
+        for (int y = 0; y < h2; y++)
+            std::memcpy(uvBuf.data() + y * uvStride, frame.data[1] + y * frame.stride[1], static_cast<size_t>(w2) * 2);
+        return true;
+
+    case PixelFormat::I420:
+    case PixelFormat::I420f:
+        for (int y = 0; y < h; y++)
+            std::memcpy(yBuf.data() + y * yStride, frame.data[0] + y * frame.stride[0], static_cast<size_t>(w));
+        for (int y = 0; y < h2; y++) {
+            for (int x = 0; x < w2; x++) {
+                uvBuf[y * uvStride + x * 2] = frame.data[1][y * frame.stride[1] + x];
+                uvBuf[y * uvStride + x * 2 + 1] = frame.data[2][y * frame.stride[2] + x];
+            }
+        }
+        return true;
+
+    case PixelFormat::BGR24:
+        bgrToNv12(frame.data[0], static_cast<int>(frame.stride[0]),
+                  yBuf.data(), static_cast<int>(yStride),
+                  uvBuf.data(), static_cast<int>(uvStride), w, h, 3);
+        return true;
+
+    case PixelFormat::BGRA32:
+        bgrToNv12(frame.data[0], static_cast<int>(frame.stride[0]),
+                  yBuf.data(), static_cast<int>(yStride),
+                  uvBuf.data(), static_cast<int>(uvStride), w, h, 4);
+        return true;
+
+    default:
+        return false;
+    }
+}
 
 } // namespace ccap
 

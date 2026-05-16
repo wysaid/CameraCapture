@@ -15,7 +15,9 @@
 #import <CoreVideo/CoreVideo.h>
 
 #include <atomic>
+#include <chrono>
 #include <mutex>
+#include <thread>
 #include <vector>
 
 namespace ccap {
@@ -31,36 +33,46 @@ public:
 
     bool open(std::string_view filePath, const WriterConfig& config) override {
         if (config.width == 0 || config.height == 0) {
-            CCAP_LOG_E("Invalid dimensions: %ux%u\n", config.width, config.height);
+            reportError(ErrorCode::WriterOpenFailed, "Invalid dimensions: " + std::to_string(config.width) + "x" + std::to_string(config.height));
+            return false;
+        }
+        if (config.width % 2 != 0 || config.height % 2 != 0) {
+            reportError(ErrorCode::WriterOpenFailed, "Video dimensions must be even for NV12 encoding: " + std::to_string(config.width) + "x" + std::to_string(config.height));
             return false;
         }
         m_config = config;
 
         NSString* pathStr = [NSString stringWithUTF8String: std::string(filePath).c_str()];
 
-        // Determine output file type
-        AVFileType fileType = AVFileTypeMPEG4; // MP4
+        AVFileType fileType = AVFileTypeMPEG4;
         if (config.container == VideoFormat::MOV) {
             fileType = AVFileTypeQuickTimeMovie;
         }
 
-        // Try HEVC first, fallback to H.264
-        AVVideoCodecType codecs[] = { AVVideoCodecTypeHEVC, AVVideoCodecTypeH264 };
-        VideoCodec cppCodecs[] = { VideoCodec::HEVC, VideoCodec::H264 };
+        // Try requested codec first, then fallback
+        AVVideoCodecType codecs[2];
+        VideoCodec cppCodecs[2];
+        if (config.codec == VideoCodec::H264) {
+            codecs[0] = AVVideoCodecTypeH264;  cppCodecs[0] = VideoCodec::H264;
+            codecs[1] = AVVideoCodecTypeHEVC;   cppCodecs[1] = VideoCodec::HEVC;
+        } else {
+            codecs[0] = AVVideoCodecTypeHEVC;   cppCodecs[0] = VideoCodec::HEVC;
+            codecs[1] = AVVideoCodecTypeH264;   cppCodecs[1] = VideoCodec::H264;
+        }
 
         for (int i = 0; i < 2; i++) {
-            if (tryOpen(filePath, fileType, pathStr, codecs[i])) {
+            if (tryOpen(fileType, pathStr, codecs[i])) {
                 m_actualCodec = cppCodecs[i];
                 return true;
             }
         }
 
-        CCAP_LOG_E("Failed to create video writer with HEVC or H.264\n");
+        reportError(ErrorCode::WriterOpenFailed, "Failed to create video writer with any supported codec");
         return false;
     }
 
 private:
-    bool tryOpen(std::string_view, AVFileType fileType, NSString* pathStr, AVVideoCodecType codec) {
+    bool tryOpen(AVFileType fileType, NSString* pathStr, AVVideoCodecType codec) {
         NSURL* url = [NSURL fileURLWithPath: pathStr];
         NSError* error = nil;
         int64_t bitRate = (m_config.bitRate > 0) ? static_cast<int64_t>(m_config.bitRate) : static_cast<int64_t>(m_config.width) * m_config.height * 4;
@@ -101,7 +113,6 @@ private:
             m_writerInput.expectsMediaDataInRealTime = NO;
             [m_assetWriter addInput: m_writerInput];
 
-            // CRITICAL: Pixel buffer adaptor MUST be created before startWriting
             NSDictionary* pixelBufferAttrs = @{
                 (id)kCVPixelBufferPixelFormatTypeKey: @(kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange),
                 (id)kCVPixelBufferWidthKey: @(m_config.width),
@@ -128,7 +139,6 @@ private:
                 return false;
             }
 
-            // Start session at time 0 so we can append samples immediately
             [m_assetWriter startSessionAtSourceTime: CMTimeMake(0, 1)];
             m_sessionStarted = YES;
             m_frameCount = 0;
@@ -155,8 +165,6 @@ public:
                 [m_writerInput markAsFinished];
             }
             if (m_assetWriter) {
-                // Use a background queue to avoid blocking the calling thread
-                // which allows the completion handler to execute
                 dispatch_queue_t queue = dispatch_queue_create("com.ccap.writer.close", DISPATCH_QUEUE_SERIAL);
                 dispatch_semaphore_t sem = dispatch_semaphore_create(0);
                 dispatch_async(queue, ^{
@@ -164,17 +172,15 @@ public:
                         dispatch_semaphore_signal(sem);
                     }];
                 });
-                // Wait for completion
                 dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC));
 
                 if (m_assetWriter.error) {
-                    CCAP_LOG_E("finishWriting failed: %s\n",
-                            m_assetWriter.error.localizedDescription.UTF8String);
+                    reportError(ErrorCode::WriterCloseFailed, "finishWriting failed: " + std::string(m_assetWriter.error.localizedDescription.UTF8String));
                 }
             }
         }
         @catch (NSException* e) {
-            CCAP_LOG_E("Exception during writer close: %s\n", e.reason.UTF8String);
+            reportError(ErrorCode::WriterCloseFailed, "Exception during writer close: " + std::string(e.reason.UTF8String));
         }
 
         m_pixelBufferAdaptor = nil;
@@ -190,64 +196,34 @@ public:
     bool writeFrame(const VideoFrame& frame, uint64_t timestampNs) override {
         if (!m_isOpened || !m_writerInput || !m_assetWriter || !m_pixelBufferAdaptor) return false;
 
+        if (frame.width != m_config.width || frame.height != m_config.height) {
+            reportError(ErrorCode::WriterWriteFailed, "Frame dimensions " + std::to_string(frame.width) + "x" + std::to_string(frame.height) +
+                " do not match configured " + std::to_string(m_config.width) + "x" + std::to_string(m_config.height));
+            return false;
+        }
+
         @try {
             // Wait for writer input to be ready (with 2 second timeout)
             int waitMs = 0;
             while (![m_writerInput isReadyForMoreMediaData]) {
-                usleep(1000); // 1ms
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
                 if (++waitMs > 2000) {
-                    CCAP_LOG_W("Writer input not ready after 2s, dropping frame\n");
+                    reportError(ErrorCode::WriterWriteFailed, "Writer input not ready after 2s, dropping frame");
                     return false;
                 }
             }
 
-            int w = static_cast<int>(frame.width);
-            int h = static_cast<int>(frame.height);
-            int w2 = (w + 1) / 2;
-            int h2 = (h + 1) / 2;
+            const int w = static_cast<int>(frame.width);
+            const int h = static_cast<int>(frame.height);
+            const int w2 = w / 2;
+            const int h2 = h / 2;
 
             // Convert frame to NV12
             std::vector<uint8_t> yBuf, uvBuf;
             uint32_t yStride, uvStride;
-            {
-                yStride = static_cast<uint32_t>(w);
-                uvStride = static_cast<uint32_t>(w2 * 2);
-                yBuf.resize(static_cast<size_t>(yStride) * h);
-                uvBuf.resize(static_cast<size_t>(uvStride) * h2);
-
-                uint8_t* dstYTmp = yBuf.data();
-                uint8_t* dstUVTmp = uvBuf.data();
-
-                if (frame.pixelFormat == PixelFormat::NV12 || frame.pixelFormat == PixelFormat::NV12f) {
-                    for (int y = 0; y < h; y++) {
-                        memcpy(dstYTmp + y * yStride, frame.data[0] + y * frame.stride[0], static_cast<size_t>(w));
-                    }
-                    for (int y = 0; y < h2; y++) {
-                        memcpy(dstUVTmp + y * uvStride, frame.data[1] + y * frame.stride[1], static_cast<size_t>(w2) * 2);
-                    }
-                } else if (frame.pixelFormat == PixelFormat::I420 || frame.pixelFormat == PixelFormat::I420f) {
-                    for (int y = 0; y < h; y++) {
-                        memcpy(dstYTmp + y * yStride, frame.data[0] + y * frame.stride[0], static_cast<size_t>(w));
-                    }
-                    for (int y = 0; y < h2; y++) {
-                        for (int x = 0; x < w2; x++) {
-                            dstUVTmp[y * uvStride + x * 2] = frame.data[1][y * frame.stride[1] + x];
-                            dstUVTmp[y * uvStride + x * 2 + 1] = frame.data[2][y * frame.stride[2] + x];
-                        }
-                    }
-                } else if (frame.pixelFormat == PixelFormat::BGR24) {
-                    bgr24ToNv12(frame.data[0], static_cast<int>(frame.stride[0]),
-                               dstYTmp, static_cast<int>(yStride),
-                               dstUVTmp, static_cast<int>(uvStride), w, h);
-                } else if (frame.pixelFormat == PixelFormat::BGRA32) {
-                    bgra32ToNv12(frame.data[0], static_cast<int>(frame.stride[0]),
-                                dstYTmp, static_cast<int>(yStride),
-                                dstUVTmp, static_cast<int>(uvStride), w, h);
-                } else {
-                    CCAP_LOG_E("Unsupported pixel format for writer on macOS: %d\n",
-                               static_cast<int>(frame.pixelFormat));
-                    return false;
-                }
+            if (!convertFrameToNv12(frame, yBuf, uvBuf, yStride, uvStride)) {
+                reportError(ErrorCode::WriterWriteFailed, "Unsupported pixel format: " + std::to_string(static_cast<int>(frame.pixelFormat)));
+                return false;
             }
 
             // Create CVPixelBuffer
@@ -256,7 +232,7 @@ public:
                                                kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
                                                nullptr, &pixelBuffer);
             if (ret != kCVReturnSuccess) {
-                CCAP_LOG_E("CVPixelBufferCreate failed: %d\n", ret);
+                reportError(ErrorCode::WriterWriteFailed, "CVPixelBufferCreate failed: " + std::to_string(ret));
                 return false;
             }
 
@@ -276,13 +252,15 @@ public:
 
             CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
 
-            // Calculate timestamp
+            // Calculate timestamp using a high timescale for precision
+            static constexpr int32_t kTimeScale = 600 * 1000; // 600000 supports common frame rates accurately
             CMTime presentationTime;
             if (timestampNs > 0) {
-                presentationTime = CMTimeMake(static_cast<int64_t>(timestampNs), 1000000000);
+                presentationTime = CMTimeMake(static_cast<int64_t>(timestampNs / 1000000.0 * kTimeScale / 1000.0), kTimeScale);
             } else {
                 double fps = m_config.frameRate > 0 ? m_config.frameRate : 30.0;
-                presentationTime = CMTimeMake(static_cast<int64_t>(m_frameCount), static_cast<int32_t>(fps));
+                int64_t timeValue = static_cast<int64_t>(m_frameCount * (static_cast<double>(kTimeScale) / fps));
+                presentationTime = CMTimeMake(timeValue, kTimeScale);
             }
 
             // Append pixel buffer via adaptor
@@ -291,8 +269,8 @@ public:
             CVPixelBufferRelease(pixelBuffer);
 
             if (!success) {
-                CCAP_LOG_E("appendPixelBuffer failed: %s\n",
-                           m_assetWriter.error ? m_assetWriter.error.localizedDescription.UTF8String : "unknown");
+                reportError(ErrorCode::WriterWriteFailed, "appendPixelBuffer failed: " +
+                    std::string(m_assetWriter.error ? m_assetWriter.error.localizedDescription.UTF8String : "unknown"));
                 return false;
             }
 
@@ -300,65 +278,12 @@ public:
             return true;
         }
         @catch (NSException* e) {
-            CCAP_LOG_E("Exception during writeFrame: %s\n", e.reason.UTF8String);
+            reportError(ErrorCode::WriterWriteFailed, "Exception during writeFrame: " + std::string(e.reason.UTF8String));
             return false;
         }
     }
 
 private:
-    // Inline conversion helpers
-    void bgr24ToNv12(const uint8_t* src, int srcStride,
-                     uint8_t* dstY, int dstYStride,
-                     uint8_t* dstUV, int dstUVStride,
-                     int width, int height) {
-        int w2 = width / 2;
-        const uint8_t* line = src;
-        for (int y = 0; y < height; y += 2) {
-            const uint8_t* line0 = line;
-            const uint8_t* line1 = (y + 1 < height) ? line + srcStride : line;
-            for (int x = 0; x < w2; x++) {
-                int b0 = line0[x*6+0], g0 = line0[x*6+1], r0 = line0[x*6+2];
-                int b1 = line0[x*6+3], g1 = line0[x*6+4], r1 = line0[x*6+5];
-                int b2 = line1[x*6+0], g2 = line1[x*6+1], r2 = line1[x*6+2];
-                int b3 = line1[x*6+3], g3 = line1[x*6+4], r3 = line1[x*6+5];
-                dstY[y * dstYStride + x*2]     = static_cast<uint8_t>((66*r0+129*g0+25*b0+128)>>8)+16;
-                dstY[y * dstYStride + x*2+1]   = static_cast<uint8_t>((66*r1+129*g1+25*b1+128)>>8)+16;
-                dstY[(y+1) * dstYStride + x*2]     = static_cast<uint8_t>((66*r2+129*g2+25*b2+128)>>8)+16;
-                dstY[(y+1) * dstYStride + x*2+1]   = static_cast<uint8_t>((66*r3+129*g3+25*b3+128)>>8)+16;
-                int bAvg = (b0+b1+b2+b3)/4, rAvg = (r0+r1+r2+r3)/4, gAvg = (g0+g1+g2+g3)/4;
-                dstUV[(y/2) * dstUVStride + x*2]     = static_cast<uint8_t>((-38*rAvg-74*gAvg+112*bAvg+128)>>8)+128;
-                dstUV[(y/2) * dstUVStride + x*2+1]   = static_cast<uint8_t>((112*rAvg-94*gAvg-18*bAvg+128)>>8)+128;
-            }
-            line += srcStride * 2;
-        }
-    }
-
-    void bgra32ToNv12(const uint8_t* src, int srcStride,
-                      uint8_t* dstY, int dstYStride,
-                      uint8_t* dstUV, int dstUVStride,
-                      int width, int height) {
-        int w2 = width / 2;
-        const uint8_t* line = src;
-        for (int y = 0; y < height; y += 2) {
-            const uint8_t* line0 = line;
-            const uint8_t* line1 = (y + 1 < height) ? line + srcStride : line;
-            for (int x = 0; x < w2; x++) {
-                int b0 = line0[x*8+0], g0 = line0[x*8+1], r0 = line0[x*8+2];
-                int b1 = line0[x*8+4], g1 = line0[x*8+5], r1 = line0[x*8+6];
-                int b2 = line1[x*8+0], g2 = line1[x*8+1], r2 = line1[x*8+2];
-                int b3 = line1[x*8+4], g3 = line1[x*8+5], r3 = line1[x*8+6];
-                dstY[y * dstYStride + x*2]     = static_cast<uint8_t>((66*r0+129*g0+25*b0+128)>>8)+16;
-                dstY[y * dstYStride + x*2+1]   = static_cast<uint8_t>((66*r1+129*g1+25*b1+128)>>8)+16;
-                dstY[(y+1) * dstYStride + x*2]     = static_cast<uint8_t>((66*r2+129*g2+25*b2+128)>>8)+16;
-                dstY[(y+1) * dstYStride + x*2+1]   = static_cast<uint8_t>((66*r3+129*g3+25*b3+128)>>8)+16;
-                int bAvg = (b0+b1+b2+b3)/4, rAvg = (r0+r1+r2+r3)/4, gAvg = (g0+g1+g2+g3)/4;
-                dstUV[(y/2) * dstUVStride + x*2]     = static_cast<uint8_t>((-38*rAvg-74*gAvg+112*bAvg+128)>>8)+128;
-                dstUV[(y/2) * dstUVStride + x*2+1]   = static_cast<uint8_t>((112*rAvg-94*gAvg-18*bAvg+128)>>8)+128;
-            }
-            line += srcStride * 2;
-        }
-    }
-
     AVAssetWriter* m_assetWriter;
     AVAssetWriterInput* m_writerInput;
     AVAssetWriterInputPixelBufferAdaptor* m_pixelBufferAdaptor;
@@ -366,6 +291,10 @@ private:
     std::atomic<bool> m_isOpened{false};
     std::atomic<int> m_frameCount{0};
 };
+
+VideoWriter::Impl* createVideoWriterImpl() {
+    return new WriterApple();
+}
 
 } // namespace ccap
 

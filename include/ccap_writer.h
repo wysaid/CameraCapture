@@ -47,7 +47,7 @@ struct WriterConfig {
     VideoFormat container = VideoFormat::MP4;
     uint32_t width = 0;          ///< Frame width in pixels
     uint32_t height = 0;         ///< Frame height in pixels
-    double frameRate = 30.0;     ///< Target frame rate; 0 = variable rate
+    double frameRate = 30.0;     ///< Target frame rate (default 30fps; used for timestamp generation when timestampNs is 0)
     uint64_t bitRate = 5'000'000; ///< Target bit rate in bits/s; 0 = auto
 };
 

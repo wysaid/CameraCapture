@@ -45,7 +45,7 @@ typedef struct {
     CcapVideoFormat container;     ///< Container format
     uint32_t width;                ///< Frame width
     uint32_t height;               ///< Frame height
-    double frameRate;              ///< Target frame rate (0 = variable)
+    double frameRate;              ///< Target frame rate (default 30fps)
     uint64_t bitRate;              ///< Target bit rate in bits/s (0 = auto)
 } CcapWriterConfig;
 

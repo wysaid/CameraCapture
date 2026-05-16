@@ -35,10 +35,8 @@ bool ccap_video_writer_open(CcapVideoWriter* writer, const char* filePath,
         auto* cppWriter = reinterpret_cast<ccap::VideoWriter*>(writer);
 
         ccap::WriterConfig cppConfig;
-        cppConfig.codec = (config->codec == CCAP_VIDEO_CODEC_HEVC)
-            ? ccap::VideoCodec::HEVC : ccap::VideoCodec::H264;
-        cppConfig.container = (config->container == CCAP_VIDEO_FORMAT_MOV)
-            ? ccap::VideoFormat::MOV : ccap::VideoFormat::MP4;
+        cppConfig.codec = (config->codec == CCAP_VIDEO_CODEC_HEVC) ? ccap::VideoCodec::HEVC : ccap::VideoCodec::H264;
+        cppConfig.container = (config->container == CCAP_VIDEO_FORMAT_MOV) ? ccap::VideoFormat::MOV : ccap::VideoFormat::MP4;
         cppConfig.width = config->width;
         cppConfig.height = config->height;
         cppConfig.frameRate = config->frameRate;
@@ -85,7 +83,8 @@ bool ccap_video_writer_write_frame(CcapVideoWriter* writer,
         frame.frameIndex = frameInfo->frameIndex;
         frame.orientation = static_cast<ccap::FrameOrientation>(static_cast<uint32_t>(frameInfo->orientation));
 
-        return cppWriter->writeFrame(frame, timestampNs);
+        uint64_t resolvedTimestamp = timestampNs > 0 ? timestampNs : frameInfo->timestamp;
+        return cppWriter->writeFrame(frame, resolvedTimestamp);
     } catch (...) {
         return false;
     }
@@ -94,8 +93,7 @@ bool ccap_video_writer_write_frame(CcapVideoWriter* writer,
 CcapVideoCodec ccap_video_writer_actual_codec(const CcapVideoWriter* writer) {
     if (!writer) return CCAP_VIDEO_CODEC_H264;
     auto* cppWriter = reinterpret_cast<const ccap::VideoWriter*>(writer);
-    return (cppWriter->actualCodec() == ccap::VideoCodec::HEVC)
-        ? CCAP_VIDEO_CODEC_HEVC : CCAP_VIDEO_CODEC_H264;
+    return (cppWriter->actualCodec() == ccap::VideoCodec::HEVC) ? CCAP_VIDEO_CODEC_HEVC : CCAP_VIDEO_CODEC_H264;
 }
 
 } // extern "C"

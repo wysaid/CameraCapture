@@ -1,43 +1,22 @@
 /**
- * @file ccap_writer.mm
+ * @file ccap_writer.cpp
  * @author wysaid (this@wysaid.org)
- * @brief Video writer platform dispatch layer.
+ * @brief Video writer platform dispatch layer (pure C++).
  * @date 2025-05
  */
 
 #include "ccap_writer.h"
+
 #include "ccap_writer_imp.h"
-#include "ccap_imp.h"
-
-#include "ccap_convert.h"
-#include "ccap_utils.h"
-
-#include <cstring>
-#include <memory>
-#include <vector>
 
 #ifdef CCAP_ENABLE_VIDEO_WRITER
 
-#if __APPLE__
-#include "ccap_writer_apple.mm"
-#elif defined(_WIN32) || defined(_MSC_VER)
-#include "ccap_writer_windows.cpp"
-#endif
-
 namespace ccap {
-
-// ---- Platform dispatch ----
 
 static VideoWriter::Impl* impl(void* p) { return reinterpret_cast<VideoWriter::Impl*>(p); }
 static const VideoWriter::Impl* impl(const void* p) { return reinterpret_cast<const VideoWriter::Impl*>(p); }
 
-VideoWriter::VideoWriter() : m_impl(nullptr) {
-#if __APPLE__
-    m_impl = new WriterApple();
-#elif defined(_WIN32) || defined(_MSC_VER)
-    m_impl = new WriterWindows();
-#endif
-}
+VideoWriter::VideoWriter() : m_impl(createVideoWriterImpl()) {}
 
 VideoWriter::~VideoWriter() {
     delete impl(m_impl);
