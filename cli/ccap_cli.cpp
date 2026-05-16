@@ -82,6 +82,12 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    // --record without a frame limit will run indefinitely
+    if (!opts.recordVideoPath.empty() && !opts.captureCountSpecified && opts.timeoutSeconds == 0) {
+        std::cerr << "Warning: --record specified without -c/--count or --timeout. "
+                     "Use Ctrl+C to stop recording." << std::endl;
+    }
+
     // Set log level based on options
     if (opts.verbose) {
         ccap::setLogLevel(ccap::LogLevel::Verbose);

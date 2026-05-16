@@ -10,6 +10,10 @@
 #include <ccap_convert.h>
 #include <ccap_utils.h>
 
+#ifdef CCAP_ENABLE_VIDEO_WRITER
+#include <ccap_writer.h>
+#endif
+
 #include <algorithm>
 #include <chrono>
 #include <climits>
@@ -663,6 +667,34 @@ int captureFrames(const CLIOptions& opts) {
         return 1;
     }
 
+    // Setup video writer for --record (camera mode only)
+#ifdef CCAP_ENABLE_VIDEO_WRITER
+    std::unique_ptr<ccap::VideoWriter> videoWriter;
+    if (!opts.recordVideoPath.empty()) {
+        if (isVideoMode) {
+            std::cerr << "Warning: --record is not supported in video file mode. Ignoring." << std::endl;
+        } else {
+            int camWidth = static_cast<int>(provider.get(ccap::PropertyName::Width));
+            int camHeight = static_cast<int>(provider.get(ccap::PropertyName::Height));
+            double camFps = provider.get(ccap::PropertyName::FrameRate);
+
+            ccap::WriterConfig writerConfig;
+            writerConfig.width = static_cast<uint32_t>(camWidth);
+            writerConfig.height = static_cast<uint32_t>(camHeight);
+            writerConfig.frameRate = camFps > 0.0 ? camFps : 30.0;
+
+            videoWriter = std::make_unique<ccap::VideoWriter>();
+            if (!videoWriter->open(opts.recordVideoPath, writerConfig)) {
+                std::cerr << "Failed to open video writer for: " << opts.recordVideoPath << std::endl;
+                return 1;
+            }
+            if (ccap::infoLogEnabled()) {
+                std::cout << "Recording to: " << opts.recordVideoPath << std::endl;
+            }
+        }
+    }
+#endif
+
     // Create output directory if saving frames
     bool shouldSave = opts.saveFrames && !opts.outputDir.empty();
     if (shouldSave) {
@@ -724,6 +756,15 @@ int captureFrames(const CLIOptions& opts) {
         std::cout << "Frame " << frame->frameIndex << ": " << frame->width << "x" << frame->height
                   << " format=" << ccap::pixelFormatToString(frame->pixelFormat) << std::endl;
 
+        // Write frame to video file if recording
+#ifdef CCAP_ENABLE_VIDEO_WRITER
+        if (videoWriter && videoWriter->isOpened()) {
+            if (!videoWriter->writeFrame(*frame)) {
+                std::cerr << "Warning: Failed to write frame " << frame->frameIndex << " to video." << std::endl;
+            }
+        }
+#endif
+
         // Save frame if enabled
         if (shouldSave) {
             // Generate output filename
@@ -746,6 +787,15 @@ int captureFrames(const CLIOptions& opts) {
     }
 
     std::cout << "Captured " << capturedCount << " frame(s)." << std::endl;
+
+#ifdef CCAP_ENABLE_VIDEO_WRITER
+    if (videoWriter && videoWriter->isOpened()) {
+        videoWriter->close();
+        if (ccap::infoLogEnabled()) {
+            std::cout << "Video saved to: " << opts.recordVideoPath << std::endl;
+        }
+    }
+#endif
 
     if (timeoutOccurred) {
         return opts.timeoutExitCode;

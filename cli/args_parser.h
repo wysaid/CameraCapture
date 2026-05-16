@@ -84,6 +84,9 @@ struct CLIOptions {
     double playbackSpeed = 0.0; // 0.0 = no frame rate control, 1.0 = normal speed
     bool playbackSpeedSpecified = false;
 
+    // Video recording settings
+    std::string recordVideoPath; ///< Output video file path for --record (camera mode only)
+
     // Conversion settings
     std::string convertInput;
     std::string convertOutput;

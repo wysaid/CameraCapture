@@ -172,6 +172,14 @@ void printUsage(const char* programName) {
 #endif
               << "\n";
 
+#ifdef CCAP_ENABLE_VIDEO_WRITER
+    std::cout << "Video recording options (camera mode only):\n"
+              << "  --record file              record camera frames to a video file (e.g., output.mp4)\n"
+              << "                             Use -c to limit the number of frames, or --timeout for duration\n"
+              << "                             Supported formats: .mp4, .mov\n"
+              << "\n";
+#endif
+
 #ifdef CCAP_CLI_WITH_GLFW
     std::cout << "Preview options:\n"
               << "  -p, --preview              enable window preview\n"
@@ -390,6 +398,10 @@ CLIOptions parseArgs(int argc, char* argv[]) {
         } else if (arg == "--video") {
             if (i + 1 < argc) {
                 opts.videoFilePath = argv[++i];
+            }
+        } else if (arg == "--record") {
+            if (i + 1 < argc) {
+                opts.recordVideoPath = argv[++i];
             }
         } else if (arg == "-w" || arg == "--width") {
             if (i + 1 < argc) {
