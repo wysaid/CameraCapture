@@ -451,6 +451,12 @@ if (CCAP_ENABLE_VIDEO_WRITER AND (APPLE OR WIN32))
             gmock
     )
 
+    target_include_directories(
+            ccap_video_writer_test
+            PRIVATE
+            ${CMAKE_SOURCE_DIR}/src
+    )
+
     set_target_properties(ccap_video_writer_test PROPERTIES
             CXX_STANDARD 17
             CXX_STANDARD_REQUIRED ON

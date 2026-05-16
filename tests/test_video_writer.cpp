@@ -7,8 +7,11 @@
  */
 
 #include <ccap.h>
+#include <ccap_convert.h>
 #include <ccap_writer.h>
 #include <ccap_writer_c.h>
+#include "ccap_writer_imp.h"
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstring>
@@ -16,11 +19,143 @@
 #include <fstream>
 #include <gtest/gtest.h>
 #include <random>
+#include <sstream>
 #include <string_view>
 #include <system_error>
 #include <thread>
 
 namespace fs = std::filesystem;
+
+namespace {
+
+struct MeanBgr {
+    double b = 0.0;
+    double g = 0.0;
+    double r = 0.0;
+};
+
+std::vector<uint8_t> createQuadrantBgrFrame(int w, int h, int stride) {
+    std::vector<uint8_t> data(static_cast<size_t>(stride) * h, 0);
+    for (int y = 0; y < h; ++y) {
+        uint8_t* row = data.data() + static_cast<size_t>(y) * stride;
+        for (int x = 0; x < w; ++x) {
+            uint8_t* pixel = row + x * 3;
+            const bool isTop = y < h / 2;
+            const bool isLeft = x < w / 2;
+            if (isTop && isLeft) {
+                pixel[0] = 240; // B
+                pixel[1] = 32;  // G
+                pixel[2] = 32;  // R
+            } else if (isTop) {
+                pixel[0] = 32;
+                pixel[1] = 240;
+                pixel[2] = 32;
+            } else if (isLeft) {
+                pixel[0] = 32;
+                pixel[1] = 32;
+                pixel[2] = 240;
+            } else {
+                pixel[0] = 230;
+                pixel[1] = 230;
+                pixel[2] = 230;
+            }
+        }
+    }
+    return data;
+}
+
+std::vector<uint8_t> flipRows(const std::vector<uint8_t>& src, int stride, int h) {
+    std::vector<uint8_t> dst(src.size(), 0);
+    for (int y = 0; y < h; ++y) {
+        std::memcpy(dst.data() + static_cast<size_t>(y) * stride,
+                    src.data() + static_cast<size_t>(h - 1 - y) * stride,
+                    static_cast<size_t>(stride));
+    }
+    return dst;
+}
+
+MeanBgr calculateLogicalRegionMean(const ccap::VideoFrame& frame, int x0, int y0, int regionWidth, int regionHeight) {
+    const bool hasAlpha = ccap::pixelFormatInclude(frame.pixelFormat, ccap::kPixelFormatAlphaColorBit);
+    const bool isBgrOrder = ccap::pixelFormatInclude(frame.pixelFormat, ccap::kPixelFormatBGRBit);
+    const int channels = hasAlpha ? 4 : 3;
+    MeanBgr mean{};
+    const double samples = static_cast<double>(regionWidth * regionHeight);
+
+    for (int y = y0; y < y0 + regionHeight; ++y) {
+        const int logicalRow = frame.orientation == ccap::FrameOrientation::TopToBottom ? y : static_cast<int>(frame.height) - 1 - y;
+        const uint8_t* row = frame.data[0] + static_cast<size_t>(logicalRow) * frame.stride[0];
+        for (int x = x0; x < x0 + regionWidth; ++x) {
+            const uint8_t* pixel = row + x * channels;
+            if (isBgrOrder) {
+                mean.b += pixel[0];
+                mean.g += pixel[1];
+                mean.r += pixel[2];
+            } else {
+                mean.r += pixel[0];
+                mean.g += pixel[1];
+                mean.b += pixel[2];
+            }
+        }
+    }
+
+    mean.b /= samples;
+    mean.g /= samples;
+    mean.r /= samples;
+    return mean;
+}
+
+std::string meanToString(const MeanBgr& mean) {
+    std::ostringstream stream;
+    stream << "(B=" << mean.b << ", G=" << mean.g << ", R=" << mean.r << ")";
+    return stream.str();
+}
+
+void expectUprightQuadrantPattern(const ccap::VideoFrame& frame) {
+    ASSERT_TRUE(ccap::pixelFormatInclude(frame.pixelFormat, ccap::kPixelFormatRGBColorBit))
+        << "Expected RGB output, got pixel format=" << static_cast<uint32_t>(frame.pixelFormat);
+
+    const int width = static_cast<int>(frame.width);
+    const int height = static_cast<int>(frame.height);
+    const int sampleWidth = std::max(8, width / 4);
+    const int sampleHeight = std::max(8, height / 4);
+
+    const MeanBgr topLeft = calculateLogicalRegionMean(frame, width / 8, height / 8, sampleWidth, sampleHeight);
+    const MeanBgr topRight = calculateLogicalRegionMean(frame, width / 2 + width / 8, height / 8, sampleWidth, sampleHeight);
+    const MeanBgr bottomLeft = calculateLogicalRegionMean(frame, width / 8, height / 2 + height / 8, sampleWidth, sampleHeight);
+    const MeanBgr bottomRight = calculateLogicalRegionMean(frame, width / 2 + width / 8, height / 2 + height / 8, sampleWidth, sampleHeight);
+
+    EXPECT_GT(topLeft.b, topLeft.g + 40.0) << meanToString(topLeft);
+    EXPECT_GT(topLeft.b, topLeft.r + 40.0) << meanToString(topLeft);
+
+    EXPECT_GT(topRight.g, topRight.b + 40.0) << meanToString(topRight);
+    EXPECT_GT(topRight.g, topRight.r + 40.0) << meanToString(topRight);
+
+    EXPECT_GT(bottomLeft.r, bottomLeft.b + 40.0) << meanToString(bottomLeft);
+    EXPECT_GT(bottomLeft.r, bottomLeft.g + 40.0) << meanToString(bottomLeft);
+
+    const double whiteMin = std::min({ bottomRight.b, bottomRight.g, bottomRight.r });
+    const double whiteMax = std::max({ bottomRight.b, bottomRight.g, bottomRight.r });
+    EXPECT_GT(whiteMin, 170.0) << meanToString(bottomRight);
+    EXPECT_LT(whiteMax - whiteMin, 50.0) << meanToString(bottomRight);
+}
+
+void initializeBgrFrame(ccap::VideoFrame& frame, uint8_t* data, int w, int h, int stride, ccap::FrameOrientation orientation) {
+    frame.data[0] = data;
+    frame.data[1] = nullptr;
+    frame.data[2] = nullptr;
+    frame.stride[0] = static_cast<uint32_t>(stride);
+    frame.stride[1] = 0;
+    frame.stride[2] = 0;
+    frame.pixelFormat = ccap::PixelFormat::BGR24;
+    frame.width = static_cast<uint32_t>(w);
+    frame.height = static_cast<uint32_t>(h);
+    frame.sizeInBytes = static_cast<uint32_t>(stride * h);
+    frame.timestamp = 0;
+    frame.frameIndex = 0;
+    frame.orientation = orientation;
+}
+
+} // namespace
 
 // Helper to check if video writer is supported on this platform
 bool isVideoWriterSupported() {
@@ -215,6 +350,84 @@ TEST_F(VideoWriterTest, WriteFramesAndValidateFile) {
 #endif
 }
 
+TEST_F(VideoWriterTest, SharedNv12ConversionRespectsBottomToTopOrientation) {
+    constexpr int w = 128;
+    constexpr int h = 96;
+    constexpr int stride = w * 3;
+
+    std::vector<uint8_t> topDown = createQuadrantBgrFrame(w, h, stride);
+    std::vector<uint8_t> bottomUp = flipRows(topDown, stride, h);
+
+    ccap::VideoFrame topFrame;
+    initializeBgrFrame(topFrame, topDown.data(), w, h, stride, ccap::FrameOrientation::TopToBottom);
+
+    ccap::VideoFrame bottomFrame;
+    initializeBgrFrame(bottomFrame, bottomUp.data(), w, h, stride, ccap::FrameOrientation::BottomToTop);
+
+    std::vector<uint8_t> topY;
+    std::vector<uint8_t> topUv;
+    uint32_t topYStride = 0;
+    uint32_t topUvStride = 0;
+    ASSERT_TRUE(ccap::convertFrameToNv12(topFrame, topY, topUv, topYStride, topUvStride));
+
+    std::vector<uint8_t> bottomY;
+    std::vector<uint8_t> bottomUv;
+    uint32_t bottomYStride = 0;
+    uint32_t bottomUvStride = 0;
+    ASSERT_TRUE(ccap::convertFrameToNv12(bottomFrame, bottomY, bottomUv, bottomYStride, bottomUvStride));
+
+    EXPECT_EQ(bottomYStride, topYStride);
+    EXPECT_EQ(bottomUvStride, topUvStride);
+    EXPECT_EQ(bottomY, topY);
+    EXPECT_EQ(bottomUv, topUv);
+}
+
+TEST_F(VideoWriterTest, BottomToTopFramesRoundTripUpright) {
+#ifdef CCAP_ENABLE_FILE_PLAYBACK
+    constexpr int w = 128;
+    constexpr int h = 96;
+    constexpr int stride = w * 3;
+    std::vector<uint8_t> topDown = createQuadrantBgrFrame(w, h, stride);
+    std::vector<uint8_t> bottomUp = flipRows(topDown, stride, h);
+
+    ccap::WriterConfig config;
+    config.width = w;
+    config.height = h;
+    config.frameRate = 30.0;
+    config.bitRate = 8'000'000;
+
+    fs::path outputPath = getTestOutputPath("bottom_to_top_cpp");
+    ccap::VideoWriter writer;
+    ASSERT_TRUE(writer.open(outputPath.string(), config));
+
+    ccap::VideoFrame frame;
+    initializeBgrFrame(frame, bottomUp.data(), w, h, stride, ccap::FrameOrientation::BottomToTop);
+
+    for (int index = 0; index < 12; ++index) {
+        frame.frameIndex = static_cast<uint32_t>(index);
+        frame.timestamp = static_cast<uint64_t>(index) * 33'333'333ULL;
+        ASSERT_TRUE(writer.writeFrame(frame, frame.timestamp));
+    }
+
+    writer.close();
+
+    ccap::Provider reader;
+    reader.set(ccap::PropertyName::PixelFormatOutput, ccap::PixelFormat::BGR24);
+    reader.set(ccap::PropertyName::FrameOrientation, ccap::FrameOrientation::TopToBottom);
+    ASSERT_TRUE(reader.open(outputPath.string()));
+
+    auto decoded = reader.grab(5000);
+    ASSERT_NE(decoded, nullptr);
+    if (decoded) {
+        expectUprightQuadrantPattern(*decoded);
+    }
+
+    reader.close();
+#else
+    GTEST_SKIP() << "File playback not enabled, cannot verify writer output orientation";
+#endif
+}
+
 TEST_F(VideoWriterTest, WriteFramesWithMovContainer) {
     ccap::VideoWriter writer;
     ccap::WriterConfig config;
@@ -387,6 +600,63 @@ TEST_F(VideoWriterCTest, OpenAndWriteFrames) {
     // Verify file
     EXPECT_TRUE(fs::exists(outputPath));
     EXPECT_GT(fs::file_size(outputPath), 0);
+}
+
+TEST_F(VideoWriterCTest, BottomToTopFramesRoundTripUpright) {
+#ifdef CCAP_ENABLE_FILE_PLAYBACK
+    constexpr int w = 128;
+    constexpr int h = 96;
+    constexpr int stride = w * 3;
+    std::vector<uint8_t> topDown = createQuadrantBgrFrame(w, h, stride);
+    std::vector<uint8_t> bottomUp = flipRows(topDown, stride, h);
+
+    CcapVideoWriter* writer = ccap_video_writer_create();
+    ASSERT_NE(writer, nullptr);
+
+    CcapWriterConfig config{};
+    config.codec = CCAP_VIDEO_CODEC_H264;
+    config.container = CCAP_VIDEO_FORMAT_MP4;
+    config.width = static_cast<uint32_t>(w);
+    config.height = static_cast<uint32_t>(h);
+    config.frameRate = 30.0;
+    config.bitRate = 8'000'000;
+
+    fs::path outputPath = getTestOutputPath("bottom_to_top_c_api");
+    ASSERT_TRUE(ccap_video_writer_open(writer, outputPath.string().c_str(), &config));
+
+    CcapVideoFrameInfo frameInfo{};
+    frameInfo.data[0] = bottomUp.data();
+    frameInfo.stride[0] = static_cast<uint32_t>(stride);
+    frameInfo.pixelFormat = CCAP_PIXEL_FORMAT_BGR24;
+    frameInfo.width = static_cast<uint32_t>(w);
+    frameInfo.height = static_cast<uint32_t>(h);
+    frameInfo.sizeInBytes = static_cast<uint32_t>(stride * h);
+    frameInfo.orientation = CCAP_FRAME_ORIENTATION_BOTTOM_TO_TOP;
+
+    for (int index = 0; index < 12; ++index) {
+        frameInfo.frameIndex = static_cast<uint32_t>(index);
+        const uint64_t timestamp = static_cast<uint64_t>(index) * 33'333'333ULL;
+        ASSERT_TRUE(ccap_video_writer_write_frame(writer, &frameInfo, timestamp));
+    }
+
+    ccap_video_writer_close(writer);
+    ccap_video_writer_destroy(writer);
+
+    ccap::Provider reader;
+    reader.set(ccap::PropertyName::PixelFormatOutput, ccap::PixelFormat::BGR24);
+    reader.set(ccap::PropertyName::FrameOrientation, ccap::FrameOrientation::TopToBottom);
+    ASSERT_TRUE(reader.open(outputPath.string()));
+
+    auto decoded = reader.grab(5000);
+    ASSERT_NE(decoded, nullptr);
+    if (decoded) {
+        expectUprightQuadrantPattern(*decoded);
+    }
+
+    reader.close();
+#else
+    GTEST_SKIP() << "File playback not enabled, cannot verify writer output orientation";
+#endif
 }
 
 // Helper: locate the built-in test video by walking up from CWD to find the project root

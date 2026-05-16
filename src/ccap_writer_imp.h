@@ -38,15 +38,20 @@ VideoWriter::Impl* createVideoWriterImpl();
 
 // ---- Shared NV12 conversion helpers (used by both platform implementations) ----
 
+inline int orientedRowIndex(FrameOrientation orientation, int row, int height) {
+    return orientation == FrameOrientation::BottomToTop ? (height - 1 - row) : row;
+}
+
 inline void bgrToNv12(const uint8_t* src, int srcStride,
                       uint8_t* dstY, int dstYStride,
                       uint8_t* dstUV, int dstUVStride,
-                      int width, int height, int bytesPerPixel) {
+                      int width, int height, int bytesPerPixel,
+                      FrameOrientation orientation) {
     // bytesPerPixel: 3 for BGR24, 4 for BGRA32
     const int w2 = width / 2;
     for (int y = 0; y < height; y += 2) {
-        const uint8_t* line0 = src + y * srcStride;
-        const uint8_t* line1 = (y + 1 < height) ? src + (y + 1) * srcStride : line0;
+        const uint8_t* line0 = src + orientedRowIndex(orientation, y, height) * srcStride;
+        const uint8_t* line1 = (y + 1 < height) ? src + orientedRowIndex(orientation, y + 1, height) * srcStride : line0;
         for (int x = 0; x < w2; x++) {
             const int off = x * 2 * bytesPerPixel;
             int b0 = line0[off], g0 = line0[off + 1], r0 = line0[off + 2];
@@ -73,6 +78,7 @@ inline bool convertFrameToNv12(const VideoFrame& frame,
     const int h = static_cast<int>(frame.height);
     const int w2 = w / 2;
     const int h2 = h / 2;
+    const FrameOrientation orientation = frame.orientation;
 
     yStride = static_cast<uint32_t>(w);
     uvStride = static_cast<uint32_t>(w2 * 2);
@@ -83,19 +89,26 @@ inline bool convertFrameToNv12(const VideoFrame& frame,
     case PixelFormat::NV12:
     case PixelFormat::NV12f:
         for (int y = 0; y < h; y++)
-            std::memcpy(yBuf.data() + y * yStride, frame.data[0] + y * frame.stride[0], static_cast<size_t>(w));
+            std::memcpy(yBuf.data() + y * yStride,
+                        frame.data[0] + orientedRowIndex(orientation, y, h) * frame.stride[0],
+                        static_cast<size_t>(w));
         for (int y = 0; y < h2; y++)
-            std::memcpy(uvBuf.data() + y * uvStride, frame.data[1] + y * frame.stride[1], static_cast<size_t>(w2) * 2);
+            std::memcpy(uvBuf.data() + y * uvStride,
+                        frame.data[1] + orientedRowIndex(orientation, y, h2) * frame.stride[1],
+                        static_cast<size_t>(w2) * 2);
         return true;
 
     case PixelFormat::I420:
     case PixelFormat::I420f:
         for (int y = 0; y < h; y++)
-            std::memcpy(yBuf.data() + y * yStride, frame.data[0] + y * frame.stride[0], static_cast<size_t>(w));
+            std::memcpy(yBuf.data() + y * yStride,
+                        frame.data[0] + orientedRowIndex(orientation, y, h) * frame.stride[0],
+                        static_cast<size_t>(w));
         for (int y = 0; y < h2; y++) {
+            const int srcRow = orientedRowIndex(orientation, y, h2);
             for (int x = 0; x < w2; x++) {
-                uvBuf[y * uvStride + x * 2] = frame.data[1][y * frame.stride[1] + x];
-                uvBuf[y * uvStride + x * 2 + 1] = frame.data[2][y * frame.stride[2] + x];
+                uvBuf[y * uvStride + x * 2] = frame.data[1][srcRow * frame.stride[1] + x];
+                uvBuf[y * uvStride + x * 2 + 1] = frame.data[2][srcRow * frame.stride[2] + x];
             }
         }
         return true;
@@ -103,13 +116,13 @@ inline bool convertFrameToNv12(const VideoFrame& frame,
     case PixelFormat::BGR24:
         bgrToNv12(frame.data[0], static_cast<int>(frame.stride[0]),
                   yBuf.data(), static_cast<int>(yStride),
-                  uvBuf.data(), static_cast<int>(uvStride), w, h, 3);
+                  uvBuf.data(), static_cast<int>(uvStride), w, h, 3, orientation);
         return true;
 
     case PixelFormat::BGRA32:
         bgrToNv12(frame.data[0], static_cast<int>(frame.stride[0]),
                   yBuf.data(), static_cast<int>(yStride),
-                  uvBuf.data(), static_cast<int>(uvStride), w, h, 4);
+                  uvBuf.data(), static_cast<int>(uvStride), w, h, 4, orientation);
         return true;
 
     default:

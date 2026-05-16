@@ -108,6 +108,10 @@ public:
             m_sinkWriter->Release();
             m_sinkWriter = nullptr;
         }
+
+        m_streamIndex = 0;
+        m_frameCount = 0;
+        std::memset(&m_config, 0, sizeof(m_config));
     }
 
     bool isOpened() const override {
