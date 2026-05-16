@@ -38,6 +38,7 @@ A high-performance, lightweight cross-platform camera capture library with hardw
 - **Multiple Formats**: RGB, BGR, YUV (NV12/I420) with automatic conversion
 - **Dual Language APIs**: ✨ **Complete Pure C Interface** - Both modern C++ API and traditional C99 interface for various project integration and language bindings
 - **Video File Playback**: 🎬 Play video files (MP4, AVI, MOV, etc.) using the same API as camera capture - supports Windows and macOS
+- **Video Writing / Recording**: 🎥 Write MP4/MOV files from camera frames via `ccap::VideoWriter`, `ccap_video_writer_*`, or CLI `--record` (Windows/macOS, `CCAP_ENABLE_VIDEO_WRITER=ON`)
 - **CLI Tool**: Ready-to-use command-line tool for quick camera operations and video processing - list devices, capture images, real-time preview, video playback ([Documentation](./docs/content/cli.md))
 - **Production Ready**: Comprehensive test suite with 95%+ accuracy validation
 - **Virtual Camera Support**: Compatible with OBS Virtual Camera and similar tools through the default DirectShow path on Windows
@@ -235,6 +236,8 @@ On Windows, camera capture now uses DirectShow by default. This keeps OBS Virtua
 
 For most Windows applications, staying in `auto` mode is recommended. ccap normalizes the public capture API, frame orientation handling, and output pixel-format conversion across both backends so callers usually do not need backend-specific code.
 
+For video writing, backend selection is a separate axis: on Windows, `VideoWriter` uses Media Foundation's writer stack regardless of camera capture backend (`auto` / `dshow` / `msmf`).
+
 - Pass `extraInfo` as `"auto"`, `"msmf"`, `"dshow"`, or `"backend=<value>"` in the C++/C constructors that accept it.
 - Set the environment variable `CCAP_WINDOWS_BACKEND=auto|msmf|dshow` to affect the whole process, including the CLI and Rust bindings.
 
@@ -297,6 +300,9 @@ cmake --build .
 
 # Video preview with playback controls
 ./ccap -i video.mp4 --preview --speed 1.0
+
+# Record camera stream to MP4 (Windows/macOS)
+./ccap -d 0 --record ./camera_capture.mp4 --timeout 5
 ```
 
 **Key Features:**
@@ -305,6 +311,7 @@ cmake --build .
 - 🎯 Capture single or multiple images
 - 👁️ Real-time preview window (with GLFW)
 - 🎬 Video file playback and frame extraction
+- 🎥 Record camera stream to MP4/MOV (`--record`)
 - ⚙️ Configure resolution, format, and frame rate
 - 💾 Save images in various formats (JPEG, PNG, BMP, etc.)
 - ⏱️ Duration-based or count-based capture modes
@@ -343,6 +350,7 @@ For complete CLI documentation, see [CLI Tool Guide](./docs/content/cli.md).
 | [3-capture_callback](./examples/desktop/3-capture_callback.cpp) / [3-capture_callback_c](./examples/desktop/3-capture_callback_c.c) | Callback-based capture | C++ / C | Desktop |
 | [4-example_with_glfw](./examples/desktop/4-example_with_glfw.cpp) / [4-example_with_glfw_c](./examples/desktop/4-example_with_glfw_c.c) | OpenGL rendering | C++ / C | Desktop |
 | [5-play_video](./examples/desktop/5-play_video.cpp) / [5-play_video_c](./examples/desktop/5-play_video_c.c) | Video file playback | C++ / C | Windows/macOS |
+| [6-record_video](./examples/desktop/6-record_video.cpp) | Video recording with `VideoWriter` | C++ | Windows/macOS |
 | [iOS Demo](./examples/) | iOS application | Objective-C++ | iOS |
 
 ### Build and Run Examples
@@ -460,6 +468,41 @@ enum class PixelFormat : uint32_t {
 };
 ```
 
+### Video Writing (Windows/macOS)
+
+Video writing is available on Windows and macOS when `CCAP_ENABLE_VIDEO_WRITER=ON`.
+
+```cpp
+#include <ccap.h>
+#include <ccap_writer.h>
+
+ccap::Provider provider;
+ccap::VideoWriter writer;
+
+if (provider.open("", true)) {
+    ccap::WriterConfig cfg;
+    cfg.width = 1280;
+    cfg.height = 720;
+    cfg.frameRate = 30.0;
+    cfg.codec = ccap::VideoCodec::H264;
+    cfg.container = ccap::VideoFormat::MP4;
+
+    if (writer.open("camera_record.mp4", cfg)) {
+        while (auto frame = provider.grab(3000)) {
+            // timestampNs == 0 means auto timestamp generation from frameRate.
+            writer.writeFrame(*frame, 0);
+        }
+        writer.close();
+    }
+}
+```
+
+Notes:
+
+- Writer input supports `NV12`, `I420`, `BGR24`, and `BGRA32`.
+- `VideoFrame::orientation` is honored by the writer path (including `BottomToTop` frames common on Windows RGB capture).
+- `CCAP_ENABLE_VIDEO_WRITER` is independent from `CCAP_ENABLE_FILE_PLAYBACK`.
+
 ### Utility Functions
 
 ```cpp
@@ -574,6 +617,20 @@ bool ccap_provider_start(CcapProvider* provider);
 void ccap_provider_stop(CcapProvider* provider);
 bool ccap_provider_is_started(CcapProvider* provider);
 ```
+
+##### Video Writer API (C)
+
+```c
+CcapVideoWriter* ccap_video_writer_create(void);
+void ccap_video_writer_destroy(CcapVideoWriter* writer);
+bool ccap_video_writer_open(CcapVideoWriter* writer, const char* filePath, const CcapWriterConfig* config);
+bool ccap_video_writer_write_frame(CcapVideoWriter* writer, const CcapVideoFrameInfo* frameInfo, uint64_t timestampNs);
+void ccap_video_writer_close(CcapVideoWriter* writer);
+bool ccap_video_writer_is_opened(const CcapVideoWriter* writer);
+CcapVideoCodec ccap_video_writer_actual_codec(const CcapVideoWriter* writer);
+```
+
+`timestampNs == 0` is treated as an auto-timestamp sentinel (derived from configured frame rate), not a literal timeline timestamp.
 
 ##### Frame Capture and Processing
 
@@ -729,6 +786,7 @@ Comprehensive test suite with 50+ test cases covering all functionality:
 - Multi-backend testing (CPU, AVX2, Apple Accelerate, NEON)
 - Performance benchmarks and accuracy validation  
 - 95%+ precision for pixel format conversions
+- Video writer regression tests (`ccap_video_writer_test`) covering C++ and C APIs, codec fallback, MOV container, `BottomToTop` orientation, and transcode duration checks
 
 ```bash
 ./scripts/run_tests.sh

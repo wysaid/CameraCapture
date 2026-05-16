@@ -19,6 +19,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <thread>
 
 struct IMFSourceReader;
 struct IMFMediaType;
@@ -98,6 +99,8 @@ private:
     std::atomic<bool> m_isStarted{ false };
     std::atomic<bool> m_shouldStop{ false };
     std::atomic<bool> m_isReading{ false };
+
+    std::thread m_readThread;
 
     bool m_mfInitialized = false;
 };

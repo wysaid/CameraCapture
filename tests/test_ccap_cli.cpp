@@ -129,11 +129,14 @@ CommandResult executeCommandCapturingStdoutOnly(const std::string& command, cons
 #endif
 
     if (fs::exists(stderrPath)) {
-        std::ifstream stderrFile(stderrPath, std::ios::binary);
-        std::ostringstream stderrStream;
-        stderrStream << stderrFile.rdbuf();
-        result.error = stderrStream.str();
-        fs::remove(stderrPath);
+        {
+            std::ifstream stderrFile(stderrPath, std::ios::binary);
+            std::ostringstream stderrStream;
+            stderrStream << stderrFile.rdbuf();
+            result.error = stderrStream.str();
+        }
+        std::error_code ec;
+        fs::remove(stderrPath, ec);
     }
 
     return result;
@@ -635,7 +638,17 @@ protected:
     CommandResult runCLIJson(const std::string& args) {
         fs::path stderrPath = testOutputDir / ("stderr_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".log");
         std::string fullCmd = cliPath + " " + args;
-        return executeCommandCapturingStdoutOnly(fullCmd, stderrPath);
+        auto result = executeCommandCapturingStdoutOnly(fullCmd, stderrPath);
+
+        // Some environments print informational logs to stdout before JSON payload.
+        // Keep only the JSON envelope to make parsing stable across platforms.
+        constexpr std::string_view kJsonEnvelopePrefix = "{\"schema_version\"";
+        size_t jsonPos = result.output.find(kJsonEnvelopePrefix);
+        if (jsonPos != std::string::npos) {
+            result.output = result.output.substr(jsonPos);
+        }
+
+        return result;
     }
 };
 

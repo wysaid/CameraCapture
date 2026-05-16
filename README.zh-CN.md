@@ -38,6 +38,7 @@
 - **多种格式**：RGB、BGR、YUV（NV12/I420）及自动转换
 - **双语言接口**：✨ **新增完整纯 C 接口**，同时提供现代化 C++ API 和传统 C99 接口，支持各种项目集成和语言绑定
 - **视频文件播放**：🎬 使用与相机相同的 API 播放视频文件（MP4、AVI、MOV 等）- 支持 Windows 和 macOS
+- **视频写入 / 录制**：🎥 通过 `ccap::VideoWriter`、`ccap_video_writer_*` 或 CLI `--record` 将相机帧写入 MP4/MOV（Windows/macOS，需 `CCAP_ENABLE_VIDEO_WRITER=ON`）
 - **命令行工具**：开箱即用的命令行工具，快速实现相机操作和视频处理 - 列出设备、捕获图像、实时预览、视频播放（[文档](./docs/content/cli.zh.md)）
 - **生产就绪**：完整测试套件，95%+ 精度验证
 - **虚拟相机支持**：在 Windows 上通过默认 DirectShow 路径兼容 OBS Virtual Camera 等工具
@@ -198,6 +199,8 @@ Windows 上现在默认使用 DirectShow。这样做的主要原因是 DirectSho
 
 对大多数 Windows 应用来说，建议直接使用 `auto` 模式。ccap 会在两个后端之上统一公开的采集 API、帧朝向处理和输出像素格式转换，所以调用方通常不需要编写后端分支逻辑。
 
+对于视频写入，后端选择是另一条独立维度：在 Windows 上，`VideoWriter` 固定使用 Media Foundation 写入链路，不受相机采集后端（`auto` / `dshow` / `msmf`）切换影响。
+
 - 在支持 `extraInfo` 的 C++ / C 构造接口中传入 `"auto"`、`"msmf"`、`"dshow"` 或 `"backend=<value>"`。
 - 设置环境变量 `CCAP_WINDOWS_BACKEND=auto|msmf|dshow`，对整个进程生效，包括 CLI 和 Rust 绑定。
 
@@ -266,6 +269,9 @@ cmake --build .
 
 # 视频预览并控制播放
 ./ccap -i video.mp4 --preview --speed 1.0
+
+# 将相机流录制为 MP4（Windows/macOS）
+./ccap -d 0 --record ./camera_capture.mp4 --timeout 5
 ```
 
 **主要功能：**
@@ -273,6 +279,7 @@ cmake --build .
 - 🎯 捕获单张或多张图像
 - 👁️ 实时预览窗口（需要 GLFW）
 - 🎬 视频文件播放和帧提取
+- 🎥 将相机流录制为 MP4/MOV（`--record`）
 - ⚙️ 配置分辨率、格式和帧率
 - 💾 保存为多种图像格式（JPEG、PNG、BMP 等）
 - ⏱️ 基于时长或数量的捕获模式
@@ -310,6 +317,7 @@ cmake --build .
 | [3-capture_callback](./examples/desktop/3-capture_callback.cpp) / [3-capture_callback_c](./examples/desktop/3-capture_callback_c.c) | 回调式捕获 | C++ / C | 桌面端 |
 | [4-example_with_glfw](./examples/desktop/4-example_with_glfw.cpp) / [4-example_with_glfw_c](./examples/desktop/4-example_with_glfw_c.c) | OpenGL 渲染 | C++ / C | 桌面端 |
 | [5-play_video](./examples/desktop/5-play_video.cpp) / [5-play_video_c](./examples/desktop/5-play_video_c.c) | 视频文件播放 | C++ / C | Windows/macOS |
+| [6-record_video](./examples/desktop/6-record_video.cpp) | 使用 `VideoWriter` 录制视频 | C++ | Windows/macOS |
 | [iOS Demo](./examples/) | iOS 应用程序 | Objective-C++ | iOS |
 
 ### 构建和运行示例
@@ -429,6 +437,41 @@ enum class PixelFormat : uint32_t {
 };
 ```
 
+### 视频写入（Windows/macOS）
+
+当 `CCAP_ENABLE_VIDEO_WRITER=ON` 时，可在 Windows/macOS 使用视频写入能力。
+
+```cpp
+#include <ccap.h>
+#include <ccap_writer.h>
+
+ccap::Provider provider;
+ccap::VideoWriter writer;
+
+if (provider.open("", true)) {
+    ccap::WriterConfig cfg;
+    cfg.width = 1280;
+    cfg.height = 720;
+    cfg.frameRate = 30.0;
+    cfg.codec = ccap::VideoCodec::H264;
+    cfg.container = ccap::VideoFormat::MP4;
+
+    if (writer.open("camera_record.mp4", cfg)) {
+        while (auto frame = provider.grab(3000)) {
+            // timestampNs == 0 表示根据 frameRate 自动生成时间戳。
+            writer.writeFrame(*frame, 0);
+        }
+        writer.close();
+    }
+}
+```
+
+说明：
+
+- 写入输入像素格式支持 `NV12`、`I420`、`BGR24`、`BGRA32`。
+- 写入链路会尊重 `VideoFrame::orientation`（包括 Windows RGB 常见的 `BottomToTop`）。
+- `CCAP_ENABLE_VIDEO_WRITER` 与 `CCAP_ENABLE_FILE_PLAYBACK` 为独立开关。
+
 ### 工具函数
 
 ```cpp
@@ -544,6 +587,20 @@ void ccap_provider_stop(CcapProvider* provider);
 bool ccap_provider_is_started(CcapProvider* provider);
 ```
 
+##### 视频写入 API（C）
+
+```c
+CcapVideoWriter* ccap_video_writer_create(void);
+void ccap_video_writer_destroy(CcapVideoWriter* writer);
+bool ccap_video_writer_open(CcapVideoWriter* writer, const char* filePath, const CcapWriterConfig* config);
+bool ccap_video_writer_write_frame(CcapVideoWriter* writer, const CcapVideoFrameInfo* frameInfo, uint64_t timestampNs);
+void ccap_video_writer_close(CcapVideoWriter* writer);
+bool ccap_video_writer_is_opened(const CcapVideoWriter* writer);
+CcapVideoCodec ccap_video_writer_actual_codec(const CcapVideoWriter* writer);
+```
+
+`timestampNs == 0` 会被视为“自动时间戳哨兵值”（按配置帧率推导），而不是一个字面上的时间轴时间戳。
+
 ##### 帧捕获和处理
 
 ```c
@@ -650,6 +707,7 @@ C 接口的详细使用说明和示例请参见：[C 接口文档](./docs/conten
 - 多后端测试（CPU、AVX2、Apple Accelerate、NEON）
 - 性能基准测试和精度验证
 - 像素格式转换 95%+ 精度
+- 视频写入回归测试（`ccap_video_writer_test`），覆盖 C++/C API、codec 回退、MOV 容器、`BottomToTop` 方向与转码时长校验
 
 ```bash
 ./scripts/run_tests.sh

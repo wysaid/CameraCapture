@@ -9,6 +9,7 @@ The ccap C interface provides complete camera capture functionality for C langua
 - Device discovery and management
 - Camera configuration and control
 - Synchronous and asynchronous frame capture
+- Video file writing on Windows/macOS (when enabled)
 - Memory management
 
 ## Core Concepts
@@ -19,6 +20,7 @@ The C interface uses opaque pointers to hide C++ object implementation details:
 
 - `CcapProvider*` - Encapsulates `ccap::Provider` object
 - `CcapVideoFrame*` - Encapsulates `ccap::VideoFrame` shared pointer
+- `CcapVideoWriter*` - Encapsulates `ccap::VideoWriter` object
 
 ### Memory Management
 
@@ -27,6 +29,7 @@ The C interface follows these memory management principles:
 1. **Creation and Destruction**: All objects created via `ccap_xxx_create()` must be released via the corresponding `ccap_xxx_destroy()`
 2. **Array Release**: String arrays and struct arrays returned have dedicated release functions
 3. **Frame Management**: Frames acquired via `ccap_provider_grab()` must be released via `ccap_video_frame_release()`
+4. **Writer Management**: Writers created via `ccap_video_writer_create()` must be released via `ccap_video_writer_destroy()`
 
 ## Basic Usage Flow
 
@@ -148,6 +151,41 @@ ccap_provider_close(provider);
 ccap_provider_destroy(provider);
 ```
 
+### 8. Optional: Video Writing (Windows/macOS)
+
+When built with `CCAP_ENABLE_VIDEO_WRITER=ON`, the C API can write camera frames to MP4/MOV files.
+
+```c
+#include "ccap_writer_c.h"
+
+CcapVideoWriter* writer = ccap_video_writer_create();
+if (writer) {
+    CcapWriterConfig cfg = {
+        .codec = CCAP_VIDEO_CODEC_H264,
+        .container = CCAP_VIDEO_FORMAT_MP4,
+        .width = 1280,
+        .height = 720,
+        .frameRate = 30.0,
+        .bitRate = 0
+    };
+
+    if (ccap_video_writer_open(writer, "camera_record.mp4", &cfg)) {
+        CcapVideoFrame* frame = ccap_provider_grab(provider, 1000);
+        if (frame) {
+            CcapVideoFrameInfo info;
+            if (ccap_video_frame_get_info(frame, &info)) {
+                // timestampNs == 0 means auto timestamp generation from cfg.frameRate.
+                ccap_video_writer_write_frame(writer, &info, 0);
+            }
+            ccap_video_frame_release(frame);
+        }
+        ccap_video_writer_close(writer);
+    }
+
+    ccap_video_writer_destroy(writer);
+}
+```
+
 ## Complete Example
 
 See `examples/ccap_c_example.c` for a complete usage example.
@@ -202,6 +240,7 @@ gcc -std=c99 ccap_c_example.c -o ccap_c_example \
 
 - `CcapProvider*` - Provider object pointer
 - `CcapVideoFrame*` - Video frame object pointer
+- `CcapVideoWriter*` - Video writer object pointer
 - `CcapPixelFormat` - Pixel format enumeration
 - `CcapPropertyName` - Property name enumeration
 - `CcapVideoFrameInfo` - Frame information structure
@@ -227,6 +266,15 @@ gcc -std=c99 ccap_c_example.c -o ccap_c_example \
 #### Frame Acquisition
 - `ccap_provider_grab()` - Synchronously acquire frame
 - `ccap_provider_set_new_frame_callback()` - Set asynchronous callback
+
+#### Video Writing (Windows/macOS)
+- `ccap_video_writer_create()` - Create writer
+- `ccap_video_writer_destroy()` - Destroy writer
+- `ccap_video_writer_open()` - Open output file with writer config
+- `ccap_video_writer_write_frame()` - Write one frame
+- `ccap_video_writer_close()` - Close writer
+- `ccap_video_writer_is_opened()` - Check writer open state
+- `ccap_video_writer_actual_codec()` - Query actual codec used after fallback
 
 #### Property Configuration
 - `ccap_provider_set_property()` - Set property

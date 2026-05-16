@@ -321,14 +321,17 @@ bool FileReaderWindows::start() {
         return m_isStarted;
     }
 
+    if (m_readThread.joinable()) {
+        m_readThread.join();
+    }
+
     m_shouldStop = false;
     m_isStarted = true;
 
     // Start read thread
-    std::thread readThread([this]() {
+    m_readThread = std::thread([this]() {
         readLoop();
     });
-    readThread.detach();
 
     return true;
 }
@@ -337,10 +340,12 @@ void FileReaderWindows::stop() {
     m_shouldStop = true;
     m_isStarted = false;
 
-    // Wait for reading to finish
-    int waitCount = 0;
-    while (m_isReading && waitCount++ < 100) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    if (m_sourceReader) {
+        m_sourceReader->Flush(MF_SOURCE_READER_FIRST_VIDEO_STREAM);
+    }
+
+    if (m_readThread.joinable()) {
+        m_readThread.join();
     }
 }
 
@@ -410,6 +415,12 @@ void FileReaderWindows::readLoop() {
             hr = buffer->Lock(&data, &maxLen, &currentLen);
             if (SUCCEEDED(hr) && data && m_provider) {
                 auto newFrame = m_provider->getFreeFrame();
+                if (!newFrame) {
+                    buffer->Unlock();
+                    buffer->Release();
+                    sample->Release();
+                    continue;
+                }
 
                 newFrame->timestamp = static_cast<uint64_t>(timestamp * 100); // 100ns to ns
                 newFrame->width = static_cast<uint32_t>(m_width);

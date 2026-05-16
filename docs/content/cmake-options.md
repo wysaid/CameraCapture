@@ -84,6 +84,25 @@ cmake --build build
 
 **Recommendation:** Use for production builds only.
 
+#### `CCAP_ENABLE_VIDEO_WRITER`
+**Enable video writing support (`VideoWriter`, C writer API, CLI `--record`)**
+
+- **Type**: Boolean (ON/OFF)
+- **Default**: `ON`
+- **Platforms**: Windows, macOS
+- **Usage**: `-DCCAP_ENABLE_VIDEO_WRITER=ON`
+
+**What it controls:**
+- C++ API: `ccap::VideoWriter`
+- C API: `ccap_video_writer_*`
+- CLI: `--record`
+- Example: `6-record_video`
+- Tests: `ccap_video_writer_test` (when tests are enabled)
+
+**Notes:**
+- This option is independent from `CCAP_ENABLE_FILE_PLAYBACK`.
+- On unsupported platforms (for example Linux), writer functionality is not built even if this option is set to `ON`.
+
 #### `CCAP_INSTALL`
 **Enable installation targets**
 
@@ -422,6 +441,7 @@ See `cmake/dev.cmake.example` for more examples.
 | `CCAP_BUILD_TESTS` | OFF | Unit tests | Development, CI |
 | `CCAP_BUILD_CLI` | OFF | CLI tool | Automation, scripting |
 | `CCAP_BUILD_CLI_STANDALONE` | OFF | Portable CLI | Distribution |
+| `CCAP_ENABLE_VIDEO_WRITER` | ON | Video writing APIs and CLI recording | Windows/macOS recording workflows |
 | `CCAP_FORCE_ARM64` | OFF | ARM compilation | ARM devices, M1/M2 |
 
 *Depends on whether ccap is the root project

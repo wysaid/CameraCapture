@@ -58,6 +58,37 @@ TEST(CLIArgsParserTest, ParsesJsonOutputOptions) {
     EXPECT_EQ(opts.schemaVersion, "1.2");
 }
 
+TEST(CLIArgsParserTest, ParsesQuietOption) {
+    char arg0[] = "ccap";
+    char arg1[] = "-q";
+    char* argv[] = { arg0, arg1, nullptr };
+
+    const ccap_cli::CLIOptions opts = ccap_cli::parseArgs(2, argv);
+
+    EXPECT_TRUE(opts.quiet);
+    EXPECT_FALSE(opts.verbose);
+}
+
+TEST(CLIArgsParserTest, LastLogVerbosityFlagWins) {
+    char arg0[] = "ccap";
+    char arg1[] = "--verbose";
+    char arg2[] = "--quiet";
+    char* argv1[] = { arg0, arg1, arg2, nullptr };
+
+    const ccap_cli::CLIOptions quietWins = ccap_cli::parseArgs(3, argv1);
+    EXPECT_TRUE(quietWins.quiet);
+    EXPECT_FALSE(quietWins.verbose);
+
+    char arg3[] = "ccap";
+    char arg4[] = "--quiet";
+    char arg5[] = "--verbose";
+    char* argv2[] = { arg3, arg4, arg5, nullptr };
+
+    const ccap_cli::CLIOptions verboseWins = ccap_cli::parseArgs(3, argv2);
+    EXPECT_FALSE(verboseWins.quiet);
+    EXPECT_TRUE(verboseWins.verbose);
+}
+
 TEST(CLIArgsParserTest, RejectsMissingSchemaVersionValue) {
     char arg0[] = "ccap";
     char arg1[] = "--schema-version";

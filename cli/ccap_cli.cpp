@@ -91,22 +91,10 @@ int main(int argc, char* argv[]) {
     // Set log level based on options
     if (opts.verbose) {
         ccap::setLogLevel(ccap::LogLevel::Verbose);
+    } else if (opts.quiet) {
+        ccap::setLogLevel(ccap::LogLevel::Error);
     } else {
-        // Check if -q/--quiet was specified by looking at argv
-        bool quietMode = false;
-        for (int i = 1; i < argc; ++i) {
-            std::string arg = argv[i];
-            if (arg == "-q" || arg == "--quiet") {
-                quietMode = true;
-                break;
-            }
-        }
-        
-        if (quietMode) {
-            ccap::setLogLevel(ccap::LogLevel::Error);
-        } else {
-            ccap::setLogLevel(ccap::LogLevel::Info);
-        }
+        ccap::setLogLevel(ccap::LogLevel::Info);
     }
 
     // Set error callback

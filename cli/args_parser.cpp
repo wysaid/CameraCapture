@@ -352,6 +352,10 @@ CLIOptions parseArgs(int argc, char* argv[]) {
             opts.showVersion = true;
         } else if (arg == "--verbose") {
             opts.verbose = true;
+            opts.quiet = false;
+        } else if (arg == "-q" || arg == "--quiet") {
+            opts.quiet = true;
+            opts.verbose = false;
         } else if (arg == "--json") {
             opts.jsonOutput = true;
         } else if (arg == "--schema-version") {

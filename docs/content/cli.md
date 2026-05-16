@@ -13,6 +13,7 @@ The `ccap` CLI tool provides a comprehensive command-line interface for working 
 - **Format Support**: RGB, BGR, RGBA, BGRA, YUV (NV12, I420, YUYV, UYVY)
 - **YUV Operations**: Direct YUV capture and YUV-to-image conversion
 - **Real-time Preview**: OpenGL-based preview window (when built with GLFW support)
+- **Video Recording**: Record camera streams to MP4/MOV with `--record` (Windows/macOS)
 - **Automation Friendly**: Designed for scripts and CI/CD pipelines
 - **Cross-platform**: Windows, macOS, Linux
 
@@ -126,6 +127,18 @@ These options are available on Windows only.
 | `-t, --grab-timeout MS` | `5000` | Timeout for grabbing a single frame in milliseconds |
 | `--format, --output-format` | - | Output pixel format (see [Supported Formats](#supported-formats)) |
 | `--internal-format FORMAT` | - | Camera's internal pixel format (camera mode only) |
+
+### Video Recording Options (Camera Mode)
+
+| Option | Description |
+|--------|-------------|
+| `--record FILE` | Record camera frames to a video file (`.mp4` / `.mov`) |
+
+Recording notes:
+
+- `--record` is **camera mode only**. In video-file input mode (`-i video.mp4`), this option is ignored with a warning.
+- Recording is available only when built with `CCAP_ENABLE_VIDEO_WRITER=ON` on supported platforms (Windows/macOS).
+- Use `-c/--count` or `--timeout` to stop automatically; otherwise recording continues until the process exits.
 
 ### Save Options
 
@@ -322,6 +335,23 @@ ccap -i /path/to/video.mp4 --preview --fps 60
 
 # Video is 30fps, play at 15fps (0.5x speed)
 ccap -i /path/to/video.mp4 --preview --fps 15
+```
+
+### Video Recording
+
+Record 5 seconds from the default camera:
+```bash
+ccap -d 0 --record ./camera_capture.mp4 --timeout 5
+```
+
+Record a fixed number of frames:
+```bash
+ccap -d 0 -c 150 --record ./camera_capture.mp4
+```
+
+Record with explicit capture configuration:
+```bash
+ccap -d 0 -w 1280 -H 720 -f 30 --record ./camera_capture.mov --timeout 8
 ```
 
 ### Format-Specific Capture

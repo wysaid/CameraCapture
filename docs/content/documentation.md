@@ -9,6 +9,7 @@
 - Cross-platform: Windows, macOS, iOS, Linux
 - Dual API: Modern C++17 and pure C99
 - Video file playback (Windows & macOS) - play MP4, AVI, MOV, MKV and other formats
+- Video writing/recording (Windows & macOS) via `VideoWriter`, C writer API, and CLI `--record`
 - Command-line tool for scripting, automation, and video processing
 - **Language bindings:** [C Interface](c-interface.md) and [Rust Bindings](rust-bindings.md)
 
@@ -188,6 +189,38 @@ if (provider.open("/path/to/video.mp4", true)) {
 
 **Note**: Video playback is currently not supported on Linux.
 
+## Video Writing
+
+ccap supports video writing on Windows and macOS (when built with `CCAP_ENABLE_VIDEO_WRITER=ON`).
+
+```cpp
+#include <ccap.h>
+#include <ccap_writer.h>
+
+ccap::Provider provider;
+ccap::VideoWriter writer;
+
+if (provider.open("", true)) {
+    ccap::WriterConfig cfg;
+    cfg.width = 1280;
+    cfg.height = 720;
+    cfg.frameRate = 30.0;
+    cfg.codec = ccap::VideoCodec::H264;
+    cfg.container = ccap::VideoFormat::MP4;
+
+    if (writer.open("camera_record.mp4", cfg)) {
+        while (auto frame = provider.grab(3000)) {
+            writer.writeFrame(*frame, 0); // 0 => auto timestamp from frameRate
+        }
+        writer.close();
+    }
+}
+```
+
+Writer input supports `NV12`, `I420`, `BGR24`, and `BGRA32`.
+
+`VideoFrame::orientation` is honored by the writer path, including `BottomToTop` frames common on Windows RGB capture.
+
 ## Properties
 
 | Property | Description |
@@ -223,6 +256,8 @@ if (provider.open("/path/to/video.mp4", true)) {
 Uses DirectShow for camera access by default on Windows to preserve compatibility with OBS Virtual Camera and other virtual cameras. Media Foundation is also fully supported: you can request it explicitly with `msmf`, and `auto` mode can route devices across both backends when needed. Requires MSVC 2019 or later.
 
 For most Windows applications, `auto` mode is the recommended choice. ccap merges device enumeration across both backends and keeps the public capture API, frame orientation handling, and output pixel-format conversion aligned so callers usually do not need backend-specific branching.
+
+Windows camera backend selection (`auto`/`dshow`/`msmf`) applies to capture only. Video writing uses Media Foundation's writer stack.
 
 To force a specific camera backend on Windows, either pass `extraInfo` as `auto`, `msmf`, `dshow`, or `backend=<value>` to the constructors that accept it, or set `CCAP_WINDOWS_BACKEND=auto|msmf|dshow` for the current process.
 

@@ -55,6 +55,7 @@ make install
 - `CCAP_BUILD_EXAMPLES`: Build example applications (default: ON for root project)
 - `CCAP_BUILD_TESTS`: Build unit tests (default: OFF)
 - `CCAP_NO_LOG`: Disable logging functionality (default: OFF)
+- `CCAP_ENABLE_VIDEO_WRITER`: Enable video writer support (`ccap::VideoWriter`, C writer API, CLI `--record`) on Windows/macOS (default: ON)
 
 ### macOS Universal Binary Build
 
@@ -205,6 +206,7 @@ build/universal/          # Contains x86_64 + arm64 universal binary
 - `CCAP_INSTALL`: Enable install target (default: ON)
 - `CCAP_BUILD_EXAMPLES`: Build examples (default: OFF when used as subproject)
 - `CCAP_BUILD_TESTS`: Build tests (default: OFF when used as subproject)
+- `CCAP_ENABLE_VIDEO_WRITER`: Enable video writing support (Windows/macOS only, default: ON)
 
 ### Advanced Usage
 
@@ -249,6 +251,15 @@ git clean -fdx install/
 - ✅ Linux (camera capture only – video playback not yet supported; x86_64, arm64, all distributions with V4L2 support)
 
 **Note**: Video file playback is currently supported on Windows and macOS only. Linux video playback support may be added in a future release.
+
+### Video Writer Support Matrix
+
+- ✅ Windows: supported (`CCAP_ENABLE_VIDEO_WRITER=ON`)
+- ✅ macOS: supported (`CCAP_ENABLE_VIDEO_WRITER=ON`)
+- ❌ Linux: not supported
+- ❌ iOS: not supported
+
+`CCAP_ENABLE_VIDEO_WRITER` is independent from `CCAP_ENABLE_FILE_PLAYBACK`.
 
 ## Version Information
 

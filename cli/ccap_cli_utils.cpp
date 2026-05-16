@@ -252,6 +252,71 @@ std::unique_ptr<ScopedEnvironmentValue> makeWindowsCameraBackendOverride(const C
     return nullptr;
 }
 
+struct VideoFileProperties {
+    double duration = 0.0;
+    double frameCount = 0.0;
+    double frameRate = 0.0;
+    int width = 0;
+    int height = 0;
+};
+
+VideoFileProperties queryVideoFileProperties(ccap::Provider& provider) {
+    VideoFileProperties properties;
+    properties.duration = provider.get(ccap::PropertyName::Duration);
+    properties.frameCount = provider.get(ccap::PropertyName::FrameCount);
+    properties.frameRate = provider.get(ccap::PropertyName::FrameRate);
+    properties.width = static_cast<int>(provider.get(ccap::PropertyName::Width));
+    properties.height = static_cast<int>(provider.get(ccap::PropertyName::Height));
+    return properties;
+}
+
+void printVideoFileProperties(const std::string& videoPath, const VideoFileProperties& properties) {
+    if (!ccap::infoLogEnabled()) {
+        return;
+    }
+
+    std::cout << "Video file: " << videoPath << std::endl;
+    std::cout << "  Resolution: " << properties.width << "x" << properties.height << std::endl;
+    std::cout << "  Frame rate: " << properties.frameRate << " fps" << std::endl;
+    std::cout << "  Duration: " << properties.duration << " seconds" << std::endl;
+    std::cout << "  Total frames: " << static_cast<int>(properties.frameCount) << std::endl;
+}
+
+double resolvePlaybackSpeed(const CLIOptions& opts, double sourceFrameRate, double defaultSpeed,
+                            std::string_view defaultLogMessage, bool appendDefaultOnRateFailure) {
+    double playbackSpeed = defaultSpeed;
+
+    if (opts.playbackSpeedSpecified) {
+        playbackSpeed = opts.playbackSpeed;
+        if (ccap::infoLogEnabled()) {
+            std::cout << "  Playback speed: " << playbackSpeed << "x" << std::endl;
+        }
+        return playbackSpeed;
+    }
+
+    if (opts.fpsSpecified) {
+        if (sourceFrameRate > 0.0) {
+            playbackSpeed = opts.fps / sourceFrameRate;
+            if (ccap::infoLogEnabled()) {
+                std::cout << "  Calculated playback speed: " << playbackSpeed << "x (from --fps " << opts.fps << ")"
+                          << std::endl;
+            }
+        } else {
+            std::cerr << "Warning: Cannot calculate playback speed, video frame rate is 0.";
+            if (appendDefaultOnRateFailure) {
+                std::cerr << " Using default " << defaultSpeed << "x.";
+            }
+            std::cerr << std::endl;
+        }
+        return playbackSpeed;
+    }
+
+    if (ccap::infoLogEnabled()) {
+        std::cout << "  Playback speed: " << defaultLogMessage << std::endl;
+    }
+    return playbackSpeed;
+}
+
 } // namespace
 
 // ============================================================================
@@ -599,47 +664,13 @@ int captureFrames(const CLIOptions& opts) {
         }
 
         if (provider.isFileMode()) {
-            // Get video properties
-            double duration = provider.get(ccap::PropertyName::Duration);
-            double frameCount = provider.get(ccap::PropertyName::FrameCount);
-            double frameRate = provider.get(ccap::PropertyName::FrameRate);
-            int width = static_cast<int>(provider.get(ccap::PropertyName::Width));
-            int height = static_cast<int>(provider.get(ccap::PropertyName::Height));
+            const auto properties = queryVideoFileProperties(provider);
+            printVideoFileProperties(opts.videoFilePath, properties);
 
-            // Always print video information (unless quiet mode)
-            if (ccap::infoLogEnabled()) {
-                std::cout << "Video file: " << opts.videoFilePath << std::endl;
-                std::cout << "  Resolution: " << width << "x" << height << std::endl;
-                std::cout << "  Frame rate: " << frameRate << " fps" << std::endl;
-                std::cout << "  Duration: " << duration << " seconds" << std::endl;
-                std::cout << "  Total frames: " << static_cast<int>(frameCount) << std::endl;
-            }
+            const double playbackSpeed =
+                resolvePlaybackSpeed(opts, properties.frameRate, 0.0,
+                                     "0.0 (no frame rate control, process as fast as possible)", false);
 
-            // Calculate and set playback speed
-            double playbackSpeed = 0.0;
-            if (opts.playbackSpeedSpecified) {
-                playbackSpeed = opts.playbackSpeed;
-                if (ccap::infoLogEnabled()) {
-                    std::cout << "  Playback speed: " << playbackSpeed << "x" << std::endl;
-                }
-            } else if (opts.fpsSpecified) {
-                // Calculate speed from desired fps
-                if (frameRate > 0) {
-                    playbackSpeed = opts.fps / frameRate;
-                    if (ccap::infoLogEnabled()) {
-                        std::cout << "  Calculated playback speed: " << playbackSpeed << "x (from --fps " << opts.fps << ")" << std::endl;
-                    }
-                } else {
-                    std::cerr << "Warning: Cannot calculate playback speed, video frame rate is 0." << std::endl;
-                }
-            } else {
-                // Default: no frame rate control (0.0)
-                playbackSpeed = 0.0;
-                if (ccap::infoLogEnabled()) {
-                    std::cout << "  Playback speed: 0.0 (no frame rate control, process as fast as possible)" << std::endl;
-                }
-            }
-            
             if (playbackSpeed >= 0) {
                 provider.set(ccap::PropertyName::PlaybackSpeed, playbackSpeed);
             }
@@ -1198,45 +1229,12 @@ int runPreview(const CLIOptions& opts) {
             return 1;
         }
         
-        // Get video properties and print information
-        double videoFrameRate = provider.get(ccap::PropertyName::FrameRate);
-        double duration = provider.get(ccap::PropertyName::Duration);
-        double frameCount = provider.get(ccap::PropertyName::FrameCount);
-        int videoWidth = static_cast<int>(provider.get(ccap::PropertyName::Width));
-        int videoHeight = static_cast<int>(provider.get(ccap::PropertyName::Height));
-        
-        if (ccap::infoLogEnabled()) {
-            std::cout << "Video file: " << opts.videoFilePath << std::endl;
-            std::cout << "  Resolution: " << videoWidth << "x" << videoHeight << std::endl;
-            std::cout << "  Frame rate: " << videoFrameRate << " fps" << std::endl;
-            std::cout << "  Duration: " << duration << " seconds" << std::endl;
-            std::cout << "  Total frames: " << static_cast<int>(frameCount) << std::endl;
-        }
-        
-        // Calculate and set playback speed
-        double playbackSpeed = 1.0; // Default for preview mode
-        if (opts.playbackSpeedSpecified) {
-            playbackSpeed = opts.playbackSpeed;
-            if (ccap::infoLogEnabled()) {
-                std::cout << "  Playback speed: " << playbackSpeed << "x" << std::endl;
-            }
-        } else if (opts.fpsSpecified) {
-            // Calculate speed from desired fps
-            if (videoFrameRate > 0) {
-                playbackSpeed = opts.fps / videoFrameRate;
-                if (ccap::infoLogEnabled()) {
-                    std::cout << "  Calculated playback speed: " << playbackSpeed << "x (from --fps " << opts.fps << ")" << std::endl;
-                }
-            } else {
-                std::cerr << "Warning: Cannot calculate playback speed, video frame rate is 0. Using default 1.0x." << std::endl;
-            }
-        } else {
-            // Default 1.0 for preview mode
-            if (ccap::infoLogEnabled()) {
-                std::cout << "  Playback speed: 1.0x (normal speed)" << std::endl;
-            }
-        }
-        
+        const auto properties = queryVideoFileProperties(provider);
+        printVideoFileProperties(opts.videoFilePath, properties);
+
+        const double playbackSpeed = resolvePlaybackSpeed(opts, properties.frameRate, 1.0,
+                                                          "1.0x (normal speed)", true);
+
         provider.set(ccap::PropertyName::PlaybackSpeed, playbackSpeed);
 #else
         std::cerr << "Video file playback is not supported. Rebuild with CCAP_ENABLE_FILE_PLAYBACK=ON" << std::endl;

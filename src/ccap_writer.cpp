@@ -52,7 +52,10 @@ bool VideoWriter::isOpened() const {
 }
 
 bool VideoWriter::writeFrame(const VideoFrame& frame, uint64_t timestampNs) {
-    if (!m_impl) return false;
+    if (!m_impl) {
+        reportError(ErrorCode::WriterNotOpened, "VideoWriter not available on this platform");
+        return false;
+    }
     return impl(m_impl)->writeFrame(frame, timestampNs);
 }
 

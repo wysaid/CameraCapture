@@ -1,7 +1,7 @@
 ---
 name: ccap
 description: "Install or use the ccap CLI for camera capture, webcam inspection, device listing, frame capture, and video metadata. Use when you need to work with CameraCapture on macOS, Linux, or Windows, especially for listing devices, checking device capabilities, capturing frames, inspecting video files, or choosing between existing install, Homebrew, source build, and release-binary fallback."
-argument-hint: "install | list-devices | device-info | capture | video-info"
+argument-hint: "install | list-devices | device-info | capture | record | video-info"
 metadata: { "openclaw": { "emoji": "📷", "homepage": "https://github.com/wysaid/CameraCapture", "install": [{ "id": "brew", "kind": "brew", "formula": "wysaid/ccap/ccap", "bins": ["ccap"], "os": ["macos"], "label": "Install ccap (Homebrew)" }] } }
 ---
 
@@ -18,6 +18,8 @@ Use this skill when the user asks for things like:
 - "list my cameras"
 - "show device capabilities"
 - "capture one frame from webcam 0"
+- "record 5 seconds from webcam 0"
+- "save webcam stream to mp4"
 - "inspect this mp4"
 - "install ccap on this machine"
 - "use CameraCapture from the CLI"
@@ -31,6 +33,7 @@ Use this skill when the user asks for things like:
 - Listing camera devices
 - Inspecting device capabilities
 - Capturing one or more frames with the CLI
+- Recording camera streams to MP4/MOV with the CLI
 - Reading video metadata
 
 ## What This Skill Is Not For
@@ -74,6 +77,7 @@ Use these first before improvising:
 - Device info: `ccap --device-info 0 --json`
 - Video info: `ccap -i /path/to/video.mp4 --json`
 - Capture one frame: `ccap -d 0 -c 1 -o ./captures`
+- Record camera stream: `ccap -d 0 --record ./camera_capture.mp4 --timeout 5`
 - Capture one frame from a named device: `ccap -d "OBS Virtual Camera" -c 1 -o ./captures`
 
 More examples and fallback notes are in [command reference](./references/commands.md).
@@ -86,6 +90,8 @@ More examples and fallback notes are in [command reference](./references/command
 - If there is no camera device, consider a video-file workflow if that satisfies the task.
 - If the environment is headless or remote, do not enable preview by default.
 - If video playback is unsupported on the current platform or build, report it explicitly.
+- If recording is requested, verify writer support first (`CCAP_ENABLE_VIDEO_WRITER=ON` and supported platform: Windows/macOS).
+- `--record` is camera-mode only. If input is a video file (`-i`), report that recording is ignored.
 
 ## Response Expectations
 

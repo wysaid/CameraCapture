@@ -34,6 +34,7 @@ struct CLIOptions {
     bool listDevices = false;
     bool showDeviceInfo = false;
     bool verbose = false;
+    bool quiet = false;
     bool jsonOutput = false;
     std::string schemaVersion = "1.0";
 

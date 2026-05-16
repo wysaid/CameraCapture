@@ -22,8 +22,11 @@ CcapVideoWriter* ccap_video_writer_create(void) {
 }
 
 void ccap_video_writer_destroy(CcapVideoWriter* writer) {
-    if (writer) {
+    if (!writer) return;
+    try {
         delete reinterpret_cast<ccap::VideoWriter*>(writer);
+    } catch (...) {
+        // Never throw across C ABI boundary.
     }
 }
 
@@ -49,14 +52,21 @@ bool ccap_video_writer_open(CcapVideoWriter* writer, const char* filePath,
 }
 
 void ccap_video_writer_close(CcapVideoWriter* writer) {
-    if (writer) {
+    if (!writer) return;
+    try {
         reinterpret_cast<ccap::VideoWriter*>(writer)->close();
+    } catch (...) {
+        // Never throw across C ABI boundary.
     }
 }
 
 bool ccap_video_writer_is_opened(const CcapVideoWriter* writer) {
     if (!writer) return false;
-    return reinterpret_cast<const ccap::VideoWriter*>(writer)->isOpened();
+    try {
+        return reinterpret_cast<const ccap::VideoWriter*>(writer)->isOpened();
+    } catch (...) {
+        return false;
+    }
 }
 
 bool ccap_video_writer_write_frame(CcapVideoWriter* writer,
@@ -75,15 +85,15 @@ bool ccap_video_writer_write_frame(CcapVideoWriter* writer,
             frame.data[i] = frameInfo->data[i];
             frame.stride[i] = frameInfo->stride[i];
         }
+        const uint64_t resolvedTimestamp = timestampNs > 0 ? timestampNs : frameInfo->timestamp;
         frame.pixelFormat = static_cast<ccap::PixelFormat>(static_cast<uint32_t>(frameInfo->pixelFormat));
         frame.width = frameInfo->width;
         frame.height = frameInfo->height;
         frame.sizeInBytes = frameInfo->sizeInBytes;
-        frame.timestamp = timestampNs > 0 ? timestampNs : frameInfo->timestamp;
+        frame.timestamp = resolvedTimestamp;
         frame.frameIndex = frameInfo->frameIndex;
         frame.orientation = static_cast<ccap::FrameOrientation>(static_cast<uint32_t>(frameInfo->orientation));
 
-        uint64_t resolvedTimestamp = timestampNs > 0 ? timestampNs : frameInfo->timestamp;
         return cppWriter->writeFrame(frame, resolvedTimestamp);
     } catch (...) {
         return false;
@@ -92,8 +102,12 @@ bool ccap_video_writer_write_frame(CcapVideoWriter* writer,
 
 CcapVideoCodec ccap_video_writer_actual_codec(const CcapVideoWriter* writer) {
     if (!writer) return CCAP_VIDEO_CODEC_H264;
-    auto* cppWriter = reinterpret_cast<const ccap::VideoWriter*>(writer);
-    return (cppWriter->actualCodec() == ccap::VideoCodec::HEVC) ? CCAP_VIDEO_CODEC_HEVC : CCAP_VIDEO_CODEC_H264;
+    try {
+        auto* cppWriter = reinterpret_cast<const ccap::VideoWriter*>(writer);
+        return (cppWriter->actualCodec() == ccap::VideoCodec::HEVC) ? CCAP_VIDEO_CODEC_HEVC : CCAP_VIDEO_CODEC_H264;
+    } catch (...) {
+        return CCAP_VIDEO_CODEC_H264;
+    }
 }
 
 } // extern "C"
