@@ -217,7 +217,7 @@ if (provider.open("", true)) {
 }
 ```
 
-Writer input supports `NV12`, `I420`, `BGR24`, and `BGRA32`.
+Writer input supports `NV12`, `NV12f`, `I420`, `I420f`, `BGR24`, and `BGRA32`.
 
 `VideoFrame::orientation` is honored by the writer path, including `BottomToTop` frames common on Windows RGB capture.
 

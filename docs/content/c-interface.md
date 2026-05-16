@@ -138,20 +138,7 @@ bool frame_callback(const CcapVideoFrame* frame, void* userData) {
 ccap_provider_set_new_frame_callback(provider, frame_callback, NULL);
 ```
 
-### 7. Cleanup Resources
-
-```c
-// Stop capture
-ccap_provider_stop(provider);
-
-// Close device
-ccap_provider_close(provider);
-
-// Destroy provider
-ccap_provider_destroy(provider);
-```
-
-### 8. Optional: Video Writing (Windows/macOS)
+### 7. Optional: Video Writing (Windows/macOS)
 
 When built with `CCAP_ENABLE_VIDEO_WRITER=ON`, the C API can write camera frames to MP4/MOV files.
 
@@ -184,6 +171,19 @@ if (writer) {
 
     ccap_video_writer_destroy(writer);
 }
+```
+
+### 8. Cleanup Resources
+
+```c
+// Stop capture
+ccap_provider_stop(provider);
+
+// Close device
+ccap_provider_close(provider);
+
+// Destroy provider
+ccap_provider_destroy(provider);
 ```
 
 ## Complete Example

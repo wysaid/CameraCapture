@@ -692,11 +692,16 @@ TEST_F(VideoWriterCTest, BottomToTopFramesRoundTripUpright) {
 // Helper: locate the built-in test video by walking up from CWD to find the project root
 static fs::path findTestVideo() {
     fs::path projectRoot = fs::current_path();
-    while (projectRoot.has_parent_path()) {
+    while (true) {
         if (fs::exists(projectRoot / "CMakeLists.txt") && fs::exists(projectRoot / "tests")) {
             break;
         }
-        projectRoot = projectRoot.parent_path();
+
+        const fs::path parent = projectRoot.parent_path();
+        if (parent.empty() || parent == projectRoot) {
+            break;
+        }
+        projectRoot = parent;
     }
     return projectRoot / "tests" / "test-data" / "test.mp4";
 }
