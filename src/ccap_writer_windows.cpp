@@ -14,7 +14,6 @@
 #define NOMINMAX
 #endif
 #include <atomic>
-#include <codecapi.h>
 #include <mfapi.h>
 #include <mferror.h>
 #include <mfidl.h>
