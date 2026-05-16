@@ -188,7 +188,7 @@ TEST_F(VideoWriterTest, WriteFramesAndValidateFile) {
     for (int i = 0; i < 30; i++) {
         frame.timestamp = static_cast<uint64_t>(i) * 33333333; // ~30fps in ns
         frame.frameIndex = static_cast<uint32_t>(i);
-        bool writeResult = writer.writeFrame(frame);
+        bool writeResult = writer.writeFrame(frame, frame.timestamp);
         EXPECT_TRUE(writeResult);
     }
 
@@ -387,6 +387,151 @@ TEST_F(VideoWriterCTest, OpenAndWriteFrames) {
     // Verify file
     EXPECT_TRUE(fs::exists(outputPath));
     EXPECT_GT(fs::file_size(outputPath), 0);
+}
+
+// Helper: locate the built-in test video by walking up from CWD to find the project root
+static fs::path findTestVideo() {
+    fs::path projectRoot = fs::current_path();
+    while (projectRoot.has_parent_path()) {
+        if (fs::exists(projectRoot / "CMakeLists.txt") && fs::exists(projectRoot / "tests")) {
+            break;
+        }
+        projectRoot = projectRoot.parent_path();
+    }
+    return projectRoot / "tests" / "test-data" / "test.mp4";
+}
+
+// ---- Transcode Test: verify timestamps survive a read→write→read round-trip ----
+
+TEST_F(VideoWriterTest, TranscodePreservesDuration) {
+#ifdef CCAP_ENABLE_FILE_PLAYBACK
+    fs::path inputPath = findTestVideo();
+    if (!fs::exists(inputPath)) {
+        GTEST_SKIP() << "test.mp4 not found at " << inputPath;
+    }
+
+    // 1. Read source video metadata
+    ccap::Provider reader;
+    ASSERT_TRUE(reader.open(inputPath.string())) << "Failed to open source video";
+
+    double srcDuration = reader.get(ccap::PropertyName::Duration);
+    int srcWidth = static_cast<int>(reader.get(ccap::PropertyName::Width));
+    int srcHeight = static_cast<int>(reader.get(ccap::PropertyName::Height));
+    double srcFps = reader.get(ccap::PropertyName::FrameRate);
+    ASSERT_GT(srcDuration, 0.0) << "Source video duration should be positive";
+    ASSERT_GT(srcWidth, 0);
+    ASSERT_GT(srcHeight, 0);
+    ASSERT_GT(srcFps, 0.0);
+
+    // 2. Read all frames and write them to a new file, forwarding timestamps
+    fs::path outputPath = getTestOutputPath("transcode_duration");
+
+    ccap::WriterConfig writerConfig;
+    writerConfig.width = static_cast<uint32_t>(srcWidth);
+    writerConfig.height = static_cast<uint32_t>(srcHeight);
+    writerConfig.frameRate = srcFps;
+    writerConfig.bitRate = 2'000'000;
+
+    ccap::VideoWriter writer;
+    ASSERT_TRUE(writer.open(outputPath.string(), writerConfig)) << "Failed to open writer";
+
+    int frameCount = 0;
+    uint64_t firstTimestamp = 0;
+    while (true) {
+        auto frame = reader.grab(5000);
+        if (!frame) break;
+
+        if (frameCount == 0) {
+            firstTimestamp = frame->timestamp;
+        }
+        uint64_t relativeTs = frame->timestamp - firstTimestamp;
+
+        ASSERT_TRUE(writer.writeFrame(*frame, relativeTs))
+            << "Failed to write frame " << frameCount;
+        frameCount++;
+    }
+
+    writer.close();
+    reader.close();
+
+    ASSERT_GT(frameCount, 0) << "No frames read from source video";
+
+    // 3. Open the output file and verify its duration matches the source
+    ccap::Provider outReader;
+    ASSERT_TRUE(outReader.open(outputPath.string())) << "Failed to open output video for verification";
+
+    double outDuration = outReader.get(ccap::PropertyName::Duration);
+    outReader.close();
+
+    // Allow 10% tolerance (encode/decode and container overhead may cause slight differences)
+    double ratio = outDuration / srcDuration;
+    EXPECT_GT(ratio, 0.9) << "Output duration (" << outDuration
+                           << "s) is too short vs source (" << srcDuration << "s)";
+    EXPECT_LT(ratio, 1.1) << "Output duration (" << outDuration
+                           << "s) is too long vs source (" << srcDuration << "s)";
+#else
+    GTEST_SKIP() << "File playback not enabled, cannot run transcode test";
+#endif
+}
+
+// ---- Transcode test with auto-timestamp (should produce shorter video if camera is slower) ----
+
+TEST_F(VideoWriterTest, TranscodeWithAutoTimestampProducesDifferentDuration) {
+#ifdef CCAP_ENABLE_FILE_PLAYBACK
+    fs::path inputPath = findTestVideo();
+    if (!fs::exists(inputPath)) {
+        GTEST_SKIP() << "test.mp4 not found at " << inputPath;
+    }
+
+    ccap::Provider reader;
+    ASSERT_TRUE(reader.open(inputPath.string()));
+
+    double srcDuration = reader.get(ccap::PropertyName::Duration);
+    int srcWidth = static_cast<int>(reader.get(ccap::PropertyName::Width));
+    int srcHeight = static_cast<int>(reader.get(ccap::PropertyName::Height));
+    double srcFps = reader.get(ccap::PropertyName::FrameRate);
+    ASSERT_GT(srcDuration, 0.0);
+
+    // Write with auto-timestamp (timestampNs = 0) using a HIGHER frame rate than source
+    // This simulates the camera-slower-than-configured scenario
+    fs::path outputPath = getTestOutputPath("transcode_auto_ts");
+
+    ccap::WriterConfig writerConfig;
+    writerConfig.width = static_cast<uint32_t>(srcWidth);
+    writerConfig.height = static_cast<uint32_t>(srcHeight);
+    writerConfig.frameRate = srcFps * 2; // Claim 2x the actual fps
+    writerConfig.bitRate = 2'000'000;
+
+    ccap::VideoWriter writer;
+    ASSERT_TRUE(writer.open(outputPath.string(), writerConfig));
+
+    int frameCount = 0;
+    while (true) {
+        auto frame = reader.grab(5000);
+        if (!frame) break;
+        // Deliberately pass timestampNs = 0 (auto-increment mode)
+        ASSERT_TRUE(writer.writeFrame(*frame, 0));
+        frameCount++;
+    }
+
+    writer.close();
+    reader.close();
+
+    ASSERT_GT(frameCount, 0);
+
+    // Verify output is approximately half the source duration (2x claimed fps, same frames)
+    ccap::Provider outReader;
+    ASSERT_TRUE(outReader.open(outputPath.string()));
+
+    double outDuration = outReader.get(ccap::PropertyName::Duration);
+    outReader.close();
+
+    // With 2x fps claimed and auto-timestamp, video duration should be ~half the source
+    double ratio = outDuration / srcDuration;
+    EXPECT_LT(ratio, 0.7) << "Auto-timestamp with 2x fps should produce shorter video, got ratio=" << ratio;
+#else
+    GTEST_SKIP() << "File playback not enabled";
+#endif
 }
 
 TEST_F(VideoWriterCTest, InvalidOpenParams) {

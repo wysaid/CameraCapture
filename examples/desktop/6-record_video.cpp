@@ -30,6 +30,7 @@ int main() {
 #else
 
 #include <ccap_writer.h>
+#include <chrono>
 
 int main(int argc, char** argv) {
     ExampleCommandLine commandLine{};
@@ -94,6 +95,8 @@ int main(int argc, char** argv) {
     // Record ~5 seconds
     constexpr int kMaxFrames = 150;
     int recorded = 0;
+    using Clock = std::chrono::steady_clock;
+    Clock::time_point recordStart;
     std::cout << "Recording " << kMaxFrames << " frames (~5 seconds)...\n";
 
     while (recorded < kMaxFrames) {
@@ -103,7 +106,13 @@ int main(int argc, char** argv) {
             break;
         }
 
-        if (!writer.writeFrame(*frame)) {
+        if (recorded == 0) {
+            recordStart = Clock::now();
+        }
+        auto elapsedNs = std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - recordStart);
+        uint64_t timestampNs = static_cast<uint64_t>(elapsedNs.count());
+
+        if (!writer.writeFrame(*frame, timestampNs)) {
             std::cerr << "Failed to write frame " << recorded << "\n";
         }
 
