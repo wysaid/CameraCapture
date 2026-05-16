@@ -160,22 +160,24 @@ public:
         if (!m_isOpened) return;
         m_isOpened = false;
 
-        @try {
-            if (m_writerInput) {
-                [m_writerInput markAsFinished];
-            }
-            if (m_assetWriter) {
-                dispatch_queue_t queue = dispatch_queue_create("com.ccap.writer.close", DISPATCH_QUEUE_SERIAL);
-                dispatch_semaphore_t sem = dispatch_semaphore_create(0);
-                dispatch_async(queue, ^{
-                    [m_assetWriter finishWritingWithCompletionHandler:^{
-                        dispatch_semaphore_signal(sem);
-                    }];
-                });
-                dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC));
+        AVAssetWriter* assetWriter = m_assetWriter;
+        AVAssetWriterInput* writerInput = m_writerInput;
 
-                if (m_assetWriter.error) {
-                    reportError(ErrorCode::WriterCloseFailed, "finishWriting failed: " + std::string(m_assetWriter.error.localizedDescription.UTF8String));
+        @try {
+            if (writerInput) {
+                [writerInput markAsFinished];
+            }
+            if (assetWriter) {
+                dispatch_semaphore_t sem = dispatch_semaphore_create(0);
+                [assetWriter finishWritingWithCompletionHandler:^{
+                    dispatch_semaphore_signal(sem);
+                }];
+
+                const long waitResult = dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC));
+                if (waitResult != 0) {
+                    reportError(ErrorCode::WriterCloseFailed, "finishWriting timed out after 10 seconds");
+                } else if (assetWriter.error) {
+                    reportError(ErrorCode::WriterCloseFailed, "finishWriting failed: " + std::string(assetWriter.error.localizedDescription.UTF8String));
                 }
             }
         }
@@ -186,6 +188,8 @@ public:
         m_pixelBufferAdaptor = nil;
         m_writerInput = nil;
         m_assetWriter = nil;
+        m_sessionStarted = NO;
+        m_frameCount = 0;
         std::memset(&m_config, 0, sizeof(m_config));
     }
 

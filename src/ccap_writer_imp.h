@@ -20,7 +20,8 @@ namespace ccap {
 void reportError(ErrorCode errorCode, std::string_view description);
 
 struct VideoWriter::Impl {
-    Impl() : m_actualCodec(VideoCodec::H264) {}
+    Impl() :
+        m_actualCodec(VideoCodec::H264) {}
     virtual ~Impl() = default;
 
     virtual bool open(std::string_view filePath, const WriterConfig& config) = 0;
@@ -76,6 +77,9 @@ inline bool convertFrameToNv12(const VideoFrame& frame,
                                uint32_t& yStride, uint32_t& uvStride) {
     const int w = static_cast<int>(frame.width);
     const int h = static_cast<int>(frame.height);
+    if (w <= 0 || h <= 0 || (w % 2) != 0 || (h % 2) != 0) {
+        return false;
+    }
     const int w2 = w / 2;
     const int h2 = h / 2;
     const FrameOrientation orientation = frame.orientation;

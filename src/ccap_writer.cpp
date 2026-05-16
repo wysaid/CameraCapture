@@ -16,13 +16,15 @@ namespace ccap {
 static VideoWriter::Impl* impl(void* p) { return reinterpret_cast<VideoWriter::Impl*>(p); }
 static const VideoWriter::Impl* impl(const void* p) { return reinterpret_cast<const VideoWriter::Impl*>(p); }
 
-VideoWriter::VideoWriter() : m_impl(createVideoWriterImpl()) {}
+VideoWriter::VideoWriter() :
+    m_impl(createVideoWriterImpl()) {}
 
 VideoWriter::~VideoWriter() {
     delete impl(m_impl);
 }
 
-VideoWriter::VideoWriter(VideoWriter&& other) noexcept : m_impl(other.m_impl) {
+VideoWriter::VideoWriter(VideoWriter&& other) noexcept :
+    m_impl(other.m_impl) {
     other.m_impl = nullptr;
 }
 
@@ -38,6 +40,10 @@ VideoWriter& VideoWriter::operator=(VideoWriter&& other) noexcept {
 bool VideoWriter::open(std::string_view filePath, const WriterConfig& config) {
     if (!m_impl) {
         reportError(ErrorCode::WriterNotOpened, "VideoWriter not available on this platform");
+        return false;
+    }
+    if (impl(m_impl)->isOpened()) {
+        reportError(ErrorCode::WriterOpenFailed, "VideoWriter is already opened. Call close() before reopening.");
         return false;
     }
     return impl(m_impl)->open(filePath, config);
@@ -81,7 +87,8 @@ double VideoWriter::frameRate() const {
 
 namespace ccap {
 
-VideoWriter::VideoWriter() : m_impl(nullptr) {}
+VideoWriter::VideoWriter() :
+    m_impl(nullptr) {}
 VideoWriter::~VideoWriter() = default;
 VideoWriter::VideoWriter(VideoWriter&&) noexcept = default;
 VideoWriter& VideoWriter::operator=(VideoWriter&&) noexcept = default;

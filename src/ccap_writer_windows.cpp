@@ -14,11 +14,13 @@
 #define NOMINMAX
 #endif
 #include <atomic>
+#include <iomanip>
 #include <mfapi.h>
 #include <mferror.h>
 #include <mfidl.h>
 #include <mfreadwrite.h>
 #include <mutex>
+#include <sstream>
 #include <vector>
 #include <windows.h>
 
@@ -31,9 +33,22 @@
 
 namespace ccap {
 
+namespace {
+
+std::string formatHRESULT(HRESULT hr) {
+    std::ostringstream stream;
+    stream << "0x"
+           << std::uppercase << std::hex << std::setw(8) << std::setfill('0')
+           << static_cast<unsigned int>(hr);
+    return stream.str();
+}
+
+} // namespace
+
 class WriterWindows : public VideoWriter::Impl {
 public:
-    WriterWindows() : m_sinkWriter(nullptr), m_streamIndex(0), m_mfInitialized(false) {
+    WriterWindows() :
+        m_sinkWriter(nullptr), m_streamIndex(0), m_mfInitialized(false) {
         HRESULT hr = MFStartup(MF_VERSION, MFSTARTUP_FULL);
         m_mfInitialized = SUCCEEDED(hr);
         if (!m_mfInitialized) {
@@ -103,7 +118,7 @@ public:
         if (m_sinkWriter) {
             HRESULT hr = m_sinkWriter->Finalize();
             if (FAILED(hr)) {
-                reportError(ErrorCode::WriterCloseFailed, "IMFSinkWriter::Finalize failed: 0x" + std::to_string(hr));
+                reportError(ErrorCode::WriterCloseFailed, "IMFSinkWriter::Finalize failed: " + formatHRESULT(hr));
             }
             m_sinkWriter->Release();
             m_sinkWriter = nullptr;

@@ -70,6 +70,7 @@ public:
      * @brief Open writer to a file path.
      * @param filePath Output file path (e.g., "output.mp4")
      * @param config Writer configuration (width, height, codec, etc.)
+        * @note Call `close()` before reopening an existing writer instance.
      * @return true on success, false on failure.
      */
     bool open(std::string_view filePath, const WriterConfig& config);
@@ -87,6 +88,7 @@ public:
     bool writeFrame(const VideoFrame& frame, uint64_t timestampNs = 0);
 
     /// Query the actual codec being used (may differ from config due to fallback).
+    /// Only meaningful after `open()` succeeds.
     VideoCodec actualCodec() const;
 
     uint32_t width() const;

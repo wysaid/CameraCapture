@@ -39,15 +39,25 @@ typedef enum {
 
 /* ========== Data Structures ========== */
 
-/** @brief Video writer configuration */
+/**
+ * @brief Video writer configuration.
+ * @note Use `CCAP_WRITER_CONFIG_INIT` for codec/container/frameRate/bitRate defaults.
+ *       `width` and `height` must still be set before opening a writer.
+ */
 typedef struct {
     CcapVideoCodec codec;          ///< Preferred codec
     CcapVideoFormat container;     ///< Container format
     uint32_t width;                ///< Frame width
     uint32_t height;               ///< Frame height
-    double frameRate;              ///< Target frame rate (default 30fps)
+    double frameRate;              ///< Target frame rate; 0 lets open() normalize to 30fps
     uint64_t bitRate;              ///< Target bit rate in bits/s (0 = auto)
 } CcapWriterConfig;
+
+/**
+ * @brief Default initializer for `CcapWriterConfig`.
+ * @note `width` and `height` remain 0 and must be assigned by the caller.
+ */
+#define CCAP_WRITER_CONFIG_INIT { CCAP_VIDEO_CODEC_HEVC, CCAP_VIDEO_FORMAT_MP4, 0u, 0u, 30.0, 5000000ULL }
 
 /* ========== Writer Lifecycle ========== */
 
@@ -100,7 +110,8 @@ CCAP_EXPORT bool ccap_video_writer_write_frame(CcapVideoWriter* writer,
 /**
  * @brief Get the actual codec being used (may differ from config due to fallback)
  * @param writer Pointer to CcapVideoWriter instance
- * @return Actual codec enum value
+ * @return Actual codec enum value. Only meaningful after `ccap_video_writer_open()` succeeds.
+ *         Unopened or null writers return `CCAP_VIDEO_CODEC_H264` for ABI compatibility.
  */
 CCAP_EXPORT CcapVideoCodec ccap_video_writer_actual_codec(const CcapVideoWriter* writer);
 

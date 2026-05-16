@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
         outputPath = commandLine.argv[1];
     } else {
         std::string exeDir = commandLine.argv[0];
-        if (auto pos = exeDir.find_last_of("/\\"); pos != std::string::npos && exeDir[0] != '.') {
+        if (auto pos = exeDir.find_last_of("/\\"); pos != std::string::npos && !exeDir.empty() && exeDir[0] != '.') {
             exeDir = exeDir.substr(0, pos);
         } else {
             exeDir = std::filesystem::current_path().string();

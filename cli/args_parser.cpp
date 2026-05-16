@@ -404,9 +404,18 @@ CLIOptions parseArgs(int argc, char* argv[]) {
                 opts.videoFilePath = argv[++i];
             }
         } else if (arg == "--record") {
-            if (i + 1 < argc) {
-                opts.recordVideoPath = argv[++i];
+#ifdef CCAP_ENABLE_VIDEO_WRITER
+            if (i + 1 >= argc || argv[i + 1][0] == '-') {
+                std::cerr << "Error: --record requires an output file path.\n\n";
+                printUsage(argv[0]);
+                std::exit(1);
             }
+            opts.recordVideoPath = argv[++i];
+#else
+            std::cerr << "Error: --record is not supported in this build. Rebuild with CCAP_ENABLE_VIDEO_WRITER=ON.\n\n";
+            printUsage(argv[0]);
+            std::exit(1);
+#endif
         } else if (arg == "-w" || arg == "--width") {
             if (i + 1 < argc) {
                 opts.width = std::atoi(argv[++i]);

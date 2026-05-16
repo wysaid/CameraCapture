@@ -103,6 +103,50 @@ TEST(CLIArgsParserTest, RejectsMissingSchemaVersionValue) {
         "--schema-version requires a value");
 }
 
+#ifdef CCAP_ENABLE_VIDEO_WRITER
+TEST(CLIArgsParserTest, ParsesRecordOutputPath) {
+    char arg0[] = "ccap";
+    char arg1[] = "--record";
+    char arg2[] = "capture.mp4";
+    char* argv[] = { arg0, arg1, arg2, nullptr };
+
+    const ccap_cli::CLIOptions opts = ccap_cli::parseArgs(3, argv);
+
+    EXPECT_EQ(opts.recordVideoPath, "capture.mp4");
+}
+
+TEST(CLIArgsParserTest, RejectsMissingRecordValue) {
+    char arg0[] = "ccap";
+    char arg1[] = "--record";
+    char arg2[] = "--timeout";
+    char arg3[] = "5";
+    char* argv[] = { arg0, arg1, arg2, arg3, nullptr };
+
+    EXPECT_EXIT(
+        {
+            (void)ccap_cli::parseArgs(4, argv);
+            std::exit(0);
+        },
+        ::testing::ExitedWithCode(1),
+        "--record requires an output file path");
+}
+#else
+TEST(CLIArgsParserTest, RejectsRecordWhenWriterUnsupported) {
+    char arg0[] = "ccap";
+    char arg1[] = "--record";
+    char arg2[] = "capture.mp4";
+    char* argv[] = { arg0, arg1, arg2, nullptr };
+
+    EXPECT_EXIT(
+        {
+            (void)ccap_cli::parseArgs(3, argv);
+            std::exit(0);
+        },
+        ::testing::ExitedWithCode(1),
+        "--record is not supported in this build");
+}
+#endif
+
 #if defined(_WIN32) || defined(_WIN64)
 TEST(CLIArgsParserTest, ParsesWindowsCameraBackendOption) {
     char arg0[] = "ccap";

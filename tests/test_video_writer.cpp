@@ -166,11 +166,6 @@ bool isVideoWriterSupported() {
 #endif
 }
 
-// Generate a unique temp path for test output
-fs::path getTestOutputPath(const std::string& name) {
-    return fs::temp_directory_path() / ("ccap_writer_test_" + name + ".mp4");
-}
-
 // Create a synthetic BGR24 frame with random noise
 std::vector<uint8_t> createBgrFrame(int w, int h, int stride) {
     std::vector<uint8_t> data(static_cast<size_t>(stride) * h);
@@ -182,8 +177,7 @@ std::vector<uint8_t> createBgrFrame(int w, int h, int stride) {
     return data;
 }
 
-// Test fixture for video writer tests
-class VideoWriterTest : public ::testing::Test {
+class VideoWriterTestBase : public ::testing::Test {
 protected:
     void SetUp() override {
         if (!isVideoWriterSupported()) {
@@ -192,36 +186,42 @@ protected:
     }
 
     void TearDown() override {
-        // Clean up any test output files (best-effort, ignore errors)
         std::error_code ec;
-        for (const auto& entry : fs::directory_iterator(fs::temp_directory_path(), ec)) {
-            std::string filename = entry.path().filename().string();
-            if (filename.find("ccap_writer_test_") == 0) {
-                fs::remove(entry.path(), ec);
-            }
+        for (const auto& path : m_outputPaths) {
+            fs::remove(path, ec);
+            ec.clear();
         }
     }
+
+    fs::path makeTestOutputPath(std::string_view name, std::string_view extension = ".mp4") {
+        const auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
+
+        std::string fileName = "ccap_writer_test_";
+        if (info) {
+            fileName += info->test_suite_name();
+            fileName += "_";
+            fileName += info->name();
+            fileName += "_";
+        }
+        fileName += std::string(name);
+        fileName += "_";
+        fileName += std::to_string(m_outputPaths.size());
+        fileName += std::string(extension);
+
+        fs::path outputPath = fs::temp_directory_path() / fileName;
+        m_outputPaths.push_back(outputPath);
+        return outputPath;
+    }
+
+private:
+    std::vector<fs::path> m_outputPaths;
 };
+
+// Test fixture for video writer tests
+class VideoWriterTest : public VideoWriterTestBase {};
 
 // Test fixture for C API tests
-class VideoWriterCTest : public ::testing::Test {
-protected:
-    void SetUp() override {
-        if (!isVideoWriterSupported()) {
-            GTEST_SKIP() << "Video writer not supported on this platform/build";
-        }
-    }
-
-    void TearDown() override {
-        std::error_code ec;
-        for (const auto& entry : fs::directory_iterator(fs::temp_directory_path(), ec)) {
-            std::string filename = entry.path().filename().string();
-            if (filename.find("ccap_writer_test_") == 0) {
-                fs::remove(entry.path(), ec);
-            }
-        }
-    }
-};
+class VideoWriterCTest : public VideoWriterTestBase {};
 
 // ---- C++ API Tests ----
 
@@ -265,7 +265,7 @@ TEST_F(VideoWriterTest, OpenZeroDimensions) {
     config.frameRate = 30.0;
     config.bitRate = 5000000;
 
-    bool result = writer.open(getTestOutputPath("zero_dim").string(), config);
+    bool result = writer.open(makeTestOutputPath("zero_dim").string(), config);
     EXPECT_FALSE(result);
 }
 
@@ -277,7 +277,7 @@ TEST_F(VideoWriterTest, OpenAndClose) {
     config.frameRate = 30.0;
     config.bitRate = 5000000;
 
-    fs::path outputPath = getTestOutputPath("open_close");
+    fs::path outputPath = makeTestOutputPath("open_close");
     bool result = writer.open(outputPath.string(), config);
     EXPECT_TRUE(result);
     EXPECT_TRUE(writer.isOpened());
@@ -297,7 +297,7 @@ TEST_F(VideoWriterTest, WriteFramesAndValidateFile) {
     config.frameRate = 30.0;
     config.bitRate = 2000000;
 
-    fs::path outputPath = getTestOutputPath("write_frames");
+    fs::path outputPath = makeTestOutputPath("write_frames");
     ASSERT_TRUE(writer.open(outputPath.string(), config));
 
     // Create and write 30 frames (1 second at 30fps)
@@ -305,7 +305,7 @@ TEST_F(VideoWriterTest, WriteFramesAndValidateFile) {
     int stride = w * 3; // BGR24
     std::vector<uint8_t> frameData = createBgrFrame(w, h, stride);
 
-    ccap::VideoFrame frame;
+    ccap::VideoFrame frame{};
     frame.data[0] = frameData.data();
     frame.stride[0] = static_cast<uint32_t>(stride);
     frame.data[1] = nullptr;
@@ -382,6 +382,22 @@ TEST_F(VideoWriterTest, SharedNv12ConversionRespectsBottomToTopOrientation) {
     EXPECT_EQ(bottomUv, topUv);
 }
 
+TEST_F(VideoWriterTest, SharedNv12ConversionRejectsOddDimensions) {
+    constexpr int w = 127;
+    constexpr int h = 95;
+    constexpr int stride = w * 3;
+
+    std::vector<uint8_t> frameData = createBgrFrame(w, h, stride);
+    ccap::VideoFrame frame{};
+    initializeBgrFrame(frame, frameData.data(), w, h, stride, ccap::FrameOrientation::TopToBottom);
+
+    std::vector<uint8_t> yBuf;
+    std::vector<uint8_t> uvBuf;
+    uint32_t yStride = 0;
+    uint32_t uvStride = 0;
+    EXPECT_FALSE(ccap::convertFrameToNv12(frame, yBuf, uvBuf, yStride, uvStride));
+}
+
 TEST_F(VideoWriterTest, BottomToTopFramesRoundTripUpright) {
 #ifdef CCAP_ENABLE_FILE_PLAYBACK
     constexpr int w = 128;
@@ -396,7 +412,7 @@ TEST_F(VideoWriterTest, BottomToTopFramesRoundTripUpright) {
     config.frameRate = 30.0;
     config.bitRate = 8'000'000;
 
-    fs::path outputPath = getTestOutputPath("bottom_to_top_cpp");
+    fs::path outputPath = makeTestOutputPath("bottom_to_top_cpp");
     ccap::VideoWriter writer;
     ASSERT_TRUE(writer.open(outputPath.string(), config));
 
@@ -437,9 +453,7 @@ TEST_F(VideoWriterTest, WriteFramesWithMovContainer) {
     config.bitRate = 2000000;
     config.container = ccap::VideoFormat::MOV;
 
-    fs::path outputPath = getTestOutputPath("mov_container");
-    // Change extension
-    outputPath.replace_extension(".mov");
+    fs::path outputPath = makeTestOutputPath("mov_container", ".mov");
 
     ASSERT_TRUE(writer.open(outputPath.string(), config));
 
@@ -476,7 +490,7 @@ TEST_F(VideoWriterTest, CodecFallback) {
     config.bitRate = 2000000;
     config.codec = ccap::VideoCodec::HEVC; // Request HEVC
 
-    fs::path outputPath = getTestOutputPath("codec_fallback");
+    fs::path outputPath = makeTestOutputPath("codec_fallback");
     ASSERT_TRUE(writer.open(outputPath.string(), config));
 
     // Actual codec may differ from requested due to fallback
@@ -494,18 +508,39 @@ TEST_F(VideoWriterTest, WriteAfterCloseFails) {
     config.frameRate = 30.0;
     config.bitRate = 2000000;
 
-    fs::path outputPath = getTestOutputPath("write_after_close");
+    fs::path outputPath = makeTestOutputPath("write_after_close");
     ASSERT_TRUE(writer.open(outputPath.string(), config));
     writer.close();
 
     // Writing after close should fail
+    int w = 320, h = 240;
+    int stride = w * 3;
+    std::vector<uint8_t> frameData = createBgrFrame(w, h, stride);
     ccap::VideoFrame frame{};
-    frame.data[0] = nullptr;
-    frame.pixelFormat = ccap::PixelFormat::BGR24;
-    frame.width = 320;
-    frame.height = 240;
+    initializeBgrFrame(frame, frameData.data(), w, h, stride, ccap::FrameOrientation::TopToBottom);
 
     EXPECT_FALSE(writer.writeFrame(frame));
+}
+
+TEST_F(VideoWriterTest, ReopenWhileOpenedFails) {
+    ccap::VideoWriter writer;
+    ccap::WriterConfig config;
+    config.width = 320;
+    config.height = 240;
+    config.frameRate = 30.0;
+    config.bitRate = 2000000;
+
+    fs::path firstOutput = makeTestOutputPath("reopen_first");
+    fs::path secondOutput = makeTestOutputPath("reopen_second");
+
+    ASSERT_TRUE(writer.open(firstOutput.string(), config));
+    EXPECT_TRUE(writer.isOpened());
+    EXPECT_FALSE(writer.open(secondOutput.string(), config));
+    EXPECT_TRUE(writer.isOpened());
+    EXPECT_EQ(writer.width(), 320u);
+    EXPECT_EQ(writer.height(), 240u);
+
+    writer.close();
 }
 
 TEST_F(VideoWriterTest, GetPropertiesAfterOpen) {
@@ -516,7 +551,7 @@ TEST_F(VideoWriterTest, GetPropertiesAfterOpen) {
     config.frameRate = 25.0;
     config.bitRate = 3000000;
 
-    fs::path outputPath = getTestOutputPath("properties");
+    fs::path outputPath = makeTestOutputPath("properties");
     ASSERT_TRUE(writer.open(outputPath.string(), config));
 
     EXPECT_EQ(writer.width(), 640);
@@ -556,15 +591,12 @@ TEST_F(VideoWriterCTest, OpenAndWriteFrames) {
     CcapVideoWriter* writer = ccap_video_writer_create();
     ASSERT_NE(writer, nullptr);
 
-    CcapWriterConfig config;
-    config.codec = CCAP_VIDEO_CODEC_HEVC;
-    config.container = CCAP_VIDEO_FORMAT_MP4;
+    CcapWriterConfig config = CCAP_WRITER_CONFIG_INIT;
     config.width = 320;
     config.height = 240;
-    config.frameRate = 30.0;
     config.bitRate = 2000000;
 
-    fs::path outputPath = getTestOutputPath("c_api");
+    fs::path outputPath = makeTestOutputPath("c_api");
     ASSERT_TRUE(ccap_video_writer_open(writer, outputPath.string().c_str(), &config));
     EXPECT_TRUE(ccap_video_writer_is_opened(writer));
 
@@ -613,15 +645,13 @@ TEST_F(VideoWriterCTest, BottomToTopFramesRoundTripUpright) {
     CcapVideoWriter* writer = ccap_video_writer_create();
     ASSERT_NE(writer, nullptr);
 
-    CcapWriterConfig config{};
+    CcapWriterConfig config = CCAP_WRITER_CONFIG_INIT;
     config.codec = CCAP_VIDEO_CODEC_H264;
-    config.container = CCAP_VIDEO_FORMAT_MP4;
     config.width = static_cast<uint32_t>(w);
     config.height = static_cast<uint32_t>(h);
-    config.frameRate = 30.0;
     config.bitRate = 8'000'000;
 
-    fs::path outputPath = getTestOutputPath("bottom_to_top_c_api");
+    fs::path outputPath = makeTestOutputPath("bottom_to_top_c_api");
     ASSERT_TRUE(ccap_video_writer_open(writer, outputPath.string().c_str(), &config));
 
     CcapVideoFrameInfo frameInfo{};
@@ -694,7 +724,7 @@ TEST_F(VideoWriterTest, TranscodePreservesDuration) {
     ASSERT_GT(srcFps, 0.0);
 
     // 2. Read all frames and write them to a new file, forwarding timestamps
-    fs::path outputPath = getTestOutputPath("transcode_duration");
+    fs::path outputPath = makeTestOutputPath("transcode_duration");
 
     ccap::WriterConfig writerConfig;
     writerConfig.width = static_cast<uint32_t>(srcWidth);
@@ -764,7 +794,7 @@ TEST_F(VideoWriterTest, TranscodeWithAutoTimestampProducesDifferentDuration) {
 
     // Write with auto-timestamp (timestampNs = 0) using a HIGHER frame rate than source
     // This simulates the camera-slower-than-configured scenario
-    fs::path outputPath = getTestOutputPath("transcode_auto_ts");
+    fs::path outputPath = makeTestOutputPath("transcode_auto_ts");
 
     ccap::WriterConfig writerConfig;
     writerConfig.width = static_cast<uint32_t>(srcWidth);
@@ -808,12 +838,10 @@ TEST_F(VideoWriterCTest, InvalidOpenParams) {
     CcapVideoWriter* writer = ccap_video_writer_create();
     ASSERT_NE(writer, nullptr);
 
-    CcapWriterConfig config;
+    CcapWriterConfig config = CCAP_WRITER_CONFIG_INIT;
     config.codec = CCAP_VIDEO_CODEC_H264;
-    config.container = CCAP_VIDEO_FORMAT_MP4;
     config.width = 320;
     config.height = 240;
-    config.frameRate = 30.0;
     config.bitRate = 2000000;
 
     // Null filePath
