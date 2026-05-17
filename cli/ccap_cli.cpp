@@ -119,7 +119,9 @@ int main(int argc, char* argv[]) {
     }
 
     // Check if we should just print info (no action specified)
-    bool hasAction = opts.enablePreview || opts.saveFrames || opts.captureCountSpecified || !opts.outputDir.empty();
+    const bool hasCaptureAction =
+        opts.saveFrames || opts.captureCountSpecified || !opts.outputDir.empty() || !opts.recordVideoPath.empty();
+    const bool hasAction = opts.enablePreview || hasCaptureAction;
 
     // Check if video file playback is requested but not supported on Linux
 #if defined(__linux__) || defined(__linux) || defined(linux) || defined(__gnu_linux__)
@@ -180,7 +182,7 @@ int main(int argc, char* argv[]) {
 #endif
 
     // Default: capture mode
-    if (!opts.outputDir.empty() || opts.captureCountSpecified || opts.saveFrames) {
+    if (hasCaptureAction) {
         return ccap_cli::captureFrames(opts);
     }
 
