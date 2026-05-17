@@ -176,6 +176,7 @@ void printUsage(const char* programName) {
     std::cout << "Video recording options (camera mode only):\n"
               << "  --record file              record camera frames to a video file (e.g., output.mp4)\n"
               << "                             Use -c to limit the number of frames, or --timeout for duration\n"
+              << "                             Can be combined with --preview to preview while recording\n"
               << "                             Supported formats: .mp4, .mov\n"
               << "\n";
 #endif
@@ -235,6 +236,9 @@ void printUsage(const char* programName) {
 #ifdef CCAP_CLI_WITH_GLFW
     std::cout << "  " << programName << " -d 0 --preview\n"
               << "  " << programName << " -i /path/to/video.mp4 --preview\n";
+#ifdef CCAP_ENABLE_VIDEO_WRITER
+    std::cout << "  " << programName << " -d 0 --preview --record output.mp4 --timeout 5\n";
+#endif
 #endif
 #ifdef CCAP_CLI_WITH_STB_IMAGE
     std::cout << "  " << programName << " --convert input.yuv --yuv-format nv12 --yuv-width 1920 --yuv-height 1080 --convert-output output.jpg --image-format jpg\n";

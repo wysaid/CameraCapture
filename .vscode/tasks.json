@@ -1607,7 +1607,7 @@
             "args": [
                 "-l",
                 "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then ./ccap.exe --record ./camera_capture.mp4 --timeout 5; else ./ccap --record ./camera_capture.mp4 --timeout 5; fi )"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./ccap.exe -w 1280 -H 720 --record ./camera_capture.mp4 --timeout 5 --preview; else ./ccap --record ./camera_capture.mp4 -w 1280 -H 720 --timeout 5 --preview; fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/build/Debug"
@@ -1621,7 +1621,7 @@
             "dependsOrder": "sequence",
             "windows": {
                 "command": ".\\ccap.exe",
-                "args": ["--record", ".\\camera_capture.mp4", "--timeout", "5"],
+                "args": ["--record", ".\\camera_capture.mp4", "-w", "1280", "-H", "720", "--timeout", "5", "--preview"],
                 "options": {
                     "cwd": "${workspaceFolder}/build/Debug"
                 },
@@ -1635,7 +1635,7 @@
             "args": [
                 "-l",
                 "-c",
-                "( if [[ $(pwd) =~ ^/mnt ]]; then ./ccap.exe --record ./camera_capture.mp4 --timeout 5; else ./ccap --record ./camera_capture.mp4 --timeout 5; fi )"
+                "( if [[ $(pwd) =~ ^/mnt ]]; then ./ccap.exe -w 1280 -H 720 --record ./camera_capture.mp4 --timeout 5 --preview; else ./ccap --record ./camera_capture.mp4 -w 1280 -H 720 --timeout 5 --preview; fi )"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/build/Release"
@@ -1649,7 +1649,7 @@
             "dependsOrder": "sequence",
             "windows": {
                 "command": ".\\ccap.exe",
-                "args": ["--record", ".\\camera_capture.mp4", "--timeout", "5"],
+                "args": ["--record", ".\\camera_capture.mp4", "-w", "1280", "-H", "720", "--timeout", "5", "--preview"],
                 "options": {
                     "cwd": "${workspaceFolder}/build/Release"
                 },

@@ -979,6 +979,36 @@ TEST_F(CCAPCLIDeviceTest, CaptureWithTimeout) {
     ASSERT_EQ(imageCount, 1) << "Expected 1 image file, found " << imageCount;
 }
 
+#ifdef CCAP_ENABLE_VIDEO_WRITER
+TEST_F(CCAPCLIDeviceTest, RecordWithTimeoutRunsCaptureMode) {
+    fs::path outputVideoPath = testOutputDir / "record_should_enter_capture_mode.avi";
+    std::string cmd = "-d 0 --record \"" + outputVideoPath.string() + "\" --timeout 1";
+
+    auto result = runCLI(cmd);
+
+    // `.avi` is intentionally unsupported: this should fail in capture pipeline,
+    // not fall back to camera info printing mode.
+    EXPECT_NE(result.exitCode, 0);
+    EXPECT_THAT(result.output, testing::HasSubstr("Unsupported record file extension"));
+    EXPECT_THAT(result.output, testing::Not(testing::HasSubstr("===== Device [")));
+    EXPECT_THAT(result.output, testing::Not(testing::HasSubstr("Supported resolutions:")));
+}
+
+#ifdef CCAP_CLI_WITH_GLFW
+TEST_F(CCAPCLIDeviceTest, PreviewAndRecordWithUnsupportedExtensionUsesPreviewPath) {
+    fs::path outputVideoPath = testOutputDir / "preview_record_should_use_preview_path.avi";
+    std::string cmd = "-d 0 --preview --record \"" + outputVideoPath.string() + "\" --timeout 1";
+
+    auto result = runCLI(cmd);
+
+    EXPECT_NE(result.exitCode, 0);
+    EXPECT_THAT(result.output, testing::HasSubstr("Unsupported record file extension"));
+    EXPECT_THAT(result.output, testing::Not(testing::HasSubstr("===== Device [")));
+    EXPECT_THAT(result.output, testing::Not(testing::HasSubstr("Supported resolutions:")));
+}
+#endif
+#endif
+
 TEST_F(CCAPCLIDeviceTest, CaptureInvalidDevice) {
     std::string outputDir = testOutputDir.string();
     // Try to capture from device index 999 (should fail or fallback to default)
