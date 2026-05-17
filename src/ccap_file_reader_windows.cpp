@@ -415,12 +415,6 @@ void FileReaderWindows::readLoop() {
             hr = buffer->Lock(&data, &maxLen, &currentLen);
             if (SUCCEEDED(hr) && data && m_provider) {
                 auto newFrame = m_provider->getFreeFrame();
-                if (!newFrame) {
-                    buffer->Unlock();
-                    buffer->Release();
-                    sample->Release();
-                    continue;
-                }
 
                 newFrame->timestamp = static_cast<uint64_t>(timestamp * 100); // 100ns to ns
                 newFrame->width = static_cast<uint32_t>(m_width);

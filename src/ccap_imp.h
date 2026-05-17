@@ -103,6 +103,7 @@ public:
 
 protected:
     void newFrameAvailable(std::shared_ptr<VideoFrame> frame);
+    /// Get a free frame from the pool. Never returns null — allocates a new frame if needed.
     std::shared_ptr<VideoFrame> getFreeFrame();
 
 protected:
