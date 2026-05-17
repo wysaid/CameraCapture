@@ -18,6 +18,7 @@
 #include <chrono>
 #include <climits>
 #include <cmath>
+#include <cctype>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -316,6 +317,59 @@ double resolvePlaybackSpeed(const CLIOptions& opts, double sourceFrameRate, doub
     }
     return playbackSpeed;
 }
+
+#ifdef CCAP_ENABLE_VIDEO_WRITER
+bool openVideoWriter(const CLIOptions& opts, bool isVideoMode, uint32_t width, uint32_t height, double frameRate,
+                     std::unique_ptr<ccap::VideoWriter>& videoWriter) {
+    if (opts.recordVideoPath.empty()) {
+        return true;
+    }
+
+    if (isVideoMode) {
+        std::cerr << "Warning: --record is not supported in video file mode. Ignoring." << std::endl;
+        return true;
+    }
+
+    ccap::WriterConfig writerConfig;
+    writerConfig.width = width;
+    writerConfig.height = height;
+    writerConfig.frameRate = frameRate > 0.0 ? frameRate : 30.0;
+
+    auto ext = std::filesystem::path(opts.recordVideoPath).extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    if (ext == ".mov") {
+        writerConfig.container = ccap::VideoFormat::MOV;
+    } else if (ext == ".mp4" || ext.empty()) {
+        writerConfig.container = ccap::VideoFormat::MP4;
+    } else {
+        std::cerr << "Unsupported record file extension: " << ext
+                  << " (expected .mp4 or .mov)" << std::endl;
+        return false;
+    }
+
+    videoWriter = std::make_unique<ccap::VideoWriter>();
+    if (!videoWriter->open(opts.recordVideoPath, writerConfig)) {
+        std::cerr << "Failed to open video writer for: " << opts.recordVideoPath << std::endl;
+        return false;
+    }
+
+    if (ccap::infoLogEnabled()) {
+        std::cout << "Recording to: " << opts.recordVideoPath << std::endl;
+    }
+    return true;
+}
+
+void closeVideoWriter(const CLIOptions& opts, std::unique_ptr<ccap::VideoWriter>& videoWriter) {
+    if (videoWriter && videoWriter->isOpened()) {
+        videoWriter->close();
+        if (ccap::infoLogEnabled()) {
+            std::cout << "Video saved to: " << opts.recordVideoPath << std::endl;
+        }
+    }
+}
+#endif
 
 } // namespace
 
@@ -701,28 +755,10 @@ int captureFrames(const CLIOptions& opts) {
     // Setup video writer for --record (camera mode only)
 #ifdef CCAP_ENABLE_VIDEO_WRITER
     std::unique_ptr<ccap::VideoWriter> videoWriter;
-    if (!opts.recordVideoPath.empty()) {
-        if (isVideoMode) {
-            std::cerr << "Warning: --record is not supported in video file mode. Ignoring." << std::endl;
-        } else {
-            int camWidth = static_cast<int>(provider.get(ccap::PropertyName::Width));
-            int camHeight = static_cast<int>(provider.get(ccap::PropertyName::Height));
-            double camFps = provider.get(ccap::PropertyName::FrameRate);
-
-            ccap::WriterConfig writerConfig;
-            writerConfig.width = static_cast<uint32_t>(camWidth);
-            writerConfig.height = static_cast<uint32_t>(camHeight);
-            writerConfig.frameRate = camFps > 0.0 ? camFps : 30.0;
-
-            videoWriter = std::make_unique<ccap::VideoWriter>();
-            if (!videoWriter->open(opts.recordVideoPath, writerConfig)) {
-                std::cerr << "Failed to open video writer for: " << opts.recordVideoPath << std::endl;
-                return 1;
-            }
-            if (ccap::infoLogEnabled()) {
-                std::cout << "Recording to: " << opts.recordVideoPath << std::endl;
-            }
-        }
+    if (!openVideoWriter(opts, isVideoMode, static_cast<uint32_t>(provider.get(ccap::PropertyName::Width)),
+                         static_cast<uint32_t>(provider.get(ccap::PropertyName::Height)),
+                         provider.get(ccap::PropertyName::FrameRate), videoWriter)) {
+        return 1;
     }
 #endif
 
@@ -790,7 +826,7 @@ int captureFrames(const CLIOptions& opts) {
         // Write frame to video file if recording
 #ifdef CCAP_ENABLE_VIDEO_WRITER
         if (videoWriter && videoWriter->isOpened()) {
-            if (!videoWriter->writeFrame(*frame)) {
+            if (!videoWriter->writeFrame(*frame, frame->timestamp)) {
                 std::cerr << "Warning: Failed to write frame " << frame->frameIndex << " to video." << std::endl;
             }
         }
@@ -820,12 +856,7 @@ int captureFrames(const CLIOptions& opts) {
     std::cout << "Captured " << capturedCount << " frame(s)." << std::endl;
 
 #ifdef CCAP_ENABLE_VIDEO_WRITER
-    if (videoWriter && videoWriter->isOpened()) {
-        videoWriter->close();
-        if (ccap::infoLogEnabled()) {
-            std::cout << "Video saved to: " << opts.recordVideoPath << std::endl;
-        }
-    }
+    closeVideoWriter(opts, videoWriter);
 #endif
 
     if (timeoutOccurred) {
@@ -1207,20 +1238,21 @@ void main() {
 int runPreview(const CLIOptions& opts) {
     auto backendOverride = makeWindowsCameraBackendOverride(opts, opts.videoFilePath.empty());
     ccap::Provider provider;
+    const bool isVideoMode = !opts.videoFilePath.empty();
 
     // Set capture parameters (only meaningful for camera mode)
-    if (opts.videoFilePath.empty()) {
+    if (!isVideoMode) {
         provider.set(ccap::PropertyName::Width, opts.width);
         provider.set(ccap::PropertyName::Height, opts.height);
         provider.set(ccap::PropertyName::FrameRate, opts.fps);
     }
     
     provider.set(ccap::PropertyName::FrameOrientation, ccap::FrameOrientation::BottomToTop);
-    provider.set(ccap::PropertyName::PixelFormatOutput, ccap::PixelFormat::RGBA32);
+    provider.set(ccap::PropertyName::PixelFormatOutput, ccap::PixelFormat::BGRA32);
 
     // Open device or video file
     bool opened = false;
-    if (!opts.videoFilePath.empty()) {
+    if (isVideoMode) {
         // Video file playback mode
 #if defined(CCAP_ENABLE_FILE_PLAYBACK)
         opened = provider.open(opts.videoFilePath, true);
@@ -1250,15 +1282,16 @@ int runPreview(const CLIOptions& opts) {
     }
 
     if (!opened || !provider.isStarted()) {
-        std::cerr << "Failed to open/start " << (opts.videoFilePath.empty() ? "camera device" : "video file") << "." << std::endl;
+        std::cerr << "Failed to open/start " << (isVideoMode ? "video file" : "camera device") << "." << std::endl;
         return 1;
     }
 
     // Get actual frame size
     int frameWidth = 0, frameHeight = 0;
-    if (auto frame = provider.grab(5000)) {
-        frameWidth = frame->width;
-        frameHeight = frame->height;
+    auto firstFrame = provider.grab(5000);
+    if (firstFrame) {
+        frameWidth = firstFrame->width;
+        frameHeight = firstFrame->height;
         if (ccap::infoLogEnabled()) {
             std::cout << "Camera resolution: " << frameWidth << "x" << frameHeight << std::endl;
         }
@@ -1267,13 +1300,21 @@ int runPreview(const CLIOptions& opts) {
         return 1;
     }
 
+#ifdef CCAP_ENABLE_VIDEO_WRITER
+    std::unique_ptr<ccap::VideoWriter> videoWriter;
+    if (!openVideoWriter(opts, isVideoMode, static_cast<uint32_t>(frameWidth), static_cast<uint32_t>(frameHeight),
+                         provider.get(ccap::PropertyName::FrameRate), videoWriter)) {
+        return 1;
+    }
+#endif
+
     // Calculate window size - scale up if resolution is too low (below 480p)
     int windowWidth = frameWidth;
     int windowHeight = frameHeight;
     constexpr int MIN_DISPLAY_HEIGHT = 480;
     
     // Only scale up for video files, not for cameras
-    if (!opts.videoFilePath.empty() && frameHeight < MIN_DISPLAY_HEIGHT) {
+    if (isVideoMode && frameHeight < MIN_DISPLAY_HEIGHT) {
         double scale = static_cast<double>(MIN_DISPLAY_HEIGHT) / frameHeight;
         windowWidth = static_cast<int>(frameWidth * scale);
         windowHeight = static_cast<int>(frameHeight * scale);
@@ -1389,9 +1430,8 @@ int runPreview(const CLIOptions& opts) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     // Pre-allocate texture storage once
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, frameWidth, frameHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, frameWidth, frameHeight, 0, GL_BGRA, GL_UNSIGNED_BYTE, nullptr);
 
-    bool isVideoMode = !opts.videoFilePath.empty();
     std::string sourceType = isVideoMode ? "video file" : "camera";
     std::cout << "Preview started for " << sourceType << ". Press ESC or close window to exit." << std::endl;
 
@@ -1404,6 +1444,7 @@ int runPreview(const CLIOptions& opts) {
     // Loop control for video playback
     int currentLoop = 0;
     int maxLoops = (isVideoMode && opts.enableLoop) ? (opts.loopCount > 0 ? opts.loopCount : -1) : 1;
+    auto pendingFrame = std::move(firstFrame);
 
     while (!glfwWindowShouldClose(window)) {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -1430,9 +1471,19 @@ int runPreview(const CLIOptions& opts) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture);
 
-        if (auto frame = provider.grab(500)) {
+        auto frame = pendingFrame ? std::move(pendingFrame) : provider.grab(500);
+        if (frame) {
             // Update texture data efficiently using glTexSubImage2D
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, frameWidth, frameHeight, GL_RGBA, GL_UNSIGNED_BYTE, frame->data[0]);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, frameWidth, frameHeight, GL_BGRA, GL_UNSIGNED_BYTE, frame->data[0]);
+
+#ifdef CCAP_ENABLE_VIDEO_WRITER
+            if (videoWriter && videoWriter->isOpened()) {
+                if (!videoWriter->writeFrame(*frame, frame->timestamp)) {
+                    std::cerr << "Warning: Failed to write frame " << frame->frameIndex << " to video." << std::endl;
+                }
+            }
+#endif
+
             ++capturedCount;
         } else {
             // If grab fails in file mode, video has ended
@@ -1471,6 +1522,10 @@ int runPreview(const CLIOptions& opts) {
     glDeleteProgram(prog);
     glDeleteTextures(1, &texture);
     glfwTerminate();
+
+#ifdef CCAP_ENABLE_VIDEO_WRITER
+    closeVideoWriter(opts, videoWriter);
+#endif
 
     if (timeoutOccurred) {
         return opts.timeoutExitCode;
