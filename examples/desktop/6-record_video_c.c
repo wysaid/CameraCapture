@@ -126,12 +126,12 @@ int main(int argc, char** argv) {
     // Configure and open video writer
     CcapWriterConfig writerConfig;
     memset(&writerConfig, 0, sizeof(writerConfig));
-    writerConfig.codec = CCAP_VIDEO_CODEC_HEVC;
+    writerConfig.codec = CCAP_VIDEO_CODEC_H264;
     writerConfig.container = CCAP_VIDEO_FORMAT_MP4;
     writerConfig.width = (uint32_t)realWidth;
     writerConfig.height = (uint32_t)realHeight;
     writerConfig.frameRate = realFps > 0.0 ? realFps : 30.0;
-    writerConfig.bitRate = 5000000;
+    writerConfig.bitRate = 0;  // auto bit rate based on resolution and codec (YouTube recommended)
 
     CcapVideoWriter* writer = ccap_video_writer_create();
     if (!writer) {

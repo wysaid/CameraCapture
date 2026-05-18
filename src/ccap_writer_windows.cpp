@@ -255,7 +255,7 @@ private:
 
         pOutputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
         pOutputType->SetGUID(MF_MT_SUBTYPE, videoCodec);
-        pOutputType->SetUINT32(MF_MT_AVG_BITRATE, static_cast<UINT32>(config.bitRate > 0 ? config.bitRate : config.width * config.height * 4));
+        pOutputType->SetUINT32(MF_MT_AVG_BITRATE, static_cast<UINT32>(effectiveBitRate(config)));
         pOutputType->SetUINT32(MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive);
         MFSetAttributeSize(pOutputType, MF_MT_FRAME_SIZE, config.width, config.height);
 

@@ -75,7 +75,7 @@ private:
     bool tryOpen(AVFileType fileType, NSString* pathStr, AVVideoCodecType codec) {
         NSURL* url = [NSURL fileURLWithPath: pathStr];
         NSError* error = nil;
-        int64_t bitRate = (m_config.bitRate > 0) ? static_cast<int64_t>(m_config.bitRate) : static_cast<int64_t>(m_config.width) * m_config.height * 4;
+        int64_t bitRate = static_cast<int64_t>(effectiveBitRate(m_config));
         int frameRateInt = (m_config.frameRate > 0) ? static_cast<int>(m_config.frameRate) : 30;
         int maxKeyFrameInterval = frameRateInt * 2;
 

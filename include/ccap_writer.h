@@ -27,8 +27,8 @@ namespace ccap {
  * @brief Video codec for encoding.
  */
 enum class VideoCodec {
-    HEVC,  ///< H.265 / HEVC (preferred, better compression)
-    H264,  ///< H.264 / AVC (fallback, wider compatibility)
+    H264,  ///< H.264 / AVC (default, best compatibility and performance)
+    HEVC,  ///< H.265 / HEVC (better compression, less compatible)
 };
 
 /**
@@ -43,12 +43,12 @@ enum class VideoFormat {
  * @brief Configuration for video writer.
  */
 struct WriterConfig {
-    VideoCodec codec = VideoCodec::HEVC; ///< Preferred codec; auto-fallback to H.264 if unavailable
+    VideoCodec codec = VideoCodec::H264; ///< Default codec; auto-fallback to HEVC if H.264 is unavailable
     VideoFormat container = VideoFormat::MP4;
     uint32_t width = 0;          ///< Frame width in pixels
     uint32_t height = 0;         ///< Frame height in pixels
     double frameRate = 30.0;     ///< Target frame rate (default 30fps; used for timestamp generation when timestampNs is 0)
-    uint64_t bitRate = 5'000'000; ///< Target bit rate in bits/s; 0 = auto
+    uint64_t bitRate = 0;        ///< Target bit rate in bits/s; 0 = auto (YouTube official recommended bitrates)
 };
 
 /**
