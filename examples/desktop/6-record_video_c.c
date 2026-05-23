@@ -131,7 +131,7 @@ int main(int argc, char** argv) {
     writerConfig.width = (uint32_t)realWidth;
     writerConfig.height = (uint32_t)realHeight;
     writerConfig.frameRate = realFps > 0.0 ? realFps : 30.0;
-    writerConfig.bitRate = 0;  // auto bit rate based on resolution and codec (YouTube recommended)
+    writerConfig.bitRate = 0; // auto bit rate based on resolution and codec (YouTube recommended)
 
     CcapVideoWriter* writer = ccap_video_writer_create();
     if (!writer) {

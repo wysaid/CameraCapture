@@ -18,6 +18,7 @@
 #   ./run_tests.sh --functional       # Run only functional tests (with ASAN)
 #   ./run_tests.sh --performance      # Run only performance tests (without ASAN)
 #   ./run_tests.sh --video            # Run only video file playback tests (Release mode)
+#   ./run_tests.sh --writer           # Run only video writer tests (Release mode, macOS/Windows)
 #   ./run_tests.sh --avx2             # Run only AVX2 performance tests
 #   ./run_tests.sh --shuffle          # Run only tests with names containing 'shuffle' (case-insensitive) in functional tests
 #   ./run_tests.sh --no-sanitize      # Disable ASAN for all tests
@@ -75,6 +76,7 @@ RUN_ALL=false
 RUN_FUNCTIONAL=true
 RUN_PERFORMANCE=true
 RUN_VIDEO=false
+RUN_WRITER=false
 SKIP_BUILD=false
 EXIT_WHEN_FAILED=false
 GTEST_FAIL_FAST_PARAM=""
@@ -91,6 +93,7 @@ while [[ $# -gt 0 ]]; do
         RUN_FUNCTIONAL=true
         RUN_PERFORMANCE=true
         RUN_VIDEO=true
+        RUN_WRITER=true
         shift
         ;;
     -f | --functional)
@@ -114,6 +117,13 @@ while [[ $# -gt 0 ]]; do
         RUN_FUNCTIONAL=false
         RUN_PERFORMANCE=false
         RUN_VIDEO=true
+        shift
+        ;;
+    --writer)
+        # Video writer tests only (Release mode, macOS/Windows only)
+        RUN_FUNCTIONAL=false
+        RUN_PERFORMANCE=false
+        RUN_WRITER=true
         shift
         ;;
     --shuffle)
@@ -151,6 +161,7 @@ while [[ $# -gt 0 ]]; do
         echo "  $0 --functional       # Run only functional tests (Debug mode, with ASAN)"
         echo "  $0 --performance      # Run only performance tests (Release mode, without ASAN)"
         echo "  $0 --video            # Run only video file playback tests (Release mode)"
+        echo "  $0 --writer           # Run only video writer tests (Release mode, macOS/Windows)"
         echo "  $0 --avx2             # Run only AVX2 performance tests (Release mode)"
         echo "  $0 --shuffle          # Run only tests whose names contain '*shuffle*' or '*Shuffle*' in functional tests"
         echo "  $0 --skip-build       # Skip build step, run tests only"
@@ -215,6 +226,7 @@ fi
 TEST_RESULT=0
 PERF_RESULT=0
 VIDEO_RESULT=0
+WRITER_RESULT=0
 
 # Determine ASAN usage
 # Functional tests: default enabled, Performance tests: default disabled
@@ -317,13 +329,15 @@ if [ "$RUN_FUNCTIONAL" = true ]; then
 fi
 
 # Build Release version for performance tests or video tests
-if [ "$RUN_PERFORMANCE" = true ] || [ "$RUN_VIDEO" = true ]; then
+if [ "$RUN_PERFORMANCE" = true ] || [ "$RUN_VIDEO" = true ] || [ "$RUN_WRITER" = true ]; then
     echo ""
     echo -e "${PURPLE}===============================================${NC}"
     if [ "$SKIP_BUILD" = true ]; then
         echo -e "${BLUE}Skipping build, using existing Release binaries${NC}"
     else
-        if [ "$RUN_VIDEO" = true ]; then
+        if [ "$RUN_WRITER" = true ] && [ "$RUN_VIDEO" != true ] && [ "$RUN_PERFORMANCE" != true ]; then
+            echo -e "${BLUE}Building Release version (for video writer tests)${NC}"
+        elif [ "$RUN_VIDEO" = true ]; then
             echo -e "${BLUE}Building Release version (for video file playback tests)${NC}"
         else
             echo -e "${BLUE}Building Release version (for performance tests)${NC}"
@@ -365,6 +379,9 @@ if [ "$RUN_PERFORMANCE" = true ] || [ "$RUN_VIDEO" = true ]; then
             if [ "$RUN_VIDEO" = true ]; then
                 cmake --build . --config Release --target ccap_file_playback_test --parallel $(detectCores)
             fi
+            if [ "$RUN_WRITER" = true ]; then
+                cmake --build . --config Release --target ccap_video_writer_test --parallel $(detectCores)
+            fi
             cd ..
         else
             # Linux/Mac: use separate Release directory
@@ -385,6 +402,9 @@ if [ "$RUN_PERFORMANCE" = true ] || [ "$RUN_VIDEO" = true ]; then
             fi
             if [ "$RUN_VIDEO" = true ]; then
                 cmake --build . --config Release --target ccap_file_playback_test --parallel $(detectCores)
+            fi
+            if [ "$RUN_WRITER" = true ]; then
+                cmake --build . --config Release --target ccap_video_writer_test --parallel $(detectCores)
             fi
             cd ../..
         fi
@@ -564,6 +584,45 @@ if [ "$RUN_VIDEO" = true ]; then
     fi
 fi
 
+# Run video writer tests in Release mode (macOS/Windows only)
+WRITER_RESULT=0
+if [ "$RUN_WRITER" = true ]; then
+    echo ""
+    echo "==============================================="
+    echo -e "${GREEN}Running Video Writer Tests (Release)${NC}"
+    echo "==============================================="
+
+    # Determine test executable path based on platform
+    if isWindows; then
+        WRITER_EXECUTABLE="./build/tests/Release/ccap_video_writer_test.exe"
+    else
+        WRITER_EXECUTABLE="./build/Release/tests/ccap_video_writer_test"
+    fi
+
+    if [ -f "$WRITER_EXECUTABLE" ]; then
+        echo -e "${YELLOW}Running video writer tests in Release mode...${NC}"
+
+        "$WRITER_EXECUTABLE" $GTEST_FAIL_FAST_PARAM --gtest_output=xml:build/writer_test_results_release.xml
+
+        WRITER_RESULT=$?
+
+        if [ $WRITER_RESULT -eq 0 ]; then
+            echo -e "${GREEN}✓ Video writer tests PASSED${NC}"
+        else
+            echo -e "${RED}✗ Video writer tests FAILED${NC}"
+            if [ "$EXIT_WHEN_FAILED" = true ]; then
+                echo -e "${RED}❌ Exiting due to --exit-when-failed flag${NC}"
+                exit 1
+            fi
+        fi
+    else
+        echo -e "${YELLOW}⚠ ccap_video_writer_test executable not found at $WRITER_EXECUTABLE${NC}"
+        echo -e "${YELLOW}  Video writer is only available on Windows and macOS with CCAP_ENABLE_VIDEO_WRITER=ON${NC}"
+        # Not a failure on Linux - writer is not supported there
+        WRITER_RESULT=0
+    fi
+fi
+
 echo ""
 echo "==============================================="
 echo -e "${GREEN}Test Summary${NC}"
@@ -584,6 +643,10 @@ if [ "$RUN_VIDEO" = true ] && [ $VIDEO_RESULT -ne 0 ]; then
     OVERALL_RESULT=1
 fi
 
+if [ "$RUN_WRITER" = true ] && [ $WRITER_RESULT -ne 0 ]; then
+    OVERALL_RESULT=1
+fi
+
 if [ $OVERALL_RESULT -eq 0 ]; then
     echo -e "${GREEN}🎉 All tests PASSED!${NC}"
 
@@ -601,6 +664,9 @@ if [ $OVERALL_RESULT -eq 0 ]; then
     if [ "$RUN_VIDEO" = true ]; then
         echo -e "${GREEN}  ✓ Video file playback tests (Release mode)${NC}"
     fi
+    if [ "$RUN_WRITER" = true ]; then
+        echo -e "${GREEN}  ✓ Video writer tests (Release mode)${NC}"
+    fi
 
     exit 0
 else
@@ -613,6 +679,9 @@ else
     fi
     if [ "$RUN_VIDEO" = true ] && [ $VIDEO_RESULT -ne 0 ]; then
         echo -e "${RED}  - Video file playback tests failed${NC}"
+    fi
+    if [ "$RUN_WRITER" = true ] && [ $WRITER_RESULT -ne 0 ]; then
+        echo -e "${RED}  - Video writer tests failed${NC}"
     fi
     exit 1
 fi

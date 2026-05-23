@@ -207,6 +207,9 @@ jobs:
           
           # Run video file playback tests (Release only)
           ./run_tests.sh --video --skip-build
+
+          # Run video writer tests (Release only, macOS/Windows)
+          ./run_tests.sh --writer --skip-build
         fi
         
     - name: Upload artifacts
@@ -468,6 +471,9 @@ jobs:
           
           # Run video file playback tests (Release only)
           ./run_tests.sh --video --skip-build
+
+          # Run video writer tests (Release only, macOS/Windows)
+          ./run_tests.sh --writer --skip-build
         fi
         
     - name: Upload artifacts
@@ -631,6 +637,9 @@ jobs:
           
           # Run video file playback tests (Release only)
           ./run_tests.sh --video --skip-build
+
+          # Run video writer tests (Release only, macOS/Windows)
+          ./run_tests.sh --writer --skip-build
         fi
         
     - name: Upload artifacts

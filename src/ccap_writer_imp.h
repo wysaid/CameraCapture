@@ -58,18 +58,21 @@ inline uint64_t computeAutoBitRate(uint32_t width, uint32_t height, double frame
     const bool is60fps = fps > 45.0;
 
     // YouTube H.264 reference data points: (pixelCount, bitrateInMbps)
-    struct RefPoint { double pixels; double bitrateMbps; };
+    struct RefPoint {
+        double pixels;
+        double bitrateMbps;
+    };
     static const RefPoint refs30[] = {
-        {1280 * 720,  7.5},
-        {1920 * 1080, 10.0},
-        {2560 * 1440, 15.0},
-        {3840 * 2160, 30.0},
+        { 1280 * 720, 7.5 },
+        { 1920 * 1080, 10.0 },
+        { 2560 * 1440, 15.0 },
+        { 3840 * 2160, 30.0 },
     };
     static const RefPoint refs60[] = {
-        {1280 * 720,  9.0},
-        {1920 * 1080, 12.0},
-        {2560 * 1440, 24.0},
-        {3840 * 2160, 35.0},
+        { 1280 * 720, 9.0 },
+        { 1920 * 1080, 12.0 },
+        { 2560 * 1440, 24.0 },
+        { 3840 * 2160, 35.0 },
     };
 
     const RefPoint* refs = is60fps ? refs60 : refs30;
@@ -89,7 +92,8 @@ inline uint64_t computeAutoBitRate(uint32_t width, uint32_t height, double frame
     } else {
         // Between reference points: linear interpolation by pixel count
         int i = 0;
-        while (i < refCount - 1 && pixels > refs[i + 1].pixels) i++;
+        while (i < refCount - 1 && pixels > refs[i + 1].pixels)
+            i++;
         const auto& lo = refs[i];
         const auto& hi = refs[i + 1];
         double t = (pixels - lo.pixels) / (hi.pixels - lo.pixels);
@@ -102,7 +106,8 @@ inline uint64_t computeAutoBitRate(uint32_t width, uint32_t height, double frame
         const auto& r60 = refs60;
         // Average ratio across reference points
         double ratio = 0;
-        for (int i = 0; i < refCount; i++) ratio += r60[i].bitrateMbps / r30[i].bitrateMbps;
+        for (int i = 0; i < refCount; i++)
+            ratio += r60[i].bitrateMbps / r30[i].bitrateMbps;
         ratio /= refCount; // ~1.27
         double t = (fps - 30.0) / 30.0;
         bitrateMbps *= (1.0 + t * (ratio - 1.0));
