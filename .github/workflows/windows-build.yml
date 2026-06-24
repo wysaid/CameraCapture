@@ -19,7 +19,10 @@ permissions:
 jobs:
   build-vs2022:
     name: Windows Build VS2022 (${{ matrix.config }}-${{ matrix.library_type }})
-    runs-on: windows-latest
+    # Pin to the windows-2022 image: windows-latest now resolves to an image that
+    # ships Visual Studio 2026 (v18) only, where the "Visual Studio 17 2022"
+    # generator cannot find a VS instance. VS 2026 is covered by the build-vs2026 job.
+    runs-on: windows-2022
     
     strategy:
       matrix:
@@ -315,12 +318,14 @@ jobs:
         mkdir -p "build/${{ matrix.config }}-${{ matrix.library_type }}"
         cd "build/${{ matrix.config }}-${{ matrix.library_type }}"
         
-        # Use Visual Studio 18 2026 generator with v144 toolset
+        # Use the Visual Studio 18 2026 generator with its default toolset.
+        # Forcing -T v144 makes MSBuild fail to resolve VCTargetsPath on the
+        # windows-2025-vs2026 image, so let CMake pick the toolset that ships with VS 2026.
         Write-Host "Attempting to use Visual Studio 18 2026 generator..."
-        cmake ../.. -G "Visual Studio 18 2026" -A x64 -T v144 -DCCAP_BUILD_TESTS=ON $SHARED_FLAG
+        cmake ../.. -G "Visual Studio 18 2026" -A x64 -DCCAP_BUILD_TESTS=ON $SHARED_FLAG
         if ($LASTEXITCODE -ne 0) {
-          Write-Host "Visual Studio 18 2026 generator not available, trying alternative with v144 toolset..."
-          cmake ../.. -A x64 -T v144 -DCCAP_BUILD_TESTS=ON $SHARED_FLAG
+          Write-Host "Visual Studio 18 2026 generator not available, trying the default generator..."
+          cmake ../.. -A x64 -DCCAP_BUILD_TESTS=ON $SHARED_FLAG
         }
         
     - name: Build
@@ -658,7 +663,8 @@ jobs:
   # Test building with file playback disabled (VS2022 Release only)
   build-vs2022-no-file-playback:
     name: Windows VS2022 Release - No File Playback
-    runs-on: windows-latest
+    # See build-vs2022: pin to windows-2022 for the Visual Studio 2022 toolchain.
+    runs-on: windows-2022
     
     steps:
     - name: Checkout repository
