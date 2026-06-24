@@ -24,6 +24,7 @@
 #include <chrono>
 #include <functional>
 #include <future>
+#include <memory>
 #include <thread>
 
 #include "ccap_apple_async.h"
@@ -31,64 +32,64 @@
 namespace
 {
 
-// Stand-in for AVCaptureDevice requestAccessForMediaType:completionHandler:: it fires
-// the completion asynchronously from a *background* thread after a short countdown,
-// never touching the caller's main run loop.
-void simulateAsyncPermissionRequest(const std::function<void()>& done)
+// Runs `scenario` (which performs the runBlockingAsyncRequest call under test) on a
+// dedicated worker thread and reports whether it finished within `timeout`. Keeping the
+// call on a worker thread -- with the watchdog on the calling thread -- means a
+// regression that deadlocks fails the test with a clean timeout instead of hanging the
+// whole test binary. The completion state lives on the heap and is shared with the
+// worker, so a late completion after a timeout/detach can never touch freed state.
+bool finishesWithinTimeout(std::function<void()> scenario, std::chrono::milliseconds timeout)
 {
-    std::function<void()> completion = done; // must outlive this call
-    std::thread([completion]() {
-        std::this_thread::sleep_for(std::chrono::milliseconds(50)); // countdown
-        completion();
-    }).detach();
+    auto finished = std::make_shared<std::promise<void>>();
+    std::future<void> future = finished->get_future();
+
+    std::thread worker([scenario = std::move(scenario), finished]() {
+        scenario();
+        finished->set_value();
+    });
+
+    const bool ok = future.wait_for(timeout) == std::future_status::ready;
+    if (ok) {
+        worker.join();
+    } else {
+        worker.detach(); // never block the test process; the heap state keeps detach safe
+    }
+    return ok;
 }
 
-// Runs runBlockingAsyncRequest (optionally on a worker thread) and reports whether it
-// returned within the timeout. A timeout means it deadlocked.
-bool completesWithoutDeadlock(bool onWorkerThread, std::chrono::milliseconds timeout)
+// Stand-in for AVCaptureDevice requestAccessForMediaType:completionHandler:: fires the
+// completion asynchronously from a *background* thread after a short countdown, exactly
+// like the real API delivers its completion off the caller's run loop.
+void completeAsynchronously(const std::function<void()>& done)
 {
-    std::promise<void> donePromise;
-    std::future<void> doneFuture = donePromise.get_future();
-
-    auto body = [&donePromise]() {
-        ccap::runBlockingAsyncRequest(&simulateAsyncPermissionRequest);
-        donePromise.set_value();
-    };
-
-    std::thread worker;
-    if (onWorkerThread) {
-        worker = std::thread(body);
-    } else {
-        body();
-    }
-
-    const bool completed = doneFuture.wait_for(timeout) == std::future_status::ready;
-    if (worker.joinable()) {
-        if (completed) {
-            worker.join();
-        } else {
-            worker.detach(); // leave the hung thread; the process exits regardless
-        }
-    }
-    return completed;
+    auto completion = std::make_shared<std::function<void()>>(done);
+    std::thread([completion]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50)); // countdown
+        (*completion)();
+    }).detach();
 }
 
 } // namespace
 
-// The regression: open() called off the main thread with no run loop servicing the
-// main queue. This deadlocked with the old dispatch-to-main-queue implementation.
-TEST(AppleCameraPermission, OffMainThreadWithoutRunLoopDoesNotDeadlock)
+// Regression: the permission wait must not deadlock when run off the main thread with
+// no run loop servicing the main queue (e.g. a ccap::Provider opened from a Node.js
+// addon worker thread). This hung with the old dispatch-to-main-queue implementation.
+TEST(AppleCameraPermission, AsyncCompletionOffMainThreadDoesNotDeadlock)
 {
-    EXPECT_TRUE(completesWithoutDeadlock(/*onWorkerThread=*/true, std::chrono::seconds(5)))
-        << "runBlockingAsyncRequest() deadlocked off the main thread -- the request was "
-           "likely bounced onto an unserviced main dispatch queue.";
+    EXPECT_TRUE(finishesWithinTimeout([] { ccap::runBlockingAsyncRequest(&completeAsynchronously); },
+                                      std::chrono::seconds(5)))
+        << "runBlockingAsyncRequest() deadlocked -- the request was likely bounced onto "
+           "an unserviced main dispatch queue.";
 }
 
-// Sanity: the common main-thread path must also complete promptly.
-TEST(AppleCameraPermission, MainThreadDoesNotDeadlock)
+// The completion may also fire synchronously (e.g. authorization already determined);
+// the blocking wait must still observe the signal rather than miss it.
+TEST(AppleCameraPermission, SynchronousCompletionDoesNotDeadlock)
 {
-    EXPECT_TRUE(completesWithoutDeadlock(/*onWorkerThread=*/false, std::chrono::seconds(5)))
-        << "runBlockingAsyncRequest() deadlocked on the main thread.";
+    EXPECT_TRUE(finishesWithinTimeout(
+                    [] { ccap::runBlockingAsyncRequest([](const std::function<void()>& done) { done(); }); },
+                    std::chrono::seconds(5)))
+        << "runBlockingAsyncRequest() missed a synchronous completion.";
 }
 
 #endif // __APPLE__
