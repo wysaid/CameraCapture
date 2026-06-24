@@ -11,6 +11,7 @@
 #include "ccap_imp_apple.h"
 #include "ccap_file_reader_apple.h"
 
+#include "ccap_apple_async.h"
 #include "ccap_convert.h"
 #include "ccap_convert_frame.h"
 
@@ -19,6 +20,7 @@
 #import <Foundation/Foundation.h>
 #include <cassert>
 #include <cmath>
+#include <functional>
 
 #if _CCAP_LOG_ENABLED_
 #include <deque>
@@ -255,23 +257,22 @@ static const void* const kCcapCaptureQueueKey = &kCcapCaptureQueueKey;
 - (BOOL)open {
     AVAuthorizationStatus authStatus = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
     if (authStatus == AVAuthorizationStatusNotDetermined) {
-        dispatch_semaphore_t sema = dispatch_semaphore_create(0);
-        void (^requestAccess)(void) = ^(void) {
-            [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo completionHandler:^(BOOL granted) {
-                CCAP_NSLOG_I(@"ccap: Camera access %@", granted ? @"granted" : @"denied");
-                dispatch_semaphore_signal(sema);
-            }];
-        };
-
-        // Permission must be requested on the main thread
-        if (![NSThread isMainThread]) {
-            dispatch_async(dispatch_get_main_queue(), ^{ requestAccess(); });
-        } else {
-            requestAccess();
-        }
-
         CCAP_NSLOG_I(@"ccap: Waiting for camera access permission...");
-        dispatch_semaphore_wait(sema, DISPATCH_TIME_FOREVER);
+        // Request authorization on the calling thread and block until the system's
+        // completion handler fires. We deliberately do NOT dispatch the request onto the
+        // main queue: requestAccessForMediaType: may be called from any thread and
+        // delivers its completion on an internal queue, so bouncing to the main queue
+        // would deadlock whenever no run loop is servicing it (e.g. a ccap::Provider
+        // opened from a worker thread in a process without a CFRunLoop). See
+        // tests/test_apple_permission.cpp.
+        ccap::runBlockingAsyncRequest([](const std::function<void()>& done) {
+            std::function<void()> notifyDone = done; // outlive the async completion
+            [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo
+                                     completionHandler:^(BOOL granted) {
+                                         CCAP_NSLOG_I(@"ccap: Camera access %@", granted ? @"granted" : @"denied");
+                                         notifyDone();
+                                     }];
+        });
         authStatus = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
     }
 

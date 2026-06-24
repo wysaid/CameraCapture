@@ -203,6 +203,7 @@ add_executable(
         test_frame_conversions.cpp
         test_boundary_conditions.cpp
         test_grab_timeout.cpp
+        test_apple_permission.cpp  # macOS camera-permission deadlock regression (empty TU elsewhere)
 )
 
 target_link_libraries(
