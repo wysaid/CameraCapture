@@ -314,8 +314,10 @@ jobs:
         
         # Check CMake version
         cmake --version
-        
-        mkdir -p "build/${{ matrix.config }}-${{ matrix.library_type }}"
+
+        # Use New-Item -Force (idempotent): in PowerShell "mkdir -p" maps to New-Item,
+        # which errors when the directory already exists -- e.g. after a build-cache hit.
+        New-Item -ItemType Directory -Force -Path "build/${{ matrix.config }}-${{ matrix.library_type }}" | Out-Null
         cd "build/${{ matrix.config }}-${{ matrix.library_type }}"
         
         # Use the Visual Studio 18 2026 generator with its default toolset.
