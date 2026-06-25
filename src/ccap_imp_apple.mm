@@ -256,21 +256,17 @@ static const void* const kCcapCaptureQueueKey = &kCcapCaptureQueueKey;
     AVAuthorizationStatus authStatus = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
     if (authStatus == AVAuthorizationStatusNotDetermined) {
         dispatch_semaphore_t sema = dispatch_semaphore_create(0);
-        void (^requestAccess)(void) = ^(void) {
-            [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo completionHandler:^(BOOL granted) {
-                CCAP_NSLOG_I(@"ccap: Camera access %@", granted ? @"granted" : @"denied");
-                dispatch_semaphore_signal(sema);
-            }];
-        };
-
-        // Permission must be requested on the main thread
-        if (![NSThread isMainThread]) {
-            dispatch_async(dispatch_get_main_queue(), ^{ requestAccess(); });
-        } else {
-            requestAccess();
-        }
-
         CCAP_NSLOG_I(@"ccap: Waiting for camera access permission...");
+        // Request authorization on the calling thread. requestAccessForMediaType: may be
+        // called from any thread and delivers its completion on an internal queue, so we
+        // do NOT bounce the request onto the main queue: that deadlocks whenever no run
+        // loop is servicing the main queue (e.g. a ccap::Provider opened from a worker
+        // thread in a process without a CFRunLoop, such as a Node.js/Electron addon).
+        [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo
+                                 completionHandler:^(BOOL granted) {
+                                     CCAP_NSLOG_I(@"ccap: Camera access %@", granted ? @"granted" : @"denied");
+                                     dispatch_semaphore_signal(sema);
+                                 }];
         dispatch_semaphore_wait(sema, DISPATCH_TIME_FOREVER);
         authStatus = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
     }
