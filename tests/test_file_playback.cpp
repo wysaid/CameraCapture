@@ -716,6 +716,7 @@ TEST_F(FilePlaybackTest, GetCurrentTimeProgression) {
     EXPECT_GT(time2, time1) << "CurrentTime should increase as frames are grabbed";
 
     double frameRate = provider.get(ccap::PropertyName::FrameRate);
+    ASSERT_GT(frameRate, 0.0) << "FrameRate must be positive; otherwise the bound below is vacuous (inf/NaN)";
     double expectedTimeDelta = 5.0 / frameRate;
 
     // CurrentTime reports the wall-clock playback position, not a frame counter, so

@@ -1,18 +1,21 @@
 /**
  * @file test_apple_permission.cpp
- * @brief Regression test for the macOS camera-permission request deadlock.
+ * @brief Contract test for ccap::runBlockingAsyncRequest() -- the helper that
+ *        ProviderApple::open() delegates its camera-permission wait to on macOS.
  *
- * ccap::runBlockingAsyncRequest() (used by ProviderApple::open) must run the
- * permission request on the calling thread and must NOT bounce it onto the main
- * dispatch queue. Otherwise Provider::open() hangs forever when called from a worker
- * thread in a process whose main thread is not running a run loop -- exactly the
- * situation a Node.js / Electron addon or any head-less multi-threaded embedder
- * creates.
+ * Background: open()'s permission request used to be dispatched onto the main dispatch
+ * queue, which deadlocks when nothing services that queue (a worker thread in a
+ * Node.js / Electron addon, or a head-less service). The fix extracted the
+ * "start an async request and block until it completes" step into
+ * runBlockingAsyncRequest(), which runs the request on the calling thread.
  *
- * We exercise the real helper with a *simulated* asynchronous request: a short
- * countdown that fires the completion from a background thread, just like
- * AVCaptureDevice requestAccessForMediaType: delivers its completion off the caller's
- * run loop. No camera is required, so this runs deterministically in CI.
+ * Scope: this pins that helper's contract -- a blocking wait whose completion is
+ * delivered on another thread must finish without deadlocking or missing the signal --
+ * using a *simulated* async request (a background-thread countdown standing in for
+ * AVCaptureDevice requestAccessForMediaType:). It deliberately does NOT drive
+ * open()/AVFoundation end to end: that needs a real camera and TCC state and cannot run
+ * deterministically in CI. The helper is the unit where the deadlock lived once the
+ * main-queue hop was removed, so guarding its contract is what is testable here.
  *
  * On non-Apple platforms this file compiles to an empty translation unit.
  */

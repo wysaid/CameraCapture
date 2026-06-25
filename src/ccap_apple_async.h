@@ -42,10 +42,13 @@ inline void runBlockingAsyncRequest(const std::function<void(const std::function
     bool finished = false;
 
     start([&mutex, &cv, &finished]() {
-        {
-            std::lock_guard<std::mutex> lock(mutex);
-            finished = true;
-        }
+        // Notify while holding the lock: `mutex`/`cv`/`finished` are stack-locals of the
+        // (possibly different) waiting thread. If we unlocked before notifying, the waiter
+        // could wake (e.g. spuriously), see finished == true, return, and destroy `cv`
+        // before notify_one() ran -- a use-after-free. Holding the lock makes the waiter
+        // block re-acquiring it until notify_one() has completed.
+        std::lock_guard<std::mutex> lock(mutex);
+        finished = true;
         cv.notify_one();
     });
 
