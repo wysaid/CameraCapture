@@ -21,6 +21,11 @@
 #include <mfreadwrite.h>
 #include <vector>
 
+#if defined(__MINGW32__) && (!defined(__MINGW64_VERSION_MAJOR) || __MINGW64_VERSION_MAJOR < 10)
+// mingw-w64 < 10.0.0 omits this declaration from mfidl.h, but mf.lib still exports it.
+extern "C" HRESULT WINAPI MFCreateDeviceSource(IMFAttributes* attributes, IMFMediaSource** source);
+#endif
+
 namespace {
 
 template <typename T>
