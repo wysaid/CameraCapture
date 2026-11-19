@@ -323,6 +323,7 @@ static const void* const kCcapCaptureQueueKey = &kCcapCaptureQueueKey;
     }
 
     if (![_device hasMediaType:AVMediaTypeVideo]) { /// No video device found
+        [_session commitConfiguration];
         reportError(ErrorCode::NoDeviceFound, "No video device found");
         return NO;
     }
@@ -345,6 +346,7 @@ static const void* const kCcapCaptureQueueKey = &kCcapCaptureQueueKey;
     // Create input device
     _videoInput = [AVCaptureDeviceInput deviceInputWithDevice:_device error:&error];
     if (!_videoInput || error) {
+        [_session commitConfiguration];
         reportError(ErrorCode::DeviceOpenFailed, "Open camera failed" + (error && error.localizedDescription ? (": " + std::string([error.localizedDescription UTF8String])) : ""));
         return NO;
     }
@@ -355,6 +357,7 @@ static const void* const kCcapCaptureQueueKey = &kCcapCaptureQueueKey;
 
         CCAP_NSLOG_V(@"ccap: Add input to session");
     } else {
+        [_session commitConfiguration];
         reportError(ErrorCode::DeviceOpenFailed, "Session cannot add input device");
         return NO;
     }
@@ -472,6 +475,7 @@ static const void* const kCcapCaptureQueueKey = &kCcapCaptureQueueKey;
         [_session addOutput:_videoOutput];
         CCAP_NSLOG_V(@"ccap: Add output to session");
     } else {
+        [_session commitConfiguration];
         reportError(ErrorCode::DeviceOpenFailed, "Session cannot add output device");
         return NO;
     }
@@ -844,12 +848,14 @@ static const void* const kCcapCaptureQueueKey = &kCcapCaptureQueueKey;
 
             [_session beginConfiguration];
 
-            if (_videoInput) {
+            if (_videoInput && [_session.inputs containsObject:_videoInput]) {
                 [_session removeInput:_videoInput];
-                [_session removeOutput:_videoOutput];
-                _videoInput = nil;
-                _videoOutput = nil;
             }
+            if (_videoOutput && [_session.outputs containsObject:_videoOutput]) {
+                [_session removeOutput:_videoOutput];
+            }
+            _videoInput = nil;
+            _videoOutput = nil;
 
             [_session commitConfiguration];
             _session = nil;
