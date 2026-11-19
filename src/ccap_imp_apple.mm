@@ -1082,7 +1082,12 @@ bool ProviderApple::openCamera(std::string_view deviceName) {
             [m_imp setCameraName:@(deviceName.data())];
         }
         [m_imp setResolution:CGSizeMake(m_frameProp.width, m_frameProp.height)];
-        return [m_imp open];
+        if (![m_imp open]) {
+            [m_imp destroy];
+            m_imp = nil;
+            return false;
+        }
+        return true;
     }
 }
 
