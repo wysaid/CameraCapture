@@ -205,6 +205,10 @@ add_executable(
         test_grab_timeout.cpp
 )
 
+if (APPLE AND NOT IOS)
+    target_sources(ccap_convert_test PRIVATE test_apple_permission.mm)
+endif ()
+
 target_link_libraries(
         ccap_convert_test
         ccap_test_utils
