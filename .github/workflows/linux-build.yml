@@ -410,19 +410,11 @@ jobs:
       run: |
         cmake --build build/arm64/${{ matrix.build_type }}-${{ matrix.library_type }} --config ${{ matrix.build_type }} --target ccap_convert_test --parallel $(nproc)
 
-    # Cache QEMU installation
-    - name: Cache QEMU
-      if: (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && matrix.build_type == 'Release'
-      uses: awalsh128/cache-apt-pkgs-action@latest
-      with:
-        packages: qemu-user qemu-user-static
-        version: 1.0
-
     - name: Install QEMU for ARM64 test emulation (PRs and main push, Release only)
       if: (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && matrix.build_type == 'Release'
       run: |
         sudo apt-get update
-        sudo apt-get install -y qemu-user qemu-user-static
+        sudo apt-get install -y qemu-user
         qemu-aarch64 --version
 
     - name: Run ARM64 Unit Tests (PRs and main push, Release only)

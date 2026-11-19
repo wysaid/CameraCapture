@@ -176,8 +176,11 @@ impl Provider {
         }
 
         let mut devices = Vec::new();
-        for i in 0..device_names_list.deviceCount {
-            let name_bytes = &device_names_list.deviceNames[i];
+        for name_bytes in device_names_list
+            .deviceNames
+            .iter()
+            .take(device_names_list.deviceCount)
+        {
             let name = unsafe {
                 let cstr = CStr::from_ptr(name_bytes.as_ptr());
                 cstr.to_string_lossy().to_string()
